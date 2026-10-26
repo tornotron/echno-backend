@@ -232,7 +232,12 @@ public class GlobalExceptionHandler {
         String detail = (ex.getMessage() == null || ex.getMessage().isBlank())
                 ? "Database operation failed, Data already exists"
                 : ex.getMessage();
-        return problem(HttpStatus.CONFLICT, "Duplicate Resource", detail, request);
+        ProblemDetail pd = problem(HttpStatus.CONFLICT, "Duplicate Resource", detail, request);
+        if (ex.getField() != null) {
+            // Same key and shape as a validation failure, so a form marks the taken field.
+            pd.setProperty("errors", Map.of(ex.getField(), detail));
+        }
+        return pd;
     }
 
     @ExceptionHandler(AccessDeniedException.class)

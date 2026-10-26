@@ -229,7 +229,10 @@ public class ProjectInviteCodeService {
         if (employeeDetails.get("joiningDate") != null) {
             employeeJoinOrgDto.setJoiningDate(LocalDateTime.parse(employeeDetails.get("joiningDate").toString()));
         }
-        employeeJoinOrgDto.setSalary((Double) employeeDetails.get("salary"));
+        if (employeeDetails.get("salary") != null) {
+            // Stored JSON gives a whole-number salary back as Integer, not Double.
+            employeeJoinOrgDto.setSalary(((Number) employeeDetails.get("salary")).doubleValue());
+        }
         if (employeeDetails.get("managerId") != null) {
             employeeJoinOrgDto.setManagerId(((Number) employeeDetails.get("managerId")).longValue());
         }

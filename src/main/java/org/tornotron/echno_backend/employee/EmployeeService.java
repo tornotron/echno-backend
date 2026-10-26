@@ -396,7 +396,7 @@ public class EmployeeService {
                     employee.setPhoneNumber((String) value);
                     break;
                 case "salary":
-                    employee.setSalary((Double) value);
+                    employee.setSalary(value != null ? ((Number) value).doubleValue() : null);
                     break;
                 case "shiftTimingId":
                     if (value == null) {
