@@ -226,11 +226,11 @@ class DatasetExportServiceTest {
 
         JsonNode evidence = lines.get(0);
         assertThat(fieldNames(evidence)).containsExactly("evidence_id", "source", "source_ref", "attachment_id",
-                "object_key", "source_object_key", "org_id", "consent_org_id", "project_id", "inspection_id",
+                "object_key", "source_object_key", "org_id", "consent", "consent_org_id", "project_id", "inspection_id",
                 "spatial_node_id", "spatial_breadcrumb", "trade", "inspection_type", "inspection_category",
                 "captured_at", "uploaded_at", "device", "content_type", "file_size", "annotation_version",
                 "annotations", "licence", "anonymised", "run_id");
-        assertThat(evidence.get("evidence_id").asText()).isEqualTo("inspection_evidence:11");
+        assertThat(evidence.get("evidence_id").asText()).isEqualTo("inspection_evidence.11");
         assertThat(evidence.get("source").asText()).isEqualTo("inspection_evidence");
         assertThat(evidence.get("source_ref").asText()).isEqualTo("inspection:" + inspection.getId());
         assertThat(evidence.get("attachment_id").asLong()).isEqualTo(11L);
@@ -238,6 +238,7 @@ class DatasetExportServiceTest {
                 .isEqualTo("construction-images/export/" + run.runKey() + "/inspection-evidence/att-11-slab-crack.jpg");
         assertThat(evidence.get("source_object_key").asText()).isEqualTo(EVIDENCE_KEY);
         assertThat(evidence.get("org_id").asLong()).isEqualTo(ORG);
+        assertThat(evidence.get("consent").booleanValue()).isTrue();
         assertThat(evidence.get("consent_org_id").asLong()).isEqualTo(ORG);
         assertThat(evidence.get("project_id").asLong()).isEqualTo(42L);
         assertThat(evidence.get("spatial_node_id").asText()).isEqualTo(nodeId.toString());
@@ -271,7 +272,7 @@ class DatasetExportServiceTest {
         JsonNode photo = manifestLines(run).get(1);
 
         assertThat(photo.get("source").asText()).isEqualTo("defect_photo");
-        assertThat(photo.get("evidence_id").asText()).isEqualTo("defect_photo:" + DEFECT_PHOTO_REF);
+        assertThat(photo.get("evidence_id").asText()).isEqualTo("defect_photo." + sha256Hex(DEFECT_PHOTO_REF));
         assertThat(photo.get("attachment_id").isNull()).isTrue();
         assertThat(photo.get("annotation_version").asText()).isEqualTo("a0");
         JsonNode boxes = photo.get("annotations");
@@ -284,6 +285,16 @@ class DatasetExportServiceTest {
         assertThat(boxes.get(0).get("line_order").asInt()).isZero();
         assertThat(boxes.get(1).get("label").asText()).isEqualTo("honeycombing");
         assertThat(boxes.get(1).get("line_order").asInt()).isEqualTo(1);
+    }
+
+    @Test
+    void aLineCarriesTheConsentFlagReadWhenTheRowsAreReadNotAConstant() throws Exception {
+        DatasetExportRunDto started = service.start(ORG, "user:1");
+        org.setDatasetConsent(false); // withdrawn after the run was started
+        DatasetExportRunDto run = service.execute(started.id(), ORG);
+
+        assertThat(manifestLines(run)).isNotEmpty()
+                .allSatisfy(line -> assertThat(line.get("consent").booleanValue()).isFalse());
     }
 
     @Test
@@ -402,6 +413,11 @@ class DatasetExportServiceTest {
             }
         }
         return lines;
+    }
+
+    private static String sha256Hex(String value) throws Exception {
+        return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
+                .digest(value.getBytes(StandardCharsets.UTF_8)));
     }
 
     private static List<String> fieldNames(JsonNode node) {
