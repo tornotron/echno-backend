@@ -3782,6 +3782,18 @@
             "minLength": 0,
             "type": "string"
           },
+          "regions": {
+            "description": "Edits to the regions, applied in order. Producer rows are never changed in place: replace and remove retire them. A MODIFY that would leave no active region on an observation that had producer regions is refused; reject it instead.",
+            "items": {
+              "$ref": "#/components/schemas/RegionEditOp"
+            },
+            "maxItems": 50,
+            "minItems": 0,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "severity": {
             "enum": [
               "critical",
@@ -7062,6 +7074,18 @@
           "projectId": {
             "format": "int64",
             "type": "integer"
+          },
+          "regions": {
+            "description": "Regions the inspector drew, up to 20. Stored with origin HUMAN and no score.",
+            "items": {
+              "$ref": "#/components/schemas/ObservationRegionRequest"
+            },
+            "maxItems": 20,
+            "minItems": 0,
+            "type": [
+              "array",
+              "null"
+            ]
           },
           "spatialNodeId": {
             "description": "Site structure node. Optional; locationNote is the free-text fallback.",
@@ -10640,6 +10664,18 @@
           "projectId": {
             "format": "int64",
             "type": "integer"
+          },
+          "regions": {
+            "description": "Where the finding is on the images it was seen in: one region per detection is the expected shape, up to 20. Each attachment must be in the caller's organisation.",
+            "items": {
+              "$ref": "#/components/schemas/ObservationRegionRequest"
+            },
+            "maxItems": 20,
+            "minItems": 0,
+            "type": [
+              "array",
+              "null"
+            ]
           },
           "source": {
             "description": "AI, DRONE, ROBOT or FIXED_CAMERA. HUMAN is refused: people record through the web endpoint.",
@@ -15969,6 +16005,26 @@
             "format": "int64",
             "type": "integer"
           },
+          "regions": {
+            "description": "Active regions in draw order; retired ones too when includeRetiredRegions is set on the single read.",
+            "items": {
+              "$ref": "#/components/schemas/ObservationRegionDto"
+            },
+            "type": "array"
+          },
+          "rejectReason": {
+            "description": "Why it was rejected. Set only on a REJECTED observation, and not always then.",
+            "enum": [
+              "false-positive",
+              "duplicate",
+              "out-of-scope",
+              "poor-image"
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "reportedById": {
             "description": "Employee who saw it, for a human observation.",
             "format": "int64",
@@ -16069,6 +16125,200 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "ObservationRegionDto": {
+        "description": "A box or polygon on one image, as fractions of the image in [0, 1]. A reviewer's correction is a new row that supersedes the producer's; the producer's row is retired, never edited.",
+        "properties": {
+          "attachmentId": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "box": {
+            "description": "[x1, y1, x2, y2]; the bounding box for a polygon.",
+            "items": {
+              "type": "number"
+            },
+            "type": "array"
+          },
+          "classKey": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdById": {
+            "description": "Employee who drew it; null for a producer's region.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "imageHeight": {
+            "format": "int32",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "imageWidth": {
+            "format": "int32",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "lineOrder": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "origin": {
+            "enum": [
+              "producer",
+              "reviewer",
+              "human"
+            ],
+            "type": "string"
+          },
+          "points": {
+            "description": "POLYGON only: open vertex list [[x, y], ...].",
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "retiredAt": {
+            "description": "Set when a review replaced or removed the region. Retired rows are returned only on request.",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "retiredById": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "score": {
+            "description": "Producer score in [0, 1]; null for a region a person drew.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "shape": {
+            "enum": [
+              "box",
+              "polygon"
+            ],
+            "type": "string"
+          },
+          "supersedesId": {
+            "description": "The region this one corrects.",
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "ObservationRegionRequest": {
+        "description": "A box or polygon on one image already in the Echno store. Coordinates are fractions of the image's width and height in [0, 1], rounded to 6 places, origin top left, x to the right, y down, measured on the image as displayed (after EXIF orientation).",
+        "properties": {
+          "attachmentId": {
+            "description": "The image the region is drawn on. Must be in the caller's organisation.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "box": {
+            "description": "BOX only: [x1, y1, x2, y2] with x1 < x2 and y1 < y2.",
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 4,
+            "minItems": 4,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "classKey": {
+            "maxLength": 50,
+            "minLength": 1,
+            "type": "string"
+          },
+          "imageHeight": {
+            "description": "Pixel height of the image as displayed, when known.",
+            "exclusiveMinimum": 0,
+            "format": "int32",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "imageWidth": {
+            "description": "Pixel width of the image as displayed, when known.",
+            "exclusiveMinimum": 0,
+            "format": "int32",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "points": {
+            "description": "POLYGON only: 3 to 200 [x, y] vertices, open (a closing repeat of the first vertex is dropped), not crossing or touching itself.",
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "maxItems": 201,
+            "minItems": 3,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "score": {
+            "description": "The producer's score in [0, 1]. Not accepted on a region a person draws.",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "shape": {
+            "enum": [
+              "box",
+              "polygon"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "attachmentId",
+          "classKey",
+          "shape"
+        ],
         "type": "object"
       },
       "OrgElementTypeDto": {
@@ -21466,6 +21716,102 @@
         ],
         "type": "object"
       },
+      "RegionEditOp": {
+        "description": "One reviewer operation on the observation's regions. replace reads regionId, shape, box or points, and classKey; it retires the row and inserts the correction with the same shape on the same image. remove reads regionId and retires the row. add reads attachmentId, shape, box or points, and classKey; the image must already be cited by the observation (a region, an evidenceRefs attachmentId, or its own evidence).",
+        "properties": {
+          "attachmentId": {
+            "description": "add only: the image to draw on.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "box": {
+            "description": "BOX: [x1, y1, x2, y2].",
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 4,
+            "minItems": 4,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "classKey": {
+            "maxLength": 50,
+            "minLength": 0,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "imageHeight": {
+            "description": "add only: pixel height of the image as displayed.",
+            "exclusiveMinimum": 0,
+            "format": "int32",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "imageWidth": {
+            "description": "add only: pixel width of the image as displayed.",
+            "exclusiveMinimum": 0,
+            "format": "int32",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "op": {
+            "enum": [
+              "replace",
+              "remove",
+              "add"
+            ],
+            "type": "string"
+          },
+          "points": {
+            "description": "POLYGON: [[x, y], ...].",
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "maxItems": 201,
+            "minItems": 3,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "regionId": {
+            "description": "The active region to replace or remove.",
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "shape": {
+            "enum": [
+              "box",
+              "polygon"
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "op"
+        ],
+        "type": "object"
+      },
       "RegisterUploadRequest": {
         "properties": {
           "contentType": {
@@ -21910,6 +22256,19 @@
               }
             ],
             "description": "What the observation becomes. Ignored on REJECT."
+          },
+          "rejectReason": {
+            "description": "REJECT only. Required when the observation has regions from its producer. false-positive marks the rejected regions as negative training examples; the other reasons keep them out of training.",
+            "enum": [
+              "false-positive",
+              "duplicate",
+              "out-of-scope",
+              "poor-image"
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
@@ -75656,7 +76015,7 @@
                 }
               }
             },
-            "description": "No inspection or spatial node with the given id in the current tenant"
+            "description": "No inspection, spatial node or attachment with the given id in the current tenant"
           },
           "409": {
             "content": {
@@ -75707,6 +76066,7 @@
     },
     "/api/v1/inspections/web/observations/{id}": {
       "get": {
+        "description": "Returns the observation with its active regions. includeRetiredRegions=true also returns the regions a review replaced or removed, so a corrected box can be shown beside the original.",
         "operationId": "read",
         "parameters": [
           {
@@ -75716,6 +76076,15 @@
             "schema": {
               "format": "uuid",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "includeRetiredRegions",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
             }
           }
         ],
@@ -75819,6 +76188,7 @@
     },
     "/api/v1/inspections/web/observations/{id}/evidence": {
       "get": {
+        "description": "The observation's own uploads, then every other image one of its regions is drawn on, each once, with a presigned download URL.",
         "operationId": "readEvidence_1",
         "parameters": [
           {
@@ -76192,7 +76562,7 @@
     },
     "/api/v1/inspections/web/observations/{id}/review": {
       "post": {
-        "description": "Accept, modify or reject. Accept and modify link the outcome: mark a check item, create or attach a defect, or confirm an inspection. Modify stores the reviewer's edits as a diff and leaves the proposal as the producer wrote it. Reject needs a note. One decision per observation.",
+        "description": "Accept, modify or reject. Accept and modify link the outcome: mark a check item, create or attach a defect, or confirm an inspection. Modify stores the reviewer's edits as a diff and leaves the proposal as the producer wrote it; region edits retire the producer's rows and insert the reviewer's. Reject needs a note, and a rejectReason when the observation has producer regions. One decision per observation.",
         "operationId": "review",
         "parameters": [
           {
@@ -76234,7 +76604,7 @@
                 }
               }
             },
-            "description": "Reject without a note, modify without changes, or an incomplete outcome"
+            "description": "Reject without a note or a required rejectReason, modify without changes, an invalid region edit, or an incomplete outcome"
           },
           "402": {
             "content": {
@@ -78187,7 +78557,7 @@
                 }
               }
             },
-            "description": "Conflict"
+            "description": "An observation region is drawn on the file"
           },
           "422": {
             "content": {
@@ -105632,7 +106002,7 @@
                 }
               }
             },
-            "description": "Validation failed, or the source is HUMAN"
+            "description": "Validation failed, the source is HUMAN, or a region is invalid"
           },
           "402": {
             "content": {
@@ -105662,7 +106032,7 @@
                 }
               }
             },
-            "description": "No spatial node with the given id in the project"
+            "description": "No spatial node with the given id in the project, or no attachment a region names in the organisation"
           },
           "409": {
             "content": {

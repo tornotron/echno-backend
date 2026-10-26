@@ -7,7 +7,9 @@ import jakarta.validation.constraints.Size;
 import org.tornotron.echno_backend.modules.inspections.CheckItemStatus;
 import org.tornotron.echno_backend.modules.inspections.DefectSeverity;
 import org.tornotron.echno_backend.modules.inspections.ObservationOutcomeKind;
+import org.tornotron.echno_backend.modules.inspections.ObservationRejectReason;
 import org.tornotron.echno_backend.modules.inspections.ObservationReviewDecision;
+import java.util.List;
 
 import java.util.UUID;
 
@@ -21,7 +23,11 @@ public record ReviewObservationRequest(
                 + "producer wrote them; the edits are stored as a diff.", nullable = true)
         @Valid Changes changes,
         @Schema(description = "What the observation becomes. Ignored on REJECT.", nullable = true)
-        @Valid Outcome outcome
+        @Valid Outcome outcome,
+        @Schema(description = "REJECT only. Required when the observation has regions from its producer. "
+                + "false-positive marks the rejected regions as negative training examples; the other "
+                + "reasons keep them out of training.", nullable = true)
+        ObservationRejectReason rejectReason
 ) {
 
     @Schema(description = "Fields the reviewer changed. Only the ones set are compared to the proposal.")
@@ -30,7 +36,11 @@ public record ReviewObservationRequest(
             @Size(max = 4000) String description,
             DefectSeverity severity,
             UUID spatialNodeId,
-            @Size(max = 200) String category
+            @Size(max = 200) String category,
+            @Schema(description = "Edits to the regions, applied in order. Producer rows are never changed in "
+                    + "place: replace and remove retire them. A MODIFY that would leave no active region on an "
+                    + "observation that had producer regions is refused; reject it instead.", nullable = true)
+            @Valid @Size(max = 50) List<RegionEditOp> regions
     ) {}
 
     @Schema(description = "The outcome to link. kind decides which of the other fields are read: "

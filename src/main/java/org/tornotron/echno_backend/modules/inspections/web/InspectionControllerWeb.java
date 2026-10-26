@@ -314,7 +314,8 @@ public class InspectionControllerWeb {
             @ApiResponse(responseCode = "204", description = "Evidence removed"),
             @ApiResponse(responseCode = "400", description = "The inspection has been judged and its evidence is frozen"),
             @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
-            @ApiResponse(responseCode = "404", description = "No such inspection, or the file is not filed against it")
+            @ApiResponse(responseCode = "404", description = "No such inspection, or the file is not filed against it"),
+            @ApiResponse(responseCode = "409", description = "An observation region is drawn on the file")
     })
     public ResponseEntity<Void> removeEvidence(@PathVariable UUID id, @PathVariable Long attachmentId) {
         evidenceService.delete(id, attachmentId);
