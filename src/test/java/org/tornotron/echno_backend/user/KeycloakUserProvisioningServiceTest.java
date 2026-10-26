@@ -118,4 +118,21 @@ class KeycloakUserProvisioningServiceTest {
         assertThat(ex).isNotNull();
         assertThat(ex.getField()).isEqualTo("email");
     }
+
+    @Test
+    @DisplayName("Keycloak's generic 409 names the field that actually clashed")
+    void genericKeycloak409_looksAgainToFindTheField() {
+        Response response = conflict("{\"errorMessage\":\"User exists with same username or email\"}");
+        when(usersResource.create(any())).thenReturn(response);
+        // Empty at the pre-check, present once the racing create has landed.
+        when(usersResource.searchByEmail("taken@example.com", true))
+                .thenReturn(List.of(), List.of(new UserRepresentation()));
+
+        DuplicateResourceException ex = catchThrowableOfType(
+                () -> service.createUser("fresh", "taken@example.com", "Secret#123"),
+                DuplicateResourceException.class);
+
+        assertThat(ex).isNotNull();
+        assertThat(ex.getField()).isEqualTo("email");
+    }
 }
