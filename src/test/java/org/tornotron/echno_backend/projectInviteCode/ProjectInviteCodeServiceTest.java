@@ -343,6 +343,23 @@ class ProjectInviteCodeServiceTest {
     }
 
     @Test
+    void validateAndUse_wholeNumberSalaryStoredAsInteger_isCarriedAsDouble() {
+        // The details map comes back from JSON storage, so 15000 is an Integer there. The old
+        // (Double) cast threw ClassCastException and failed the redemption with a 500.
+        ProjectInviteCode code = storedCode(true, LocalDateTime.now().plusDays(5), 5, 1);
+        code.getEmployeeDetails().put("managerId", 8);
+        code.getEmployeeDetails().put("salary", 15000);
+        when(inviteCodeRepository.findByCode(12345)).thenReturn(Optional.of(code));
+        when(organizationMapper.toDto(any())).thenReturn(new OrganizationDto());
+
+        service.validateAndUseInviteCode(validationDto(), USER_ID);
+
+        ArgumentCaptor<EmployeeJoinOrgDto> captor = ArgumentCaptor.forClass(EmployeeJoinOrgDto.class);
+        verify(employeeService).joinOrganization(eq(USER_ID), eq(ORG), captor.capture());
+        assertThat(captor.getValue().getSalary()).isEqualTo(15000.0);
+    }
+
+    @Test
     void patchInviteCode_unknownCode_throwsNotFound() {
         when(inviteCodeRepository.findByIdAndOrganization_Id(INVITE_ID, ORG)).thenReturn(Optional.empty());
 

@@ -17,7 +17,6 @@ import org.tornotron.echno_backend.user.mapper.UserMapper;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.common.service.AttachmentService;
-import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.organization.dto.OrganizationDto;
@@ -78,7 +77,7 @@ public class UserService {
     @Transactional
     public UserDto registerUser(UserRegistrationDto userRegistrationDto) {
         if (userRepository.existsUserByEmail(userRegistrationDto.getEmail())) {
-            throw new DuplicateResourceException("User with email '" + userRegistrationDto.getEmail() + "' already exists");
+            throw KeycloakUserProvisioningService.emailTaken();
         }
 
         String keycloakId = keycloakUserProvisioningService.createUser(userRegistrationDto.getUserName(), userRegistrationDto.getEmail(), userRegistrationDto.getPassword());
@@ -231,7 +230,7 @@ public class UserService {
                 case "dateOfBirth" -> user.setDateOfBirth(parseDateOfBirth(value));
                 case "qualification" -> user.setQualification((String) value);
                 case "address" -> user.setAddress((String) value);
-                case "experience" -> user.setExperience((Integer) value);
+                case "experience" -> user.setExperience(value != null ? ((Number) value).intValue() : null);
                 case "cvUrl" -> user.setCvUrl((String) value);
                 case "emergencyContact" -> user.setEmergencyContact((String) value);
                 case "role" -> user.setRole(value != null ? UserRole.valueOf((String) value) : null);

@@ -115,6 +115,26 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void duplicateResource_withAField_reportsItUnderErrorsForTheForm() {
+        ProblemDetail pd = handler.handleDuplicateResourceException(
+                new DuplicateResourceException("The username 'Anand' is already taken.", "userName"),
+                requestWithPath("uri=/api/v1/users/register"));
+
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.CONFLICT.value());
+        assertThat(pd.getProperties())
+                .containsEntry("errors", java.util.Map.of("userName", "The username 'Anand' is already taken."));
+    }
+
+    @Test
+    void duplicateResource_withoutAField_carriesNoErrors() {
+        ProblemDetail pd = handler.handleDuplicateResourceException(
+                new DuplicateResourceException("Purchase Order already exists"),
+                requestWithPath("uri=/api/v1/purchase-orders"));
+
+        assertThat(pd.getProperties()).doesNotContainKey("errors");
+    }
+
+    @Test
     void duplicateResource_reportsTheDuplicateItActuallyFound() {
         ProblemDetail pd = handler.handleDuplicateResourceException(
                 new DuplicateResourceException("Purchase Order with PO number PO-2026-000001 already exists"),
