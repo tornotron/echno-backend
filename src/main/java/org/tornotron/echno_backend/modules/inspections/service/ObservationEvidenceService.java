@@ -23,6 +23,12 @@ import org.tornotron.echno_backend.modules.inspections.repositories.ObservationR
 
 import java.util.List;
 import java.util.UUID;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.Set;
+import org.tornotron.echno_backend.modules.inspections.domain.ObservationRegion;
+import org.tornotron.echno_backend.modules.inspections.repositories.ObservationRegionRepository;
 
 /**
  * Images and clips uploaded into Echno against an observation, through the same presigned
@@ -43,11 +49,29 @@ public class ObservationEvidenceService {
     private final AttachmentService attachmentService;
     private final AttachmentMapper attachmentMapper;
     private final InspectionEventRecorder events;
+    private final ObservationRegionRepository regionRepo;
 
+    /**
+     * The observation's own uploads, then every other image one of its regions (active or
+     * retired) is drawn on, each once.
+     */
     @Transactional(readOnly = true)
     public List<AttachmentDto> list(UUID observationId) {
         require(observationId);
-        return attachmentService.getAttachments(ObservationEvidence.ENTITY_TYPE, observationId);
+        List<AttachmentDto> evidence = new ArrayList<>(
+                attachmentService.getAttachments(ObservationEvidence.ENTITY_TYPE, observationId));
+        Set<Long> listed = new HashSet<>();
+        evidence.forEach(a -> listed.add(a.getId()));
+        Set<Long> drawnOn = new LinkedHashSet<>();
+        for (ObservationRegion region : regionRepo.findByObservationScoped(observationId)) {
+            if (!listed.contains(region.getAttachmentId())) {
+                drawnOn.add(region.getAttachmentId());
+            }
+        }
+        if (!drawnOn.isEmpty()) {
+            evidence.addAll(attachmentService.getAttachments(drawnOn));
+        }
+        return evidence;
     }
 
     @Transactional(readOnly = true)

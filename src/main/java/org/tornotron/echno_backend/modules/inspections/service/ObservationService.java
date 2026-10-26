@@ -7,6 +7,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
@@ -45,20 +46,33 @@ import org.tornotron.echno_backend.modules.inspections.repositories.ObservationR
 import org.tornotron.echno_backend.modules.inspections.repositories.ObservationSpecifications;
 import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.common.repository.AttachmentRepository;
+import org.tornotron.echno_backend.modules.inspections.ObservationEvidence;
+import org.tornotron.echno_backend.modules.inspections.RegionOrigin;
+import org.tornotron.echno_backend.modules.inspections.domain.ObservationRegion;
+import org.tornotron.echno_backend.modules.inspections.dtos.ObservationRegionDto;
+import org.tornotron.echno_backend.modules.inspections.dtos.ObservationRegionRequest;
+import org.tornotron.echno_backend.modules.inspections.dtos.RegionEditOp;
+import org.tornotron.echno_backend.modules.inspections.observation.RegionGeometry;
+import org.tornotron.echno_backend.modules.inspections.repositories.ObservationRegionRepository;
 import org.tornotron.echno_backend.project.spatial.SpatialNodeService;
 import org.tornotron.echno_backend.project.spatial.dto.SpatialPathSegment;
 import org.tornotron.echno_backend.user.UserContextService;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
-
 
 /**
  * The observation life cycle: proposed, reviewed, outcome linked.
@@ -91,12 +105,27 @@ public class ObservationService {
     private final ProjectRepository projectRepository;
     private final AttachmentRepository attachmentRepository;
     private final TransactionRetryTemplate retryTemplate;
+    private final ObservationRegionRepository regionRepo;
+
+    /** Regions one observation may be posted with; a model that sees more posts more observations. */
+    static final int MAX_REGIONS = 20;
 
     // ------------------------------------------------------------------ reads
 
     @Transactional(readOnly = true)
     public ObservationDto findById(UUID id) {
-        return withSpatialPath(mapper.toDto(require(id)));
+        return findById(id, false);
+    }
+
+    /** One observation with its active regions, and with the retired ones too when asked. */
+    @Transactional(readOnly = true)
+    public ObservationDto findById(UUID id, boolean includeRetiredRegions) {
+        Observation o = require(id);
+        List<ObservationRegion> rows = regionRepo.findByObservationScoped(o.getId());
+        return withSpatialPath(mapper.toDto(o)).withRegions(rows.stream()
+                .filter(r -> includeRetiredRegions || r.isActive())
+                .map(ObservationService::toRegionDto)
+                .toList());
     }
 
     @Transactional(readOnly = true)
@@ -118,8 +147,19 @@ public class ObservationService {
         // One breadcrumb lookup for the page (two queries), not one per row.
         Map<UUID, List<SpatialPathSegment>> paths = spatialNodeService.pathsOf(
                 page.getContent().stream().map(ObservationDto::spatialNodeId).filter(Objects::nonNull).toList());
-        return page.map(dto -> dto.spatialNodeId() == null ? dto
-                : dto.withSpatialPath(paths.getOrDefault(dto.spatialNodeId(), List.of())));
+        // Likewise one query for the page's regions.
+        Map<UUID, List<ObservationRegionDto>> regions = new HashMap<>();
+        if (!page.isEmpty()) {
+            for (ObservationRegion r : regionRepo.findActiveByObservationsScoped(
+                    page.getContent().stream().map(ObservationDto::id).toList())) {
+                regions.computeIfAbsent(r.getObservationId(), k -> new ArrayList<>()).add(toRegionDto(r));
+            }
+        }
+        return page.map(dto -> {
+            ObservationDto withPath = dto.spatialNodeId() == null ? dto
+                    : dto.withSpatialPath(paths.getOrDefault(dto.spatialNodeId(), List.of()));
+            return withPath.withRegions(regions.getOrDefault(dto.id(), List.of()));
+        });
     }
 
     // -------------------------------------------------------- human producer
@@ -157,11 +197,14 @@ public class ObservationService {
             }
             o.setEvidenceRefs(refs);
         }
+        List<NewRegion> regions = prepareRegions(req.regions(), false);
         accept(o, employeeId, ObservationOutcomeKind.NONE, null);
         Observation saved = observationRepo.saveAndFlush(o);
+        List<ObservationRegion> stored = insertRegions(saved, regions, RegionOrigin.HUMAN, employeeId);
         recordCreated(saved, null);
-        log.info("Recorded human observation {} on project {}", saved.getId(), saved.getProjectId());
-        return withSpatialPath(mapper.toDto(saved));
+        log.info("Recorded human observation {} on project {} with {} regions", saved.getId(), saved.getProjectId(),
+                stored.size());
+        return withSpatialPath(mapper.toDto(saved)).withRegions(stored.stream().map(ObservationService::toRegionDto).toList());
     }
 
     // ------------------------------------------------------ machine producers
@@ -198,9 +241,10 @@ public class ObservationService {
         Optional<Observation> existing = observationRepo.findByExternalRefScoped(req.externalRef());
         if (existing.isPresent()) {
             log.debug("Observation intake repeated externalRef {}; returning the existing row", req.externalRef());
-            return new IntakeResult(withSpatialPath(mapper.toDto(existing.get())), false);
+            return new IntakeResult(findById(existing.get().getId(), false), false);
         }
         requireProject(req.projectId());
+        List<NewRegion> regions = prepareRegions(req.regions(), true);
         Observation o = newObservation(req.projectId(), null, req.source(), req.title(), req.description());
         o.setExternalRef(req.externalRef());
         o.setSourceDeviceId(req.sourceDeviceId());
@@ -216,6 +260,7 @@ public class ObservationService {
         o.setConfidence(req.confidence());
         o.setEvidenceRefs(req.evidenceRefs());
         Observation saved = observationRepo.saveAndFlush(o);
+        List<ObservationRegion> stored = insertRegions(saved, regions, RegionOrigin.PRODUCER, null);
         InspectionEventActorType actor = req.source() == ObservationSource.AI
                 ? InspectionEventActorType.AI : InspectionEventActorType.DEVICE;
         String actorId = req.source() == ObservationSource.AI && req.modelName() != null
@@ -232,11 +277,14 @@ public class ObservationService {
                         .field("confidence", null, saved.getConfidence())
                         .field("reviewStatus", null, saved.getReviewStatus())
                         .field("title", null, saved.getTitle())
+                        .field("regionCount", null, stored.isEmpty() ? null : stored.size())
                         .after(),
                 null);
-        log.info("Observation {} taken in from {} {} on project {} (externalRef {})", saved.getId(),
-                saved.getSource(), saved.getSourceDeviceId(), saved.getProjectId(), saved.getExternalRef());
-        return new IntakeResult(withSpatialPath(mapper.toDto(saved)), true);
+        log.info("Observation {} taken in from {} {} on project {} (externalRef {}, {} regions)", saved.getId(),
+                saved.getSource(), saved.getSourceDeviceId(), saved.getProjectId(), saved.getExternalRef(),
+                stored.size());
+        return new IntakeResult(withSpatialPath(mapper.toDto(saved))
+                .withRegions(stored.stream().map(ObservationService::toRegionDto).toList()), true);
     }
 
     // ---------------------------------------------------------------- review
@@ -256,12 +304,23 @@ public class ObservationService {
             throw new ObservationAlreadyReviewedException(id);
         }
         Long reviewerId = currentEmployeeId();
+        if (req.rejectReason() != null && req.decision() != ObservationReviewDecision.REJECT) {
+            throw new InvalidRequestException("rejectReason is for a REJECT decision only");
+        }
+        List<ObservationRegion> rows = regionRepo.findByObservationScoped(o.getId());
+        RegionEdits regionEdits = null;
         ObservationReviewStatus decided;
         switch (req.decision()) {
             case REJECT -> {
                 if (req.note() == null || req.note().isBlank()) {
                     throw new InvalidRequestException("A note is required to reject an observation");
                 }
+                boolean producerRegions = rows.stream().anyMatch(r -> r.getOrigin() == RegionOrigin.PRODUCER);
+                if (producerRegions && req.rejectReason() == null) {
+                    throw new InvalidRequestException(
+                            "rejectReason is required to reject an observation with producer regions");
+                }
+                o.setRejectReason(req.rejectReason());
                 decided = ObservationReviewStatus.REJECTED;
             }
             case ACCEPT -> {
@@ -270,6 +329,14 @@ public class ObservationService {
             }
             case MODIFY -> {
                 List<Map<String, Object>> changes = diff(o, req.changes());
+                if (req.changes() != null && req.changes().regions() != null && !req.changes().regions().isEmpty()) {
+                    regionEdits = applyRegionEdits(o, rows, req.changes().regions(), reviewerId);
+                    Map<String, Object> entry = new LinkedHashMap<>();
+                    entry.put("field", "regions");
+                    entry.put("before", regionEdits.before());
+                    entry.put("after", regionEdits.after());
+                    changes.add(entry);
+                }
                 if (changes.isEmpty()) {
                     throw new InvalidRequestException("MODIFY requires at least one change to the proposal");
                 }
@@ -284,9 +351,9 @@ public class ObservationService {
         o.setReviewedAt(LocalDateTime.now());
         o.setReviewNote(req.note());
         Observation saved = observationRepo.saveAndFlush(o);
-        recordReviewed(saved, ObservationReviewStatus.PENDING);
+        recordReviewed(saved, ObservationReviewStatus.PENDING, regionEdits);
         log.info("Observation {} reviewed as {} with outcome {}", saved.getId(), decided, saved.getOutcomeKind());
-        return withSpatialPath(mapper.toDto(saved));
+        return findById(saved.getId(), false);
     }
 
     private void applyOutcome(Observation o, ReviewObservationRequest.Outcome outcome) {
@@ -667,6 +734,271 @@ public class ObservationService {
         return saved;
     }
 
+    // --------------------------------------------------------------- regions
+
+    /** A region that passed validation and is ready to insert. */
+    private record NewRegion(Long attachmentId, RegionGeometry.Normalised geometry, String classKey,
+                             BigDecimal score, Integer imageWidth, Integer imageHeight) {}
+
+    /** What a MODIFY did to the regions: active ids before and after, and each op as applied. */
+    private record RegionEdits(List<String> before, List<String> after, List<Map<String, Object>> ops) {}
+
+    /**
+     * Validates posted regions before anything is written. A producer may send a score; a person
+     * may not, since a score is a model's.
+     */
+    private List<NewRegion> prepareRegions(List<ObservationRegionRequest> requests, boolean producer) {
+        if (requests == null || requests.isEmpty()) {
+            return List.of();
+        }
+        if (requests.size() > MAX_REGIONS) {
+            throw new InvalidRequestException("At most " + MAX_REGIONS + " regions per observation");
+        }
+        List<NewRegion> prepared = new ArrayList<>(requests.size());
+        for (int i = 0; i < requests.size(); i++) {
+            ObservationRegionRequest r = requests.get(i);
+            String where = "regions[" + i + "]";
+            if (r == null) {
+                throw new InvalidRequestException(where + ": region is missing");
+            }
+            if (!producer && r.score() != null) {
+                throw new InvalidRequestException(where + ": a region a person draws carries no score");
+            }
+            if (r.score() != null && (r.score().signum() < 0 || r.score().compareTo(BigDecimal.ONE) > 0)) {
+                throw new InvalidRequestException(where + ": score must be in [0, 1]");
+            }
+            requireRegionImage(where, r.attachmentId());
+            prepared.add(new NewRegion(r.attachmentId(),
+                    RegionGeometry.normalise(where, r.shape(), r.box(), r.points()),
+                    requireClassKey(where, r.classKey()),
+                    r.score() == null ? null : r.score().setScale(4, RoundingMode.HALF_UP),
+                    requirePositive(where, "imageWidth", r.imageWidth()),
+                    requirePositive(where, "imageHeight", r.imageHeight())));
+        }
+        return prepared;
+    }
+
+    private List<ObservationRegion> insertRegions(Observation o, List<NewRegion> regions, RegionOrigin origin,
+                                                  Long createdById) {
+        List<ObservationRegion> stored = new ArrayList<>(regions.size());
+        int order = 0;
+        for (NewRegion r : regions) {
+            stored.add(regionRepo.save(newRegion(o, r, origin, createdById, order++)));
+        }
+        return stored;
+    }
+
+    private ObservationRegion newRegion(Observation o, NewRegion r, RegionOrigin origin, Long createdById,
+                                        int lineOrder) {
+        ObservationRegion row = new ObservationRegion();
+        row.setOrganization(o.getOrganization());
+        row.setObservationId(o.getId());
+        row.setAttachmentId(r.attachmentId());
+        row.setShape(r.geometry().shape());
+        row.setX1(r.geometry().x1());
+        row.setY1(r.geometry().y1());
+        row.setX2(r.geometry().x2());
+        row.setY2(r.geometry().y2());
+        row.setPoints(r.geometry().points());
+        row.setImageWidth(r.imageWidth());
+        row.setImageHeight(r.imageHeight());
+        row.setClassKey(r.classKey());
+        row.setScore(r.score());
+        row.setOrigin(origin);
+        row.setLineOrder(lineOrder);
+        row.setCreatedById(createdById);
+        return row;
+    }
+
+    /**
+     * A reviewer's region ops, in order. Rows are never changed in place: replace and remove
+     * retire the row they name, replace and add insert a {@link RegionOrigin#REVIEWER} row. An add
+     * may only draw on an image the observation already cites, so a reviewer cannot pull an
+     * unrelated photo of the organisation into the decision.
+     */
+    private RegionEdits applyRegionEdits(Observation o, List<ObservationRegion> rows, List<RegionEditOp> ops,
+                                         Long reviewerId) {
+        Map<UUID, ObservationRegion> byId = new LinkedHashMap<>();
+        rows.forEach(r -> byId.put(r.getId(), r));
+        List<String> before = activeIds(rows);
+        boolean hadProducerRegions = rows.stream()
+                .anyMatch(r -> r.isActive() && r.getOrigin() == RegionOrigin.PRODUCER);
+        int nextOrder = rows.stream().mapToInt(ObservationRegion::getLineOrder).max().orElse(-1) + 1;
+        Set<Long> cited = null;
+        List<ObservationRegion> current = new ArrayList<>(rows);
+        List<Map<String, Object>> applied = new ArrayList<>();
+        LocalDateTime now = LocalDateTime.now();
+        for (int i = 0; i < ops.size(); i++) {
+            RegionEditOp op = ops.get(i);
+            String where = "changes.regions[" + i + "]";
+            if (op == null || op.op() == null) {
+                throw new InvalidRequestException(where + ": op is required");
+            }
+            Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("op", op.op().getValue());
+            switch (op.op()) {
+                case REPLACE -> {
+                    ObservationRegion target = activeRegion(where, byId, op.regionId());
+                    if (op.attachmentId() != null && !op.attachmentId().equals(target.getAttachmentId())) {
+                        throw new InvalidRequestException(where + ": a replacement stays on the image of the region it replaces");
+                    }
+                    if (op.shape() != target.getShape()) {
+                        throw new InvalidRequestException(where + ": a replacement keeps the shape of the region it "
+                                + "replaces (" + target.getShape().getValue() + ")");
+                    }
+                    NewRegion r = new NewRegion(target.getAttachmentId(),
+                            RegionGeometry.normalise(where, op.shape(), op.box(), op.points()),
+                            requireClassKey(where, op.classKey()), null,
+                            target.getImageWidth(), target.getImageHeight());
+                    if (sameRegion(target, r)) {
+                        throw new InvalidRequestException(where + ": the replacement is identical to region "
+                                + target.getId());
+                    }
+                    retire(target, reviewerId, now);
+                    ObservationRegion replacement = newRegion(o, r, RegionOrigin.REVIEWER, reviewerId,
+                            target.getLineOrder());
+                    replacement.setSupersedesId(target.getId());
+                    regionRepo.save(replacement);
+                    byId.put(replacement.getId(), replacement);
+                    current.add(replacement);
+                    entry.put("regionId", target.getId().toString());
+                    entry.put("newRegionId", replacement.getId().toString());
+                    entry.put("classKey", replacement.getClassKey());
+                    entry.put("box", RegionGeometry.boxOf(replacement));
+                }
+                case REMOVE -> {
+                    ObservationRegion target = activeRegion(where, byId, op.regionId());
+                    retire(target, reviewerId, now);
+                    entry.put("regionId", target.getId().toString());
+                }
+                case ADD -> {
+                    if (op.regionId() != null) {
+                        throw new InvalidRequestException(where + ": add creates a region; it takes no regionId");
+                    }
+                    requireRegionImage(where, op.attachmentId());
+                    if (cited == null) {
+                        cited = citedAttachments(o, rows);
+                    }
+                    if (!cited.contains(op.attachmentId())) {
+                        throw new InvalidRequestException(where + ": attachment " + op.attachmentId()
+                                + " is not evidence of this observation");
+                    }
+                    NewRegion r = new NewRegion(op.attachmentId(),
+                            RegionGeometry.normalise(where, op.shape(), op.box(), op.points()),
+                            requireClassKey(where, op.classKey()), null,
+                            requirePositive(where, "imageWidth", op.imageWidth()),
+                            requirePositive(where, "imageHeight", op.imageHeight()));
+                    ObservationRegion added = regionRepo.save(newRegion(o, r, RegionOrigin.REVIEWER, reviewerId,
+                            nextOrder++));
+                    byId.put(added.getId(), added);
+                    current.add(added);
+                    entry.put("newRegionId", added.getId().toString());
+                    entry.put("attachmentId", added.getAttachmentId());
+                    entry.put("classKey", added.getClassKey());
+                    entry.put("box", RegionGeometry.boxOf(added));
+                }
+            }
+            applied.add(entry);
+        }
+        List<String> after = activeIds(current);
+        if (hadProducerRegions && after.isEmpty()) {
+            throw new InvalidRequestException(
+                    "A MODIFY cannot remove every region of a producer's observation; reject the observation instead");
+        }
+        return new RegionEdits(before, after, applied);
+    }
+
+    private static ObservationRegion activeRegion(String where, Map<UUID, ObservationRegion> byId, UUID regionId) {
+        if (regionId == null) {
+            throw new InvalidRequestException(where + ": regionId is required");
+        }
+        ObservationRegion target = byId.get(regionId);
+        if (target == null) {
+            throw new ResourceNotFoundException("Region with ID " + regionId + " was not found on this observation");
+        }
+        if (!target.isActive()) {
+            throw new InvalidRequestException(where + ": region " + regionId + " has already been replaced or removed");
+        }
+        return target;
+    }
+
+    private static void retire(ObservationRegion region, Long reviewerId, LocalDateTime when) {
+        region.setRetiredAt(when);
+        region.setRetiredById(reviewerId);
+    }
+
+    private static boolean sameRegion(ObservationRegion row, NewRegion r) {
+        return row.getClassKey().equals(r.classKey())
+                && row.getX1().compareTo(r.geometry().x1()) == 0
+                && row.getY1().compareTo(r.geometry().y1()) == 0
+                && row.getX2().compareTo(r.geometry().x2()) == 0
+                && row.getY2().compareTo(r.geometry().y2()) == 0
+                && Objects.equals(RegionGeometry.pointsKey(row.getPoints()), RegionGeometry.pointsKey(r.geometry().points()));
+    }
+
+    private static List<String> activeIds(List<ObservationRegion> rows) {
+        return rows.stream()
+                .filter(ObservationRegion::isActive)
+                .sorted(Comparator.comparingInt(ObservationRegion::getLineOrder))
+                .map(r -> r.getId().toString())
+                .toList();
+    }
+
+    /** The images an observation already cites: its regions, its evidenceRefs ids, and its own uploads. */
+    private Set<Long> citedAttachments(Observation o, List<ObservationRegion> rows) {
+        Set<Long> ids = new HashSet<>();
+        rows.forEach(r -> ids.add(r.getAttachmentId()));
+        if (o.getEvidenceRefs() != null) {
+            for (Map<String, Object> ref : o.getEvidenceRefs()) {
+                if (ref != null && ref.get("attachmentId") instanceof Number n) {
+                    ids.add(n.longValue());
+                }
+            }
+        }
+        attachmentRepository.findByEntityTypeAndEntityUuidOrderByIdAsc(ObservationEvidence.ENTITY_TYPE, o.getId())
+                .forEach(a -> ids.add(a.getId()));
+        return ids;
+    }
+
+    /** The attachment is in the caller's organisation (404 otherwise) and is an image. */
+    private void requireRegionImage(String where, Long attachmentId) {
+        if (attachmentId == null) {
+            throw new InvalidRequestException(where + ": attachmentId is required");
+        }
+        Attachment attachment = attachmentRepository
+                .findByIdAndOrganization_Id(attachmentId, TenantContext.getCurrentOrgId())
+                .orElseThrow(() -> new ResourceNotFoundException("Attachment with ID " + attachmentId + " was not found"));
+        String type = attachment.getContentType();
+        if (type != null && !type.toLowerCase(Locale.ROOT).startsWith("image/")) {
+            throw new InvalidRequestException(where + ": attachment " + attachmentId + " is " + type
+                    + "; regions are drawn on images");
+        }
+    }
+
+    private static String requireClassKey(String where, String classKey) {
+        if (classKey == null || classKey.isBlank()) {
+            throw new InvalidRequestException(where + ": classKey is required");
+        }
+        if (classKey.length() > 50) {
+            throw new InvalidRequestException(where + ": classKey is at most 50 characters");
+        }
+        return classKey;
+    }
+
+    private static Integer requirePositive(String where, String field, Integer value) {
+        if (value != null && value <= 0) {
+            throw new InvalidRequestException(where + ": " + field + " must be positive");
+        }
+        return value;
+    }
+
+    static ObservationRegionDto toRegionDto(ObservationRegion r) {
+        return new ObservationRegionDto(r.getId(), r.getAttachmentId(), r.getShape(), RegionGeometry.boxOf(r),
+                r.getPoints(), r.getImageWidth(), r.getImageHeight(), r.getClassKey(), r.getScore(), r.getOrigin(),
+                r.getSupersedesId(), r.getRetiredAt(), r.getRetiredById(), r.getLineOrder(), r.getCreatedAt(),
+                r.getCreatedById());
+    }
+
     // --------------------------------------------------------------- helpers
 
     Observation newObservation(Long projectId, UUID inspectionId, ObservationSource source,
@@ -707,14 +1039,25 @@ public class ObservationService {
     }
 
     void recordReviewed(Observation o, ObservationReviewStatus before) {
+        recordReviewed(o, before, null);
+    }
+
+    private void recordReviewed(Observation o, ObservationReviewStatus before, RegionEdits regionEdits) {
+        Map<String, Object> after = InspectionEventChanges.none()
+                .field("reviewStatus", null, o.getReviewStatus())
+                .field("rejectReason", null, o.getRejectReason())
+                .field("outcomeKind", null, o.getOutcomeKind())
+                .field("outcomeRef", null, o.getOutcomeRef())
+                .after();
+        if (regionEdits != null) {
+            Map<String, Object> regions = new LinkedHashMap<>();
+            regions.put("before", regionEdits.before());
+            regions.put("after", regionEdits.after());
+            regions.put("ops", regionEdits.ops());
+            after.put("regions", regions);
+        }
         events.record(InspectionEventSubject.observation(o), InspectionEventType.OBSERVATION_REVIEWED,
-                Map.of("reviewStatus", InspectionEventChanges.json(before)),
-                InspectionEventChanges.none()
-                        .field("reviewStatus", null, o.getReviewStatus())
-                        .field("outcomeKind", null, o.getOutcomeKind())
-                        .field("outcomeRef", null, o.getOutcomeRef())
-                        .after(),
-                o.getReviewNote());
+                Map.of("reviewStatus", InspectionEventChanges.json(before)), after, o.getReviewNote());
     }
 
     private static void recount(Inspection inspection) {

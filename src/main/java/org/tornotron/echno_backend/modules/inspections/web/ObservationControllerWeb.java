@@ -62,7 +62,7 @@ public class ObservationControllerWeb {
             @ApiResponse(responseCode = "201", description = "Observation recorded"),
             @ApiResponse(responseCode = "400", description = "Validation failed on the request body"),
             @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
-            @ApiResponse(responseCode = "404", description = "No inspection or spatial node with the given id in the current tenant")
+            @ApiResponse(responseCode = "404", description = "No inspection, spatial node or attachment with the given id in the current tenant")
     })
     public ResponseEntity<ObservationDto> create(@Valid @RequestBody CreateObservationRequest req) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.create(req));
@@ -70,14 +70,17 @@ public class ObservationControllerWeb {
 
     @GetMapping("/{id}")
     @PreAuthorize("@inspectionSecurity.canRead()")
-    @Operation(summary = "Read an observation")
+    @Operation(summary = "Read an observation",
+            description = "Returns the observation with its active regions. includeRetiredRegions=true also returns "
+                    + "the regions a review replaced or removed, so a corrected box can be shown beside the original.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Observation returned"),
             @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @ApiResponse(responseCode = "404", description = "No observation with the given id in the current tenant")
     })
-    public ObservationDto read(@PathVariable UUID id) {
-        return service.findById(id);
+    public ObservationDto read(@PathVariable UUID id,
+                               @RequestParam(defaultValue = "false") boolean includeRetiredRegions) {
+        return service.findById(id, includeRetiredRegions);
     }
 
     @GetMapping
@@ -107,11 +110,12 @@ public class ObservationControllerWeb {
     @Operation(summary = "Decide on a pending observation",
             description = "Accept, modify or reject. Accept and modify link the outcome: mark a check item, "
                     + "create or attach a defect, or confirm an inspection. Modify stores the reviewer's "
-                    + "edits as a diff and leaves the proposal as the producer wrote it. Reject needs a note. "
-                    + "One decision per observation.")
+                    + "edits as a diff and leaves the proposal as the producer wrote it; region edits retire the "
+                    + "producer's rows and insert the reviewer's. Reject needs a note, and a rejectReason when the "
+                    + "observation has producer regions. One decision per observation.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Decision recorded"),
-            @ApiResponse(responseCode = "400", description = "Reject without a note, modify without changes, or an incomplete outcome"),
+            @ApiResponse(responseCode = "400", description = "Reject without a note or a required rejectReason, modify without changes, an invalid region edit, or an incomplete outcome"),
             @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @ApiResponse(responseCode = "404", description = "No observation, check item, defect or inspection with the given id"),
             @ApiResponse(responseCode = "409", description = "The observation has already been reviewed")
@@ -122,7 +126,9 @@ public class ObservationControllerWeb {
 
     @GetMapping("/{id}/evidence")
     @PreAuthorize("@inspectionSecurity.canRead()")
-    @Operation(summary = "List an observation's evidence")
+    @Operation(summary = "List an observation's evidence",
+            description = "The observation's own uploads, then every other image one of its regions is drawn on, "
+                    + "each once, with a presigned download URL.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Evidence returned"),
             @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),

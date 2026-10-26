@@ -182,12 +182,12 @@ class ObservationServiceIT extends AbstractIntegrationTest {
         Long clip = attachment("c14.mp4");
         // an attachment that is not this tenant's is refused before anything is written
         assertThatThrownBy(() -> service.create(new CreateObservationRequest(projectId, null, zone,
-                "Column C-14", null, "Hairline crack", null, null, null, List.of(photo, 999999L))))
+                "Column C-14", null, "Hairline crack", null, null, null, List.of(photo, 999999L), null)))
                 .isInstanceOf(ResourceNotFoundException.class);
 
         ObservationDto dto = service.create(new CreateObservationRequest(projectId, null, zone,
                 "Column C-14", null, "Hairline crack", "Crack at column C-14, hairline", "Structural",
-                DefectSeverity.MINOR, List.of(photo, clip)));
+                DefectSeverity.MINOR, List.of(photo, clip), null));
 
         assertThat(dto.source()).isEqualTo(ObservationSource.HUMAN);
         assertThat(dto.reviewStatus()).isEqualTo(ObservationReviewStatus.ACCEPTED);
@@ -212,7 +212,7 @@ class ObservationServiceIT extends AbstractIntegrationTest {
         ObservationDto reviewed = service.review(pending.getId(), new ReviewObservationRequest(
                 ObservationReviewDecision.ACCEPT, null, null,
                 new ReviewObservationRequest.Outcome(ObservationOutcomeKind.CHECK_ITEM, itemId,
-                        CheckItemStatus.FAILED, null, null, null)));
+                        CheckItemStatus.FAILED, null, null, null), null));
 
         assertThat(reviewed.reviewStatus()).isEqualTo(ObservationReviewStatus.ACCEPTED);
         assertThat(reviewed.outcomeKind()).isEqualTo(ObservationOutcomeKind.CHECK_ITEM);
@@ -227,7 +227,7 @@ class ObservationServiceIT extends AbstractIntegrationTest {
 
         // one decision per observation: the second is refused and changes nothing
         assertThatThrownBy(() -> service.review(pending.getId(), new ReviewObservationRequest(
-                ObservationReviewDecision.REJECT, "changed my mind", null, null)))
+                ObservationReviewDecision.REJECT, "changed my mind", null, null, null)))
                 .isInstanceOf(ObservationAlreadyReviewedException.class);
         assertThat(service.findById(pending.getId()).reviewStatus()).isEqualTo(ObservationReviewStatus.ACCEPTED);
     }
@@ -242,15 +242,15 @@ class ObservationServiceIT extends AbstractIntegrationTest {
         // a modify with nothing that differs from the proposal is refused
         assertThatThrownBy(() -> service.review(pending.getId(), new ReviewObservationRequest(
                 ObservationReviewDecision.MODIFY, null,
-                new ReviewObservationRequest.Changes("Honeycombing", null, DefectSeverity.MINOR, null, null),
-                ReviewObservationRequest.Outcome.none())))
+                new ReviewObservationRequest.Changes("Honeycombing", null, DefectSeverity.MINOR, null, null, null),
+                ReviewObservationRequest.Outcome.none(), null)))
                 .isInstanceOf(InvalidRequestException.class);
 
         ObservationDto reviewed = service.review(pending.getId(), new ReviewObservationRequest(
                 ObservationReviewDecision.MODIFY, "worse than it looked",
-                new ReviewObservationRequest.Changes(null, null, DefectSeverity.MAJOR, zone, null),
+                new ReviewObservationRequest.Changes(null, null, DefectSeverity.MAJOR, zone, null, null),
                 new ReviewObservationRequest.Outcome(ObservationOutcomeKind.DEFECT, null, null, null,
-                        defect("Honeycombing on column C4"), null)));
+                        defect("Honeycombing on column C4"), null), null));
 
         assertThat(reviewed.reviewStatus()).isEqualTo(ObservationReviewStatus.MODIFIED);
         assertThat(reviewed.reviewNote()).isEqualTo("worse than it looked");
@@ -276,13 +276,13 @@ class ObservationServiceIT extends AbstractIntegrationTest {
         Observation pending = pending(inspection.id(), "False positive");
 
         assertThatThrownBy(() -> service.review(pending.getId(), new ReviewObservationRequest(
-                ObservationReviewDecision.REJECT, " ", null, null)))
+                ObservationReviewDecision.REJECT, " ", null, null, null)))
                 .isInstanceOf(InvalidRequestException.class);
 
         ObservationDto rejected = service.review(pending.getId(), new ReviewObservationRequest(
                 ObservationReviewDecision.REJECT, "shadow, not a crack", null,
                 new ReviewObservationRequest.Outcome(ObservationOutcomeKind.CHECK_ITEM,
-                        inspection.checkItems().get(0).id(), CheckItemStatus.FAILED, null, null, null)));
+                        inspection.checkItems().get(0).id(), CheckItemStatus.FAILED, null, null, null), null));
 
         assertThat(rejected.reviewStatus()).isEqualTo(ObservationReviewStatus.REJECTED);
         assertThat(rejected.outcomeKind()).isEqualTo(ObservationOutcomeKind.NONE);
@@ -304,7 +304,7 @@ class ObservationServiceIT extends AbstractIntegrationTest {
         Observation pending = pending(inspection.id(), "Crack seen by drone");
         assertThatThrownBy(() -> service.review(pending.getId(), new ReviewObservationRequest(
                 ObservationReviewDecision.ACCEPT, null, null,
-                new ReviewObservationRequest.Outcome(ObservationOutcomeKind.DEFECT, null, null, defectId, null, null))))
+                new ReviewObservationRequest.Outcome(ObservationOutcomeKind.DEFECT, null, null, defectId, null, null), null)))
                 .isInstanceOf(InvalidRequestException.class);
     }
 
@@ -441,7 +441,7 @@ class ObservationServiceIT extends AbstractIntegrationTest {
     @Test
     void anotherTenantCannotSeeOrReviewTheObservation() {
         ObservationDto mine = service.create(new CreateObservationRequest(projectId, null, null, null,
-                LocalDateTime.of(2026, 9, 12, 9, 0), "Mine", null, null, null, null));
+                LocalDateTime.of(2026, 9, 12, 9, 0), "Mine", null, null, null, null, null));
         entityManager.flush();
         entityManager.clear();
         assertThat(repository.existsByIdAndOrganization_Id(mine.id(), orgAId)).isTrue();
@@ -452,7 +452,7 @@ class ObservationServiceIT extends AbstractIntegrationTest {
 
         assertThatThrownBy(() -> service.findById(mine.id())).isInstanceOf(ResourceNotFoundException.class);
         assertThatThrownBy(() -> service.review(mine.id(), new ReviewObservationRequest(
-                ObservationReviewDecision.REJECT, "not ours", null, null)))
+                ObservationReviewDecision.REJECT, "not ours", null, null, null)))
                 .isInstanceOf(ResourceNotFoundException.class);
         assertThat(service.findAll(projectId, null, null, null, null, null, null, PageRequest.of(0, 10))
                 .getTotalElements()).isZero();

@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.modules.inspections.dtos;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
@@ -45,5 +46,9 @@ public record IntakeObservationRequest(
         @DecimalMin("0.0") @DecimalMax("1.0") BigDecimal confidence,
         @Schema(description = "Pointers to captures outside the Echno store (frame index, point-cloud id, "
                 + "crop bounds), in the producer's own shape.", nullable = true)
-        List<Map<String, Object>> evidenceRefs
+        List<Map<String, Object>> evidenceRefs,
+        @Schema(description = "Where the finding is on the images it was seen in: one region per detection is "
+                + "the expected shape, up to 20. Each attachment must be in the caller's organisation.",
+                nullable = true)
+        @Valid @Size(max = 20) List<ObservationRegionRequest> regions
 ) {}

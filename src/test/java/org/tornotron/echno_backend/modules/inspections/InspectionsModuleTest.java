@@ -199,7 +199,7 @@ class InspectionsModuleTest {
         TenantContext.setCurrentOrgId(DARK_ORG);
         IntakeObservationRequest req = new IntakeObservationRequest(1L, "drone-7:42", ObservationSource.DRONE,
                 "drone-7", null, null, null, "L3 slab", java.time.LocalDateTime.of(2026, 9, 12, 8, 0),
-                "Crack", null, null, null, null, null, null, null);
+                "Crack", null, null, null, null, null, null, null, null);
 
         assertThatExceptionOfType(SubscriptionAccessDeniedException.class)
                 .isThrownBy(() -> controller.intake(req))
