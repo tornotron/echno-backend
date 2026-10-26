@@ -3,6 +3,7 @@ package org.tornotron.echno_backend.modules.inspections.dtos;
 import io.swagger.v3.oas.annotations.media.Schema;
 import org.tornotron.echno_backend.modules.inspections.DefectSeverity;
 import org.tornotron.echno_backend.modules.inspections.ObservationOutcomeKind;
+import org.tornotron.echno_backend.modules.inspections.ObservationRejectReason;
 import org.tornotron.echno_backend.modules.inspections.ObservationReviewStatus;
 import org.tornotron.echno_backend.modules.inspections.ObservationSource;
 import org.tornotron.echno_backend.project.spatial.dto.SpatialPathSegment;
@@ -47,6 +48,9 @@ public record ObservationDto(
         @Schema(nullable = true) DefectSeverity suggestedSeverity,
         @Schema(description = "Pointers to evidence, in the producer's own shape.", nullable = true)
         List<Map<String, Object>> evidenceRefs,
+        @Schema(description = "Active regions in draw order; retired ones too when includeRetiredRegions is "
+                + "set on the single read.")
+        List<ObservationRegionDto> regions,
         ObservationReviewStatus reviewStatus,
         @Schema(nullable = true) Long reviewedById,
         @Schema(nullable = true) LocalDateTime reviewedAt,
@@ -54,6 +58,9 @@ public record ObservationDto(
         @Schema(description = "One entry per field the reviewer changed: field, before, after. "
                 + "Set only on a MODIFIED observation.", nullable = true)
         List<Map<String, Object>> reviewChanges,
+        @Schema(description = "Why it was rejected. Set only on a REJECTED observation, and not always then.",
+                nullable = true)
+        ObservationRejectReason rejectReason,
         ObservationOutcomeKind outcomeKind,
         @Schema(description = "Id of the check item, defect, NCR or inspection the observation "
                 + "produced, according to outcomeKind. Null for NONE.", nullable = true)
@@ -65,7 +72,15 @@ public record ObservationDto(
         return new ObservationDto(id, projectId, inspectionId, spatialNodeId, path, locationNote, source,
                 sourceDeviceId, missionRef, captureRef, externalRef, modelName, modelVersion, confidence,
                 observedAt, reportedById, title, description, category, suggestedSeverity, evidenceRefs,
-                reviewStatus, reviewedById, reviewedAt, reviewNote, reviewChanges, outcomeKind, outcomeRef,
-                createdAt, updatedAt);
+                regions, reviewStatus, reviewedById, reviewedAt, reviewNote, reviewChanges, rejectReason,
+                outcomeKind, outcomeRef, createdAt, updatedAt);
+    }
+
+    public ObservationDto withRegions(List<ObservationRegionDto> regionList) {
+        return new ObservationDto(id, projectId, inspectionId, spatialNodeId, spatialPath, locationNote, source,
+                sourceDeviceId, missionRef, captureRef, externalRef, modelName, modelVersion, confidence,
+                observedAt, reportedById, title, description, category, suggestedSeverity, evidenceRefs,
+                regionList, reviewStatus, reviewedById, reviewedAt, reviewNote, reviewChanges, rejectReason,
+                outcomeKind, outcomeRef, createdAt, updatedAt);
     }
 }

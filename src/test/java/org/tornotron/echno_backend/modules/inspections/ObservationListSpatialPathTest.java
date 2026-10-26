@@ -17,6 +17,7 @@ import org.tornotron.echno_backend.modules.inspections.events.InspectionEventRec
 import org.tornotron.echno_backend.modules.inspections.mapper.ObservationMapper;
 import org.tornotron.echno_backend.modules.inspections.repositories.InspectionRepository;
 import org.tornotron.echno_backend.modules.inspections.repositories.ObservationRepository;
+import org.tornotron.echno_backend.modules.inspections.repositories.ObservationRegionRepository;
 import org.tornotron.echno_backend.modules.inspections.service.ObservationService;
 import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.project.spatial.SpatialLevel;
@@ -49,6 +50,7 @@ class ObservationListSpatialPathTest {
     @Mock private EmployeeRepository employeeRepository;
     @Mock private ObservationMapper mapper;
     @Mock private ProjectRepository projectRepository;
+    @Mock private ObservationRegionRepository regionRepo;
     @Mock private AttachmentRepository attachmentRepository;
     @Mock private TransactionRetryTemplate retryTemplate;
 
@@ -71,7 +73,7 @@ class ObservationListSpatialPathTest {
 
         ObservationService service = new ObservationService(observationRepo, inspectionRepo, spatialNodeService, events,
                 tenantEntityHelper, userContextService, employeeRepository, mapper, projectRepository, attachmentRepository,
-                retryTemplate);
+                retryTemplate, regionRepo);
         Page<ObservationDto> page = service.findAll(42L, null, null, null, null, null, null, PageRequest.of(0, 10));
 
         verify(spatialNodeService).pathsOf(List.of(zoneA, zoneA, zoneB));
@@ -82,7 +84,7 @@ class ObservationListSpatialPathTest {
 
     private static ObservationDto dto(UUID spatialNodeId) {
         return new ObservationDto(UUID.randomUUID(), 42L, null, spatialNodeId, List.of(), null, null, null, null, null,
-                null, null, null, null, null, null, "t", null, null, null, List.of(), null, null, null, null, null,
-                null, null, null, null);
+                null, null, null, null, null, null, "t", null, null, null, List.of(), List.of(), null, null, null, null, null,
+                null, null, null, null, null);
     }
 }

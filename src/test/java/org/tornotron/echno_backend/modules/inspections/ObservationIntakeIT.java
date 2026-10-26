@@ -202,7 +202,7 @@ class ObservationIntakeIT extends AbstractIntegrationTest {
                 ObservationSource.DRONE, "drone-7", "mission-3", "cap-9f", zone, null,
                 LocalDateTime.of(2026, 9, 12, 8, 15), "Exposed rebar", "Rebar visible at slab edge",
                 "Structural", DefectSeverity.MAJOR, "crackdet", "1.4.0", new BigDecimal("0.8125"),
-                List.of(Map.of("frame", 1200, "bbox", List.of(10, 20, 110, 90))));
+                List.of(Map.of("frame", 1200, "bbox", List.of(10, 20, 110, 90))), null);
 
         ObservationService.IntakeResult first = service.intake(req);
         assertThat(first.created()).isTrue();
@@ -228,7 +228,7 @@ class ObservationIntakeIT extends AbstractIntegrationTest {
         ObservationService.IntakeResult again = service.intake(new IntakeObservationRequest(projectId,
                 "drone-7:mission-3:42", ObservationSource.DRONE, "drone-7", "mission-3", "cap-9f", zone, null,
                 LocalDateTime.of(2026, 9, 12, 8, 16), "Exposed rebar, retry", null, null, null, null, null,
-                null, null));
+                null, null, null));
         assertThat(again.created()).isFalse();
         assertThat(again.observation().id()).isEqualTo(dto.id());
         assertThat(again.observation().title()).isEqualTo("Exposed rebar");
@@ -281,13 +281,13 @@ class ObservationIntakeIT extends AbstractIntegrationTest {
     void anAiFindingNamesTheModelAsActorAndTheHumanSourceIsRefused() {
         ObservationService.IntakeResult ai = service.intake(new IntakeObservationRequest(projectId, "cv:77",
                 ObservationSource.AI, "cctv-gate-2", null, null, null, "Gate 2", LocalDateTime.of(2026, 9, 12, 9, 0),
-                "No helmet", null, "Safety", null, "ppe-detect", "2.0", new BigDecimal("0.55"), null));
+                "No helmet", null, "Safety", null, "ppe-detect", "2.0", new BigDecimal("0.55"), null, null));
         assertThat(events(ai.observation().id(), InspectionEventType.OBSERVATION_CREATED))
                 .allSatisfy(e -> assertThat(e.getActorId()).isEqualTo("ppe-detect"));
 
         assertThatThrownBy(() -> service.intake(new IntakeObservationRequest(projectId, "h:1",
                 ObservationSource.HUMAN, "person", null, null, null, null, LocalDateTime.of(2026, 9, 12, 9, 0),
-                "Seen", null, null, null, null, null, null, null)))
+                "Seen", null, null, null, null, null, null, null, null)))
                 .isInstanceOf(InvalidRequestException.class);
     }
 
@@ -295,7 +295,7 @@ class ObservationIntakeIT extends AbstractIntegrationTest {
     void aNodeOutsideTheProjectIsRefused() {
         assertThatThrownBy(() -> service.intake(new IntakeObservationRequest(projectId, "drone-7:9",
                 ObservationSource.DRONE, "drone-7", null, null, UUID.randomUUID(), null,
-                LocalDateTime.of(2026, 9, 12, 9, 0), "Crack", null, null, null, null, null, null, null)))
+                LocalDateTime.of(2026, 9, 12, 9, 0), "Crack", null, null, null, null, null, null, null, null)))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 
@@ -303,7 +303,7 @@ class ObservationIntakeIT extends AbstractIntegrationTest {
     void theReferenceIsUniquePerOrganisationNotGlobally() {
         ObservationDto mine = service.intake(new IntakeObservationRequest(projectId, "shared-ref",
                 ObservationSource.ROBOT, "spot-1", null, null, null, null, LocalDateTime.of(2026, 9, 12, 9, 0),
-                "Mine", null, null, null, null, null, null, null)).observation();
+                "Mine", null, null, null, null, null, null, null, null)).observation();
 
         TenantContext.setCurrentOrgId(orgBId);
         // the other tenant cannot see it, and its own use of the same reference is a new row
@@ -311,11 +311,11 @@ class ObservationIntakeIT extends AbstractIntegrationTest {
         // a project of the other tenant is not theirs to post against
         assertThatThrownBy(() -> service.intake(new IntakeObservationRequest(projectId, "shared-ref",
                 ObservationSource.ROBOT, "spot-1", null, null, null, null, LocalDateTime.of(2026, 9, 12, 9, 0),
-                "Theirs", null, null, null, null, null, null, null)))
+                "Theirs", null, null, null, null, null, null, null, null)))
                 .isInstanceOf(ResourceNotFoundException.class);
         ObservationService.IntakeResult theirs = service.intake(new IntakeObservationRequest(otherProjectId,
                 "shared-ref", ObservationSource.ROBOT, "spot-1", null, null, null, null,
-                LocalDateTime.of(2026, 9, 12, 9, 0), "Theirs", null, null, null, null, null, null, null));
+                LocalDateTime.of(2026, 9, 12, 9, 0), "Theirs", null, null, null, null, null, null, null, null));
         assertThat(theirs.created()).isTrue();
         assertThat(theirs.observation().id()).isNotEqualTo(mine.id());
         assertThat(repository.existsByIdAndOrganization_Id(theirs.observation().id(), orgBId)).isTrue();
@@ -354,7 +354,7 @@ class ObservationIntakeIT extends AbstractIntegrationTest {
     private IntakeObservationRequest retryOf(String externalRef) {
         return new IntakeObservationRequest(projectId, externalRef, ObservationSource.DRONE, "drone-7",
                 "mission-3", "cap-9f", zone, null, LocalDateTime.of(2026, 9, 12, 8, 16), "Exposed rebar, retry",
-                null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null);
     }
 
     private void assertLoserGotTheWinnersRow(ObservationService.IntakeResult loser, UUID winner) {

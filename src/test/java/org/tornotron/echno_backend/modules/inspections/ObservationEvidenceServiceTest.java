@@ -10,15 +10,19 @@ import org.tornotron.echno_backend.common.dto.UploadRequest;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.mapper.AttachmentMapper;
 import org.tornotron.echno_backend.common.service.AttachmentService;
+import org.tornotron.echno_backend.common.entity.AttachmentDto;
 import org.tornotron.echno_backend.modules.inspections.domain.Observation;
+import org.tornotron.echno_backend.modules.inspections.domain.ObservationRegion;
 import org.tornotron.echno_backend.modules.inspections.events.InspectionEventRecorder;
 import org.tornotron.echno_backend.modules.inspections.repositories.ObservationRepository;
+import org.tornotron.echno_backend.modules.inspections.repositories.ObservationRegionRepository;
 import org.tornotron.echno_backend.modules.inspections.service.ObservationEvidenceService;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -41,6 +45,8 @@ class ObservationEvidenceServiceTest {
     private AttachmentMapper attachmentMapper;
     @Mock
     private InspectionEventRecorder events;
+    @Mock
+    private ObservationRegionRepository regionRepo;
 
     @InjectMocks
     private ObservationEvidenceService service;
@@ -92,5 +98,29 @@ class ObservationEvidenceServiceTest {
         service.register(observationId, uploads);
 
         verify(attachmentService).registerUploads(eq(uploads), any(), eq("observation/" + observationId));
+    }
+
+    @Test
+    void list_addsEachImageARegionIsDrawnOnOnce() {
+        when(observationRepo.findByIdScoped(observationId)).thenReturn(Optional.of(new Observation()));
+        when(attachmentService.getAttachments(ObservationEvidence.ENTITY_TYPE, observationId))
+                .thenReturn(List.of(attachment(5L)));
+        when(regionRepo.findByObservationScoped(observationId))
+                .thenReturn(List.of(regionOn(5L), regionOn(9L), regionOn(9L)));
+        when(attachmentService.getAttachments(java.util.Set.of(9L))).thenReturn(List.of(attachment(9L)));
+
+        assertThat(service.list(observationId)).extracting(AttachmentDto::getId).containsExactly(5L, 9L);
+    }
+
+    private static AttachmentDto attachment(Long id) {
+        AttachmentDto dto = new AttachmentDto();
+        dto.setId(id);
+        return dto;
+    }
+
+    private static ObservationRegion regionOn(Long attachmentId) {
+        ObservationRegion region = new ObservationRegion();
+        region.setAttachmentId(attachmentId);
+        return region;
     }
 }

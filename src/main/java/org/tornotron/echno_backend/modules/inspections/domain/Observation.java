@@ -23,6 +23,7 @@ import org.hibernate.type.SqlTypes;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.modules.inspections.DefectSeverity;
 import org.tornotron.echno_backend.modules.inspections.ObservationOutcomeKind;
+import org.tornotron.echno_backend.modules.inspections.ObservationRejectReason;
 import org.tornotron.echno_backend.modules.inspections.ObservationReviewStatus;
 import org.tornotron.echno_backend.modules.inspections.ObservationSource;
 import org.tornotron.echno_backend.organization.Organization;
@@ -157,6 +158,14 @@ public class Observation implements TenantScopedEntity {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "review_changes", columnDefinition = "jsonb")
     private List<Map<String, Object>> reviewChanges;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "reject_reason", length = 30)
+    private ObservationRejectReason rejectReason;
+
+    // Set by a bulk review, so one reviewer action can be traced across the rows it decided.
+    @Column(name = "review_batch_id")
+    private UUID reviewBatchId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "outcome_kind", nullable = false, length = 20)

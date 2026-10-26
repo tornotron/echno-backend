@@ -48,9 +48,9 @@ public class ObservationIntakeController {
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Observation recorded, pending review"),
             @ApiResponse(responseCode = "200", description = "An observation with this externalRef already exists; returned unchanged"),
-            @ApiResponse(responseCode = "400", description = "Validation failed, or the source is HUMAN"),
+            @ApiResponse(responseCode = "400", description = "Validation failed, the source is HUMAN, or a region is invalid"),
             @ApiResponse(responseCode = "403", description = "Caller lacks the producer role in the current tenant, or the tenant is not entitled to the module"),
-            @ApiResponse(responseCode = "404", description = "No spatial node with the given id in the project")
+            @ApiResponse(responseCode = "404", description = "No spatial node with the given id in the project, or no attachment a region names in the organisation")
     })
     public ResponseEntity<ObservationDto> intake(@Valid @RequestBody IntakeObservationRequest req) {
         ObservationService.IntakeResult result = service.intake(req);

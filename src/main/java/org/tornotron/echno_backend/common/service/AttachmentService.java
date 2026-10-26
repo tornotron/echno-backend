@@ -25,6 +25,7 @@ import org.tornotron.echno_backend.user.UserRepository;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -170,6 +171,21 @@ public class AttachmentService {
         return toDtos(attachmentRepository.findByEntityTypeAndEntityUuidOrderByIdAsc(entityType, entityUuid));
     }
 
+    /**
+     * Retrieves attachments of the current organization by id, whatever they are filed against.
+     * Ids from another organization are left out.
+     *
+     * @param ids The attachment ids
+     * @return The attachments found, oldest first
+     */
+    @Transactional(readOnly = true)
+    public List<AttachmentDto> getAttachments(Collection<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        return toDtos(attachmentRepository.findByIdInAndOrganization_IdOrderByIdAsc(ids, TenantContext.getCurrentOrgId()));
+    }
+
     private List<AttachmentDto> toDtos(List<Attachment> attachments) {
         return attachments.stream()
                 .map(attachment -> {
@@ -241,8 +257,10 @@ public class AttachmentService {
     @Transactional
     public void deleteAttachment(Long attachmentId) {
         attachmentRepository.findById(attachmentId).ifPresent(attachment -> {
-            fileStorageService.deleteFile(attachment.getStorageKey());
+            // Row first: a foreign key that refuses the delete must do so before the file is gone.
             attachmentRepository.delete(attachment);
+            attachmentRepository.flush();
+            fileStorageService.deleteFile(attachment.getStorageKey());
         });
     }
 
@@ -271,8 +289,9 @@ public class AttachmentService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Attachment with ID " + attachmentId + " is not filed against "
                                 + owner.entityType() + " " + owner.keyAsText()));
-        fileStorageService.deleteFile(attachment.getStorageKey());
         attachmentRepository.delete(attachment);
+        attachmentRepository.flush();
+        fileStorageService.deleteFile(attachment.getStorageKey());
     }
 
     /**

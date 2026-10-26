@@ -21,6 +21,8 @@ import org.tornotron.echno_backend.common.mapper.AttachmentMapper;
 import org.tornotron.echno_backend.common.service.AttachmentService;
 import org.tornotron.echno_backend.modules.inspections.domain.Inspection;
 import org.tornotron.echno_backend.modules.inspections.repositories.InspectionRepository;
+import org.tornotron.echno_backend.modules.inspections.observation.EvidenceInUseByRegionException;
+import org.tornotron.echno_backend.modules.inspections.repositories.ObservationRegionRepository;
 import org.tornotron.echno_backend.modules.inspections.events.InspectionEventRecorder;
 import org.tornotron.echno_backend.modules.inspections.events.InspectionEventType;
 import org.tornotron.echno_backend.modules.inspections.service.InspectionEvidenceService;
@@ -57,13 +59,14 @@ class InspectionEvidenceServiceTest {
     @Mock private AttachmentService attachmentService;
     @Mock private AttachmentMapper attachmentMapper;
     @Mock private InspectionEventRecorder events;
+    @Mock private ObservationRegionRepository regionRepo;
 
     private InspectionEvidenceService service;
     private UUID inspectionId;
 
     @BeforeEach
     void setUp() {
-        service = new InspectionEvidenceService(inspectionRepo, attachmentService, attachmentMapper, events);
+        service = new InspectionEvidenceService(inspectionRepo, attachmentService, attachmentMapper, events, regionRepo);
         inspectionId = UUID.randomUUID();
     }
 
@@ -176,5 +179,17 @@ class InspectionEvidenceServiceTest {
         ArgumentCaptor<AttachmentOwner> owner = ArgumentCaptor.forClass(AttachmentOwner.class);
         verify(attachmentService).presignUploads(any(), owner.capture(), eq("inspection"));
         assertThat(owner.getValue().entityUuid()).isEqualTo(inspectionId);
+    }
+
+    @Test
+    void evidenceAnObservationRegionIsDrawnOnCannotBeDeleted() {
+        inspectionWith(InspectionStatus.IN_PROGRESS);
+        UUID observationId = UUID.randomUUID();
+        when(regionRepo.findObservationIdsByAttachmentScoped(88L)).thenReturn(List.of(observationId));
+
+        assertThatThrownBy(() -> service.delete(inspectionId, 88L))
+                .isInstanceOf(EvidenceInUseByRegionException.class)
+                .hasMessageContaining(observationId.toString());
+        verify(attachmentService, never()).deleteAttachmentOf(any(), any());
     }
 }
