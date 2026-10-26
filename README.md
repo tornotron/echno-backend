@@ -270,6 +270,23 @@ replaced by the winner rather than reported. Give one of them a name of its own 
 Serving the document from a deployment is a separate decision: `/v3/api-docs` and the Swagger UI
 answer 401 unless `SWAGGER_PUBLIC_ACCESS=true` is set for that environment.
 
+### The dataset export manifest
+
+The dataset export (`modules/inspections/dataset`) writes a `manifest.jsonl` that the
+[echno-datasets](https://github.com/tornotron/echno-datasets) tooling reads. That repo's README
+is the contract. `DatasetManifestContractTest` runs the real export path against fixed rows and
+compares the manifest with `src/test/resources/dataset/manifest.golden.jsonl`, and
+echno-datasets keeps a byte-for-byte copy of that file and checks its validator and anonymiser
+accept it. A deliberate change to the line goes like this:
+
+```bash
+ECHNO_UPDATE_GOLDEN=1 ./gradlew test --tests '*DatasetManifestContractTest'   # rewrite the golden file
+```
+
+Commit the new file with the change, and once it is on `development`, run
+`scripts/check-golden.sh --update` in echno-datasets and make the tooling accept it there. That
+repo's CI diffs its copy against this file on every push, so the two cannot drift silently.
+
 ## Monitoring
 
 The application exposes metrics in Prometheus format at `/actuator/prometheus`. Use the provided

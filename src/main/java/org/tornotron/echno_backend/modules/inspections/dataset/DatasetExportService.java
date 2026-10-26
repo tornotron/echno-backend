@@ -27,12 +27,15 @@ import org.tornotron.echno_backend.project.spatial.SpatialNodeService;
 import org.tornotron.echno_backend.project.spatial.dto.SpatialPathSegment;
 
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.HexFormat;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -237,6 +240,9 @@ public class DatasetExportService {
         }
         Map<UUID, String> breadcrumbs = breadcrumbsFor(candidates);
         Map<String, List<DefectPhotoAnnotation>> annotationsByPhoto = annotationsByPhoto(organizationId);
+        // Read in the transaction that reads the rows: start() checked the flag, but a withdrawal
+        // between start() and here must reach the lines, and the tooling skips a false one.
+        boolean consent = run.getOrganization().isDatasetConsent();
 
         String runPrefix = runPrefix(run.getRunKey());
         int cap = Math.max(1, properties.getMaxObjectsPerRun());
@@ -258,7 +264,8 @@ public class DatasetExportService {
                     : List.of();
             planned.add(new Planned(candidate.kind(), candidate.sourceRef(), candidate.sourceKey(),
                     candidate.inspection() == null ? null : candidate.inspection().getId(), exportKey,
-                    toJson(manifestLine(run.getRunKey(), organizationId, candidate, exportKey, breadcrumbs, boxes))));
+                    toJson(manifestLine(run.getRunKey(), organizationId, consent, candidate, exportKey, breadcrumbs,
+                            boxes))));
         }
         return new ExportPlan(runId, organizationId, run.getRunKey(), runPrefix, List.copyOf(planned), skipped);
     }
@@ -436,7 +443,34 @@ public class DatasetExportService {
         return inspectionId + "|" + photo;
     }
 
-    private DatasetManifestLine manifestLine(String runKey, Long orgId, Candidate c, String exportKey,
+    /**
+     * The manifest's {@code evidence_id}: {@code <source>.<ref>}, inside the tooling's
+     * {@code ^[A-Za-z0-9._-]{1,128}$} because the tooling uses it as an object key segment.
+     *
+     * <p>For the two attachment sources the ref is the attachment id, a decimal number. For a
+     * defect photo the source reference is the stored photo reference itself (a CDN URL or a
+     * bare key, with {@code /} and {@code :} in it and no length bound), so the ref is its
+     * SHA-256 in lower-case hex. The source values use only {@code [a-z_]} and neither ref can
+     * contain a {@code .}, so the first {@code .} always splits source from ref and two sources
+     * can never produce the same id. The longest id is {@code defect_photo.} plus 64 hex
+     * characters, 77 in all. Like the ledger, the id is keyed on the source reference, so the
+     * same image gets the same id in every run.
+     */
+    static String evidenceId(DatasetSourceKind kind, String sourceRef) {
+        String ref = kind == DatasetSourceKind.DEFECT_PHOTO ? sha256Hex(sourceRef) : sourceRef;
+        return kind.manifestValue() + "." + ref;
+    }
+
+    private static String sha256Hex(String value) {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
+                    .digest(value.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 is not available", e);
+        }
+    }
+
+    private DatasetManifestLine manifestLine(String runKey, Long orgId, boolean consent, Candidate c, String exportKey,
                                              Map<UUID, String> breadcrumbs, List<DefectPhotoAnnotation> boxes) {
         Inspection inspection = c.inspection();
         Observation observation = c.observation();
@@ -446,7 +480,7 @@ public class DatasetExportService {
                         b.getX1(), b.getY1(), b.getX2(), b.getY2(), b.getLabel(), b.getLineOrder()))
                 .toList();
         return new DatasetManifestLine(
-                c.kind().manifestValue() + ":" + c.sourceRef(),
+                evidenceId(c.kind(), c.sourceRef()),
                 c.kind().manifestValue(),
                 observation != null ? "observation:" + observation.getId()
                         : inspection != null ? "inspection:" + inspection.getId() : null,
@@ -454,6 +488,7 @@ public class DatasetExportService {
                 exportKey,
                 c.sourceKey(),
                 orgId,
+                consent,
                 orgId,
                 c.projectId(),
                 inspection == null ? null : inspection.getId(),
