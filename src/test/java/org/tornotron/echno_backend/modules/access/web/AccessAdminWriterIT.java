@@ -20,6 +20,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.access.AccessDeniedException;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
+import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.exception.UnprocessableRequestException;
 import org.tornotron.echno_backend.employee.Employee;
@@ -220,6 +221,66 @@ class AccessAdminWriterIT extends AbstractIntegrationTest {
 
         assertThatThrownBy(() -> writer.updateRole(admin, theirs, "Mine now", null, null))
                 .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    void aGroupGivesItsMembersWhatItHoldsUntilItIsDeleted() {
+        UUID finance = writer.createGroup(admin, "DEPARTMENT", "Finance", null);
+        writer.replaceGroupGrants(admin, finance, Set.of(new Grant(AccessPermission.of("finance:view"), AccessScope.ALL)));
+        writer.replaceGroupRoles(admin, finance, List.of(role("store-keeper").id()));
+        AccessSubject asEngineer = new AccessSubject(org.getId(), engineer.getId(), null);
+        assertThat(access.check(asEngineer, AccessPermission.of("finance:view"))).isFalse();
+
+        writer.replaceGroupMembers(admin, finance, List.of(engineer.getId()));
+        flushAndClear();
+
+        assertThat(reader.groups(org.getId())).singleElement().satisfies(group -> {
+            assertThat(group.kind()).isEqualTo("DEPARTMENT");
+            assertThat(group.memberIds()).containsExactly(engineer.getId());
+            assertThat(group.roleIds()).containsExactly(role("store-keeper").id());
+        });
+        assertThat(access.check(asEngineer, AccessPermission.of("finance:view"))).isTrue();
+        assertThat(access.check(asEngineer, AccessPermission.of("goods-receipts:create"))).isTrue();
+        assertThatThrownBy(() -> writer.createGroup(admin, null, "finance", null))
+                .isInstanceOf(DuplicateResourceException.class);
+
+        writer.deleteGroup(admin, finance);
+        flushAndClear();
+        assertThat(reader.groups(org.getId())).isEmpty();
+        assertThat(access.check(asEngineer, AccessPermission.of("finance:view"))).isFalse();
+    }
+
+    @Test
+    void aCallerAddsMembersOnlyToGroupsWhoseAccessTheyCouldGive() {
+        UUID finance = writer.createGroup(admin, null, "Finance", null);
+        writer.replaceGroupGrants(admin, finance, Set.of(new Grant(AccessPermission.of("finance:view"), AccessScope.ALL)));
+        UUID crew = writer.createGroup(admin, null, "Tower A crew", null);
+        flushAndClear();
+
+        assertThatThrownBy(() -> writer.replaceGroupMembers(hr, finance, List.of(engineer.getId())))
+                .isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> writer.replaceGroupRoles(hr, crew, List.of(role(StandardRoles.SYSTEM_ADMIN).id())))
+                .isInstanceOf(AccessDeniedException.class);
+
+        writer.replaceGroupRoles(hr, crew, List.of(role("site-engineer").id()));
+        writer.replaceGroupMembers(hr, crew, List.of(engineer.getId()));
+        flushAndClear();
+        assertThat(assignments.rolesOf(org.getId(), engineer.getId())).isEmpty();
+        assertThat(access.check(new AccessSubject(org.getId(), engineer.getId(), null),
+                AccessPermission.of("progress:create"))).isTrue();
+    }
+
+    @Test
+    void aGroupTakesOnlyTheOrganizationsPeople() {
+        UUID crew = writer.createGroup(admin, null, "Crew", null);
+        Organization other = persistOrganization("Writer Stranger " + UUID.randomUUID().toString().substring(0, 8));
+        Employee stranger = persistEmployee(other, "writer-stranger-" + UUID.randomUUID().toString().substring(0, 8));
+        flushAndClear();
+
+        assertThatThrownBy(() -> writer.replaceGroupMembers(admin, crew, List.of(stranger.getId())))
+                .isInstanceOf(ResourceNotFoundException.class);
+        assertThatThrownBy(() -> writer.replaceGroupRoles(admin, crew, List.of(role(StandardRoles.MEMBER).id())))
+                .isInstanceOf(InvalidRequestException.class);
     }
 
     private AccessRoleDto role(String slug) {

@@ -22,6 +22,8 @@ import org.tornotron.echno_backend.modules.access.api.AccessPermission;
 import org.tornotron.echno_backend.modules.access.api.AccessScope;
 import org.tornotron.echno_backend.modules.access.api.AccessService;
 import org.tornotron.echno_backend.modules.access.api.AccessSubject;
+import org.tornotron.echno_backend.modules.access.matrix.domain.AccessGroup;
+import org.tornotron.echno_backend.modules.access.matrix.domain.AccessGroupKind;
 import org.tornotron.echno_backend.modules.access.matrix.domain.AccessRole;
 import org.tornotron.echno_backend.modules.access.matrix.domain.AccessRoleGrant;
 import org.tornotron.echno_backend.modules.access.matrix.service.CachedAccessFactsSource;
@@ -158,6 +160,102 @@ public class AccessAdminWriter {
         facts.evictAll();
     }
 
+    /** Creates a department or group with no members, roles or grants. */
+    @Transactional
+    public UUID createGroup(AccessSubject caller, String kind, String name, String description) {
+        Long organizationId = caller.organizationId();
+        requireGroupNameFree(organizationId, name, null);
+        AccessGroup group = new AccessGroup();
+        group.setOrganization(em.getReference(Organization.class, organizationId));
+        group.setKind(kind(kind));
+        group.setName(name.strip());
+        group.setDescription(blankToNull(description));
+        group.setCreatedBy(caller.employeeId());
+        group.setUpdatedBy(caller.employeeId());
+        em.persist(group);
+        return group.getId();
+    }
+
+    /** Renames a group, changes its kind or what it says about itself. */
+    @Transactional
+    public void updateGroup(AccessSubject caller, UUID groupId, String kind, String name, String description) {
+        AccessGroup group = group(caller.organizationId(), groupId);
+        requireGroupNameFree(caller.organizationId(), name, groupId);
+        group.setKind(kind(kind));
+        group.setName(name.strip());
+        group.setDescription(blankToNull(description));
+        group.setUpdatedBy(caller.employeeId());
+    }
+
+    /**
+     * Replaces a group's members. Joining or leaving gives or takes everything the group holds,
+     * so the caller must be able to assign its roles and hold its grants.
+     */
+    @Transactional
+    public void replaceGroupMembers(AccessSubject caller, UUID groupId, Collection<Long> employeeIds) {
+        AccessGroup group = group(caller.organizationId(), groupId);
+        Set<Long> wanted = employees(caller.organizationId(), employeeIds);
+        Set<Long> changed = difference(wanted, group.getMemberIds());
+        changed.addAll(difference(group.getMemberIds(), wanted));
+        if (changed.isEmpty()) {
+            return;
+        }
+        requireMayHandOut(caller, group);
+
+        group.getMemberIds().retainAll(wanted);
+        group.getMemberIds().addAll(wanted);
+        group.setUpdatedBy(caller.employeeId());
+        changed.forEach(employeeId -> facts.evict(caller.organizationId(), employeeId));
+    }
+
+    /** Replaces the roles a group's members hold through it; the caller must be able to assign each one added or taken. */
+    @Transactional
+    public void replaceGroupRoles(AccessSubject caller, UUID groupId, Collection<UUID> roleIds) {
+        AccessGroup group = group(caller.organizationId(), groupId);
+        Set<AccessRole> wanted = new HashSet<>(assignableRoles(caller.organizationId(), roleIds));
+        Set<AccessRole> current = group.getRoles();
+        Set<AccessRole> changed = difference(wanted, current);
+        changed.addAll(difference(current, wanted));
+        requireMayAssign(caller, changed);
+
+        group.getRoles().retainAll(wanted);
+        group.getRoles().addAll(wanted);
+        group.setUpdatedBy(caller.employeeId());
+        if (!changed.isEmpty()) {
+            evictMembers(caller.organizationId(), group);
+        }
+    }
+
+    /** Replaces what a group grants its members directly; the caller must hold each grant added or taken. */
+    @Transactional
+    public void replaceGroupGrants(AccessSubject caller, UUID groupId, Set<Grant> wanted) {
+        AccessGroup group = group(caller.organizationId(), groupId);
+        Set<Grant> current = group.getGrants().stream()
+                .map(g -> grant(g.getPermissionKey(), g.getScope()))
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        Set<Grant> added = difference(wanted, current);
+        Set<Grant> removed = difference(current, wanted);
+        requireHeld(caller, added, removed);
+
+        removed.forEach(g -> group.revoke(g.permission(), g.scope()));
+        added.forEach(g -> group.grant(g.permission(), g.scope()));
+        group.setUpdatedBy(caller.employeeId());
+        if (!added.isEmpty() || !removed.isEmpty()) {
+            evictMembers(caller.organizationId(), group);
+        }
+    }
+
+    /** Deletes a group; its members lose what it gave them, so the caller must be able to hand all of it out. */
+    @Transactional
+    public void deleteGroup(AccessSubject caller, UUID groupId) {
+        AccessGroup group = group(caller.organizationId(), groupId);
+        requireMayHandOut(caller, group);
+        Set<Long> members = Set.copyOf(group.getMemberIds());
+        em.remove(group);
+        em.flush();
+        members.forEach(employeeId -> facts.evict(caller.organizationId(), employeeId));
+    }
+
     // ---- what the caller may change ----
 
     /**
@@ -203,6 +301,14 @@ public class AccessAdminWriter {
         }
     }
 
+    /** Refuses unless the caller may give everything the group gives: its roles and its grants. */
+    private void requireMayHandOut(AccessSubject caller, AccessGroup group) {
+        requireMayAssign(caller, group.getRoles());
+        requireHeld(caller, group.getGrants().stream()
+                .map(g -> grant(g.getPermissionKey(), g.getScope()))
+                .collect(Collectors.toSet()));
+    }
+
     /** The ids of the roles the caller's roles may assign: their own, their groups' and the baseline's. */
     Set<UUID> assignableBy(AccessSubject caller) {
         return new HashSet<>(em.createQuery("SELECT DISTINCT g.id FROM AccessRole r JOIN r.grantableRoles g "
@@ -240,6 +346,47 @@ public class AccessAdminWriter {
         return role;
     }
 
+    AccessGroup group(Long organizationId, UUID groupId) {
+        AccessGroup group = em.find(AccessGroup.class, groupId);
+        if (group == null || !group.getOrganization().getId().equals(organizationId)) {
+            throw new ResourceNotFoundException("No group " + groupId + " in this organization");
+        }
+        return group;
+    }
+
+    /** The employees named, every one of them in the organization. */
+    Set<Long> employees(Long organizationId, Collection<Long> employeeIds) {
+        Set<Long> wanted = new LinkedHashSet<>(employeeIds);
+        if (wanted.isEmpty()) {
+            return wanted;
+        }
+        Set<Long> found = new HashSet<>(em.createQuery("SELECT e.id FROM Employee e "
+                        + "WHERE e.organization.id = :organizationId AND e.id IN :ids", Long.class)
+                .setParameter("organizationId", organizationId)
+                .setParameter("ids", wanted)
+                .getResultList());
+        Set<Long> missing = difference(wanted, found);
+        if (!missing.isEmpty()) {
+            throw new ResourceNotFoundException("No employee " + missing + " in this organization");
+        }
+        return wanted;
+    }
+
+    private void requireGroupNameFree(Long organizationId, String name, UUID except) {
+        boolean taken = em.createQuery("SELECT g.id FROM AccessGroup g WHERE g.organization.id = :organizationId "
+                        + "AND LOWER(g.name) = LOWER(:name)", UUID.class)
+                .setParameter("organizationId", organizationId)
+                .setParameter("name", name.strip())
+                .getResultList().stream().anyMatch(id -> !id.equals(except));
+        if (taken) {
+            throw new DuplicateResourceException("A department or group named '" + name.strip() + "' already exists");
+        }
+    }
+
+    private void evictMembers(Long organizationId, AccessGroup group) {
+        group.getMemberIds().forEach(employeeId -> facts.evict(organizationId, employeeId));
+    }
+
     /** The roles named, all of the organization and none of them the baseline. */
     List<AccessRole> assignableRoles(Long organizationId, Collection<UUID> roleIds) {
         List<AccessRole> roles = new LinkedHashSet<>(roleIds).stream().map(id -> role(organizationId, id)).toList();
@@ -257,6 +404,17 @@ public class AccessAdminWriter {
             throw new InvalidRequestException("A role's name needs at least one letter or digit");
         }
         return slug.length() > 80 ? slug.substring(0, 80).replaceAll("-+$", "") : slug;
+    }
+
+    static AccessGroupKind kind(String kind) {
+        if (kind == null || kind.isBlank()) {
+            return AccessGroupKind.GROUP;
+        }
+        try {
+            return AccessGroupKind.valueOf(kind);
+        } catch (IllegalArgumentException e) {
+            throw new InvalidRequestException("'" + kind + "' is not a kind of group; use DEPARTMENT or GROUP");
+        }
     }
 
     static <T> Set<T> difference(Set<T> from, Set<T> minus) {
