@@ -63,6 +63,18 @@ public abstract class AccessServiceContract {
     }
 
     @Test
+    void membershipFollowsTheMembersStatus() {
+        member(alice);
+
+        assertThat(service().isActiveMember(alice)).isTrue();
+        assertThat(service().isActiveMember(bob)).isFalse();
+
+        deactivate(alice);
+
+        assertThat(service().isActiveMember(alice)).isFalse();
+    }
+
+    @Test
     void oneActionDoesNotGrantAnother() {
         member(alice);
         grant(alice, VIEW_BILLS, ALL);

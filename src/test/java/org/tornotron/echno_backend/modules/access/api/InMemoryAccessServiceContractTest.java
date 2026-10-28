@@ -62,6 +62,11 @@ class InMemoryAccessServiceContractTest extends AccessServiceContract {
     private final class InMemory implements AccessService {
 
         @Override
+        public boolean isActiveMember(AccessSubject subject) {
+            return active.contains(subject);
+        }
+
+        @Override
         public boolean check(AccessSubject subject, AccessPermission permission) {
             return grantsFor(subject).holds(permission);
         }
