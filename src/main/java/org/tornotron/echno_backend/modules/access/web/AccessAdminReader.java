@@ -125,6 +125,13 @@ public class AccessAdminReader {
                 .toList();
     }
 
+    /** One employee of the organization, as {@link #users} lists them. */
+    @Transactional(readOnly = true)
+    public AccessUserDto user(Long organizationId, Long employeeId) {
+        return users(organizationId).stream().filter(user -> user.employeeId().equals(employeeId)).findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("No employee " + employeeId + " in this organization"));
+    }
+
     private static List<AccessGrantDto> groupGrants(List<AccessGroupGrant> grants) {
         return grants.stream()
                 .sorted(Comparator.comparing(AccessGroupGrant::getPermissionKey).thenComparing(g -> g.getScope().name()))

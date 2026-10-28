@@ -339,6 +339,47 @@ public class AccessAdminControllerWeb {
         return reader.users(TenantContext.getCurrentOrgId());
     }
 
+    @PutMapping("/users/{employeeId}/roles")
+    @PreAuthorize(EDIT_GUARD)
+    @Operation(
+            summary = "Replace the roles assigned to a person",
+            description = "The roles sent become the person's direct roles; roles they hold through a "
+                    + "department or group are not touched. The caller may add or take only roles they may "
+                    + "assign. The change applies on the person's next request."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "The person's access"),
+            @ApiResponse(responseCode = "400", description = "The baseline role was listed"),
+            @ApiResponse(responseCode = "403", description = "Caller may not assign a role added or taken"),
+            @ApiResponse(responseCode = "404", description = "No such employee or role in this organization")
+    })
+    public AccessUserDto replaceAccessUserRoles(@PathVariable Long employeeId,
+                                                @Valid @RequestBody AccessRoleIdsRequest request) {
+        AccessSubject caller = caller();
+        writer.replaceUserRoles(caller, employeeId, request.roleIds());
+        return reader.user(caller.organizationId(), employeeId);
+    }
+
+    @PutMapping("/users/{employeeId}/grants")
+    @PreAuthorize(EDIT_GUARD)
+    @Operation(
+            summary = "Replace what is granted to a person directly",
+            description = "On top of their roles and groups. Any action brings view with the same scope. "
+                    + "The caller may give or take only grants they hold, with that scope or ALL."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "The person's access"),
+            @ApiResponse(responseCode = "400", description = "A permission is not in the catalog, or a scope is unknown"),
+            @ApiResponse(responseCode = "403", description = "Caller does not hold a grant they sent or removed"),
+            @ApiResponse(responseCode = "404", description = "No such employee in this organization")
+    })
+    public AccessUserDto replaceAccessUserGrants(@PathVariable Long employeeId,
+                                                 @Valid @RequestBody AccessGrantsRequest request) {
+        AccessSubject caller = caller();
+        writer.replaceUserGrants(caller, employeeId, RequestedGrants.parse(request.grants()));
+        return reader.user(caller.organizationId(), employeeId);
+    }
+
     private AccessSubject caller() {
         return current.resolve().orElseThrow(() -> new AccessDeniedException("Not a member of this organization"));
     }

@@ -321,6 +321,52 @@ class AccessAdminControllerWebTest {
         verifyNoInteractions(writer);
     }
 
+    @Test
+    void aPersonsRolesAndGrantsAreReplaced() throws Exception {
+        when(access.can("access", "edit")).thenReturn(true);
+        when(current.resolve()).thenReturn(Optional.of(CALLER));
+        when(reader.user(7L, 4L)).thenReturn(new AccessUserDto(4L, "Anand R", "anand@example.test", null, true,
+                List.of(AUDITOR), List.of(), List.of()));
+
+        mockMvc.perform(put("/api/v1/access/web/users/{id}/roles", 4L).with(jwt())
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"roleIds\":[\"" + AUDITOR + "\"]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.roleIds[0]").value(AUDITOR.toString()));
+        mockMvc.perform(put("/api/v1/access/web/users/{id}/grants", 4L).with(jwt())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"grants\":[{\"permission\":\"tasks:edit\",\"scope\":\"OWN\"}]}"))
+                .andExpect(status().isOk());
+
+        verify(writer).replaceUserRoles(CALLER, 4L, List.of(AUDITOR));
+        verify(writer).replaceUserGrants(CALLER, 4L, Set.of(
+                new Grant(AccessPermission.of("tasks:view"), AccessScope.OWN),
+                new Grant(AccessPermission.of("tasks:edit"), AccessScope.OWN)));
+    }
+
+    @Test
+    void aPersonsAccessIsRefusedWithoutAccessEdit() throws Exception {
+        when(access.can("access", "edit")).thenReturn(false);
+
+        mockMvc.perform(put("/api/v1/access/web/users/{id}/roles", 4L).with(jwt())
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"roleIds\":[]}"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(put("/api/v1/access/web/users/{id}/grants", 4L).with(jwt())
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"grants\":[]}"))
+                .andExpect(status().isForbidden());
+        verifyNoInteractions(writer);
+    }
+
+    @Test
+    void aWriteFromSomeoneOutsideTheOrganizationIsRefused() throws Exception {
+        when(access.can("access", "edit")).thenReturn(true);
+        when(current.resolve()).thenReturn(Optional.empty());
+
+        mockMvc.perform(put("/api/v1/access/web/users/{id}/grants", 4L).with(jwt())
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"grants\":[]}"))
+                .andExpect(status().isForbidden());
+        verifyNoInteractions(writer);
+    }
+
     private static AccessRoleDto role(UUID id, String slug) {
         return new AccessRoleDto(id, slug, "Auditor", null, null, false, false, List.of(), List.of(), List.of());
     }
