@@ -43,7 +43,7 @@ import org.tornotron.echno_backend.vendor.enums.VendorType;
 class DatabaseAccessFactsSourceIT extends AbstractIntegrationTest {
 
     @Autowired
-    private AccessFactsSource source;
+    private DatabaseAccessFactsSource source;
 
     @Autowired
     private TestEntityManager em;
