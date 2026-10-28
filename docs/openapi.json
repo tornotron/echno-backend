@@ -7246,6 +7246,28 @@
         ],
         "type": "object"
       },
+      "CurrentUserAccessDto": {
+        "properties": {
+          "employeeId": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "grants": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": "object"
+          },
+          "organizationId": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "CustomerDto": {
         "description": "A customer with tax registration, contact and billing details, credit limit and payment terms.",
         "properties": {
@@ -28105,6 +28127,108 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/access/web/me": {
+      "get": {
+        "description": "The caller's membership in the current organization and every permission they hold, as <area>:<action>, with the scopes each covers: ALL, ASSIGNED_PROJECTS, RELATED or OWN.",
+        "operationId": "getCurrentUserAccess",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/CurrentUserAccessDto"
+                }
+              }
+            },
+            "description": "The caller's access"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller is not an active member of the current organization"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Get the current user's access",
+        "tags": [
+          "Access (Web)"
+        ]
+      }
+    },
     "/api/v1/assets/web": {
       "get": {
         "description": "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result.",
@@ -142453,6 +142577,10 @@
     }
   ],
   "tags": [
+    {
+      "description": "What the caller may do in their current organization: every permission they hold and the records each covers. For deciding what to show; the server checks every request on its own.",
+      "name": "Access (Web)"
+    },
     {
       "description": "Fixed assets in the organization's asset register: excavators, cranes, vehicles and similar equipment tracked with purchase, condition, maintenance and insurance detail. Endpoints cover listing, paginated listing, lookup by id, creation, update and deletion, plus the append-only movement ledger that records where each asset has been and the documents filed against it. All scoped to the caller's current tenant organization.",
       "name": "Assets"
