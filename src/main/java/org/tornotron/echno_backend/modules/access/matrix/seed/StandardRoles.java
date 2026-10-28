@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Set;
 import org.tornotron.echno_backend.modules.access.api.AccessPermission;
 import org.tornotron.echno_backend.modules.access.api.AccessScope;
+import org.tornotron.echno_backend.modules.access.matrix.catalog.AccessCatalog;
 import org.tornotron.echno_backend.modules.access.matrix.seed.StandardRole.Grant;
 
 /**
@@ -32,14 +33,12 @@ public final class StandardRoles {
     public static final String SYSTEM_ADMIN = "system-admin";
 
     /** Every area the matrix covers, for the role that holds everything. */
-    static final List<String> AREAS = List.of(
-            "projects", "wbs", "progress", "progress-bills", "tasks", "issues", "bim", "construction",
-            "inspections", "toolbox-talks", "assets", "inventory", "material-consumption",
-            "storage-locations", "indents", "purchase-orders", "goods-receipts", "vendors", "finance",
-            "compliance", "documents", "team", "leave", "leave-regularisation", "chat", "org-admin", "access");
+    static final List<String> AREAS = AccessCatalog.areas().stream().map(AccessCatalog.Area::id).toList();
 
     /** The named actions on contractor bills, on top of the five common ones. */
-    static final List<String> BILL_STEPS = List.of("prepare", "verify", "certify");
+    static final List<String> BILL_STEPS = AccessCatalog.areas().stream()
+            .filter(area -> area.id().equals("progress-bills"))
+            .findFirst().orElseThrow().namedActions();
 
     private StandardRoles() {
     }
