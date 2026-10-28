@@ -19,6 +19,11 @@ public interface AccessRoleRepository extends JpaRepository<AccessRole, UUID> {
     @Query("SELECT r FROM AccessRole r WHERE r.slug = :slug")
     Optional<AccessRole> findBySlugScoped(@Param("slug") String slug);
 
+    // An organization's roles named explicitly, for work that runs outside a tenant-scoped
+    // request, such as seeding a new organization.
+    @Query("SELECT r FROM AccessRole r WHERE r.organization.id = :organizationId")
+    List<AccessRole> findAllInOrganization(@Param("organizationId") Long organizationId);
+
     // Roles with their grants in one query, for the matrix and the resolver.
     @Query("SELECT DISTINCT r FROM AccessRole r LEFT JOIN FETCH r.grants ORDER BY r.name")
     List<AccessRole> findAllWithGrants();
