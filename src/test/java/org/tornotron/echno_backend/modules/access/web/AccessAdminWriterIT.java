@@ -283,6 +283,58 @@ class AccessAdminWriterIT extends AbstractIntegrationTest {
                 .isInstanceOf(InvalidRequestException.class);
     }
 
+    @Test
+    void aPersonsOwnRolesAndGrantsAreReplacedWithinWhatTheCallerMayGive() {
+        AccessSubject asEngineer = new AccessSubject(org.getId(), engineer.getId(), null);
+        UUID siteEngineer = role("site-engineer").id();
+        UUID storeKeeper = role("store-keeper").id();
+
+        writer.replaceUserRoles(hr, engineer.getId(), List.of(siteEngineer, storeKeeper));
+        flushAndClear();
+        assertThat(assignments.rolesOf(org.getId(), engineer.getId()))
+                .containsExactlyInAnyOrder("site-engineer", "store-keeper");
+        assertThat(access.check(asEngineer, AccessPermission.of("progress:create"))).isTrue();
+
+        writer.replaceUserRoles(hr, engineer.getId(), List.of(storeKeeper));
+        flushAndClear();
+        assertThat(assignments.rolesOf(org.getId(), engineer.getId())).containsExactly("store-keeper");
+        assertThat(access.check(asEngineer, AccessPermission.of("progress:create"))).isFalse();
+
+        assertThatThrownBy(() -> writer.replaceUserRoles(hr, engineer.getId(),
+                List.of(storeKeeper, role(StandardRoles.SYSTEM_ADMIN).id())))
+                .isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> writer.replaceUserGrants(hr, engineer.getId(),
+                Set.of(new Grant(AccessPermission.of("finance:view"), AccessScope.ALL))))
+                .isInstanceOf(AccessDeniedException.class);
+
+        writer.replaceUserGrants(hr, engineer.getId(),
+                Set.of(new Grant(AccessPermission.of("documents:view"), AccessScope.OWN)));
+        flushAndClear();
+        assertThat(reader.users(org.getId())).filteredOn(u -> u.employeeId().equals(engineer.getId()))
+                .singleElement().satisfies(person -> assertThat(person.grants()).singleElement()
+                        .satisfies(g -> assertThat(g.scope()).isEqualTo("OWN")));
+        assertThat(access.grantsFor(asEngineer).scopesFor(AccessPermission.of("documents:view")))
+                .contains(AccessScope.OWN);
+
+        // Everyone still sees documents through the baseline; only the person's own grant goes.
+        writer.replaceUserGrants(hr, engineer.getId(), Set.of());
+        flushAndClear();
+        assertThat(access.grantsFor(asEngineer).scopesFor(AccessPermission.of("documents:view")))
+                .doesNotContain(AccessScope.OWN);
+    }
+
+    @Test
+    void aPersonOutsideTheOrganizationReadsAsAbsent() {
+        Organization other = persistOrganization("Writer Outsider " + UUID.randomUUID().toString().substring(0, 8));
+        Employee outsider = persistEmployee(other, "writer-outsider-" + UUID.randomUUID().toString().substring(0, 8));
+        flushAndClear();
+
+        assertThatThrownBy(() -> writer.replaceUserRoles(admin, outsider.getId(), List.of(role("store-keeper").id())))
+                .isInstanceOf(ResourceNotFoundException.class);
+        assertThatThrownBy(() -> writer.replaceUserGrants(admin, outsider.getId(), Set.of()))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
+
     private AccessRoleDto role(String slug) {
         return reader.roles(org.getId()).stream().filter(r -> r.slug().equals(slug)).findFirst().orElseThrow();
     }

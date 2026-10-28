@@ -22,6 +22,8 @@ import org.tornotron.echno_backend.modules.access.api.AccessPermission;
 import org.tornotron.echno_backend.modules.access.api.AccessScope;
 import org.tornotron.echno_backend.modules.access.api.AccessService;
 import org.tornotron.echno_backend.modules.access.api.AccessSubject;
+import org.tornotron.echno_backend.modules.access.matrix.domain.AccessEmployeeGrant;
+import org.tornotron.echno_backend.modules.access.matrix.domain.AccessEmployeeRole;
 import org.tornotron.echno_backend.modules.access.matrix.domain.AccessGroup;
 import org.tornotron.echno_backend.modules.access.matrix.domain.AccessGroupKind;
 import org.tornotron.echno_backend.modules.access.matrix.domain.AccessRole;
@@ -254,6 +256,72 @@ public class AccessAdminWriter {
         em.remove(group);
         em.flush();
         members.forEach(employeeId -> facts.evict(caller.organizationId(), employeeId));
+    }
+
+    /** Replaces the roles assigned to a person directly; the caller must be able to assign each one added or taken. */
+    @Transactional
+    public void replaceUserRoles(AccessSubject caller, Long employeeId, Collection<UUID> roleIds) {
+        Long organizationId = caller.organizationId();
+        employees(organizationId, List.of(employeeId));
+        Set<AccessRole> wanted = new HashSet<>(assignableRoles(organizationId, roleIds));
+        List<AccessEmployeeRole> current = em.createQuery("SELECT a FROM AccessEmployeeRole a JOIN FETCH a.role "
+                        + "WHERE a.organization.id = :organizationId AND a.employeeId = :employeeId",
+                        AccessEmployeeRole.class)
+                .setParameter("organizationId", organizationId)
+                .setParameter("employeeId", employeeId)
+                .getResultList();
+        Set<AccessRole> held = current.stream().map(AccessEmployeeRole::getRole).collect(Collectors.toSet());
+        Set<AccessRole> added = difference(wanted, held);
+        Set<AccessRole> removed = difference(held, wanted);
+        Set<AccessRole> changed = new HashSet<>(added);
+        changed.addAll(removed);
+        requireMayAssign(caller, changed);
+
+        current.stream().filter(a -> removed.contains(a.getRole())).forEach(em::remove);
+        for (AccessRole role : added) {
+            AccessEmployeeRole assignment = new AccessEmployeeRole();
+            assignment.setOrganization(em.getReference(Organization.class, organizationId));
+            assignment.setEmployeeId(employeeId);
+            assignment.setRole(role);
+            assignment.setCreatedBy(caller.employeeId());
+            em.persist(assignment);
+        }
+        if (!changed.isEmpty()) {
+            facts.evict(organizationId, employeeId);
+        }
+    }
+
+    /** Replaces what is granted to a person directly; the caller must hold each grant added or taken. */
+    @Transactional
+    public void replaceUserGrants(AccessSubject caller, Long employeeId, Set<Grant> wanted) {
+        Long organizationId = caller.organizationId();
+        employees(organizationId, List.of(employeeId));
+        List<AccessEmployeeGrant> current = em.createQuery("SELECT g FROM AccessEmployeeGrant g "
+                        + "WHERE g.organization.id = :organizationId AND g.employeeId = :employeeId",
+                        AccessEmployeeGrant.class)
+                .setParameter("organizationId", organizationId)
+                .setParameter("employeeId", employeeId)
+                .getResultList();
+        Set<Grant> held = current.stream()
+                .map(g -> grant(g.getPermissionKey(), g.getScope()))
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        Set<Grant> added = difference(wanted, held);
+        Set<Grant> removed = difference(held, wanted);
+        requireHeld(caller, added, removed);
+
+        current.stream().filter(g -> removed.contains(grant(g.getPermissionKey(), g.getScope()))).forEach(em::remove);
+        for (Grant wantedGrant : added) {
+            AccessEmployeeGrant direct = new AccessEmployeeGrant();
+            direct.setOrganization(em.getReference(Organization.class, organizationId));
+            direct.setEmployeeId(employeeId);
+            direct.setPermissionKey(wantedGrant.key());
+            direct.setScope(wantedGrant.scope());
+            direct.setCreatedBy(caller.employeeId());
+            em.persist(direct);
+        }
+        if (!added.isEmpty() || !removed.isEmpty()) {
+            facts.evict(organizationId, employeeId);
+        }
     }
 
     // ---- what the caller may change ----
