@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Departments and groups. access_group carries organization_id for the orgFilter; its
+        members, its roles and its own grants hang off group_id and are removed with it.
+
+        Members hold every role the group lists, plus the group's own grants.
+    -->
+
+    <changeSet id="access-002-create-access_group" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="access_group"/></not>
+        </preConditions>
+        <createTable tableName="access_group">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_access_group" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="kind" type="VARCHAR(20)"><constraints nullable="false"/></column>
+            <column name="name" type="VARCHAR(120)"><constraints nullable="false"/></column>
+            <column name="description" type="TEXT"/>
+            <column name="created_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="updated_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="created_by" type="BIGINT"/>
+            <column name="updated_by" type="BIGINT"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="access_group" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_access_group_organization"/>
+        <addUniqueConstraint tableName="access_group" columnNames="organization_id, name"
+                             constraintName="uq_access_group_name"/>
+    </changeSet>
+
+    <changeSet id="access-002-create-access_group_member" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="access_group_member"/></not>
+        </preConditions>
+        <createTable tableName="access_group_member">
+            <column name="group_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="employee_id" type="BIGINT"><constraints nullable="false"/></column>
+        </createTable>
+        <addPrimaryKey tableName="access_group_member" columnNames="group_id, employee_id"
+                       constraintName="pk_access_group_member"/>
+        <addForeignKeyConstraint baseTableName="access_group_member" baseColumnNames="group_id"
+                                 referencedTableName="access_group" referencedColumnNames="id"
+                                 constraintName="fk_access_group_member_group" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseTableName="access_group_member" baseColumnNames="employee_id"
+                                 referencedTableName="employee" referencedColumnNames="id"
+                                 constraintName="fk_access_group_member_employee" onDelete="CASCADE"/>
+        <createIndex tableName="access_group_member" indexName="idx_access_group_member_employee">
+            <column name="employee_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="access-002-create-access_group_role" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="access_group_role"/></not>
+        </preConditions>
+        <createTable tableName="access_group_role">
+            <column name="group_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="role_id" type="UUID"><constraints nullable="false"/></column>
+        </createTable>
+        <addPrimaryKey tableName="access_group_role" columnNames="group_id, role_id"
+                       constraintName="pk_access_group_role"/>
+        <addForeignKeyConstraint baseTableName="access_group_role" baseColumnNames="group_id"
+                                 referencedTableName="access_group" referencedColumnNames="id"
+                                 constraintName="fk_access_group_role_group" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseTableName="access_group_role" baseColumnNames="role_id"
+                                 referencedTableName="access_role" referencedColumnNames="id"
+                                 constraintName="fk_access_group_role_role" onDelete="CASCADE"/>
+    </changeSet>
+
+    <changeSet id="access-002-create-access_group_grant" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="access_group_grant"/></not>
+        </preConditions>
+        <createTable tableName="access_group_grant">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_access_group_grant" nullable="false"/></column>
+            <column name="group_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="permission_key" type="VARCHAR(120)"><constraints nullable="false"/></column>
+            <column name="scope" type="VARCHAR(20)"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="access_group_grant" baseColumnNames="group_id"
+                                 referencedTableName="access_group" referencedColumnNames="id"
+                                 constraintName="fk_access_group_grant_group" onDelete="CASCADE"/>
+        <addUniqueConstraint tableName="access_group_grant" columnNames="group_id, permission_key, scope"
+                             constraintName="uq_access_group_grant"/>
+    </changeSet>
+
+</databaseChangeLog>
