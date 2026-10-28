@@ -5,6 +5,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.tornotron.echno_backend.modules.access.api.AccessRoleAssignments;
 import org.tornotron.echno_backend.common.payload.PartialUpdateKeys;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,6 +35,7 @@ import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 
 import java.time.LocalDateTime;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -59,6 +61,7 @@ public class EmployeeService {
     private final EmployeeHierarchyService employeeHierarchyService;
     private final ShiftTimingRepository shiftTimingRepository;
     private final OrganizationSecurityService orgSecurity;
+    private final AccessRoleAssignments roleAssignments;
 
     /**
      * Constructs an EmployeeService with the necessary repositories.
@@ -72,7 +75,7 @@ public class EmployeeService {
      *                               the guards on these endpoints ask. Used by the partial update
      *                               to decide the field scope; see {@link EmployeePatchFieldScope}.
      */
-    public EmployeeService(EmployeeRepository employeeRepository, OrganizationRepository organizationRepository, UserRepository userRepository, KeycloakGroupService keycloakGroupService, EmployeeMapper employeeMapper, EmployeeHierarchyService employeeHierarchyService, ShiftTimingRepository shiftTimingRepository, OrganizationSecurityService orgSecurity) {
+    public EmployeeService(EmployeeRepository employeeRepository, OrganizationRepository organizationRepository, UserRepository userRepository, KeycloakGroupService keycloakGroupService, EmployeeMapper employeeMapper, EmployeeHierarchyService employeeHierarchyService, ShiftTimingRepository shiftTimingRepository, OrganizationSecurityService orgSecurity, AccessRoleAssignments roleAssignments) {
         this.employeeRepository = employeeRepository;
         this.organizationRepository = organizationRepository;
         this.userRepository = userRepository;
@@ -81,6 +84,7 @@ public class EmployeeService {
         this.employeeHierarchyService = employeeHierarchyService;
         this.shiftTimingRepository = shiftTimingRepository;
         this.orgSecurity = orgSecurity;
+        this.roleAssignments = roleAssignments;
     }
 
     /**
@@ -550,6 +554,8 @@ public class EmployeeService {
 
         employee.getOrgRoles().add(role);
         Employee savedEmployee = employeeRepository.save(employee);
+        // The matrix first: a Keycloak failure below rolls this back with the rest.
+        roleAssignments.assign(employee.getOrganization().getId(), employeeId, role.getGroupName());
 
         try {
             keycloakGroupService.assignOrgRole(
@@ -574,6 +580,7 @@ public class EmployeeService {
 
         employee.getOrgRoles().remove(role);
         Employee savedEmployee = employeeRepository.save(employee);
+        roleAssignments.remove(employee.getOrganization().getId(), employeeId, role.getGroupName());
 
         try {
             keycloakGroupService.removeOrgRole(
@@ -591,11 +598,23 @@ public class EmployeeService {
         return employeeMapper.toDto(savedEmployee);
     }
 
+    /**
+     * The fixed org roles the employee holds, read from their access role assignments. Roles an
+     * organization created for itself have no fixed counterpart and are left out.
+     */
     @Transactional(readOnly = true)
     public Set<OrgRole> getOrgRoles(Long employeeId) {
-        Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId,TenantContext.getCurrentOrgId())
+        Long organizationId = TenantContext.getCurrentOrgId();
+        employeeRepository.findByIdAndOrganizationId(employeeId, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee with ID " + employeeId + " was not found in this organization"));
-        return employee.getOrgRoles();
+        Set<String> slugs = roleAssignments.rolesOf(organizationId, employeeId);
+        Set<OrgRole> roles = EnumSet.noneOf(OrgRole.class);
+        for (OrgRole role : OrgRole.values()) {
+            if (slugs.contains(role.getGroupName())) {
+                roles.add(role);
+            }
+        }
+        return roles;
     }
 
 }
