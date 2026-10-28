@@ -12,10 +12,15 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.context.annotation.Import;
 import org.tornotron.echno_backend.employee.Employee;
+import org.tornotron.echno_backend.modules.access.api.AccessPermission;
+import org.tornotron.echno_backend.modules.access.api.AccessScope;
 import org.tornotron.echno_backend.modules.access.matrix.domain.AccessEmployeeRole;
+import org.tornotron.echno_backend.modules.access.matrix.domain.AccessGroup;
+import org.tornotron.echno_backend.modules.access.matrix.domain.AccessGroupKind;
 import org.tornotron.echno_backend.modules.access.matrix.domain.AccessRole;
 import org.tornotron.echno_backend.modules.access.matrix.seed.StandardRoleSeeder;
 import org.tornotron.echno_backend.modules.access.matrix.seed.StandardRoles;
+import org.tornotron.echno_backend.modules.access.web.dto.AccessGroupDto;
 import org.tornotron.echno_backend.modules.access.web.dto.AccessRoleDto;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.support.AbstractIntegrationTest;
@@ -23,7 +28,7 @@ import org.tornotron.echno_backend.user.User;
 
 /**
  * What the Roles &amp; Permissions screen reads, against a real CockroachDB: an organization's
- * roles with their grants, members and grantable roles, and nothing from another organization.
+ * roles and groups with their grants, members and roles, and nothing from another organization.
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
@@ -73,6 +78,44 @@ class AccessAdminReaderIT extends AbstractIntegrationTest {
         AccessRoleDto hr = roles.stream().filter(r -> r.slug().equals("hr-admin")).findFirst().orElseThrow();
         List<UUID> roleIds = roles.stream().map(AccessRoleDto::id).toList();
         assertThat(hr.grantableRoleIds()).isNotEmpty().allSatisfy(id -> assertThat(roleIds).contains(id));
+    }
+
+    @Test
+    void groupsComeWithMembersRolesAndGrantsForOneOrganizationOnly() {
+        Organization org = persistOrganization("Reader Org C");
+        Organization other = persistOrganization("Reader Org D");
+        Employee accountant = persistEmployee(org, "reader-accountant");
+        AccessRole auditor = new AccessRole();
+        auditor.setOrganization(org);
+        auditor.setSlug("auditor");
+        auditor.setName("Auditor");
+        em.persist(auditor);
+        AccessGroup finance = new AccessGroup();
+        finance.setOrganization(org);
+        finance.setKind(AccessGroupKind.DEPARTMENT);
+        finance.setName("Finance");
+        finance.getMemberIds().add(accountant.getId());
+        finance.getRoles().add(auditor);
+        finance.grant(AccessPermission.of("finance:view"), AccessScope.ALL);
+        em.persist(finance);
+        AccessGroup elsewhere = new AccessGroup();
+        elsewhere.setOrganization(other);
+        elsewhere.setName("Finance");
+        em.persist(elsewhere);
+        em.flush();
+        em.clear();
+
+        List<AccessGroupDto> groups = reader.groups(org.getId());
+
+        assertThat(groups).singleElement().satisfies(group -> {
+            assertThat(group.kind()).isEqualTo("DEPARTMENT");
+            assertThat(group.memberIds()).containsExactly(accountant.getId());
+            assertThat(group.roleIds()).containsExactly(auditor.getId());
+            assertThat(group.grants()).singleElement().satisfies(g -> {
+                assertThat(g.permission()).isEqualTo("finance:view");
+                assertThat(g.locked()).isFalse();
+            });
+        });
     }
 
     private Organization persistOrganization(String name) {

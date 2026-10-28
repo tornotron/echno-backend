@@ -14,6 +14,7 @@ import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.modules.access.api.AccessScope;
 import org.tornotron.echno_backend.modules.access.matrix.catalog.AccessCatalog;
 import org.tornotron.echno_backend.modules.access.web.dto.AccessCatalogDto;
+import org.tornotron.echno_backend.modules.access.web.dto.AccessGroupDto;
 import org.tornotron.echno_backend.modules.access.web.dto.AccessRoleDto;
 
 /**
@@ -73,5 +74,20 @@ public class AccessAdminControllerWeb {
     })
     public List<AccessRoleDto> listAccessRoles() {
         return reader.roles(TenantContext.getCurrentOrgId());
+    }
+
+    @GetMapping("/groups")
+    @PreAuthorize(VIEW_GUARD)
+    @Operation(
+            summary = "List departments and groups",
+            description = "The organization's departments and groups: each with its members, the roles "
+                    + "its members hold through it, and what it grants them directly."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "The departments and groups"),
+            @ApiResponse(responseCode = "403", description = "Caller may not view roles and permissions")
+    })
+    public List<AccessGroupDto> listAccessGroups() {
+        return reader.groups(TenantContext.getCurrentOrgId());
     }
 }

@@ -27,6 +27,7 @@ import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.modules.access.guard.AccessGuard;
 import org.tornotron.echno_backend.modules.access.web.dto.AccessGrantDto;
+import org.tornotron.echno_backend.modules.access.web.dto.AccessGroupDto;
 import org.tornotron.echno_backend.modules.access.web.dto.AccessRoleDto;
 
 /**
@@ -100,6 +101,29 @@ class AccessAdminControllerWebTest {
         when(access.can("access", "view")).thenReturn(false);
 
         mockMvc.perform(get("/api/v1/access/web/roles").with(jwt()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void groupsAreListedForTheRequestsOrganization() throws Exception {
+        when(access.can("access", "view")).thenReturn(true);
+        TenantContext.setCurrentOrgId(7L);
+        UUID finance = UUID.fromString("00000000-0000-0000-0000-0000000000b1");
+        when(reader.groups(7L)).thenReturn(List.of(new AccessGroupDto(finance, "DEPARTMENT", "Finance", null,
+                List.of(3L), List.of(), List.of(new AccessGrantDto("finance:view", "ALL", false)))));
+
+        mockMvc.perform(get("/api/v1/access/web/groups").with(jwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].kind").value("DEPARTMENT"))
+                .andExpect(jsonPath("$[0].memberIds[0]").value(3))
+                .andExpect(jsonPath("$[0].grants[0].permission").value("finance:view"));
+    }
+
+    @Test
+    void groupsAreRefusedWithoutAccessView() throws Exception {
+        when(access.can("access", "view")).thenReturn(false);
+
+        mockMvc.perform(get("/api/v1/access/web/groups").with(jwt()))
                 .andExpect(status().isForbidden());
     }
 

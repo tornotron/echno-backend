@@ -10,9 +10,12 @@ import java.util.Map;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.tornotron.echno_backend.modules.access.matrix.domain.AccessGroup;
+import org.tornotron.echno_backend.modules.access.matrix.domain.AccessGroupGrant;
 import org.tornotron.echno_backend.modules.access.matrix.domain.AccessRole;
 import org.tornotron.echno_backend.modules.access.matrix.domain.AccessRoleGrant;
 import org.tornotron.echno_backend.modules.access.web.dto.AccessGrantDto;
+import org.tornotron.echno_backend.modules.access.web.dto.AccessGroupDto;
 import org.tornotron.echno_backend.modules.access.web.dto.AccessRoleDto;
 
 /**
@@ -44,6 +47,33 @@ public class AccessAdminReader {
                         role.getDescription(), role.isSystem(), role.isBaseline(), grants(role.getGrants()),
                         members.getOrDefault(role.getId(), List.of()),
                         grantable.getOrDefault(role.getId(), List.of())))
+                .toList();
+    }
+
+    /** The organization's departments and groups, by name. */
+    @Transactional(readOnly = true)
+    public List<AccessGroupDto> groups(Long organizationId) {
+        List<AccessGroup> groups = em.createQuery("SELECT DISTINCT g FROM AccessGroup g LEFT JOIN FETCH g.grants "
+                        + "WHERE g.organization.id = :organizationId", AccessGroup.class)
+                .setParameter("organizationId", organizationId)
+                .getResultList();
+        Map<UUID, List<Long>> members = pairs("SELECT g.id, m FROM AccessGroup g JOIN g.memberIds m "
+                + "WHERE g.organization.id = :organizationId ORDER BY m", organizationId);
+        Map<UUID, List<UUID>> roles = pairs("SELECT g.id, r.id FROM AccessGroup g JOIN g.roles r "
+                + "WHERE g.organization.id = :organizationId ORDER BY r.name", organizationId);
+
+        return groups.stream()
+                .sorted(Comparator.comparing(AccessGroup::getName, String.CASE_INSENSITIVE_ORDER))
+                .map(group -> new AccessGroupDto(group.getId(), group.getKind().name(), group.getName(),
+                        group.getDescription(), members.getOrDefault(group.getId(), List.of()),
+                        roles.getOrDefault(group.getId(), List.of()), groupGrants(group.getGrants())))
+                .toList();
+    }
+
+    private static List<AccessGrantDto> groupGrants(List<AccessGroupGrant> grants) {
+        return grants.stream()
+                .sorted(Comparator.comparing(AccessGroupGrant::getPermissionKey).thenComparing(g -> g.getScope().name()))
+                .map(g -> new AccessGrantDto(g.getPermissionKey(), g.getScope().name(), false))
                 .toList();
     }
 
