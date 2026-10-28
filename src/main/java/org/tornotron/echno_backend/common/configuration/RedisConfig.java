@@ -86,6 +86,9 @@ public class RedisConfig {
 
         Map<String, RedisCacheConfiguration> perCache = new HashMap<>();
         perCache.put("subscriptions", base.entryTtl(Duration.ofMinutes(5)));
+        // What a person holds, for access decisions (modules/access). Short, because changes made
+        // outside the access screens, such as joining a project, are picked up only on expiry.
+        perCache.put("access-facts", base.entryTtl(Duration.ofMinutes(5)));
 
         return RedisCacheManager.builder(connectionFactory)
                 .cacheDefaults(base)
