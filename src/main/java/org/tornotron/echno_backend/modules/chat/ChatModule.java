@@ -28,6 +28,10 @@ public class ChatModule implements EchnoModule {
     public static final String PERMISSION_VIEW = ID + ":view";
     public static final String PERMISSION_CREATE = ID + ":create";
 
+    // The two guards every chat handler carries: reading rooms and messages, and taking part.
+    public static final String VIEW_GUARD = "@access.can('" + ID + "', 'view')";
+    public static final String PARTICIPATE_GUARD = "@access.can('" + ID + "', 'create')";
+
     static final List<String> PERMISSIONS = List.of(PERMISSION_VIEW, PERMISSION_CREATE);
 
     private static final ModuleManifest MANIFEST = new ModuleManifest(

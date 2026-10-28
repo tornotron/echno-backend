@@ -13,12 +13,12 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.tornotron.echno_backend.modules.access.guard.AccessGuard;
 import org.tornotron.echno_backend.modules.chat.ChatControllerWeb;
 import org.tornotron.echno_backend.modules.chat.ChatService;
 import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
 import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
-import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 
 import java.util.List;
 
@@ -58,8 +58,8 @@ class ChatStreamEndpointTest {
     @MockitoBean
     private ChatService chatService;
 
-    @MockitoBean(name = "orgSecurity")
-    private OrganizationSecurityService orgSecurity;
+    @MockitoBean(name = "access")
+    private AccessGuard access;
 
     // Satisfies RPTExchangeFilter, which the web slice loads; unused because jwt() sets the
     // authentication directly.
@@ -75,7 +75,7 @@ class ChatStreamEndpointTest {
     }
 
     private MvcResult openStream() throws Exception {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
+        when(access.can("chat", "view")).thenReturn(true);
         when(chatService.getCurrentEmployeeId()).thenReturn(ALICE);
         // The controller reads the tenant from the thread the request runs on, which the real
         // TenantFilter populates. The slice does not load that filter, so set it directly.
@@ -139,8 +139,8 @@ class ChatStreamEndpointTest {
     }
 
     @Test
-    void theStreamIsRefusedToANonMemberOfTheTenant() throws Exception {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(false);
+    void theStreamIsRefusedToSomeoneWhoMayNotViewChat() throws Exception {
+        when(access.can("chat", "view")).thenReturn(false);
 
         mockMvc.perform(get("/api/v1/chat/stream").with(jwt()))
                 .andExpect(status().isForbidden());

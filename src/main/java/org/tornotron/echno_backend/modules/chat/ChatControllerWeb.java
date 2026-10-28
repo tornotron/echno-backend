@@ -33,7 +33,7 @@ import java.util.List;
 
 /**
  * Employee-facing chat: rooms an employee belongs to and the messages within them. Every
- * endpoint requires only tenant membership (everyone in the organization can chat), with the
+ * endpoint requires chat:view to read or chat:create to take part (the baseline role gives both to everyone), with the
  * finer participant checks enforced in the service.
  */
 @RestController
@@ -59,7 +59,7 @@ public class ChatControllerWeb {
     }
 
     @GetMapping("/rooms/web")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize(ChatModule.VIEW_GUARD)
     @Operation(
             summary = "List the caller's chat rooms",
             description = "Returns every room the current employee participates in, each with its participants, "
@@ -74,7 +74,7 @@ public class ChatControllerWeb {
     }
 
     @GetMapping("/rooms/web/{id}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize(ChatModule.VIEW_GUARD)
     @Operation(
             summary = "Get a chat room",
             description = "Returns a single room the caller participates in, with its participants, latest "
@@ -90,7 +90,7 @@ public class ChatControllerWeb {
     }
 
     @PostMapping("/rooms/web/direct")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize(ChatModule.PARTICIPATE_GUARD)
     @Operation(
             summary = "Open a direct room",
             description = "Opens the one-to-one direct room with the given employee, reusing the existing one "
@@ -106,7 +106,7 @@ public class ChatControllerWeb {
     }
 
     @PostMapping("/rooms/web/{roomId}/read")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize(ChatModule.VIEW_GUARD)
     @Operation(
             summary = "Mark a room read",
             description = "Advances the caller's last-read marker in the room to now, clearing the unread count."
@@ -122,7 +122,7 @@ public class ChatControllerWeb {
     }
 
     @GetMapping("/rooms/web/{roomId}/messages")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize(ChatModule.VIEW_GUARD)
     @Operation(
             summary = "List a room's messages, paginated",
             description = "Returns a page of the room's non-deleted messages, newest first."
@@ -139,7 +139,7 @@ public class ChatControllerWeb {
     }
 
     @PostMapping(value = "/rooms/web/{roomId}/messages", consumes = MediaType.APPLICATION_JSON_VALUE)
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize(ChatModule.PARTICIPATE_GUARD)
     @Operation(
             summary = "Send a message (text only)",
             description = "Posts a text message from the current employee to the room and bumps the room's "
@@ -159,7 +159,7 @@ public class ChatControllerWeb {
     }
 
     @PostMapping(value = "/rooms/web/{roomId}/messages", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize(ChatModule.PARTICIPATE_GUARD)
     @Operation(
             summary = "Send a message with attachments",
             description = "Posts a message with one or more file attachments. The message fields travel as a "
@@ -185,7 +185,7 @@ public class ChatControllerWeb {
     }
 
     @PatchMapping("/messages/web/{id}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize(ChatModule.PARTICIPATE_GUARD)
     @Operation(
             summary = "Edit a message",
             description = "Edits the body of the caller's own message, marking it edited. Only the sender may edit."
@@ -202,7 +202,7 @@ public class ChatControllerWeb {
     }
 
     @PostMapping("/messages/web/{id}/reactions")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize(ChatModule.PARTICIPATE_GUARD)
     @Operation(
             summary = "Toggle a reaction",
             description = "Adds the caller's emoji reaction to the message, or removes it if they already "
@@ -220,7 +220,7 @@ public class ChatControllerWeb {
     }
 
     @DeleteMapping("/messages/web/{id}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize(ChatModule.PARTICIPATE_GUARD)
     @Operation(
             summary = "Delete a message",
             description = "Soft-deletes a message, keeping the row so the web can render a tombstone. Only the "
@@ -237,7 +237,7 @@ public class ChatControllerWeb {
     }
 
     @PostMapping("/rooms/web/{roomId}/archive")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize(ChatModule.PARTICIPATE_GUARD)
     @Operation(
             summary = "Archive or unarchive a room",
             description = "Sets the room's archived state for the whole conversation. Any participant may toggle it."
@@ -254,7 +254,7 @@ public class ChatControllerWeb {
     }
 
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize(ChatModule.VIEW_GUARD)
     @Operation(
             summary = "Subscribe to chat changes",
             description = "A server-sent event stream of the caller's chat changes: new messages, message "
