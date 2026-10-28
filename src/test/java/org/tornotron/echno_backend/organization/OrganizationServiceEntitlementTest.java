@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.tornotron.echno_backend.modules.access.api.AccessProvisioning;
 import org.tornotron.echno_backend.billing.dto.FeatureAccessResultDto;
 import org.tornotron.echno_backend.billing.services.SubscriptionService;
 import org.tornotron.echno_backend.common.exception.SubscriptionAccessDeniedException;
@@ -54,6 +55,7 @@ class OrganizationServiceEntitlementTest {
     @Mock private OrganizationMapper organizationMapper;
     @Mock private OrganizationSecurityService orgSecurity;
     @Mock private OrganizationOnboardingSeeder onboardingSeeder;
+    @Mock private AccessProvisioning accessProvisioning;
 
     private static final Long CREATOR_USER_ID = 7L;
     private static final Long CURRENT_ORG_ID = 11L;
@@ -70,7 +72,7 @@ class OrganizationServiceEntitlementTest {
         return new OrganizationService(repository, attachmentService, fileStorageService,
                 keycloakGroupService, subscriptionService, userContextService, employeeService,
                 organizationMapper, orgSecurity, onboardingSeeder,
-                new PayloadValidator(Validation.buildDefaultValidatorFactory().getValidator()));
+                new PayloadValidator(Validation.buildDefaultValidatorFactory().getValidator()), accessProvisioning);
     }
 
     private OrganizationCreationDto creationDto() {

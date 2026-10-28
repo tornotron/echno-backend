@@ -11,6 +11,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.tornotron.echno_backend.modules.access.api.AccessProvisioning;
 import org.tornotron.echno_backend.billing.services.SubscriptionService;
 import org.tornotron.echno_backend.common.service.AttachmentService;
 import org.tornotron.echno_backend.common.service.FileStorageService;
@@ -61,6 +62,8 @@ class OrganizationCreationValidationTest {
     private OrganizationSecurityService orgSecurity;
     @Mock
     private OrganizationOnboardingSeeder onboardingSeeder;
+    @Mock
+    private AccessProvisioning accessProvisioning;
 
     private OrganizationService service;
 
@@ -70,7 +73,8 @@ class OrganizationCreationValidationTest {
         validator = factory.getValidator();
         service = new OrganizationService(repository, attachmentService, fileStorageService,
                 keycloakGroupService, subscriptionService, userContextService, employeeService,
-                organizationMapper, orgSecurity, onboardingSeeder, new PayloadValidator(validator));
+                organizationMapper, orgSecurity, onboardingSeeder, new PayloadValidator(validator),
+                accessProvisioning);
     }
 
     @AfterAll

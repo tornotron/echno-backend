@@ -5,6 +5,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import jakarta.validation.Validation;
+import org.tornotron.echno_backend.modules.access.api.AccessProvisioning;
 import org.tornotron.echno_backend.billing.services.SubscriptionService;
 import org.tornotron.echno_backend.common.exception.TenantAccessDeniedException;
 import org.tornotron.echno_backend.common.service.AttachmentService;
@@ -46,12 +47,13 @@ class OrganizationServiceBatchAuthzTest {
     @Mock private OrganizationMapper organizationMapper;
     @Mock private OrganizationSecurityService orgSecurity;
     @Mock private OrganizationOnboardingSeeder onboardingSeeder;
+    @Mock private AccessProvisioning accessProvisioning;
 
     private OrganizationService service() {
         return new OrganizationService(repository, attachmentService, fileStorageService,
                 keycloakGroupService, subscriptionService, userContextService, employeeService,
                 organizationMapper, orgSecurity, onboardingSeeder,
-                new PayloadValidator(Validation.buildDefaultValidatorFactory().getValidator()));
+                new PayloadValidator(Validation.buildDefaultValidatorFactory().getValidator()), accessProvisioning);
     }
 
     private OrganizationPatchDto patch(long id) {

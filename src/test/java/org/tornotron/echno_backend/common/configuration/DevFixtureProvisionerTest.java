@@ -7,6 +7,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.tornotron.echno_backend.modules.access.api.AccessProvisioning;
 import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.KeycloakGroupService;
@@ -59,6 +60,8 @@ class DevFixtureProvisionerTest {
     private KeycloakGroupService keycloakGroupService;
     @Mock
     private OrganizationOnboardingSeeder onboardingSeeder;
+    @Mock
+    private AccessProvisioning accessProvisioning;
 
     @InjectMocks
     private DevFixtureProvisioner provisioner;
@@ -139,6 +142,7 @@ class DevFixtureProvisionerTest {
         verify(employeeService).joinOrganization(eq(7L), eq(42L), any(EmployeeJoinOrgDto.class));
 
         // And the role subgroup, which is the half the authority checks actually read.
+        verify(accessProvisioning).provisionOrganization(42L, 19L);
         verify(employeeService).assignOrgRole(19L, OrgRole.SYSTEM_ADMIN);
     }
 

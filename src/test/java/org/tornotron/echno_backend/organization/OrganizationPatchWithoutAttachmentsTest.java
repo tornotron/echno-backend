@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.tornotron.echno_backend.modules.access.api.AccessProvisioning;
 import org.tornotron.echno_backend.common.service.AttachmentService;
 import org.tornotron.echno_backend.common.payload.PayloadValidator;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
@@ -52,6 +53,7 @@ class OrganizationPatchWithoutAttachmentsTest {
     @Mock private OrganizationMapper organizationMapper;
     @Mock private OrganizationSecurityService orgSecurity;
     @Mock private OrganizationOnboardingSeeder onboardingSeeder;
+    @Mock private AccessProvisioning accessProvisioning;
     @Mock private PayloadValidator payloadValidator;
 
     private OrganizationService service() {
@@ -66,7 +68,8 @@ class OrganizationPatchWithoutAttachmentsTest {
                 organizationMapper,
                 orgSecurity,
                 onboardingSeeder,
-                payloadValidator);
+                payloadValidator,
+                accessProvisioning);
     }
 
     private Organization organization() {
