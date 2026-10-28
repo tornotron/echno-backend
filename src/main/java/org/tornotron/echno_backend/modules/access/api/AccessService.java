@@ -21,6 +21,12 @@ package org.tornotron.echno_backend.modules.access.api;
  */
 public interface AccessService {
 
+    /**
+     * Whether the subject is an active member of their organization: the precondition for every
+     * other answer here, and on its own enough for anything open to the whole organization.
+     */
+    boolean isActiveMember(AccessSubject subject);
+
     /** Whether the subject may do this somewhere in the area: on at least some records. */
     boolean check(AccessSubject subject, AccessPermission permission);
 

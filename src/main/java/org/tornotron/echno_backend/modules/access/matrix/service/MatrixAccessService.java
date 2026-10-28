@@ -36,6 +36,11 @@ public class MatrixAccessService implements AccessService {
     }
 
     @Override
+    public boolean isActiveMember(AccessSubject subject) {
+        return facts.load(subject).active();
+    }
+
+    @Override
     public boolean check(AccessSubject subject, AccessPermission permission) {
         return grantsFor(subject).holds(permission);
     }
