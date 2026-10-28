@@ -82,6 +82,13 @@ public class AccessAdminReader {
                 .toList();
     }
 
+    /** One of the organization's departments or groups, as {@link #groups} lists it. */
+    @Transactional(readOnly = true)
+    public AccessGroupDto group(Long organizationId, UUID groupId) {
+        return groups(organizationId).stream().filter(group -> group.id().equals(groupId)).findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("No group " + groupId + " in this organization"));
+    }
+
     /**
      * Every employee of the organization, by name, with what is given to them directly. The whole
      * organization at once, as the screen's people tab lists it; paging comes when an

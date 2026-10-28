@@ -264,6 +264,63 @@ class AccessAdminControllerWebTest {
         verify(writer).deleteRole(CALLER, AUDITOR);
     }
 
+    private static final UUID FINANCE = UUID.fromString("00000000-0000-0000-0000-0000000000d1");
+
+    @Test
+    void aGroupIsCreatedForTheCaller() throws Exception {
+        when(access.can("access", "create")).thenReturn(true);
+        when(current.resolve()).thenReturn(Optional.of(CALLER));
+        when(writer.createGroup(CALLER, "DEPARTMENT", "Finance", null)).thenReturn(FINANCE);
+        when(reader.group(7L, FINANCE)).thenReturn(new AccessGroupDto(FINANCE, "DEPARTMENT", "Finance", null,
+                List.of(), List.of(), List.of()));
+
+        mockMvc.perform(post("/api/v1/access/web/groups").with(jwt())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"kind\":\"DEPARTMENT\",\"name\":\"Finance\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(FINANCE.toString()))
+                .andExpect(jsonPath("$.kind").value("DEPARTMENT"));
+    }
+
+    @Test
+    void aGroupsMembersRolesAndGrantsAreReplaced() throws Exception {
+        when(access.can("access", "edit")).thenReturn(true);
+        when(current.resolve()).thenReturn(Optional.of(CALLER));
+        when(reader.group(7L, FINANCE)).thenReturn(new AccessGroupDto(FINANCE, "GROUP", "Finance", null,
+                List.of(), List.of(), List.of()));
+
+        mockMvc.perform(put("/api/v1/access/web/groups/{id}/members", FINANCE).with(jwt())
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"employeeIds\":[3,4]}"))
+                .andExpect(status().isOk());
+        mockMvc.perform(put("/api/v1/access/web/groups/{id}/roles", FINANCE).with(jwt())
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"roleIds\":[\"" + AUDITOR + "\"]}"))
+                .andExpect(status().isOk());
+        mockMvc.perform(put("/api/v1/access/web/groups/{id}/grants", FINANCE).with(jwt())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"grants\":[{\"permission\":\"finance:view\",\"scope\":\"ALL\"}]}"))
+                .andExpect(status().isOk());
+
+        verify(writer).replaceGroupMembers(CALLER, FINANCE, List.of(3L, 4L));
+        verify(writer).replaceGroupRoles(CALLER, FINANCE, List.of(AUDITOR));
+        verify(writer).replaceGroupGrants(CALLER, FINANCE,
+                Set.of(new Grant(AccessPermission.of("finance:view"), AccessScope.ALL)));
+    }
+
+    @Test
+    void groupWritesAreRefusedWithoutTheirAction() throws Exception {
+        when(access.can(any(), any())).thenReturn(false);
+
+        mockMvc.perform(post("/api/v1/access/web/groups").with(jwt())
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"Finance\"}"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(put("/api/v1/access/web/groups/{id}/members", FINANCE).with(jwt())
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"employeeIds\":[]}"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(delete("/api/v1/access/web/groups/{id}", FINANCE).with(jwt()))
+                .andExpect(status().isForbidden());
+        verifyNoInteractions(writer);
+    }
+
     private static AccessRoleDto role(UUID id, String slug) {
         return new AccessRoleDto(id, slug, "Auditor", null, null, false, false, List.of(), List.of(), List.of());
     }

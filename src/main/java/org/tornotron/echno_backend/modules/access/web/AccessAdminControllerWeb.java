@@ -28,6 +28,8 @@ import org.tornotron.echno_backend.modules.access.matrix.catalog.AccessCatalog;
 import org.tornotron.echno_backend.modules.access.web.dto.AccessCatalogDto;
 import org.tornotron.echno_backend.modules.access.web.dto.AccessGrantsRequest;
 import org.tornotron.echno_backend.modules.access.web.dto.AccessGroupDto;
+import org.tornotron.echno_backend.modules.access.web.dto.AccessGroupRequest;
+import org.tornotron.echno_backend.modules.access.web.dto.AccessMembersRequest;
 import org.tornotron.echno_backend.modules.access.web.dto.AccessRoleDto;
 import org.tornotron.echno_backend.modules.access.web.dto.AccessRoleIdsRequest;
 import org.tornotron.echno_backend.modules.access.web.dto.AccessRoleRequest;
@@ -210,6 +212,115 @@ public class AccessAdminControllerWeb {
     })
     public List<AccessGroupDto> listAccessGroups() {
         return reader.groups(TenantContext.getCurrentOrgId());
+    }
+
+    @PostMapping("/groups")
+    @PreAuthorize(CREATE_GUARD)
+    @Operation(
+            summary = "Create a department or group",
+            description = "A new department or group with no members, roles or grants."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "The new department or group"),
+            @ApiResponse(responseCode = "400", description = "The name is missing or the kind is unknown"),
+            @ApiResponse(responseCode = "403", description = "Caller may not create departments or groups"),
+            @ApiResponse(responseCode = "409", description = "One with that name already exists")
+    })
+    public ResponseEntity<AccessGroupDto> createAccessGroup(@Valid @RequestBody AccessGroupRequest request) {
+        AccessSubject caller = caller();
+        UUID id = writer.createGroup(caller, request.kind(), request.name(), request.description());
+        return ResponseEntity.status(HttpStatus.CREATED).body(reader.group(caller.organizationId(), id));
+    }
+
+    @PutMapping("/groups/{groupId}")
+    @PreAuthorize(EDIT_GUARD)
+    @Operation(summary = "Change a department or group's name, kind and description")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "The department or group"),
+            @ApiResponse(responseCode = "400", description = "The name is missing or the kind is unknown"),
+            @ApiResponse(responseCode = "403", description = "Caller may not change departments or groups"),
+            @ApiResponse(responseCode = "404", description = "No such department or group in this organization"),
+            @ApiResponse(responseCode = "409", description = "Another one has that name")
+    })
+    public AccessGroupDto updateAccessGroup(@PathVariable UUID groupId, @Valid @RequestBody AccessGroupRequest request) {
+        AccessSubject caller = caller();
+        writer.updateGroup(caller, groupId, request.kind(), request.name(), request.description());
+        return reader.group(caller.organizationId(), groupId);
+    }
+
+    @PutMapping("/groups/{groupId}/members")
+    @PreAuthorize(EDIT_GUARD)
+    @Operation(
+            summary = "Replace a department or group's members",
+            description = "Joining or leaving gives or takes everything the group holds, so the caller must "
+                    + "be able to assign each of its roles and hold each of its grants."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "The department or group"),
+            @ApiResponse(responseCode = "403", description = "Caller may not change members, or could not give what the group holds"),
+            @ApiResponse(responseCode = "404", description = "No such group, or an employee is not in this organization")
+    })
+    public AccessGroupDto replaceAccessGroupMembers(@PathVariable UUID groupId,
+                                                    @Valid @RequestBody AccessMembersRequest request) {
+        AccessSubject caller = caller();
+        writer.replaceGroupMembers(caller, groupId, request.employeeIds());
+        return reader.group(caller.organizationId(), groupId);
+    }
+
+    @PutMapping("/groups/{groupId}/roles")
+    @PreAuthorize(EDIT_GUARD)
+    @Operation(
+            summary = "Replace the roles a department or group gives its members",
+            description = "The caller may add or take only roles they may assign. The baseline role is never "
+                    + "listed, since everyone holds it."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "The department or group"),
+            @ApiResponse(responseCode = "400", description = "The baseline role was listed"),
+            @ApiResponse(responseCode = "403", description = "Caller may not assign a role added or taken"),
+            @ApiResponse(responseCode = "404", description = "No such group or role in this organization")
+    })
+    public AccessGroupDto replaceAccessGroupRoles(@PathVariable UUID groupId,
+                                                  @Valid @RequestBody AccessRoleIdsRequest request) {
+        AccessSubject caller = caller();
+        writer.replaceGroupRoles(caller, groupId, request.roleIds());
+        return reader.group(caller.organizationId(), groupId);
+    }
+
+    @PutMapping("/groups/{groupId}/grants")
+    @PreAuthorize(EDIT_GUARD)
+    @Operation(
+            summary = "Replace what a department or group grants its members",
+            description = "Any action brings view with the same scope. The caller may give or take only "
+                    + "grants they hold, with that scope or ALL."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "The department or group"),
+            @ApiResponse(responseCode = "400", description = "A permission is not in the catalog, or a scope is unknown"),
+            @ApiResponse(responseCode = "403", description = "Caller does not hold a grant they sent or removed"),
+            @ApiResponse(responseCode = "404", description = "No such department or group in this organization")
+    })
+    public AccessGroupDto replaceAccessGroupGrants(@PathVariable UUID groupId,
+                                                   @Valid @RequestBody AccessGrantsRequest request) {
+        AccessSubject caller = caller();
+        writer.replaceGroupGrants(caller, groupId, RequestedGrants.parse(request.grants()));
+        return reader.group(caller.organizationId(), groupId);
+    }
+
+    @DeleteMapping("/groups/{groupId}")
+    @PreAuthorize(DELETE_GUARD)
+    @Operation(
+            summary = "Delete a department or group",
+            description = "Its members lose what it gave them, so the caller must be able to give all of it."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Deleted"),
+            @ApiResponse(responseCode = "403", description = "Caller may not delete it, or could not give what it holds"),
+            @ApiResponse(responseCode = "404", description = "No such department or group in this organization")
+    })
+    public ResponseEntity<Void> deleteAccessGroup(@PathVariable UUID groupId) {
+        writer.deleteGroup(caller(), groupId);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/users")
