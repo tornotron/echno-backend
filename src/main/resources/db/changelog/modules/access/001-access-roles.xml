@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Roles and what each grants. access_role carries organization_id, which is what the
+        entity's orgFilter runs on; access_role_grant is an owned child and inherits the tenant
+        through its non-nullable role_id.
+
+        A grant is one permission (<area>:<action>) with one scope. A role holding the same
+        permission with two scopes has two rows.
+    -->
+
+    <changeSet id="access-001-create-access_role" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="access_role"/></not>
+        </preConditions>
+        <createTable tableName="access_role">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_access_role" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="slug" type="VARCHAR(80)"><constraints nullable="false"/></column>
+            <column name="name" type="VARCHAR(120)"><constraints nullable="false"/></column>
+            <column name="subtitle" type="VARCHAR(120)"/>
+            <column name="description" type="TEXT"/>
+            <column name="is_system" type="BOOLEAN" defaultValueBoolean="false"><constraints nullable="false"/></column>
+            <column name="is_baseline" type="BOOLEAN" defaultValueBoolean="false"><constraints nullable="false"/></column>
+            <column name="legacy_role" type="VARCHAR(60)"/>
+            <column name="created_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="updated_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="created_by" type="BIGINT"/>
+            <column name="updated_by" type="BIGINT"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="access_role" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_access_role_organization"/>
+        <addUniqueConstraint tableName="access_role" columnNames="organization_id, slug"
+                             constraintName="uq_access_role_slug"/>
+    </changeSet>
+
+    <changeSet id="access-001-create-access_role_grant" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="access_role_grant"/></not>
+        </preConditions>
+        <createTable tableName="access_role_grant">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_access_role_grant" nullable="false"/></column>
+            <column name="role_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="permission_key" type="VARCHAR(120)"><constraints nullable="false"/></column>
+            <column name="scope" type="VARCHAR(20)"><constraints nullable="false"/></column>
+            <column name="is_locked" type="BOOLEAN" defaultValueBoolean="false"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="access_role_grant" baseColumnNames="role_id"
+                                 referencedTableName="access_role" referencedColumnNames="id"
+                                 constraintName="fk_access_role_grant_role" onDelete="CASCADE"/>
+        <addUniqueConstraint tableName="access_role_grant" columnNames="role_id, permission_key, scope"
+                             constraintName="uq_access_role_grant"/>
+    </changeSet>
+
+</databaseChangeLog>
