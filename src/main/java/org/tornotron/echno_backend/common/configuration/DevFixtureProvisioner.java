@@ -3,6 +3,7 @@ package org.tornotron.echno_backend.common.configuration;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.tornotron.echno_backend.modules.access.api.AccessProvisioning;
 import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.WithoutTenant;
@@ -78,6 +79,7 @@ public class DevFixtureProvisioner {
     private final EmployeeService employeeService;
     private final KeycloakGroupService keycloakGroupService;
     private final OrganizationOnboardingSeeder onboardingSeeder;
+    private final AccessProvisioning accessProvisioning;
 
     /**
      * Brings the fixture's application identity up to date: a user row bound to the Keycloak
@@ -107,6 +109,10 @@ public class DevFixtureProvisioner {
         // permanently half-provisioned organization. Each seeder skips an organization that already
         // has its data, so repeating this costs three lookups.
         onboardingSeeder.seedFinanceDefaults(organization.getId());
+        // The organization is created here directly rather than through OrganizationService, so
+        // its access is provisioned here too. Idempotent, which also repairs a fixture
+        // organization that predates the roles.
+        accessProvisioning.provisionOrganization(organization.getId(), employeeId);
         assignOrgRole(organization.getId(), employeeId);
         log.warn("Dev fixture identity ready: user {} is a {} of organization {} ('{}')",
                 user.getId(), DEV_ORG_ROLE.getGroupName(), organization.getId(), DEV_ORG_NAME);
