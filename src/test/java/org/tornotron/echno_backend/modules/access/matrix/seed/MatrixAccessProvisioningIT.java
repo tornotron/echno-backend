@@ -22,6 +22,7 @@ import org.tornotron.echno_backend.modules.access.matrix.repository.AccessFactsQ
 import org.tornotron.echno_backend.modules.access.matrix.service.CachedAccessFactsSource;
 import org.tornotron.echno_backend.modules.access.matrix.service.DatabaseAccessFactsSource;
 import org.tornotron.echno_backend.modules.access.matrix.service.MatrixAccessService;
+import org.tornotron.echno_backend.modules.access.matrix.service.MatrixRoleAssignments;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.support.AbstractIntegrationTest;
 import org.tornotron.echno_backend.user.User;
@@ -34,7 +35,7 @@ import org.tornotron.echno_backend.user.User;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({StandardRoleSeeder.class, MatrixAccessProvisioning.class, AccessFactsQueries.class,
         DatabaseAccessFactsSource.class, CachedAccessFactsSource.class, MatrixAccessService.class,
-        MatrixAccessProvisioningIT.Caching.class})
+        MatrixRoleAssignments.class, MatrixAccessProvisioningIT.Caching.class})
 class MatrixAccessProvisioningIT extends AbstractIntegrationTest {
 
     @TestConfiguration
