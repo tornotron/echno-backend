@@ -6,6 +6,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import jakarta.validation.Validation;
+import org.tornotron.echno_backend.modules.access.api.AccessProvisioning;
 import org.tornotron.echno_backend.billing.services.SubscriptionService;
 import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
@@ -48,6 +49,7 @@ class OrganizationServiceOnboardingTest {
     @Mock private OrganizationMapper organizationMapper;
     @Mock private OrganizationSecurityService orgSecurity;
     @Mock private OrganizationOnboardingSeeder onboardingSeeder;
+    @Mock private AccessProvisioning accessProvisioning;
 
     private static final Long CREATOR_USER_ID = 7L;
     private static final Long NEW_ORG_ID = 42L;
@@ -62,7 +64,7 @@ class OrganizationServiceOnboardingTest {
         return new OrganizationService(repository, attachmentService, fileStorageService,
                 keycloakGroupService, subscriptionService, userContextService, employeeService,
                 organizationMapper, orgSecurity, onboardingSeeder,
-                new PayloadValidator(Validation.buildDefaultValidatorFactory().getValidator()));
+                new PayloadValidator(Validation.buildDefaultValidatorFactory().getValidator()), accessProvisioning);
     }
 
     private OrganizationCreationDto creationDto() {
@@ -98,6 +100,7 @@ class OrganizationServiceOnboardingTest {
         // The creator is granted the org's system-admin role (which adds them to the
         // '/org-42/system-admin' Keycloak subgroup under the hood).
         verify(employeeService).assignOrgRole(CREATOR_EMPLOYEE_ID, OrgRole.SYSTEM_ADMIN);
+        verify(accessProvisioning).provisionOrganization(NEW_ORG_ID, CREATOR_EMPLOYEE_ID);
         // The org's finance defaults are seeded for the newly created org id. Without an active
         // transaction in this unit test the seeding runs inline rather than after commit.
         verify(onboardingSeeder).seedFinanceDefaults(NEW_ORG_ID);

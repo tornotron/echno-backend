@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.tornotron.echno_backend.billing.dto.FeatureAccessResultDto;
 import org.tornotron.echno_backend.common.entity.Attachment;
+import org.tornotron.echno_backend.modules.access.api.AccessProvisioning;
 import org.tornotron.echno_backend.common.exception.SubscriptionAccessDeniedException;
 import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
@@ -72,6 +73,7 @@ public class OrganizationService {
     private final org.tornotron.echno_backend.common.service.OrganizationSecurityService orgSecurity;
     private final OrganizationOnboardingSeeder onboardingSeeder;
     private final PayloadValidator payloadValidator;
+    private final AccessProvisioning accessProvisioning;
 
     /**
      * Constructs an {@code OrganizationService} with the necessary dependencies.
@@ -83,7 +85,7 @@ public class OrganizationService {
      * @param onboardingSeeder Seeds the per-organization finance defaults for a new organization.
      * @param payloadValidator Runs the create payload's own constraints.
      */
-    public OrganizationService(OrganizationRepository repository, AttachmentService attachmentService, FileStorageService fileStorageService, KeycloakGroupService keycloakGroupService, SubscriptionService subscriptionService, UserContextService userContextService, EmployeeService employeeService, org.tornotron.echno_backend.organization.mapper.OrganizationMapper organizationMapper, org.tornotron.echno_backend.common.service.OrganizationSecurityService orgSecurity, OrganizationOnboardingSeeder onboardingSeeder, PayloadValidator payloadValidator) {
+    public OrganizationService(OrganizationRepository repository, AttachmentService attachmentService, FileStorageService fileStorageService, KeycloakGroupService keycloakGroupService, SubscriptionService subscriptionService, UserContextService userContextService, EmployeeService employeeService, org.tornotron.echno_backend.organization.mapper.OrganizationMapper organizationMapper, org.tornotron.echno_backend.common.service.OrganizationSecurityService orgSecurity, OrganizationOnboardingSeeder onboardingSeeder, PayloadValidator payloadValidator, AccessProvisioning accessProvisioning) {
         this.repository = repository;
         this.attachmentService = attachmentService;
         this.fileStorageService = fileStorageService;
@@ -95,6 +97,7 @@ public class OrganizationService {
         this.orgSecurity = orgSecurity;
         this.onboardingSeeder = onboardingSeeder;
         this.payloadValidator = payloadValidator;
+        this.accessProvisioning = accessProvisioning;
     }
 
     /**
@@ -214,6 +217,10 @@ public class OrganizationService {
         EmployeeJoinOrgDto joinOrgDto = new EmployeeJoinOrgDto();
         EmployeeDto employeeDto = employeeService.joinOrganization(currentUser.getId(), savedOrganization.getId(), joinOrgDto);
         TenantContext.setCurrentOrgId(savedOrganization.getId());
+
+        // The organization's starting roles, with the creator as its company administrator, in
+        // this same transaction: an organization never exists without someone who can run it.
+        accessProvisioning.provisionOrganization(savedOrganization.getId(), employeeDto.getId());
 
         // Make the creator the system-admin of the organization they just created. This is the
         // linchpin of self-service onboarding: assignOrgRole adds them to the '/org-{id}/system-admin'
