@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.employee.enums.EmployeeStatus;
 import org.tornotron.echno_backend.modules.access.matrix.domain.AccessEmployeeGrant;
 import org.tornotron.echno_backend.modules.access.matrix.domain.AccessGroup;
@@ -52,6 +53,13 @@ public class AccessAdminReader {
                         members.getOrDefault(role.getId(), List.of()),
                         grantable.getOrDefault(role.getId(), List.of())))
                 .toList();
+    }
+
+    /** One of the organization's roles, as {@link #roles} lists it. */
+    @Transactional(readOnly = true)
+    public AccessRoleDto role(Long organizationId, UUID roleId) {
+        return roles(organizationId).stream().filter(role -> role.id().equals(roleId)).findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("No role " + roleId + " in this organization"));
     }
 
     /** The organization's departments and groups, by name. */

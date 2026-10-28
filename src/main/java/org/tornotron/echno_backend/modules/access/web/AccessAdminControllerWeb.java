@@ -4,26 +4,43 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.modules.access.api.AccessScope;
+import org.tornotron.echno_backend.modules.access.api.AccessSubject;
+import org.tornotron.echno_backend.modules.access.guard.CurrentAccessSubject;
 import org.tornotron.echno_backend.modules.access.matrix.catalog.AccessCatalog;
 import org.tornotron.echno_backend.modules.access.web.dto.AccessCatalogDto;
+import org.tornotron.echno_backend.modules.access.web.dto.AccessGrantsRequest;
 import org.tornotron.echno_backend.modules.access.web.dto.AccessGroupDto;
 import org.tornotron.echno_backend.modules.access.web.dto.AccessRoleDto;
+import org.tornotron.echno_backend.modules.access.web.dto.AccessRoleIdsRequest;
+import org.tornotron.echno_backend.modules.access.web.dto.AccessRoleRequest;
 import org.tornotron.echno_backend.modules.access.web.dto.AccessUserDto;
 
 /**
  * The Roles &amp; Permissions screen: the catalog it draws the matrix from, and the organization's
  * roles, groups and people.
  *
- * <p>Reading needs {@code access:view}. Everything here is the organization the request is scoped
- * to.
+ * <p>Reading needs {@code access:view}; creating, changing and deleting need {@code access:create},
+ * {@code access:edit} and {@code access:delete}. A write is further limited to the roles the
+ * caller's roles may assign and the grants the caller holds (see {@link AccessAdminWriter}).
+ * Everything here is the organization the request is scoped to.
  */
 @RestController
 @RequestMapping("/api/v1/access/web")
@@ -35,11 +52,18 @@ import org.tornotron.echno_backend.modules.access.web.dto.AccessUserDto;
 public class AccessAdminControllerWeb {
 
     static final String VIEW_GUARD = "@access.can('access', 'view')";
+    static final String CREATE_GUARD = "@access.can('access', 'create')";
+    static final String EDIT_GUARD = "@access.can('access', 'edit')";
+    static final String DELETE_GUARD = "@access.can('access', 'delete')";
 
     private final AccessAdminReader reader;
+    private final AccessAdminWriter writer;
+    private final CurrentAccessSubject current;
 
-    public AccessAdminControllerWeb(AccessAdminReader reader) {
+    public AccessAdminControllerWeb(AccessAdminReader reader, AccessAdminWriter writer, CurrentAccessSubject current) {
         this.reader = reader;
+        this.writer = writer;
+        this.current = current;
     }
 
     @GetMapping("/catalog")
@@ -77,6 +101,102 @@ public class AccessAdminControllerWeb {
         return reader.roles(TenantContext.getCurrentOrgId());
     }
 
+    @PostMapping("/roles")
+    @PreAuthorize(CREATE_GUARD)
+    @Operation(
+            summary = "Create a role",
+            description = "A new role with no grants; its slug is made from its name. The caller's roles "
+                    + "that already assign others may assign it too."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "The new role"),
+            @ApiResponse(responseCode = "400", description = "The name is missing or too long"),
+            @ApiResponse(responseCode = "403", description = "Caller may not create roles"),
+            @ApiResponse(responseCode = "409", description = "A role with that name already exists")
+    })
+    public ResponseEntity<AccessRoleDto> createAccessRole(@Valid @RequestBody AccessRoleRequest request) {
+        AccessSubject caller = caller();
+        UUID id = writer.createRole(caller, request.name(), request.subtitle(), request.description());
+        return ResponseEntity.status(HttpStatus.CREATED).body(reader.role(caller.organizationId(), id));
+    }
+
+    @PutMapping("/roles/{roleId}")
+    @PreAuthorize(EDIT_GUARD)
+    @Operation(
+            summary = "Change a role's name and description",
+            description = "The slug never changes. Only a role the caller's roles may assign, or the "
+                    + "baseline role, can be changed."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "The role"),
+            @ApiResponse(responseCode = "403", description = "Caller may not change this role"),
+            @ApiResponse(responseCode = "404", description = "No such role in this organization")
+    })
+    public AccessRoleDto updateAccessRole(@PathVariable UUID roleId, @Valid @RequestBody AccessRoleRequest request) {
+        AccessSubject caller = caller();
+        writer.updateRole(caller, roleId, request.name(), request.subtitle(), request.description());
+        return reader.role(caller.organizationId(), roleId);
+    }
+
+    @PutMapping("/roles/{roleId}/grants")
+    @PreAuthorize(EDIT_GUARD)
+    @Operation(
+            summary = "Replace a role's grants",
+            description = "The grants sent become the role's grants. Any action brings view with the same "
+                    + "scope; locked grants stay whether sent or not. The caller may give or take only "
+                    + "grants they hold, with that scope or ALL. Holders feel the change on their next request."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "The role"),
+            @ApiResponse(responseCode = "400", description = "A permission is not in the catalog, or a scope is unknown"),
+            @ApiResponse(responseCode = "403", description = "Caller may not change this role, or does not hold a grant they sent or removed"),
+            @ApiResponse(responseCode = "404", description = "No such role in this organization")
+    })
+    public AccessRoleDto replaceAccessRoleGrants(@PathVariable UUID roleId,
+                                                 @Valid @RequestBody AccessGrantsRequest request) {
+        AccessSubject caller = caller();
+        writer.replaceRoleGrants(caller, roleId, RequestedGrants.parse(request.grants()));
+        return reader.role(caller.organizationId(), roleId);
+    }
+
+    @PutMapping("/roles/{roleId}/grantable-roles")
+    @PreAuthorize(EDIT_GUARD)
+    @Operation(
+            summary = "Replace the roles a role's holders may assign",
+            description = "The caller may add or take off only roles they may assign themselves. The "
+                    + "baseline role is never listed, since everyone holds it."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "The role"),
+            @ApiResponse(responseCode = "400", description = "The baseline role was listed"),
+            @ApiResponse(responseCode = "403", description = "Caller may not change this role, or may not assign a role listed or removed"),
+            @ApiResponse(responseCode = "404", description = "No such role in this organization")
+    })
+    public AccessRoleDto replaceAccessRoleGrantableRoles(@PathVariable UUID roleId,
+                                                         @Valid @RequestBody AccessRoleIdsRequest request) {
+        AccessSubject caller = caller();
+        writer.replaceGrantableRoles(caller, roleId, request.roleIds());
+        return reader.role(caller.organizationId(), roleId);
+    }
+
+    @DeleteMapping("/roles/{roleId}")
+    @PreAuthorize(DELETE_GUARD)
+    @Operation(
+            summary = "Delete a role",
+            description = "Only a role the organization made; the starting roles stay. Its holders lose it "
+                    + "on their next request."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Deleted"),
+            @ApiResponse(responseCode = "403", description = "Caller may not delete this role"),
+            @ApiResponse(responseCode = "404", description = "No such role in this organization"),
+            @ApiResponse(responseCode = "422", description = "A starting role cannot be deleted")
+    })
+    public ResponseEntity<Void> deleteAccessRole(@PathVariable UUID roleId) {
+        writer.deleteRole(caller(), roleId);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/groups")
     @PreAuthorize(VIEW_GUARD)
     @Operation(
@@ -106,5 +226,9 @@ public class AccessAdminControllerWeb {
     })
     public List<AccessUserDto> listAccessUsers() {
         return reader.users(TenantContext.getCurrentOrgId());
+    }
+
+    private AccessSubject caller() {
+        return current.resolve().orElseThrow(() -> new AccessDeniedException("Not a member of this organization"));
     }
 }

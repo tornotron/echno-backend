@@ -2,13 +2,22 @@ package org.tornotron.echno_backend.modules.access.web;
 
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.hasItems;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -17,6 +26,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
@@ -25,7 +35,12 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
 import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
+import org.tornotron.echno_backend.modules.access.api.AccessPermission;
+import org.tornotron.echno_backend.modules.access.api.AccessScope;
+import org.tornotron.echno_backend.modules.access.api.AccessSubject;
 import org.tornotron.echno_backend.modules.access.guard.AccessGuard;
+import org.tornotron.echno_backend.modules.access.guard.CurrentAccessSubject;
+import org.tornotron.echno_backend.modules.access.web.RequestedGrants.Grant;
 import org.tornotron.echno_backend.modules.access.web.dto.AccessGrantDto;
 import org.tornotron.echno_backend.modules.access.web.dto.AccessGroupDto;
 import org.tornotron.echno_backend.modules.access.web.dto.AccessRoleDto;
@@ -48,6 +63,12 @@ class AccessAdminControllerWebTest {
 
     @MockitoBean
     private AccessAdminReader reader;
+
+    @MockitoBean
+    private AccessAdminWriter writer;
+
+    @MockitoBean
+    private CurrentAccessSubject current;
 
     @MockitoBean
     private KeycloakAuthorizationService keycloakAuthorizationService;
@@ -148,6 +169,103 @@ class AccessAdminControllerWebTest {
 
         mockMvc.perform(get("/api/v1/access/web/users").with(jwt()))
                 .andExpect(status().isForbidden());
+    }
+
+    private static final AccessSubject CALLER = new AccessSubject(7L, 3L, 30L);
+    private static final UUID AUDITOR = UUID.fromString("00000000-0000-0000-0000-0000000000c1");
+
+    @Test
+    void aRoleIsCreatedForTheCaller() throws Exception {
+        when(access.can("access", "create")).thenReturn(true);
+        when(current.resolve()).thenReturn(Optional.of(CALLER));
+        when(writer.createRole(CALLER, "Auditor", null, "Reads the books")).thenReturn(AUDITOR);
+        when(reader.role(7L, AUDITOR)).thenReturn(role(AUDITOR, "auditor"));
+
+        mockMvc.perform(post("/api/v1/access/web/roles").with(jwt())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Auditor\",\"description\":\"Reads the books\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(AUDITOR.toString()))
+                .andExpect(jsonPath("$.slug").value("auditor"));
+    }
+
+    @Test
+    void aRoleNeedsAName() throws Exception {
+        when(access.can("access", "create")).thenReturn(true);
+        when(current.resolve()).thenReturn(Optional.of(CALLER));
+
+        mockMvc.perform(post("/api/v1/access/web/roles").with(jwt())
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"name\":\" \"}"))
+                .andExpect(status().isBadRequest());
+        verifyNoInteractions(writer);
+    }
+
+    @Test
+    void creatingARoleIsRefusedWithoutAccessCreate() throws Exception {
+        when(access.can("access", "create")).thenReturn(false);
+
+        mockMvc.perform(post("/api/v1/access/web/roles").with(jwt())
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"Auditor\"}"))
+                .andExpect(status().isForbidden());
+        verifyNoInteractions(writer);
+    }
+
+    @Test
+    void aRolesGrantsAreReplacedWithViewAdded() throws Exception {
+        when(access.can("access", "edit")).thenReturn(true);
+        when(current.resolve()).thenReturn(Optional.of(CALLER));
+        when(reader.role(7L, AUDITOR)).thenReturn(role(AUDITOR, "auditor"));
+
+        mockMvc.perform(put("/api/v1/access/web/roles/{id}/grants", AUDITOR).with(jwt())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"grants\":[{\"permission\":\"finance:approve\",\"scope\":\"ALL\"}]}"))
+                .andExpect(status().isOk());
+        verify(writer).replaceRoleGrants(CALLER, AUDITOR, Set.of(
+                new Grant(AccessPermission.of("finance:view"), AccessScope.ALL),
+                new Grant(AccessPermission.of("finance:approve"), AccessScope.ALL)));
+    }
+
+    @Test
+    void aGrantOutsideTheCatalogIsABadRequest() throws Exception {
+        when(access.can("access", "edit")).thenReturn(true);
+        when(current.resolve()).thenReturn(Optional.of(CALLER));
+
+        mockMvc.perform(put("/api/v1/access/web/roles/{id}/grants", AUDITOR).with(jwt())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"grants\":[{\"permission\":\"payroll:view\",\"scope\":\"ALL\"}]}"))
+                .andExpect(status().isBadRequest());
+        verify(writer, never()).replaceRoleGrants(any(), any(), any());
+    }
+
+    @Test
+    void changingARoleIsRefusedWithoutAccessEdit() throws Exception {
+        when(access.can("access", "edit")).thenReturn(false);
+
+        mockMvc.perform(put("/api/v1/access/web/roles/{id}", AUDITOR).with(jwt())
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"Auditor\"}"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(put("/api/v1/access/web/roles/{id}/grantable-roles", AUDITOR).with(jwt())
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"roleIds\":[]}"))
+                .andExpect(status().isForbidden());
+        verifyNoInteractions(writer);
+    }
+
+    @Test
+    void aRoleIsDeletedWithAccessDeleteOnly() throws Exception {
+        when(current.resolve()).thenReturn(Optional.of(CALLER));
+        when(access.can("access", "delete")).thenReturn(false);
+        mockMvc.perform(delete("/api/v1/access/web/roles/{id}", AUDITOR).with(jwt()))
+                .andExpect(status().isForbidden());
+        verifyNoInteractions(writer);
+
+        when(access.can("access", "delete")).thenReturn(true);
+        mockMvc.perform(delete("/api/v1/access/web/roles/{id}", AUDITOR).with(jwt()))
+                .andExpect(status().isNoContent());
+        verify(writer).deleteRole(CALLER, AUDITOR);
+    }
+
+    private static AccessRoleDto role(UUID id, String slug) {
+        return new AccessRoleDto(id, slug, "Auditor", null, null, false, false, List.of(), List.of(), List.of());
     }
 
     @AfterEach
