@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        What one person holds directly: the roles assigned to them, and grants on top of those.
+        Keyed on employee_id, the person's membership in the organization, because access
+        belongs to a membership and not to a login. Both tables carry organization_id for the
+        orgFilter, and both go when the employee does.
+    -->
+
+    <changeSet id="access-003-create-access_employee_role" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="access_employee_role"/></not>
+        </preConditions>
+        <createTable tableName="access_employee_role">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_access_employee_role" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="employee_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="role_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="created_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="created_by" type="BIGINT"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="access_employee_role" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_access_employee_role_organization"/>
+        <addForeignKeyConstraint baseTableName="access_employee_role" baseColumnNames="employee_id"
+                                 referencedTableName="employee" referencedColumnNames="id"
+                                 constraintName="fk_access_employee_role_employee" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseTableName="access_employee_role" baseColumnNames="role_id"
+                                 referencedTableName="access_role" referencedColumnNames="id"
+                                 constraintName="fk_access_employee_role_role" onDelete="CASCADE"/>
+        <addUniqueConstraint tableName="access_employee_role" columnNames="employee_id, role_id"
+                             constraintName="uq_access_employee_role"/>
+        <createIndex tableName="access_employee_role" indexName="idx_access_employee_role_role">
+            <column name="role_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="access-003-create-access_employee_grant" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="access_employee_grant"/></not>
+        </preConditions>
+        <createTable tableName="access_employee_grant">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_access_employee_grant" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="employee_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="permission_key" type="VARCHAR(120)"><constraints nullable="false"/></column>
+            <column name="scope" type="VARCHAR(20)"><constraints nullable="false"/></column>
+            <column name="created_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="created_by" type="BIGINT"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="access_employee_grant" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_access_employee_grant_organization"/>
+        <addForeignKeyConstraint baseTableName="access_employee_grant" baseColumnNames="employee_id"
+                                 referencedTableName="employee" referencedColumnNames="id"
+                                 constraintName="fk_access_employee_grant_employee" onDelete="CASCADE"/>
+        <addUniqueConstraint tableName="access_employee_grant" columnNames="employee_id, permission_key, scope"
+                             constraintName="uq_access_employee_grant"/>
+    </changeSet>
+
+</databaseChangeLog>
