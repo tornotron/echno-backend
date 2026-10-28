@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.modules.access.matrix.service;
 
 import java.util.Set;
+import org.springframework.stereotype.Service;
 import org.tornotron.echno_backend.modules.access.api.AccessFilter;
 import org.tornotron.echno_backend.modules.access.api.AccessGrants;
 import org.tornotron.echno_backend.modules.access.api.AccessPermission;
@@ -22,7 +23,10 @@ import org.tornotron.echno_backend.modules.access.api.RecordFacts;
  *   <li>own: the person is one of the record's owners.
  * </ul>
  * A record check is the filter applied to one record, so the two can never disagree.
+ *
+ * <p>The application's {@link AccessService}; facts come from {@link CachedAccessFactsSource}.
  */
+@Service
 public class MatrixAccessService implements AccessService {
 
     private final AccessFactsSource facts;
