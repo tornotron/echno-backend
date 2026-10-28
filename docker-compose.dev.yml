@@ -72,11 +72,13 @@ services:
       start_period: 30s
 
   minio:
-    image: quay.io/minio/minio:RELEASE.2024-11-07T00-52-20Z
-    command: ["server", "/data", "--console-address", ":9001"]
+    image: bitnamilegacy/minio:2025.7.23-debian-12-r5
+    user: root
     environment:
       MINIO_ROOT_USER: echno-dev
       MINIO_ROOT_PASSWORD: echno-dev-secret   # dev-only
+      MINIO_DATA_DIR: /data
+      MINIO_BROWSER: "on"
     ports:
       - "127.0.0.1:${ECHNO_DEV_MINIO_PORT:-9100}:9000"
       - "127.0.0.1:${ECHNO_DEV_MINIO_CONSOLE_PORT:-9101}:9001"
@@ -95,16 +97,25 @@ services:
   # so the cdn-endpoint URLs the API hands out resolve in a browser, as they do
   # against Spaces.
   minio-init:
-    image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
+    image: bitnamilegacy/minio-client:2025.7.21-debian-12-r3
     depends_on:
       minio:
         condition: service_healthy
+    environment:
+      HOME: /tmp
     entrypoint: ["/bin/sh", "-c"]
+    # Retries the whole (idempotent) sequence: the bitnami minio image's healthcheck can
+    # report healthy during a throwaway setup instance that it stops and replaces, so the
+    # server can still drop a connection out from under this right after depends_on clears.
     command:
       - |
-        mc alias set local http://minio:9000 echno-dev echno-dev-secret &&
-        mc mb --ignore-existing local/echno-dev local/echno-datasets &&
-        mc anonymous set download local/echno-dev
+        for i in $(seq 1 30); do
+          mc alias set local http://minio:9000 echno-dev echno-dev-secret &&
+          mc mb --ignore-existing local/echno-dev local/echno-datasets &&
+          mc anonymous set download local/echno-dev && exit 0
+          sleep 1
+        done
+        exit 1
     restart: "no"
 
   redis:

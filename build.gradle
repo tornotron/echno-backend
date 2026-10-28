@@ -497,11 +497,19 @@ tasks.register('devWait', Exec) {
     finalizedBy 'devInitWait'
 }
 
+// Plain `docker wait`, not `docker compose wait`: the compose subcommand only attaches to
+// containers that are still running when it starts, so it reports "no containers for
+// project" for these init jobs, which finish in well under a second. `docker wait` returns
+// each container's exit code immediately even if it already exited.
 tasks.register('devInitWait', Exec) {
     group = 'echno'
     description = 'Waits until the database and bucket init containers have completed'
     workingDir = projectDir
-    commandLine(devCompose + ['wait', 'cockroachdb-init', 'minio-init'])
+    commandLine('bash', '-c', '''set -euo pipefail
+ids=$(docker compose -f docker-compose.dev.yml ps -a -q cockroachdb-init minio-init)
+codes=$(docker wait $ids)
+! grep -qv \'^0$\' <<< "$codes"
+''')
 }
 
 tasks.register('devDown', Exec) {
