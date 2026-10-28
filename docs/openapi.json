@@ -1,6 +1,29 @@
 {
   "components": {
     "schemas": {
+      "AccessCatalogDto": {
+        "properties": {
+          "areas": {
+            "items": {
+              "$ref": "#/components/schemas/AreaDto"
+            },
+            "type": "array"
+          },
+          "scopes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "sections": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "AccountDto": {
         "description": "An account in the chart of accounts, with its code, type and place in the hierarchy.",
         "properties": {
@@ -283,6 +306,26 @@
         "required": [
           "archived"
         ],
+        "type": "object"
+      },
+      "AreaDto": {
+        "properties": {
+          "actions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "section": {
+            "type": "string"
+          }
+        },
         "type": "object"
       },
       "AssetCreationDto": {
@@ -28127,6 +28170,108 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/access/web/catalog": {
+      "get": {
+        "description": "The sections, areas and actions the matrix shows, and the scopes a grant can carry. A permission is written <area>:<action>, for example wbs:edit.",
+        "operationId": "getAccessCatalog",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessCatalogDto"
+                }
+              }
+            },
+            "description": "The catalog"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller may not view roles and permissions"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Get the access catalog",
+        "tags": [
+          "Access Administration (Web)"
+        ]
+      }
+    },
     "/api/v1/access/web/me": {
       "get": {
         "description": "The caller's membership in the current organization and every permission they hold, as <area>:<action>, with the scopes each covers: ALL, ASSIGNED_PROJECTS, RELATED or OWN.",
@@ -142580,6 +142725,10 @@
     {
       "description": "What the caller may do in their current organization: every permission they hold and the records each covers. For deciding what to show; the server checks every request on its own.",
       "name": "Access (Web)"
+    },
+    {
+      "description": "The Roles & Permissions screen: the areas and actions roles can grant, and the organization's roles, departments and groups, and people's access.",
+      "name": "Access Administration (Web)"
     },
     {
       "description": "Fixed assets in the organization's asset register: excavators, cranes, vehicles and similar equipment tracked with purchase, condition, maintenance and insurance detail. Endpoints cover listing, paginated listing, lookup by id, creation, update and deletion, plus the append-only movement ledger that records where each asset has been and the documents filed against it. All scoped to the caller's current tenant organization.",
