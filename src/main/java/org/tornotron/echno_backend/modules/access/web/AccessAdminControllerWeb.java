@@ -5,13 +5,16 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.Arrays;
+import java.util.List;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.modules.access.api.AccessScope;
 import org.tornotron.echno_backend.modules.access.matrix.catalog.AccessCatalog;
 import org.tornotron.echno_backend.modules.access.web.dto.AccessCatalogDto;
+import org.tornotron.echno_backend.modules.access.web.dto.AccessRoleDto;
 
 /**
  * The Roles &amp; Permissions screen: the catalog it draws the matrix from, and the organization's
@@ -31,6 +34,12 @@ public class AccessAdminControllerWeb {
 
     static final String VIEW_GUARD = "@access.can('access', 'view')";
 
+    private final AccessAdminReader reader;
+
+    public AccessAdminControllerWeb(AccessAdminReader reader) {
+        this.reader = reader;
+    }
+
     @GetMapping("/catalog")
     @PreAuthorize(VIEW_GUARD)
     @Operation(
@@ -49,5 +58,20 @@ public class AccessAdminControllerWeb {
                         .map(area -> new AccessCatalogDto.AreaDto(area.id(), area.label(), area.section(), area.actions()))
                         .toList(),
                 Arrays.stream(AccessScope.values()).map(AccessScope::name).toList());
+    }
+
+    @GetMapping("/roles")
+    @PreAuthorize(VIEW_GUARD)
+    @Operation(
+            summary = "List roles",
+            description = "The organization's roles, the baseline role first: each with its grants, the "
+                    + "employees it is assigned to directly, and the roles its holders may assign."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "The roles"),
+            @ApiResponse(responseCode = "403", description = "Caller may not view roles and permissions")
+    })
+    public List<AccessRoleDto> listAccessRoles() {
+        return reader.roles(TenantContext.getCurrentOrgId());
     }
 }

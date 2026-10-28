@@ -8,6 +8,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.List;
+import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -21,7 +24,10 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
 import org.tornotron.echno_backend.common.configuration.RPTCache;
+import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.modules.access.guard.AccessGuard;
+import org.tornotron.echno_backend.modules.access.web.dto.AccessGrantDto;
+import org.tornotron.echno_backend.modules.access.web.dto.AccessRoleDto;
 
 /**
  * The Roles &amp; Permissions endpoints: who may read them, and the shape the screen depends on.
@@ -37,6 +43,9 @@ class AccessAdminControllerWebTest {
 
     @MockitoBean(name = "access")
     private AccessGuard access;
+
+    @MockitoBean
+    private AccessAdminReader reader;
 
     @MockitoBean
     private KeycloakAuthorizationService keycloakAuthorizationService;
@@ -66,6 +75,37 @@ class AccessAdminControllerWebTest {
 
         mockMvc.perform(get("/api/v1/access/web/catalog").with(jwt()))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void rolesAreListedForTheRequestsOrganization() throws Exception {
+        when(access.can("access", "view")).thenReturn(true);
+        TenantContext.setCurrentOrgId(7L);
+        UUID member = UUID.fromString("00000000-0000-0000-0000-0000000000a1");
+        when(reader.roles(7L)).thenReturn(List.of(new AccessRoleDto(member, "member", "Member", null,
+                "Everyone", true, true, List.of(new AccessGrantDto("leave:create", "OWN", true)),
+                List.of(), List.of())));
+
+        mockMvc.perform(get("/api/v1/access/web/roles").with(jwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].slug").value("member"))
+                .andExpect(jsonPath("$[0].baseline").value(true))
+                .andExpect(jsonPath("$[0].grants[0].permission").value("leave:create"))
+                .andExpect(jsonPath("$[0].grants[0].scope").value("OWN"))
+                .andExpect(jsonPath("$[0].grants[0].locked").value(true));
+    }
+
+    @Test
+    void rolesAreRefusedWithoutAccessView() throws Exception {
+        when(access.can("access", "view")).thenReturn(false);
+
+        mockMvc.perform(get("/api/v1/access/web/roles").with(jwt()))
+                .andExpect(status().isForbidden());
+    }
+
+    @AfterEach
+    void clearTenant() {
+        TenantContext.clear();
     }
 
     @TestConfiguration
