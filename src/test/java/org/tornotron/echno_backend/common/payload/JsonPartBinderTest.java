@@ -8,7 +8,7 @@ import jakarta.validation.ValidatorFactory;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.tornotron.echno_backend.chat.dto.SendMessageDto;
+import org.tornotron.echno_backend.modules.chat.dto.SendMessageDto;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 
 import java.util.Map;
