@@ -35,8 +35,13 @@ import java.util.TreeMap;
  * {@link ModuleEntitlementResolver} says; for a module without one, its
  * {@code enabledByDefault} flag.
  *
+ * <p>A core module is always on: it has no kill switch and no entitlement, so neither question is
+ * asked of it. Setting its kill switch to {@code false} is refused at boot rather than ignored,
+ * because an operator who writes it expects the module to go away and it will not.
+ *
  * <p>Construction validates the manifests and fails the boot on a duplicate id, a dependency on
- * a module that is not installed, or a dependency cycle. A module that would silently not work
+ * a module that is not installed, a dependency cycle, a core module that depends on a module
+ * that is not core, or a kill switch set on a core module. A module that would silently not work
  * is worse than one that stops the application from starting.
  */
 @Component
@@ -84,6 +89,7 @@ public class ModuleRegistry {
             permissions.put(manifest.id(), collectPermissions(module, manifest));
         }
         validateDependencies(byId);
+        validateCoreModules(byId, environment);
 
         this.manifests = Collections.unmodifiableSortedMap(byId);
         this.navByModule = Collections.unmodifiableMap(nav);
@@ -116,23 +122,33 @@ public class ModuleRegistry {
 
     /**
      * The operator kill switch: {@code echno.modules.<id>.enabled}, {@code true} unless the
-     * property is set to {@code false}. Installed-level, independent of any organization.
+     * property is set to {@code false}. Installed-level, independent of any organization. Always
+     * {@code true} for a core module, which has no kill switch.
      */
     public boolean isSwitchedOn(String moduleId) {
-        return isInstalled(moduleId) && environment.getProperty(
+        if (!isInstalled(moduleId)) {
+            return false;
+        }
+        if (manifests.get(moduleId).core()) {
+            return true;
+        }
+        return environment.getProperty(
                 KILL_SWITCH_PREFIX + moduleId + KILL_SWITCH_SUFFIX, Boolean.class, Boolean.TRUE);
     }
 
     /**
      * Whether the organization is entitled to the module, ignoring the kill switch and the
-     * module's dependencies. A paywalled module asks the resolver; a free one answers with its
-     * {@code enabledByDefault} flag.
+     * module's dependencies. A core module always is; a paywalled module asks the resolver; a
+     * free one answers with its {@code enabledByDefault} flag.
      */
     public boolean isEntitled(String moduleId, Long organizationId) {
         if (!isInstalled(moduleId)) {
             return false;
         }
         ModuleManifest manifest = manifests.get(moduleId);
+        if (manifest.core()) {
+            return true;
+        }
         if (!manifest.isPaywalled()) {
             return manifest.enabledByDefault();
         }
@@ -208,6 +224,26 @@ public class ModuleRegistry {
             List<String> cycle = findCycle(id, byId);
             if (cycle != null) {
                 throw new IllegalStateException("Module dependencies form a cycle: " + cycle);
+            }
+        }
+    }
+
+    private static void validateCoreModules(Map<String, ModuleManifest> byId, Environment environment) {
+        for (ModuleManifest manifest : byId.values()) {
+            if (!manifest.core()) {
+                continue;
+            }
+            List<String> switchable = manifest.dependsOn().stream()
+                    .filter(dependency -> !byId.get(dependency).core())
+                    .toList();
+            if (!switchable.isEmpty()) {
+                throw new IllegalStateException("Core module '" + manifest.id()
+                        + "' depends on modules that can be switched off: " + switchable);
+            }
+            String killSwitch = KILL_SWITCH_PREFIX + manifest.id() + KILL_SWITCH_SUFFIX;
+            if (Boolean.FALSE.equals(environment.getProperty(killSwitch, Boolean.class))) {
+                throw new IllegalStateException("Core module '" + manifest.id()
+                        + "' cannot be switched off; remove " + killSwitch);
             }
         }
     }

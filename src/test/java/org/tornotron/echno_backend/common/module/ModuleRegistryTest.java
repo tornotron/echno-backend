@@ -173,6 +173,80 @@ class ModuleRegistryTest {
     }
 
     @Test
+    void aCoreModuleIsOnForEveryOrganizationAndNeverAsksTheResolver() {
+        ModuleEntitlementResolver refusesEverything = (org, key) -> {
+            throw new AssertionError("a core module must not consult the resolver");
+        };
+        ModuleRegistry registry = new ModuleRegistry(
+                List.of(coreModule("access", List.of())), refusesEverything, new MockEnvironment());
+
+        assertThat(registry.isSwitchedOn("access")).isTrue();
+        assertThat(registry.isEntitled("access", 7L)).isTrue();
+        assertThat(registry.isEnabledForOrg("access", 7L)).isTrue();
+        assertThat(registry.manifest("access").core()).isTrue();
+    }
+
+    @Test
+    void failsFastWhenACoreModuleIsSwitchedOff() {
+        MockEnvironment environment = new MockEnvironment()
+                .withProperty("echno.modules.access.enabled", "false");
+
+        assertThatThrownBy(() -> new ModuleRegistry(
+                List.of(coreModule("access", List.of())), ENTITLED_TO_EVERYTHING, environment))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("access")
+                .hasMessageContaining("echno.modules.access.enabled");
+    }
+
+    @Test
+    void aCoreModuleKillSwitchSetToTrueIsHarmless() {
+        MockEnvironment environment = new MockEnvironment()
+                .withProperty("echno.modules.access.enabled", "true");
+        ModuleRegistry registry = new ModuleRegistry(
+                List.of(coreModule("access", List.of())), ENTITLED_TO_EVERYTHING, environment);
+
+        assertThat(registry.isEnabledForOrg("access", 7L)).isTrue();
+    }
+
+    @Test
+    void failsFastWhenACoreModuleDependsOnAModuleThatCanBeSwitchedOff() {
+        List<EchnoModule> modules = List.of(
+                module("inspections", List.of()), coreModule("access", List.of("inspections")));
+
+        assertThatThrownBy(() -> new ModuleRegistry(modules, ENTITLED_TO_EVERYTHING, new MockEnvironment()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("access")
+                .hasMessageContaining("inspections");
+    }
+
+    @Test
+    void aFeatureModuleMayDependOnACoreModule() {
+        ModuleRegistry registry = new ModuleRegistry(
+                List.of(coreModule("access", List.of()), module("inspections", List.of("access"))),
+                ENTITLED_TO_EVERYTHING, new MockEnvironment());
+
+        assertThat(registry.isEnabledForOrg("inspections", 7L)).isTrue();
+    }
+
+    @Test
+    void rejectsACoreManifestThatIsPaywalledOrOffByDefault() {
+        assertThatThrownBy(() -> new ModuleManifest("access", "Access", "1.0.0", "MODULE_ACCESS",
+                List.of(), List.of(), List.of(), true, true))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("MODULE_ACCESS");
+        assertThatThrownBy(() -> new ModuleManifest("access", "Access", "1.0.0", null,
+                List.of(), List.of(), List.of(), false, true))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("enabled by default");
+    }
+
+    @Test
+    void theFeatureModuleConstructorIsNotCore() {
+        assertThat(new ModuleManifest("chat", "Chat", "1.0.0", null, List.of(), List.of(), List.of(), true).core())
+                .isFalse();
+    }
+
+    @Test
     void unknownModulesAreNeverEnabled() {
         ModuleRegistry registry = new ModuleRegistry(List.of(), ENTITLED_TO_EVERYTHING, new MockEnvironment());
 
@@ -189,5 +263,9 @@ class ModuleRegistryTest {
 
     private static EchnoModule freeModule(String id, boolean enabledByDefault) {
         return () -> new ModuleManifest(id, id, "1.0.0", null, List.of(), List.of(), List.of(), enabledByDefault);
+    }
+
+    private static EchnoModule coreModule(String id, List<String> dependsOn) {
+        return () -> ModuleManifest.core(id, id, "1.0.0", dependsOn, List.of(), List.of());
     }
 }

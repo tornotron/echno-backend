@@ -26,6 +26,10 @@ import java.util.regex.Pattern;
  * @param enabledByDefault      for a module with no entitlement feature key, whether it is on for
  *                              every organization; ignored when a feature key is present, where
  *                              the resolver decides
+ * @param core                  a module the application cannot run without, such as access
+ *                              control: on for every organization, never paywalled, and without a
+ *                              kill switch. It may depend only on other core modules, since a
+ *                              dependency that can be switched off would switch it off too.
  */
 public record ModuleManifest(
         String id,
@@ -35,7 +39,8 @@ public record ModuleManifest(
         List<String> dependsOn,
         List<String> permissions,
         List<NavDescriptor> navDescriptors,
-        boolean enabledByDefault) {
+        boolean enabledByDefault,
+        boolean core) {
 
     private static final Pattern ID = Pattern.compile("[a-z][a-z0-9-]*");
 
@@ -60,6 +65,28 @@ public record ModuleManifest(
             requirePermissionKey(key);
         }
         navDescriptors = navDescriptors == null ? List.of() : List.copyOf(navDescriptors);
+        if (core && entitlementFeatureKey != null) {
+            throw new IllegalArgumentException(
+                    "Core module '" + id + "' cannot be gated by the billing feature " + entitlementFeatureKey);
+        }
+        if (core && !enabledByDefault) {
+            throw new IllegalArgumentException("Core module '" + id + "' must be enabled by default");
+        }
+    }
+
+    /** A feature module: the form every module that is not core is declared in. */
+    public ModuleManifest(String id, String name, String version, String entitlementFeatureKey,
+                          List<String> dependsOn, List<String> permissions,
+                          List<NavDescriptor> navDescriptors, boolean enabledByDefault) {
+        this(id, name, version, entitlementFeatureKey, dependsOn, permissions, navDescriptors,
+                enabledByDefault, false);
+    }
+
+    /** A core module: on for every organization, free, and without a kill switch. */
+    public static ModuleManifest core(String id, String name, String version, List<String> dependsOn,
+                                      List<String> permissions, List<NavDescriptor> navDescriptors) {
+        return new ModuleManifest(id, name, version, null, dependsOn, permissions, navDescriptors,
+                true, true);
     }
 
     /**
