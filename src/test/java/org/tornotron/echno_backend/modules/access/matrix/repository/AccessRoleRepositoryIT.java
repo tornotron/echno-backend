@@ -83,6 +83,26 @@ class AccessRoleRepositoryIT extends AbstractIntegrationTest {
                 .getSingleResult()).isZero();
     }
 
+    @Test
+    void aRoleRemembersWhichRolesItsHoldersMayGrant() {
+        Organization org = persistOrganization("Access Org E");
+        AccessRole siteEngineer = role(org, "site-engineer", "Site Engineer");
+        AccessRole admin = role(org, "system-admin", "Company Administrator");
+        AccessRole hr = role(org, "hr-admin", "HR Admin");
+        hr.getGrantableRoles().add(siteEngineer);
+        em.persist(siteEngineer);
+        em.persist(admin);
+        em.persist(hr);
+        em.flush();
+        em.clear();
+
+        scopeTo(org);
+        AccessRole reloaded = roles.findBySlugScoped("hr-admin").orElseThrow();
+
+        assertThat(reloaded.getGrantableRoles()).extracting(AccessRole::getSlug).containsExactly("site-engineer");
+        assertThat(reloaded.mayGrant(roles.findBySlugScoped("system-admin").orElseThrow())).isFalse();
+    }
+
     private AccessRole role(Organization org, String slug, String name) {
         AccessRole role = new AccessRole();
         role.setOrganization(org);

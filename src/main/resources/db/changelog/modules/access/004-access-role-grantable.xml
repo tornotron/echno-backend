@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Which roles a role's holders may hand out: HR may give ordinary roles, while only the
+        owner may give the administrator role. Both sides are roles of the same organization,
+        and a row goes with either role.
+    -->
+
+    <changeSet id="access-004-create-access_role_grantable" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="access_role_grantable"/></not>
+        </preConditions>
+        <createTable tableName="access_role_grantable">
+            <column name="role_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="grantable_role_id" type="UUID"><constraints nullable="false"/></column>
+        </createTable>
+        <addPrimaryKey tableName="access_role_grantable" columnNames="role_id, grantable_role_id"
+                       constraintName="pk_access_role_grantable"/>
+        <addForeignKeyConstraint baseTableName="access_role_grantable" baseColumnNames="role_id"
+                                 referencedTableName="access_role" referencedColumnNames="id"
+                                 constraintName="fk_access_role_grantable_role" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseTableName="access_role_grantable" baseColumnNames="grantable_role_id"
+                                 referencedTableName="access_role" referencedColumnNames="id"
+                                 constraintName="fk_access_role_grantable_grantable" onDelete="CASCADE"/>
+    </changeSet>
+
+</databaseChangeLog>

@@ -8,13 +8,17 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -79,6 +83,13 @@ public class AccessRole implements TenantScopedEntity {
     @OneToMany(mappedBy = "role", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<AccessRoleGrant> grants = new ArrayList<>();
 
+    // The roles this role's holders may assign to others. Empty means they may assign none.
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(name = "access_role_grantable",
+            joinColumns = @JoinColumn(name = "role_id"),
+            inverseJoinColumns = @JoinColumn(name = "grantable_role_id"))
+    private Set<AccessRole> grantableRoles = new HashSet<>();
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -107,6 +118,11 @@ public class AccessRole implements TenantScopedEntity {
         grant.setScope(scope);
         grant.setLocked(locked);
         grants.add(grant);
+    }
+
+    /** Whether a holder of this role may assign {@code other} to someone. */
+    public boolean mayGrant(AccessRole other) {
+        return grantableRoles.contains(other);
     }
 
     /** Removes a grant; a locked one stays and the call answers false. */
