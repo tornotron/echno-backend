@@ -123,6 +123,47 @@
         },
         "type": "object"
       },
+      "AccessUserDto": {
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "designation": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "employeeId": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "grants": {
+            "items": {
+              "$ref": "#/components/schemas/AccessGrantDto"
+            },
+            "type": "array"
+          },
+          "groupIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "name": {
+            "type": "string"
+          },
+          "roleIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "AccountDto": {
         "description": "An account in the chart of accounts, with its code, type and place in the hierarchy.",
         "properties": {
@@ -28678,6 +28719,111 @@
           }
         },
         "summary": "List roles",
+        "tags": [
+          "Access Administration (Web)"
+        ]
+      }
+    },
+    "/api/v1/access/web/users": {
+      "get": {
+        "description": "Every employee of the organization with what is given to them directly: their roles, their departments and groups, and their own grants, and whether their status still gives them access.",
+        "operationId": "listAccessUsers",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AccessUserDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "The people and their access"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller may not view roles and permissions"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List people's access",
         "tags": [
           "Access Administration (Web)"
         ]

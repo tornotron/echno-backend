@@ -16,6 +16,7 @@ import org.tornotron.echno_backend.modules.access.matrix.catalog.AccessCatalog;
 import org.tornotron.echno_backend.modules.access.web.dto.AccessCatalogDto;
 import org.tornotron.echno_backend.modules.access.web.dto.AccessGroupDto;
 import org.tornotron.echno_backend.modules.access.web.dto.AccessRoleDto;
+import org.tornotron.echno_backend.modules.access.web.dto.AccessUserDto;
 
 /**
  * The Roles &amp; Permissions screen: the catalog it draws the matrix from, and the organization's
@@ -89,5 +90,21 @@ public class AccessAdminControllerWeb {
     })
     public List<AccessGroupDto> listAccessGroups() {
         return reader.groups(TenantContext.getCurrentOrgId());
+    }
+
+    @GetMapping("/users")
+    @PreAuthorize(VIEW_GUARD)
+    @Operation(
+            summary = "List people's access",
+            description = "Every employee of the organization with what is given to them directly: their "
+                    + "roles, their departments and groups, and their own grants, and whether their status "
+                    + "still gives them access."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "The people and their access"),
+            @ApiResponse(responseCode = "403", description = "Caller may not view roles and permissions")
+    })
+    public List<AccessUserDto> listAccessUsers() {
+        return reader.users(TenantContext.getCurrentOrgId());
     }
 }

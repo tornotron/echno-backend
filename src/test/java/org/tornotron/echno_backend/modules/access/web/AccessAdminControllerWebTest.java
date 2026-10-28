@@ -29,6 +29,7 @@ import org.tornotron.echno_backend.modules.access.guard.AccessGuard;
 import org.tornotron.echno_backend.modules.access.web.dto.AccessGrantDto;
 import org.tornotron.echno_backend.modules.access.web.dto.AccessGroupDto;
 import org.tornotron.echno_backend.modules.access.web.dto.AccessRoleDto;
+import org.tornotron.echno_backend.modules.access.web.dto.AccessUserDto;
 
 /**
  * The Roles &amp; Permissions endpoints: who may read them, and the shape the screen depends on.
@@ -124,6 +125,28 @@ class AccessAdminControllerWebTest {
         when(access.can("access", "view")).thenReturn(false);
 
         mockMvc.perform(get("/api/v1/access/web/groups").with(jwt()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void peopleAreListedForTheRequestsOrganization() throws Exception {
+        when(access.can("access", "view")).thenReturn(true);
+        TenantContext.setCurrentOrgId(7L);
+        when(reader.users(7L)).thenReturn(List.of(new AccessUserDto(3L, "Anand R", "anand@example.test",
+                "Site Engineer", true, List.of(), List.of(), List.of(new AccessGrantDto("tasks:view", "RELATED", false)))));
+
+        mockMvc.perform(get("/api/v1/access/web/users").with(jwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].employeeId").value(3))
+                .andExpect(jsonPath("$[0].active").value(true))
+                .andExpect(jsonPath("$[0].grants[0].scope").value("RELATED"));
+    }
+
+    @Test
+    void peopleAreRefusedWithoutAccessView() throws Exception {
+        when(access.can("access", "view")).thenReturn(false);
+
+        mockMvc.perform(get("/api/v1/access/web/users").with(jwt()))
                 .andExpect(status().isForbidden());
     }
 

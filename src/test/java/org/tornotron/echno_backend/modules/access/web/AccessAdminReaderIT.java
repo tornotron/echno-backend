@@ -12,8 +12,10 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.context.annotation.Import;
 import org.tornotron.echno_backend.employee.Employee;
+import org.tornotron.echno_backend.employee.enums.EmployeeStatus;
 import org.tornotron.echno_backend.modules.access.api.AccessPermission;
 import org.tornotron.echno_backend.modules.access.api.AccessScope;
+import org.tornotron.echno_backend.modules.access.matrix.domain.AccessEmployeeGrant;
 import org.tornotron.echno_backend.modules.access.matrix.domain.AccessEmployeeRole;
 import org.tornotron.echno_backend.modules.access.matrix.domain.AccessGroup;
 import org.tornotron.echno_backend.modules.access.matrix.domain.AccessGroupKind;
@@ -22,6 +24,7 @@ import org.tornotron.echno_backend.modules.access.matrix.seed.StandardRoleSeeder
 import org.tornotron.echno_backend.modules.access.matrix.seed.StandardRoles;
 import org.tornotron.echno_backend.modules.access.web.dto.AccessGroupDto;
 import org.tornotron.echno_backend.modules.access.web.dto.AccessRoleDto;
+import org.tornotron.echno_backend.modules.access.web.dto.AccessUserDto;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.support.AbstractIntegrationTest;
 import org.tornotron.echno_backend.user.User;
@@ -116,6 +119,51 @@ class AccessAdminReaderIT extends AbstractIntegrationTest {
                 assertThat(g.locked()).isFalse();
             });
         });
+    }
+
+    @Test
+    void peopleComeWithTheirRolesGroupsAndGrantsForOneOrganizationOnly() {
+        Organization org = persistOrganization("Reader Org E");
+        Organization other = persistOrganization("Reader Org F");
+        Employee engineer = persistEmployee(org, "reader-engineer");
+        Employee leaver = persistEmployee(org, "reader-leaver");
+        leaver.setStatus(EmployeeStatus.resigned);
+        persistEmployee(other, "reader-outsider");
+        AccessRole site = new AccessRole();
+        site.setOrganization(org);
+        site.setSlug("site-engineer");
+        site.setName("Site Engineer");
+        em.persist(site);
+        AccessEmployeeRole assignment = new AccessEmployeeRole();
+        assignment.setOrganization(org);
+        assignment.setEmployeeId(engineer.getId());
+        assignment.setRole(site);
+        em.persist(assignment);
+        AccessGroup crew = new AccessGroup();
+        crew.setOrganization(org);
+        crew.setName("Tower A crew");
+        crew.getMemberIds().add(engineer.getId());
+        em.persist(crew);
+        AccessEmployeeGrant direct = new AccessEmployeeGrant();
+        direct.setOrganization(org);
+        direct.setEmployeeId(engineer.getId());
+        direct.setPermissionKey("tasks:view");
+        direct.setScope(AccessScope.RELATED);
+        em.persist(direct);
+        em.flush();
+        em.clear();
+
+        List<AccessUserDto> people = reader.users(org.getId());
+
+        assertThat(people).extracting(AccessUserDto::name).containsExactly("reader-engineer", "reader-leaver");
+        assertThat(people.get(0)).satisfies(person -> {
+            assertThat(person.active()).isTrue();
+            assertThat(person.roleIds()).containsExactly(site.getId());
+            assertThat(person.groupIds()).containsExactly(crew.getId());
+            assertThat(person.grants()).singleElement()
+                    .satisfies(g -> assertThat(g.scope()).isEqualTo("RELATED"));
+        });
+        assertThat(people.get(1).active()).isFalse();
     }
 
     private Organization persistOrganization(String name) {
