@@ -1,0 +1,501 @@
+package org.tornotron.echno_backend.modules.access.web;
+
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
+import org.tornotron.echno_backend.common.exception.InvalidRequestException;
+import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.common.exception.UnprocessableRequestException;
+import org.tornotron.echno_backend.modules.access.api.AccessGrants;
+import org.tornotron.echno_backend.modules.access.api.AccessPermission;
+import org.tornotron.echno_backend.modules.access.api.AccessScope;
+import org.tornotron.echno_backend.modules.access.api.AccessService;
+import org.tornotron.echno_backend.modules.access.api.AccessSubject;
+import org.tornotron.echno_backend.modules.access.matrix.domain.AccessEmployeeGrant;
+import org.tornotron.echno_backend.modules.access.matrix.domain.AccessEmployeeRole;
+import org.tornotron.echno_backend.modules.access.matrix.domain.AccessGroup;
+import org.tornotron.echno_backend.modules.access.matrix.domain.AccessGroupKind;
+import org.tornotron.echno_backend.modules.access.matrix.domain.AccessRole;
+import org.tornotron.echno_backend.modules.access.matrix.domain.AccessRoleGrant;
+import org.tornotron.echno_backend.modules.access.matrix.service.CachedAccessFactsSource;
+import org.tornotron.echno_backend.modules.access.web.RequestedGrants.Grant;
+import org.tornotron.echno_backend.organization.Organization;
+
+/**
+ * What the Roles &amp; Permissions screen changes. Every query names the caller's organization,
+ * and every change evicts the cached access it affects, so it applies on the next request.
+ *
+ * <p>Holding {@code access:edit} is not enough on its own; two rules keep a caller from giving
+ * more than they have:
+ * <ul>
+ *   <li>a caller changes only the roles their own roles may assign, and the baseline role;
+ *   <li>a caller gives or takes only a grant they hold themselves, with that scope or with all.
+ * </ul>
+ */
+@Service
+public class AccessAdminWriter {
+
+    private final AccessService access;
+    private final CachedAccessFactsSource facts;
+
+    @PersistenceContext
+    private EntityManager em;
+
+    public AccessAdminWriter(AccessService access, CachedAccessFactsSource facts) {
+        this.access = access;
+        this.facts = facts;
+    }
+
+    /**
+     * Creates a role with no grants. The caller's roles that already assign others may assign it
+     * too, so whoever makes a role can hand it out.
+     *
+     * @return the new role's id
+     */
+    @Transactional
+    public UUID createRole(AccessSubject caller, String name, String subtitle, String description) {
+        Long organizationId = caller.organizationId();
+        String slug = slug(name);
+        boolean taken = !em.createQuery("SELECT r.id FROM AccessRole r WHERE r.organization.id = :organizationId "
+                        + "AND r.slug = :slug", UUID.class)
+                .setParameter("organizationId", organizationId)
+                .setParameter("slug", slug)
+                .getResultList().isEmpty();
+        if (taken) {
+            throw new DuplicateResourceException("A role named '" + name.strip() + "' already exists");
+        }
+        AccessRole role = new AccessRole();
+        role.setOrganization(em.getReference(Organization.class, organizationId));
+        role.setSlug(slug);
+        role.setName(name.strip());
+        role.setSubtitle(blankToNull(subtitle));
+        role.setDescription(blankToNull(description));
+        role.setCreatedBy(caller.employeeId());
+        role.setUpdatedBy(caller.employeeId());
+        em.persist(role);
+        heldRoles(caller).stream()
+                .filter(held -> !held.getGrantableRoles().isEmpty())
+                .forEach(held -> held.getGrantableRoles().add(role));
+        return role.getId();
+    }
+
+    /** Renames a role or changes what it says about itself; its slug never changes. */
+    @Transactional
+    public void updateRole(AccessSubject caller, UUID roleId, String name, String subtitle, String description) {
+        AccessRole role = changeableRole(caller, roleId);
+        role.setName(name.strip());
+        role.setSubtitle(blankToNull(subtitle));
+        role.setDescription(blankToNull(description));
+        role.setUpdatedBy(caller.employeeId());
+    }
+
+    /**
+     * Replaces a role's grants. Locked grants stay whether or not they are asked for, since a role
+     * can never drop them.
+     */
+    @Transactional
+    public void replaceRoleGrants(AccessSubject caller, UUID roleId, Set<Grant> wanted) {
+        AccessRole role = changeableRole(caller, roleId);
+        Set<Grant> current = role.getGrants().stream()
+                .filter(g -> !g.isLocked())
+                .map(g -> grant(g.getPermissionKey(), g.getScope()))
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        Set<Grant> locked = role.getGrants().stream()
+                .filter(AccessRoleGrant::isLocked)
+                .map(g -> grant(g.getPermissionKey(), g.getScope()))
+                .collect(Collectors.toSet());
+        Set<Grant> added = difference(difference(wanted, current), locked);
+        Set<Grant> removed = difference(current, wanted);
+        requireHeld(caller, added, removed);
+
+        removed.forEach(g -> role.revoke(g.permission(), g.scope()));
+        added.forEach(g -> role.grant(g.permission(), g.scope(), false));
+        role.setUpdatedBy(caller.employeeId());
+        if (!added.isEmpty() || !removed.isEmpty()) {
+            facts.evictAll();
+        }
+    }
+
+    /**
+     * Replaces the roles a role's holders may assign. The caller may list, or take off the list,
+     * only roles they may assign themselves; the baseline role is never listed, since everyone
+     * holds it already.
+     */
+    @Transactional
+    public void replaceGrantableRoles(AccessSubject caller, UUID roleId, Collection<UUID> grantableRoleIds) {
+        AccessRole role = changeableRole(caller, roleId);
+        Set<AccessRole> wanted = new HashSet<>(assignableRoles(caller.organizationId(), grantableRoleIds));
+        Set<AccessRole> current = role.getGrantableRoles();
+        Set<AccessRole> changed = difference(wanted, current);
+        changed.addAll(difference(current, wanted));
+        requireMayAssign(caller, changed);
+
+        role.getGrantableRoles().retainAll(wanted);
+        role.getGrantableRoles().addAll(wanted);
+        role.setUpdatedBy(caller.employeeId());
+    }
+
+    /**
+     * Deletes a role an organization made. Its holders lose it at once; the starting roles cannot
+     * be deleted.
+     */
+    @Transactional
+    public void deleteRole(AccessSubject caller, UUID roleId) {
+        AccessRole role = changeableRole(caller, roleId);
+        if (role.isSystem() || role.isBaseline()) {
+            throw new UnprocessableRequestException("'" + role.getName() + "' is a starting role and cannot be deleted");
+        }
+        // Assignments, group links and other roles' grantable lists go with it by foreign-key cascade.
+        em.remove(role);
+        em.flush();
+        facts.evictAll();
+    }
+
+    /** Creates a department or group with no members, roles or grants. */
+    @Transactional
+    public UUID createGroup(AccessSubject caller, String kind, String name, String description) {
+        Long organizationId = caller.organizationId();
+        requireGroupNameFree(organizationId, name, null);
+        AccessGroup group = new AccessGroup();
+        group.setOrganization(em.getReference(Organization.class, organizationId));
+        group.setKind(kind(kind));
+        group.setName(name.strip());
+        group.setDescription(blankToNull(description));
+        group.setCreatedBy(caller.employeeId());
+        group.setUpdatedBy(caller.employeeId());
+        em.persist(group);
+        return group.getId();
+    }
+
+    /** Renames a group, changes its kind or what it says about itself. */
+    @Transactional
+    public void updateGroup(AccessSubject caller, UUID groupId, String kind, String name, String description) {
+        AccessGroup group = group(caller.organizationId(), groupId);
+        requireGroupNameFree(caller.organizationId(), name, groupId);
+        group.setKind(kind(kind));
+        group.setName(name.strip());
+        group.setDescription(blankToNull(description));
+        group.setUpdatedBy(caller.employeeId());
+    }
+
+    /**
+     * Replaces a group's members. Joining or leaving gives or takes everything the group holds,
+     * so the caller must be able to assign its roles and hold its grants.
+     */
+    @Transactional
+    public void replaceGroupMembers(AccessSubject caller, UUID groupId, Collection<Long> employeeIds) {
+        AccessGroup group = group(caller.organizationId(), groupId);
+        Set<Long> wanted = employees(caller.organizationId(), employeeIds);
+        Set<Long> changed = difference(wanted, group.getMemberIds());
+        changed.addAll(difference(group.getMemberIds(), wanted));
+        if (changed.isEmpty()) {
+            return;
+        }
+        requireMayHandOut(caller, group);
+
+        group.getMemberIds().retainAll(wanted);
+        group.getMemberIds().addAll(wanted);
+        group.setUpdatedBy(caller.employeeId());
+        changed.forEach(employeeId -> facts.evict(caller.organizationId(), employeeId));
+    }
+
+    /** Replaces the roles a group's members hold through it; the caller must be able to assign each one added or taken. */
+    @Transactional
+    public void replaceGroupRoles(AccessSubject caller, UUID groupId, Collection<UUID> roleIds) {
+        AccessGroup group = group(caller.organizationId(), groupId);
+        Set<AccessRole> wanted = new HashSet<>(assignableRoles(caller.organizationId(), roleIds));
+        Set<AccessRole> current = group.getRoles();
+        Set<AccessRole> changed = difference(wanted, current);
+        changed.addAll(difference(current, wanted));
+        requireMayAssign(caller, changed);
+
+        group.getRoles().retainAll(wanted);
+        group.getRoles().addAll(wanted);
+        group.setUpdatedBy(caller.employeeId());
+        if (!changed.isEmpty()) {
+            evictMembers(caller.organizationId(), group);
+        }
+    }
+
+    /** Replaces what a group grants its members directly; the caller must hold each grant added or taken. */
+    @Transactional
+    public void replaceGroupGrants(AccessSubject caller, UUID groupId, Set<Grant> wanted) {
+        AccessGroup group = group(caller.organizationId(), groupId);
+        Set<Grant> current = group.getGrants().stream()
+                .map(g -> grant(g.getPermissionKey(), g.getScope()))
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        Set<Grant> added = difference(wanted, current);
+        Set<Grant> removed = difference(current, wanted);
+        requireHeld(caller, added, removed);
+
+        removed.forEach(g -> group.revoke(g.permission(), g.scope()));
+        added.forEach(g -> group.grant(g.permission(), g.scope()));
+        group.setUpdatedBy(caller.employeeId());
+        if (!added.isEmpty() || !removed.isEmpty()) {
+            evictMembers(caller.organizationId(), group);
+        }
+    }
+
+    /** Deletes a group; its members lose what it gave them, so the caller must be able to hand all of it out. */
+    @Transactional
+    public void deleteGroup(AccessSubject caller, UUID groupId) {
+        AccessGroup group = group(caller.organizationId(), groupId);
+        requireMayHandOut(caller, group);
+        Set<Long> members = Set.copyOf(group.getMemberIds());
+        em.remove(group);
+        em.flush();
+        members.forEach(employeeId -> facts.evict(caller.organizationId(), employeeId));
+    }
+
+    /** Replaces the roles assigned to a person directly; the caller must be able to assign each one added or taken. */
+    @Transactional
+    public void replaceUserRoles(AccessSubject caller, Long employeeId, Collection<UUID> roleIds) {
+        Long organizationId = caller.organizationId();
+        employees(organizationId, List.of(employeeId));
+        Set<AccessRole> wanted = new HashSet<>(assignableRoles(organizationId, roleIds));
+        List<AccessEmployeeRole> current = em.createQuery("SELECT a FROM AccessEmployeeRole a JOIN FETCH a.role "
+                        + "WHERE a.organization.id = :organizationId AND a.employeeId = :employeeId",
+                        AccessEmployeeRole.class)
+                .setParameter("organizationId", organizationId)
+                .setParameter("employeeId", employeeId)
+                .getResultList();
+        Set<AccessRole> held = current.stream().map(AccessEmployeeRole::getRole).collect(Collectors.toSet());
+        Set<AccessRole> added = difference(wanted, held);
+        Set<AccessRole> removed = difference(held, wanted);
+        Set<AccessRole> changed = new HashSet<>(added);
+        changed.addAll(removed);
+        requireMayAssign(caller, changed);
+
+        current.stream().filter(a -> removed.contains(a.getRole())).forEach(em::remove);
+        for (AccessRole role : added) {
+            AccessEmployeeRole assignment = new AccessEmployeeRole();
+            assignment.setOrganization(em.getReference(Organization.class, organizationId));
+            assignment.setEmployeeId(employeeId);
+            assignment.setRole(role);
+            assignment.setCreatedBy(caller.employeeId());
+            em.persist(assignment);
+        }
+        if (!changed.isEmpty()) {
+            facts.evict(organizationId, employeeId);
+        }
+    }
+
+    /** Replaces what is granted to a person directly; the caller must hold each grant added or taken. */
+    @Transactional
+    public void replaceUserGrants(AccessSubject caller, Long employeeId, Set<Grant> wanted) {
+        Long organizationId = caller.organizationId();
+        employees(organizationId, List.of(employeeId));
+        List<AccessEmployeeGrant> current = em.createQuery("SELECT g FROM AccessEmployeeGrant g "
+                        + "WHERE g.organization.id = :organizationId AND g.employeeId = :employeeId",
+                        AccessEmployeeGrant.class)
+                .setParameter("organizationId", organizationId)
+                .setParameter("employeeId", employeeId)
+                .getResultList();
+        Set<Grant> held = current.stream()
+                .map(g -> grant(g.getPermissionKey(), g.getScope()))
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        Set<Grant> added = difference(wanted, held);
+        Set<Grant> removed = difference(held, wanted);
+        requireHeld(caller, added, removed);
+
+        current.stream().filter(g -> removed.contains(grant(g.getPermissionKey(), g.getScope()))).forEach(em::remove);
+        for (Grant wantedGrant : added) {
+            AccessEmployeeGrant direct = new AccessEmployeeGrant();
+            direct.setOrganization(em.getReference(Organization.class, organizationId));
+            direct.setEmployeeId(employeeId);
+            direct.setPermissionKey(wantedGrant.key());
+            direct.setScope(wantedGrant.scope());
+            direct.setCreatedBy(caller.employeeId());
+            em.persist(direct);
+        }
+        if (!added.isEmpty() || !removed.isEmpty()) {
+            facts.evict(organizationId, employeeId);
+        }
+    }
+
+    // ---- what the caller may change ----
+
+    /**
+     * A role of the caller's organization that the caller may change: the baseline role, or one
+     * their roles may assign.
+     */
+    AccessRole changeableRole(AccessSubject caller, UUID roleId) {
+        AccessRole role = role(caller.organizationId(), roleId);
+        if (!role.isBaseline() && !assignableBy(caller).contains(role.getId())) {
+            throw new AccessDeniedException("Your roles may not assign '" + role.getName() + "', so you may not change it");
+        }
+        return role;
+    }
+
+    /** Refuses unless the caller's roles may assign every one of the roles. */
+    void requireMayAssign(AccessSubject caller, Collection<AccessRole> roles) {
+        if (roles.isEmpty()) {
+            return;
+        }
+        Set<UUID> assignable = assignableBy(caller);
+        for (AccessRole role : roles) {
+            if (!assignable.contains(role.getId())) {
+                throw new AccessDeniedException("Your roles may not assign '" + role.getName() + "'");
+            }
+        }
+    }
+
+    /** Refuses unless the caller holds every grant being given or taken, with its scope or with all. */
+    @SafeVarargs
+    final void requireHeld(AccessSubject caller, Set<Grant>... changes) {
+        AccessGrants held = null;
+        for (Set<Grant> change : changes) {
+            for (Grant grant : change) {
+                if (held == null) {
+                    held = access.grantsFor(caller);
+                }
+                Set<AccessScope> scopes = held.scopesFor(grant.permission());
+                if (!scopes.contains(AccessScope.ALL) && !scopes.contains(grant.scope())) {
+                    throw new AccessDeniedException("You do not hold " + grant.key() + " for " + grant.scope()
+                            + ", so you may not give or take it");
+                }
+            }
+        }
+    }
+
+    /** Refuses unless the caller may give everything the group gives: its roles and its grants. */
+    private void requireMayHandOut(AccessSubject caller, AccessGroup group) {
+        requireMayAssign(caller, group.getRoles());
+        requireHeld(caller, group.getGrants().stream()
+                .map(g -> grant(g.getPermissionKey(), g.getScope()))
+                .collect(Collectors.toSet()));
+    }
+
+    /** The ids of the roles the caller's roles may assign: their own, their groups' and the baseline's. */
+    Set<UUID> assignableBy(AccessSubject caller) {
+        return new HashSet<>(em.createQuery("SELECT DISTINCT g.id FROM AccessRole r JOIN r.grantableRoles g "
+                        + "WHERE r.organization.id = :organizationId AND (r.baseline = true "
+                        + "OR r.id IN (SELECT a.role.id FROM AccessEmployeeRole a WHERE a.employeeId = :employeeId "
+                        + "AND a.organization.id = :organizationId) "
+                        + "OR r.id IN (SELECT gr.id FROM AccessGroup grp JOIN grp.roles gr "
+                        + "WHERE :employeeId MEMBER OF grp.memberIds AND grp.organization.id = :organizationId))",
+                        UUID.class)
+                .setParameter("organizationId", caller.organizationId())
+                .setParameter("employeeId", caller.employeeId())
+                .getResultList());
+    }
+
+    /** The roles the caller holds directly or through a group, not counting the baseline. */
+    private List<AccessRole> heldRoles(AccessSubject caller) {
+        return em.createQuery("SELECT DISTINCT r FROM AccessRole r WHERE r.organization.id = :organizationId "
+                        + "AND (r.id IN (SELECT a.role.id FROM AccessEmployeeRole a WHERE a.employeeId = :employeeId "
+                        + "AND a.organization.id = :organizationId) "
+                        + "OR r.id IN (SELECT gr.id FROM AccessGroup grp JOIN grp.roles gr "
+                        + "WHERE :employeeId MEMBER OF grp.memberIds AND grp.organization.id = :organizationId))",
+                        AccessRole.class)
+                .setParameter("organizationId", caller.organizationId())
+                .setParameter("employeeId", caller.employeeId())
+                .getResultList();
+    }
+
+    // ---- loading ----
+
+    AccessRole role(Long organizationId, UUID roleId) {
+        AccessRole role = em.find(AccessRole.class, roleId);
+        if (role == null || !role.getOrganization().getId().equals(organizationId)) {
+            throw new ResourceNotFoundException("No role " + roleId + " in this organization");
+        }
+        return role;
+    }
+
+    AccessGroup group(Long organizationId, UUID groupId) {
+        AccessGroup group = em.find(AccessGroup.class, groupId);
+        if (group == null || !group.getOrganization().getId().equals(organizationId)) {
+            throw new ResourceNotFoundException("No group " + groupId + " in this organization");
+        }
+        return group;
+    }
+
+    /** The employees named, every one of them in the organization. */
+    Set<Long> employees(Long organizationId, Collection<Long> employeeIds) {
+        Set<Long> wanted = new LinkedHashSet<>(employeeIds);
+        if (wanted.isEmpty()) {
+            return wanted;
+        }
+        Set<Long> found = new HashSet<>(em.createQuery("SELECT e.id FROM Employee e "
+                        + "WHERE e.organization.id = :organizationId AND e.id IN :ids", Long.class)
+                .setParameter("organizationId", organizationId)
+                .setParameter("ids", wanted)
+                .getResultList());
+        Set<Long> missing = difference(wanted, found);
+        if (!missing.isEmpty()) {
+            throw new ResourceNotFoundException("No employee " + missing + " in this organization");
+        }
+        return wanted;
+    }
+
+    private void requireGroupNameFree(Long organizationId, String name, UUID except) {
+        boolean taken = em.createQuery("SELECT g.id FROM AccessGroup g WHERE g.organization.id = :organizationId "
+                        + "AND LOWER(g.name) = LOWER(:name)", UUID.class)
+                .setParameter("organizationId", organizationId)
+                .setParameter("name", name.strip())
+                .getResultList().stream().anyMatch(id -> !id.equals(except));
+        if (taken) {
+            throw new DuplicateResourceException("A department or group named '" + name.strip() + "' already exists");
+        }
+    }
+
+    private void evictMembers(Long organizationId, AccessGroup group) {
+        group.getMemberIds().forEach(employeeId -> facts.evict(organizationId, employeeId));
+    }
+
+    /** The roles named, all of the organization and none of them the baseline. */
+    List<AccessRole> assignableRoles(Long organizationId, Collection<UUID> roleIds) {
+        List<AccessRole> roles = new LinkedHashSet<>(roleIds).stream().map(id -> role(organizationId, id)).toList();
+        roles.stream().filter(AccessRole::isBaseline).findFirst().ifPresent(baseline -> {
+            throw new InvalidRequestException("Everyone holds '" + baseline.getName() + "' already; it is never assigned");
+        });
+        return roles;
+    }
+
+    // ---- helpers ----
+
+    static String slug(String name) {
+        String slug = name.strip().toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", "-").replaceAll("(^-+|-+$)", "");
+        if (slug.isEmpty()) {
+            throw new InvalidRequestException("A role's name needs at least one letter or digit");
+        }
+        return slug.length() > 80 ? slug.substring(0, 80).replaceAll("-+$", "") : slug;
+    }
+
+    static AccessGroupKind kind(String kind) {
+        if (kind == null || kind.isBlank()) {
+            return AccessGroupKind.GROUP;
+        }
+        try {
+            return AccessGroupKind.valueOf(kind);
+        } catch (IllegalArgumentException e) {
+            throw new InvalidRequestException("'" + kind + "' is not a kind of group; use DEPARTMENT or GROUP");
+        }
+    }
+
+    static <T> Set<T> difference(Set<T> from, Set<T> minus) {
+        Set<T> result = new LinkedHashSet<>(from);
+        result.removeAll(minus);
+        return result;
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.strip();
+    }
+
+    static Grant grant(String permissionKey, AccessScope scope) {
+        return new Grant(AccessPermission.of(permissionKey), scope);
+    }
+}

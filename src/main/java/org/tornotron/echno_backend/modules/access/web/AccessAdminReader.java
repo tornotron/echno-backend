@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.employee.enums.EmployeeStatus;
 import org.tornotron.echno_backend.modules.access.matrix.domain.AccessEmployeeGrant;
 import org.tornotron.echno_backend.modules.access.matrix.domain.AccessGroup;
@@ -54,6 +55,13 @@ public class AccessAdminReader {
                 .toList();
     }
 
+    /** One of the organization's roles, as {@link #roles} lists it. */
+    @Transactional(readOnly = true)
+    public AccessRoleDto role(Long organizationId, UUID roleId) {
+        return roles(organizationId).stream().filter(role -> role.id().equals(roleId)).findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("No role " + roleId + " in this organization"));
+    }
+
     /** The organization's departments and groups, by name. */
     @Transactional(readOnly = true)
     public List<AccessGroupDto> groups(Long organizationId) {
@@ -72,6 +80,13 @@ public class AccessAdminReader {
                         group.getDescription(), members.getOrDefault(group.getId(), List.of()),
                         roles.getOrDefault(group.getId(), List.of()), groupGrants(group.getGrants())))
                 .toList();
+    }
+
+    /** One of the organization's departments or groups, as {@link #groups} lists it. */
+    @Transactional(readOnly = true)
+    public AccessGroupDto group(Long organizationId, UUID groupId) {
+        return groups(organizationId).stream().filter(group -> group.id().equals(groupId)).findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("No group " + groupId + " in this organization"));
     }
 
     /**
@@ -108,6 +123,13 @@ public class AccessAdminReader {
                             grants.getOrDefault(id, List.of()));
                 })
                 .toList();
+    }
+
+    /** One employee of the organization, as {@link #users} lists them. */
+    @Transactional(readOnly = true)
+    public AccessUserDto user(Long organizationId, Long employeeId) {
+        return users(organizationId).stream().filter(user -> user.employeeId().equals(employeeId)).findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("No employee " + employeeId + " in this organization"));
     }
 
     private static List<AccessGrantDto> groupGrants(List<AccessGroupGrant> grants) {
