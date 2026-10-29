@@ -45,7 +45,15 @@ public class DatabaseAccessFactsSource {
     @Transactional(readOnly = true)
     public boolean isActiveMember(AccessSubject subject) {
         List<EmployeeStatus> status = queries.statusOf(subject.organizationId(), subject.employeeId());
-        return !status.isEmpty() && !WITHOUT_ACCESS.contains(status.get(0));
+        return !status.isEmpty() && carriesAccess(status.get(0));
+    }
+
+    /**
+     * Whether an employee with this status holds access: everyone but the inactive, terminated,
+     * resigned and suspended. A null status, which older rows carry, counts as active.
+     */
+    public static boolean carriesAccess(EmployeeStatus status) {
+        return !WITHOUT_ACCESS.contains(status);
     }
 
     /** What an active member holds; call {@link #isActiveMember} first. */
