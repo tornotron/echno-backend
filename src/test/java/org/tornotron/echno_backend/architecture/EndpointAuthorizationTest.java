@@ -36,8 +36,9 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods;
  *
  * <p>The second rule pins the guard itself, for the areas the roles matrix in the admin guide
  * ({@code docs/admin-guide/roles-and-permissions.md} in echno-docs) names and #853 aligned:
- * construction invoices, issues, storage locations, assets, stock adjustments and the third-party
- * registers. A guard on one of those controllers must name exactly the roles the matrix gives
+ * construction invoices, issues, storage locations, stock adjustments and the third-party
+ * registers. Assets left this table when they moved onto the access matrix; {@code AssetGuardsTest}
+ * pins their guards now. A guard on one of those controllers must name exactly the roles the matrix gives
  * the endpoint's row, so a loosening arrives as a failed build rather than a line in a diff.
  * A new endpoint on a pinned controller must be added to {@link #MATRIX} with its row, which
  * is the same decision the matrix asks of it.
@@ -113,7 +114,7 @@ class EndpointAuthorizationTest {
 
     /**
      * The matrix rows #853 aligned, endpoint by endpoint. Where the matrix has no row of its own
-     * (storage locations, assets, vendors, labour, sub-contracts) the row was added to the admin
+     * (storage locations, vendors, labour, sub-contracts) the row was added to the admin
      * guide from the guard the backend already enforced, so this table and the guide say the
      * same thing and this test is what keeps them saying it.
      */
@@ -131,10 +132,6 @@ class EndpointAuthorizationTest {
             pin("StorageLocationControllerWeb", STORES_TIER, "get*"),
             pin("StorageLocationControllerWeb", SYSTEM_ADMIN,
                     "createStorageLocation", "updateStorageLocation", "deleteStorageLocation"),
-
-            // Assets: any member reads the register; the pair maintains it and records movements.
-            pin("AssetControllerWeb", MEMBER, "read*"),
-            pin("AssetControllerWeb", ADMIN_OR_PM, "createAsset", "updateAsset", "recordMovement", "deleteAsset"),
 
             // Stock adjustments: the stores tier reads and raises; the pair decides and deletes.
             pin("StockAdjustmentControllerWeb", STORES_TIER, "read*", "createStockAdjustment", "updateStockAdjustment"),

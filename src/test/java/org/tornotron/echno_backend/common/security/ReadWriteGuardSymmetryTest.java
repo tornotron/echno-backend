@@ -17,8 +17,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.tornotron.echno_backend.IssueComment.IssueCommentControllerWeb;
 import org.tornotron.echno_backend.IssueComment.IssueCommentService;
-import org.tornotron.echno_backend.asset.AssetControllerWeb;
-import org.tornotron.echno_backend.asset.AssetService;
 import org.tornotron.echno_backend.category.CategoryControllerWeb;
 import org.tornotron.echno_backend.category.CategoryService;
 import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
@@ -48,13 +46,14 @@ import org.tornotron.echno_backend.common.payload.JsonPartBinder;
 import org.tornotron.echno_backend.common.payload.PayloadValidator;
 
 /**
- * Locks in the read guards across the eight controllers that carried the asymmetry fixed for
+ * Locks in the read guards across the seven controllers that carried the asymmetry fixed for
  * projects in #399: their reads gated on tenant membership while their writes gated on the
  * system-admin or project-manager org role.
  *
  * <p>Stock adjustments were the ninth until #853 moved their reads onto the stores tier
  * (system-admin, project-manager, store-keeper) to match the roles matrix and every other
- * Resources read; {@code StockAdjustmentControllerWebAuthzTest} pins that shape.
+ * Resources read; {@code StockAdjustmentControllerWebAuthzTest} pins that shape. Assets left this
+ * test when they moved onto the access matrix; {@code AssetGuardsTest} pins theirs.
  *
  * <p><b>The role-without-membership case this class used to assert has been removed, because it
  * asserted an outcome for a state the real beans cannot produce.</b> It stubbed
@@ -79,12 +78,11 @@ import org.tornotron.echno_backend.common.payload.PayloadValidator;
  * expression without building JWT authorities; what was wrong was stubbing a combination the
  * bean cannot return, and that is now a test failure at the point of stubbing.
  *
- * <p>Deliberately one @WebMvcTest over all eight controllers rather than eight separate slices.
- * Spring caches a context per distinct slice and the test JVM is capped, so eight new contexts
+ * <p>Deliberately one @WebMvcTest over all seven controllers rather than seven separate slices.
+ * Spring caches a context per distinct slice and the test JVM is capped, so seven new contexts
  * would be a real cost; this adds exactly one.
  */
 @WebMvcTest({
-        AssetControllerWeb.class,
         ExpenseControllerWeb.class,
         ReceiptControllerWeb.class,
         SubContractControllerWeb.class,
@@ -99,7 +97,6 @@ class ReadWriteGuardSymmetryTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockitoBean private AssetService assetService;
     @MockitoBean private ExpenseService expenseService;
     @MockitoBean private ReceiptService receiptService;
     @MockitoBean private SubContractService subContractService;
@@ -122,7 +119,6 @@ class ReadWriteGuardSymmetryTest {
     /** The list endpoint of each controller whose read guard was widened. */
     static Stream<String> widenedReadEndpoints() {
         return Stream.of(
-                "/api/v1/assets/web",
                 "/api/v1/expenses/web",
                 "/api/v1/receipts/web",
                 "/api/v1/sub-contracts/web",
@@ -136,7 +132,6 @@ class ReadWriteGuardSymmetryTest {
     @BeforeEach
     void stubEmptyResults() {
         // The handlers that page call getContent() on the result, so these cannot be left null.
-        when(assetService.getAllAssets(anyInt(), anyInt())).thenReturn(Page.empty());
         when(expenseService.getPaginated(anyInt(), anyInt(), any(), any())).thenReturn(Page.empty());
         when(receiptService.getPaginated(anyInt(), anyInt(), any(), any())).thenReturn(Page.empty());
         when(subContractService.getPaginated(anyInt(), anyInt(), any(), any(), any())).thenReturn(Page.empty());
