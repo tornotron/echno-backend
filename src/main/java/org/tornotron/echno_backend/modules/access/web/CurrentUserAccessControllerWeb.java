@@ -39,7 +39,7 @@ public class CurrentUserAccessControllerWeb {
         this.access = access;
     }
 
-    @GetMapping("/me")
+    @GetMapping("/current-user-access")
     @PreAuthorize("@access.isMember()")
     @Operation(
             summary = "Get the current user's access",

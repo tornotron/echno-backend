@@ -65,7 +65,7 @@ class CurrentUserAccessControllerWebTest {
                 "wbs:edit", EnumSet.of(AccessScope.OWN, AccessScope.ASSIGNED_PROJECTS),
                 "chat:view", EnumSet.of(AccessScope.ALL))));
 
-        mockMvc.perform(get("/api/v1/access/web/me").with(jwt()))
+        mockMvc.perform(get("/api/v1/access/web/current-user-access").with(jwt()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.organizationId").value(7))
                 .andExpect(jsonPath("$.employeeId").value(1))
@@ -80,7 +80,7 @@ class CurrentUserAccessControllerWebTest {
         when(current.resolve()).thenReturn(Optional.of(ALICE));
         when(access.isActiveMember(ALICE)).thenReturn(false);
 
-        mockMvc.perform(get("/api/v1/access/web/me").with(jwt()))
+        mockMvc.perform(get("/api/v1/access/web/current-user-access").with(jwt()))
                 .andExpect(status().isForbidden());
     }
 
@@ -88,7 +88,7 @@ class CurrentUserAccessControllerWebTest {
     void aRequestWithNoOrganizationOrMembershipIsRefused() throws Exception {
         when(current.resolve()).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/v1/access/web/me").with(jwt()))
+        mockMvc.perform(get("/api/v1/access/web/current-user-access").with(jwt()))
                 .andExpect(status().isForbidden());
     }
 

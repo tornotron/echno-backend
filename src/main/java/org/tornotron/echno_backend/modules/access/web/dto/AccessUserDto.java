@@ -5,7 +5,7 @@ import java.util.UUID;
 
 /**
  * One person's access as the Roles &amp; Permissions screen shows it: what is given to them, not
- * the merged result, which {@code /me} answers for the caller.
+ * the merged result, which {@code /current-user-access} answers for the caller.
  *
  * @param employeeId  the person's membership in the organization
  * @param name        their name
