@@ -30514,7 +30514,7 @@
                 }
               }
             },
-            "description": "Caller is neither a member of the current tenant nor holds an elevated role in it"
+            "description": "Caller may not view assets"
           },
           "404": {
             "content": {
@@ -30624,7 +30624,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not create assets"
           },
           "404": {
             "content": {
@@ -30741,7 +30741,7 @@
                 }
               }
             },
-            "description": "Caller is neither a member of the current tenant nor holds an elevated role in it"
+            "description": "Caller may not view assets"
           },
           "404": {
             "content": {
@@ -30872,7 +30872,7 @@
                 }
               }
             },
-            "description": "Caller is neither a member of the current tenant nor holds an elevated role in it"
+            "description": "Caller may not view assets"
           },
           "404": {
             "content": {
@@ -30985,7 +30985,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not delete assets"
           },
           "404": {
             "content": {
@@ -31096,7 +31096,7 @@
                 }
               }
             },
-            "description": "Caller is neither a member of the current tenant nor holds an elevated role in it"
+            "description": "Caller may not view assets"
           },
           "404": {
             "content": {
@@ -31217,7 +31217,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not change assets"
           },
           "404": {
             "content": {
@@ -31333,7 +31333,7 @@
                 }
               }
             },
-            "description": "Caller is neither a member of the current tenant nor holds an elevated role in it"
+            "description": "Caller may not view assets"
           },
           "404": {
             "content": {
@@ -31473,7 +31473,7 @@
                 }
               }
             },
-            "description": "Caller is neither a member of the current tenant nor holds an elevated role in it"
+            "description": "Caller may not view assets"
           },
           "404": {
             "content": {
@@ -31594,7 +31594,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not record asset movements"
           },
           "404": {
             "content": {
@@ -31710,7 +31710,7 @@
                 }
               }
             },
-            "description": "Caller is neither a member of the current tenant nor holds an elevated role in it"
+            "description": "Caller may not view assets"
           },
           "404": {
             "content": {

@@ -91,6 +91,21 @@ class StandardRolesTest {
     }
 
     @Test
+    void assetsAreReadByEveryMemberAndMaintainedByTheAdministratorAndProjectManager() {
+        // The asset register's guards before it moved onto the matrix: any member read it, and
+        // only the system administrator and the project manager wrote to it.
+        assertThat(StandardRoles.member().grants()).extracting(g -> g.permission().key(), Grant::scope)
+                .contains(tuple("assets:view", AccessScope.ALL));
+        assertThat(roles).filteredOn(role -> role.grants().stream()
+                        .anyMatch(g -> g.permission().area().equals("assets") && !g.permission().action().equals("view")))
+                .extracting(StandardRole::slug)
+                .containsExactlyInAnyOrder(StandardRoles.SYSTEM_ADMIN, "project-manager");
+        assertThat(StandardRoles.projectManager().grants()).extracting(g -> g.permission().key(), Grant::scope)
+                .contains(tuple("assets:create", AccessScope.ALL), tuple("assets:edit", AccessScope.ALL),
+                        tuple("assets:delete", AccessScope.ALL));
+    }
+
+    @Test
     void theCompanyAdministratorHoldsEveryActionOnEveryArea() {
         Set<String> held = StandardRoles.systemAdmin().grants().stream()
                 .map(g -> g.permission().key()).collect(Collectors.toSet());
