@@ -3,10 +3,13 @@ name: Pull request
 # Gate for changes entering `development`. Tests belong here rather than in the
 # image build: an artefact should be packaged once and verified before it is
 # promoted, not re-verified every time it is packaged.
+#
+# `auth-workos` collects the access matrix and identity-provider work until it
+# goes to `development` in one piece, so PRs into it get the same checks.
 
 on:
   pull_request:
-    branches: [development]
+    branches: [development, auth-workos]
 
 permissions:
   contents: read
