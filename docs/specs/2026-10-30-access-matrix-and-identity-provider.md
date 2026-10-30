@@ -186,7 +186,9 @@ contract test covers it.
 One interface in `common/identity`, `IdentityProvider`, with an adapter per provider. The owner
 decided on the ticket that Echno moves to WorkOS and does not continue with Keycloak, so
 `WorkOsIdentityProvider` is the target and `KeycloakIdentityProvider` only wraps today's calls until
-the move. Nothing outside an adapter
+the move. Switching providers without changing the apps is designed in
+[Identity Provider Independence](2026-10-30-identity-provider-independence.md) (option C, Echno's own
+tokens, approved by the reviewer). Nothing outside an adapter
 imports a Keycloak or WorkOS type, and an ArchUnit rule says so.
 
 | Concern | Operations |
@@ -300,7 +302,7 @@ The module contract says these are raised, not made. Each is proposed here for r
 | Converted controllers, starting with assets, swap `@orgSecurity` role checks for `@access.can` | Section 2.2. Each converted controller gets a guard test. |
 | A boot-time scan of `@PreAuthorize` expressions | Section 2.3, enforced areas and literal validation. |
 | Invitations by link replace `projectInviteCode` and `joinOrganization` | Section 3.4, the owner's decision on the ticket. |
-| `user_identity` and `organization_identity` replace `users_table.keycloak_id` and the Keycloak group link | Section 3 of the identity provider note that follows. |
+| `user_identity` and `organization_identity` replace `users_table.keycloak_id` and the Keycloak group link | [Identity Provider Independence](2026-10-30-identity-provider-independence.md), section 3. |
 | Platform administrators recorded in Echno instead of the Keycloak realm role behind `hasRole('platform-admin')` | The provider knows nothing about roles, and Keycloak does not continue. |
 
 ## 6. Delivery
