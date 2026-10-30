@@ -1,0 +1,7 @@
+# CodeRabbit reviews PRs into the default branch on its own. auth-workos collects
+# the access matrix and identity-provider work until it goes to development, so
+# PRs into it are reviewed too. Settings not named here keep their defaults.
+reviews:
+  auto_review:
+    base_branches:
+      - auth-workos
