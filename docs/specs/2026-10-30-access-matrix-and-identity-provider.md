@@ -308,7 +308,10 @@ The module contract says these are raised, not made. Each is proposed here for r
 ## 6. Delivery
 
 Each step is one PR into `auth-workos`, merged bottom-up with every check green. `auth-workos` goes
-to `development` in one piece once the migration is complete. The backend comes first, then core,
+to `development` in milestones, one PR each, kept under 100 commits and 100 files, the limits for a
+GitHub rebase merge and a CodeRabbit review. The milestones and the steps each carries are in
+[Module tiers and independent modules](2026-10-31-module-tiers-and-independence.md), section 8,
+since the module work goes through `auth-workos` too. The backend comes first, then core,
 then web, then the mobile apps where sign-in changes. The developer guide changes each step needs are tracked in tornotron/echno-docs#20 and
 made in a docs PR when the step merges.
 
