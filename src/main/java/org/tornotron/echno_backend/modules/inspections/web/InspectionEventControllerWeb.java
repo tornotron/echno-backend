@@ -18,6 +18,7 @@ import org.tornotron.echno_backend.modules.inspections.InspectionsModule;
 import org.tornotron.echno_backend.modules.inspections.dtos.InspectionEventDto;
 import org.tornotron.echno_backend.modules.inspections.events.InspectionEventService;
 import org.tornotron.echno_backend.modules.inspections.events.InspectionEventSubjectType;
+import org.tornotron.echno_backend.modules.inspections.service.DetectionVisibility;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -40,6 +41,7 @@ import java.util.UUID;
 public class InspectionEventControllerWeb {
 
     private final InspectionEventService service;
+    private final DetectionVisibility detectionVisibility;
 
     @GetMapping("/api/v1/inspections/web/{id}/events")
     @PreAuthorize("@inspectionSecurity.canRead()")
@@ -54,7 +56,7 @@ public class InspectionEventControllerWeb {
             @ApiResponse(responseCode = "404", description = "No inspection with the given id in the current tenant")
     })
     public Page<InspectionEventDto> inspectionTimeline(@PathVariable UUID id, Pageable pageable) {
-        return service.inspectionTimeline(id, pageable);
+        return service.inspectionTimeline(id, detectionVisibility.callerMaySeeDetections(), pageable);
     }
 
     @GetMapping("/api/v1/ncrs/web/{id}/events")
@@ -92,6 +94,7 @@ public class InspectionEventControllerWeb {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
             Pageable pageable) {
-        return service.search(projectId, subjectType, eventType, actorId, from, to, pageable);
+        return service.search(projectId, subjectType, eventType, actorId, from, to,
+                detectionVisibility.callerMaySeeDetections(), pageable);
     }
 }
