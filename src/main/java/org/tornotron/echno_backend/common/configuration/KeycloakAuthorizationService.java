@@ -18,12 +18,14 @@ import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
+import org.tornotron.echno_backend.common.identity.ConditionalOnKeycloak;
 
 import java.time.Duration;
 import java.util.Map;
 import java.util.Set;
 
 
+@ConditionalOnKeycloak
 @Service
 @Slf4j
 public class KeycloakAuthorizationService {

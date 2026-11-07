@@ -5,6 +5,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
+import org.springframework.security.oauth2.jwt.BadJwtException;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 
 /**
  * Selects the fake with {@code echno.identity.provider=fake}, and refuses it outside the test and
@@ -26,5 +28,16 @@ public class FakeIdentityConfiguration {
     @Bean
     FakeIdentityTokenMapper fakeIdentityTokenMapper() {
         return new FakeIdentityTokenMapper();
+    }
+
+    /**
+     * There is no provider to fetch signing keys from, so no bearer token is ever accepted. Tests that
+     * need a signed-in caller set the authentication directly.
+     */
+    @Bean
+    JwtDecoder fakeJwtDecoder() {
+        return token -> {
+            throw new BadJwtException("The fake identity provider accepts no tokens");
+        };
     }
 }

@@ -20,7 +20,9 @@ import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.employee.EmployeeService;
 import org.tornotron.echno_backend.user.User;
 import org.tornotron.echno_backend.user.UserRepository;
+import org.tornotron.echno_backend.common.identity.ConditionalOnKeycloak;
 
+@ConditionalOnKeycloak
 @Validated
 @RestController
 @RequestMapping("/api/v1/keycloakGroup/web")

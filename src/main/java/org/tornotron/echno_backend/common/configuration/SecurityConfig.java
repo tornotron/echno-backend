@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.common.configuration;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
@@ -15,6 +16,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.tornotron.echno_backend.common.identity.ConditionalOnKeycloak;
 import org.tornotron.echno_backend.common.multitenancy.TenantFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -34,7 +36,11 @@ public class SecurityConfig {
     @Value("${API.VERSION}")
     private String backend_version;
 
-    @Value("${keycloak.frontend.web-origin}")
+    /**
+     * The browser origins allowed to call the API: ECHNO_CORS_ALLOWED_ORIGINS, falling back to the
+     * Keycloak web origin variable environments have always set.
+     */
+    @Value("${echno.cors.allowed-origins}")
     private List<String> allowedOrigins;
 
     /**
@@ -50,11 +56,12 @@ public class SecurityConfig {
     private static final String[] SWAGGER_PATHS = {"/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**"};
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, RPTExchangeFilter rPTExchangeFilter, TenantFilter tenantFilter) throws Exception{
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, ObjectProvider<RPTExchangeFilter> rptExchangeFilter, TenantFilter tenantFilter) throws Exception{
+        // Only Keycloak mints a Requesting Party Token. Under any other provider there is no such filter.
+        rptExchangeFilter.ifAvailable(filter -> http.addFilterBefore(filter, UsernamePasswordAuthenticationFilter.class));
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
-                .addFilterBefore(rPTExchangeFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(tenantFilter, BearerTokenAuthenticationFilter.class)
                         // Anything permitted here is also outside tenant isolation, which is not
                         // obvious and is the reason this comment exists. An unauthenticated
@@ -119,6 +126,7 @@ public class SecurityConfig {
     }
 
     @Bean
+    @ConditionalOnKeycloak
     public FilterRegistrationBean<RPTExchangeFilter> rptExchangeFilterRegistration(RPTExchangeFilter rptExchangeFilter) {
         FilterRegistrationBean<RPTExchangeFilter> registration = new FilterRegistrationBean<>(rptExchangeFilter);
         registration.setEnabled(false);
@@ -128,7 +136,8 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(allowedOrigins);
+        // The variable is two placeholders joined by a comma, so an unset half arrives as a blank entry.
+        configuration.setAllowedOrigins(allowedOrigins.stream().filter(origin -> !origin.isBlank()).toList());
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With", "Accept", "X-Organization-Id"));
         configuration.setAllowCredentials(true);

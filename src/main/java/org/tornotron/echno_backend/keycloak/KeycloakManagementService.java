@@ -11,12 +11,14 @@ import org.keycloak.representations.idm.authorization.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.tornotron.echno_backend.keycloak.dto.*;
+import org.tornotron.echno_backend.common.identity.ConditionalOnKeycloak;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+@ConditionalOnKeycloak
 @Service
 @Slf4j
 public class KeycloakManagementService {

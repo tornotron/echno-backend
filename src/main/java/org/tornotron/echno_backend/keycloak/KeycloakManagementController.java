@@ -11,9 +11,11 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.keycloak.dto.*;
+import org.tornotron.echno_backend.common.identity.ConditionalOnKeycloak;
 
 import java.util.Map;
 
+@ConditionalOnKeycloak
 @RestController
 @RequestMapping("api/v1/keycloak")
 @Validated
