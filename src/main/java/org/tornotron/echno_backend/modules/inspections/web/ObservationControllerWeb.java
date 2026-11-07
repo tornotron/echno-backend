@@ -29,7 +29,9 @@ import org.tornotron.echno_backend.modules.inspections.ObservationReviewStatus;
 import org.tornotron.echno_backend.modules.inspections.ObservationSource;
 import org.tornotron.echno_backend.modules.inspections.dtos.CreateObservationRequest;
 import org.tornotron.echno_backend.modules.inspections.dtos.ObservationDto;
+import org.tornotron.echno_backend.modules.inspections.dtos.ObservationListFilter;
 import org.tornotron.echno_backend.modules.inspections.dtos.ReviewObservationRequest;
+import org.tornotron.echno_backend.modules.inspections.service.DetectionVisibility;
 import org.tornotron.echno_backend.modules.inspections.service.ObservationEvidenceService;
 import org.tornotron.echno_backend.modules.inspections.service.ObservationService;
 
@@ -52,6 +54,7 @@ public class ObservationControllerWeb {
 
     private final ObservationService service;
     private final ObservationEvidenceService evidenceService;
+    private final DetectionVisibility detectionVisibility;
 
     @PostMapping
     @PreAuthorize("@inspectionSecurity.canManageInspections()")
@@ -69,7 +72,7 @@ public class ObservationControllerWeb {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@inspectionSecurity.canRead()")
+    @PreAuthorize("@inspectionSecurity.canRead() and @detectionVisibility.maySee(#id)")
     @Operation(summary = "Read an observation",
             description = "Returns the observation with its active regions. includeRetiredRegions=true also returns "
                     + "the regions a review replaced or removed, so a corrected box can be shown beside the original.")
@@ -87,7 +90,8 @@ public class ObservationControllerWeb {
     @PreAuthorize("@inspectionSecurity.canRead()")
     @Operation(summary = "List observations",
             description = "Paged, filtered by project, review status, source, inspection, site structure "
-                    + "subtree and observed-at window. The pending queue is reviewStatus=pending.")
+                    + "subtree and observed-at window. The pending queue is reviewStatus=pending. A model's detections "
+                    + "are listed only for a caller with a role in echno.security.inspection.detection-read-roles.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Page of observations returned"),
             @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
@@ -102,11 +106,12 @@ public class ObservationControllerWeb {
                                      @RequestParam(required = false)
                                      @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
                                      Pageable pageable) {
-        return service.findAll(projectId, reviewStatus, source, inspectionId, spatialNodeId, from, to, pageable);
+        return service.findAll(new ObservationListFilter(projectId, reviewStatus, source, inspectionId, spatialNodeId,
+                from, to, detectionVisibility.callerMaySeeDetections()), pageable);
     }
 
     @PostMapping("/{id}/review")
-    @PreAuthorize("@inspectionSecurity.canReviewObservations()")
+    @PreAuthorize("@inspectionSecurity.canReviewObservations() and @detectionVisibility.maySee(#id)")
     @Operation(summary = "Decide on a pending observation",
             description = "Accept, modify or reject. Accept and modify link the outcome: mark a check item, "
                     + "create or attach a defect, or confirm an inspection. Modify stores the reviewer's "
@@ -125,7 +130,7 @@ public class ObservationControllerWeb {
     }
 
     @GetMapping("/{id}/evidence")
-    @PreAuthorize("@inspectionSecurity.canRead()")
+    @PreAuthorize("@inspectionSecurity.canRead() and @detectionVisibility.maySee(#id)")
     @Operation(summary = "List an observation's evidence",
             description = "The observation's own uploads, then every other image one of its regions is drawn on, "
                     + "each once, with a presigned download URL.")
@@ -139,7 +144,7 @@ public class ObservationControllerWeb {
     }
 
     @PostMapping("/{id}/evidence/presign")
-    @PreAuthorize("@inspectionSecurity.canManageInspections()")
+    @PreAuthorize("@inspectionSecurity.canManageInspections() and @detectionVisibility.maySee(#id)")
     @Operation(summary = "Presign evidence uploads for an observation",
             description = "Step one of the direct-to-storage path, as for inspection evidence.")
     @ApiResponses({
@@ -153,7 +158,7 @@ public class ObservationControllerWeb {
     }
 
     @PostMapping("/{id}/evidence/register")
-    @PreAuthorize("@inspectionSecurity.canManageInspections()")
+    @PreAuthorize("@inspectionSecurity.canManageInspections() and @detectionVisibility.maySee(#id)")
     @Operation(summary = "Register presigned evidence uploads for an observation",
             description = "Step two of the direct-to-storage path: confirms the keys once each object is "
                     + "verified present in storage.")
