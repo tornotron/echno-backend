@@ -58,6 +58,12 @@ class IdentityProviderBoundaryTest {
             .because("a caller that names the adapter would break when the provider changes");
 
     @ArchTest
+    static final ArchRule theWorkOsAdapterIsReachedOnlyThroughThePort = noClasses()
+            .that().resideOutsideOfPackage(PORT + ".workos..")
+            .should().dependOnClassesThat().resideInAPackage(PORT + ".workos..")
+            .because("a caller that names the adapter would break when the provider changes");
+
+    @ArchTest
     static final ArchRule workosTypesStayInItsAdapter = noClasses()
             .that().resideOutsideOfPackage(PORT + ".workos..")
             .should().dependOnClassesThat().resideInAPackage(WORKOS_TYPES)
