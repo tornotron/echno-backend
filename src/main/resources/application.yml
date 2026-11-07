@@ -268,6 +268,10 @@ keycloak:
 
 
 echno:
+  identity:
+    # Which identity provider adapter runs. Unset means keycloak, so an environment that has never
+    # heard of this setting keeps working. fake runs only under the test and local profiles.
+    provider: ${ECHNO_IDENTITY_PROVIDER:keycloak}
   # Consented evidence export into the dataset bucket (#791). The sweep is off by default;
   # the on-demand endpoint works regardless. The bucket is separate from the attachment
   # bucket: MinIO on the IITM staging, Spaces in production.
