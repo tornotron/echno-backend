@@ -31,6 +31,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.tornotron.echno_backend.user.dto.UserKeycloakDto;
+import org.tornotron.echno_backend.common.identity.ConditionalOnKeycloak;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -44,6 +45,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+@ConditionalOnKeycloak
 @Slf4j
 @Service
 @DependsOn("keycloakConfigGenerator")

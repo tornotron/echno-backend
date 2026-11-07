@@ -12,6 +12,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtTimestampValidator;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.tornotron.echno_backend.common.identity.ConditionalOnKeycloak;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,6 +36,7 @@ import java.util.stream.Collectors;
  *       backend dials, so the property takes a list.</li>
  * </ul>
  */
+@ConditionalOnKeycloak
 @Configuration
 @Slf4j
 public class JwtDecoderConfig {

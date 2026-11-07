@@ -5,6 +5,7 @@ import org.aspectj.apache.bcel.util.ClassPath;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
+import org.tornotron.echno_backend.common.identity.ConditionalOnKeycloak;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -12,6 +13,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 
+@ConditionalOnKeycloak
 @Component
 public class KeycloakConfigGenerator {
 

@@ -1,7 +1,7 @@
 jwt:
   auth:
     converter:
-      resource-id: ${KEYCLOAK_BACKEND_CLIENT}
+      resource-id: ${KEYCLOAK_BACKEND_CLIENT:}
       principle-attribute: preferred_username
 
 digital-ocean:
@@ -190,12 +190,12 @@ finance:
 
 keycloak-initializer:
   initialize-on-startup: true
-  master-realm: ${KEYCLOAK_INITIALIZER_MASTER_REALM}
-  application-realm: ${KEYCLOAK_INITIALIZER_APPLICATION_REALM}
-  client-id: ${KEYCLOAK_INITIALIZER_CLIENT_ID}
-  username: ${KEYCLOAK_INITIALIZER_USERNAME}
-  password: ${KEYCLOAK_INITIALIZER_PASSWORD}
-  url: ${KEYCLOAK_INITIALIZER_URL}
+  master-realm: ${KEYCLOAK_INITIALIZER_MASTER_REALM:}
+  application-realm: ${KEYCLOAK_INITIALIZER_APPLICATION_REALM:}
+  client-id: ${KEYCLOAK_INITIALIZER_CLIENT_ID:}
+  username: ${KEYCLOAK_INITIALIZER_USERNAME:}
+  password: ${KEYCLOAK_INITIALIZER_PASSWORD:}
+  url: ${KEYCLOAK_INITIALIZER_URL:}
 
 
 # The bucket4j starter's own filter machinery, kept out. There is no filter block here and one
@@ -220,15 +220,15 @@ bucket4j:
 
 
 keycloak:
-  issuer-uri: ${SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_ISSUER_URI}
+  issuer-uri: ${SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_ISSUER_URI:}
   frontend:
-    client-id: ${KEYCLOAK_FRONTEND_CLIENT}
-    redirect-uri: ${KEYCLOAK_FRONTEND_REDIRECT_URI}
-    web-origin: ${KEYCLOAK_FRONTEND_WEB_ORIGIN},${KEYCLOAK_FRONTEND_WEB_ORIGIN_LOCALHOST:}
-  client-id: ${KEYCLOAK_BACKEND_CLIENT}
-  redirect-uri: ${KEYCLOAK_BACKEND_REDIRECT_URI},${KEYCLOAK_BACKEND_REDIRECT_URI_APIDOG}
-  web-origin: ${KEYCLOAK_BACKEND_WEB_ORIGIN}
-  secret: ${KEYCLOAK_BACKEND_SECRET}
+    client-id: ${KEYCLOAK_FRONTEND_CLIENT:}
+    redirect-uri: ${KEYCLOAK_FRONTEND_REDIRECT_URI:}
+    web-origin: ${KEYCLOAK_FRONTEND_WEB_ORIGIN:},${KEYCLOAK_FRONTEND_WEB_ORIGIN_LOCALHOST:}
+  client-id: ${KEYCLOAK_BACKEND_CLIENT:}
+  redirect-uri: ${KEYCLOAK_BACKEND_REDIRECT_URI:},${KEYCLOAK_BACKEND_REDIRECT_URI_APIDOG:}
+  web-origin: ${KEYCLOAK_BACKEND_WEB_ORIGIN:}
+  secret: ${KEYCLOAK_BACKEND_SECRET:}
   # Whether the realm's self-service registration page is enabled. Reconciled onto the realm on
   # every deploy. Default false keeps dedicated/per-client instances closed (an admin creates the
   # org); the public shared instance sets KEYCLOAK_REGISTRATION_ALLOWED=true so a signed-up user
@@ -252,17 +252,17 @@ keycloak:
     service-client-id: ${KEYCLOAK_INITIALIZER_SERVICE_CLIENT_ID:echno-initializer}
     service-client-secret: ${KEYCLOAK_INITIALIZER_CLIENT_SECRET:}
   admin:
-    userName: ${KEYCLOAK_BACKEND_ADMIN_USERNAME}
-    email: ${KEYCLOAK_BACKEND_ADMIN_EMAIL}
-    password: ${KEYCLOAK_BACKEND_ADMIN_PASSWORD}
-    firstName: ${KEYCLOAK_BACKEND_ADMIN_FIRST_NAME}
-    lastName: ${KEYCLOAK_BACKEND_ADMIN_LAST_NAME}
+    userName: ${KEYCLOAK_BACKEND_ADMIN_USERNAME:}
+    email: ${KEYCLOAK_BACKEND_ADMIN_EMAIL:}
+    password: ${KEYCLOAK_BACKEND_ADMIN_PASSWORD:}
+    firstName: ${KEYCLOAK_BACKEND_ADMIN_FIRST_NAME:}
+    lastName: ${KEYCLOAK_BACKEND_ADMIN_LAST_NAME:}
   service:
-    userName: ${KEYCLOAK_BACKEND_SERVICE_USERNAME}
-    email: ${KEYCLOAK_BACKEND_SERVICE_EMAIL}
-    password: ${KEYCLOAK_BACKEND_SERVICE_PASSWORD}
-    firstName: ${KEYCLOAK_BACKEND_SERVICE_FIRST_NAME}
-    lastName: ${KEYCLOAK_BACKEND_SERVICE_LAST_NAME}
+    userName: ${KEYCLOAK_BACKEND_SERVICE_USERNAME:}
+    email: ${KEYCLOAK_BACKEND_SERVICE_EMAIL:}
+    password: ${KEYCLOAK_BACKEND_SERVICE_PASSWORD:}
+    firstName: ${KEYCLOAK_BACKEND_SERVICE_FIRST_NAME:}
+    lastName: ${KEYCLOAK_BACKEND_SERVICE_LAST_NAME:}
   config:
     output-path: src/main/resources/config
 
@@ -270,8 +270,13 @@ keycloak:
 echno:
   identity:
     # Which identity provider adapter runs. Unset means keycloak, so an environment that has never
-    # heard of this setting keeps working. fake runs only under the test and local profiles.
+    # heard of this setting keeps working. fake runs only under the test and local profiles. The
+    # KEYCLOAK_* placeholders in this file default to empty so another provider can start without
+    # them, and KeycloakSettingsValidator refuses to start on Keycloak with them blank.
     provider: ${ECHNO_IDENTITY_PROVIDER:keycloak}
+  cors:
+    # Falls back to the variable environments have always set.
+    allowed-origins: ${ECHNO_CORS_ALLOWED_ORIGINS:${keycloak.frontend.web-origin}}
   # Consented evidence export into the dataset bucket (#791). The sweep is off by default;
   # the on-demand endpoint works regardless. The bucket is separate from the attachment
   # bucket: MinIO on the IITM staging, Spaces in production.
@@ -463,7 +468,7 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          jwk-set-uri: ${SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_JWK_SET_URI}
+          jwk-set-uri: ${SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_JWK_SET_URI:}
 
   jackson:
     date-format: yyyy-MM-dd

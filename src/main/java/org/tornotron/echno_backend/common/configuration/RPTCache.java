@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.Nullable;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.tornotron.echno_backend.common.identity.ConditionalOnKeycloak;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -42,6 +43,7 @@ import java.util.function.Supplier;
  *       so behaviour on failure is identical to the un-cached path.</li>
  * </ul>
  */
+@ConditionalOnKeycloak
 @Component
 @Slf4j
 public class RPTCache {

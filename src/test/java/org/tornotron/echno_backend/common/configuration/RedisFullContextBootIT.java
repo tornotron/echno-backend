@@ -1,7 +1,12 @@
 package org.tornotron.echno_backend.common.configuration;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.ApplicationContext;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.security.web.FilterChainProxy;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -9,7 +14,19 @@ import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
+import org.tornotron.echno_backend.common.controller.KeycloakGroupController;
+import org.tornotron.echno_backend.common.identity.IdentityProvider;
+import org.tornotron.echno_backend.common.identity.IdentityTokenMapper;
+import org.tornotron.echno_backend.common.identity.keycloak.KeycloakIdentityProvider;
+import org.tornotron.echno_backend.common.identity.keycloak.KeycloakSettingsValidator;
+import org.tornotron.echno_backend.common.identity.keycloak.KeycloakTokenMapper;
+import org.tornotron.echno_backend.keycloak.KeycloakManagementController;
+import org.tornotron.echno_backend.keycloak.KeycloakManagementService;
 import org.tornotron.echno_backend.support.AbstractIntegrationTest;
+
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Boots the whole application context with {@code echno.cache.provider=redis} against a real Redis
@@ -85,7 +102,31 @@ class RedisFullContextBootIT extends AbstractIntegrationTest {
         registry.add("spring.data.redis.port", () -> REDIS.getMappedPort(6379));
     }
 
+    @Autowired
+    private ApplicationContext context;
+
     @Test
     void contextLoads() {
+    }
+
+    /**
+     * Nothing above names a provider, as on both stagings, so all of Keycloak has to be here. The other
+     * half, that none of it is there under another provider, is {@code NoKeycloakBootIT}.
+     */
+    @Test
+    void withNoProviderNamedKeycloakIsWhatRuns() {
+        assertThat(context.getBean(IdentityProvider.class)).isInstanceOf(KeycloakIdentityProvider.class);
+        assertThat(context.getBeansOfType(IdentityTokenMapper.class).values())
+                .singleElement().isInstanceOf(KeycloakTokenMapper.class);
+        assertThat(context.getBean(JwtDecoder.class)).isInstanceOf(NimbusJwtDecoder.class);
+        for (Class<?> keycloakOnly : List.of(KeycloakConfig.class, KeycloakConfigGenerator.class,
+                KeycloakInitializer.class, KeycloakAuthorizationService.class, RPTCache.class,
+                RPTExchangeFilter.class, KeycloakManagementService.class, KeycloakManagementController.class,
+                KeycloakGroupController.class, KeycloakSettingsValidator.class)) {
+            assertThat(context.getBeansOfType(keycloakOnly)).as(keycloakOnly.getSimpleName()).hasSize(1);
+        }
+        assertThat(context.getBean(FilterChainProxy.class).getFilterChains())
+                .flatMap(chain -> chain.getFilters())
+                .anyMatch(RPTExchangeFilter.class::isInstance);
     }
 }
