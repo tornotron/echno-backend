@@ -47,7 +47,8 @@ rest of the product.
 The screen offers the levels the owner chose on the ticket: **Full**, **View**, **Edit**, **Delete**
 and **No Access**, plus **Approve** on areas with an approval step. Full is every action the area
 enforces, with scope `ALL`. No Access is no grant on the area. View is `read`; Edit, Delete and
-Approve are the actions of the same names. Whether Edit also covers `create` is open (section 7).
+Approve are the actions of the same names, and Edit also covers `create`: there is no separate Create
+level on the screen.
 
 Which records a level covers is a separate, second choice, offered only on areas that filter by
 scope (2.3): "All records", "Projects they are on", "Records linked to them" or "Their own
@@ -134,8 +135,8 @@ Today's `OrgRole` set and the ticket's nine do not line up, so the starting poin
 | Management Director, Procurement Manager, Finance Manager, Client / Owner | none | The baseline only. No access exists today to mirror, and guessing would grant access nobody approved. |
 | HR Admin, Safety Officer, Org Manager, Observation Producer (carried over) | `hr-admin`, `safety-officer`, `org-manager`, `observation-producer` | Today's access. These exist so the backfill leaves nobody short. A new organization's screen does not offer them, and the owner's sign-off says where each one goes. |
 
-Seeded roles are not all `is_system`. Only System Admin (the administrator of one organization; the
-ticket's name, final name open in section 7) and the baseline role are system roles. Every other starting role can be renamed, edited and deleted by the organization.
+Seeded roles are not all `is_system`. Only System Admin (the administrator of one organization, held by
+its first administrator) and the baseline role are system roles. Every other starting role can be renamed, edited and deleted by the organization.
 
 ### 2.6 Write rules
 
@@ -193,8 +194,10 @@ areas are converted. Every role takes one once `OrgRole` is deleted.
 - Facts (a person's roles, grants and project memberships in one organization) load once per
   request and are memoized for its length, so a per-record check in a list does not query per row.
 - Across requests they are cached for five minutes in Redis, with Caffeine in front.
-- Eviction runs in `TransactionSynchronization.afterCommit`, never before commit, so a concurrent
-  read cannot cache the old state. Project membership changes evict too.
+- Eviction runs in `TransactionSynchronization.afterCommit`, never before commit, and project membership
+  changes evict too. A read that loaded the old rows just before a commit and writes the cache just after
+  the eviction can still keep the old holdings for up to the five minutes (#958). Membership is read
+  fresh on every request, so removing a person is never delayed this way.
 - Employees with status `active`, `onLeave` or `probation` hold their access. Any other status
   (`inactive`, `terminated`, `resigned`, `suspended`), and null, holds nothing. Today no check reads
   this field (audit G-18), so the backfill first sets null to `active` (section 4). A person invited
@@ -380,16 +383,18 @@ once the migration is complete. Moving the stagings to WorkOS is a later project
 
 Decided on the ticket: the nine construction roles (2.5), the levels (2.1), no groups (2.4), WorkOS
 (3.1), the screen layout (2.3), invitations by link only (3.4) and roles held on a project (2.7).
+
+Decided for the build: five working roles at go-live and the other four on the baseline only (2.5); Edit
+covers Create (2.1); the administrator role is System Admin, held by the organization's first
+administrator; no MFA rule at launch; the starting cells come from the permission mapping as corrected in
+2.5, and stay template data so changing them needs no release.
+
 Still open:
 
 - The starting value of every cell for the nine roles (2.5).
-- Whether Edit also covers creating records, since the owner's levels have no separate Create (2.1).
 - What "the enterprise domain" the invitation link leads to means: a sign-in page per organization,
   or a web address per organization like Atlassian's (3.4). WorkOS's docs show one sign-in address per
   environment and no per-organization page ([custom domains](https://workos.com/docs/custom-domains/authkit)),
   so the proposal is one address per client deployment.
-- The administrator role: whether "System Admin" stays its name, and keeping it apart from Echno's
-  platform administrators. Who may start a new organization is settled for the first production
-  deployment (3.4).
 - The starting grants for Management Director, Procurement Manager, Finance Manager and Client / Owner,
   which hold only the baseline until then (2.5), and where the four carried-over roles go.
