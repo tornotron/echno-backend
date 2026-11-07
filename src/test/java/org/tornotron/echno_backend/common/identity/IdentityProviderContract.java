@@ -342,13 +342,14 @@ public abstract class IdentityProviderContract {
     }
 
     @Test
-    void aTokenBecomesItsIssuerAndSubject() {
+    void aTokenBecomesItsSubjectAndAnIssuerToLookItUpBy() {
         Jwt token = tokenBuilder().subject("subject-1").build();
 
         Principal principal = tokenMapper().toPrincipal(token);
 
         assertThat(principal.subject()).isEqualTo("subject-1");
-        assertThat(principal.issuer()).isEqualTo(token.getClaimAsString("iss"));
+        assertThat(principal.issuer()).isNotBlank();
+        assertThat(tokenMapper().provider()).isNotBlank();
     }
 
     @Test

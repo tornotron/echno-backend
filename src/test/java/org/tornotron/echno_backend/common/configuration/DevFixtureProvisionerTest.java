@@ -11,6 +11,7 @@ import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.identity.EchnoOrgId;
 import org.tornotron.echno_backend.common.identity.IdentityProvider;
+import org.tornotron.echno_backend.common.identity.link.IdentityLinks;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.employee.EmployeeService;
@@ -58,6 +59,8 @@ class DevFixtureProvisionerTest {
     private EmployeeService employeeService;
     @Mock
     private IdentityProvider identityProvider;
+    @Mock
+    private IdentityLinks identityLinks;
     @Mock
     private OrganizationOnboardingSeeder onboardingSeeder;
 

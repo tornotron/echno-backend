@@ -15,6 +15,7 @@ import org.tornotron.echno_backend.common.identity.IdentityProvider;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.employee.EmployeeService;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
+import org.tornotron.echno_backend.common.identity.link.IdentityLinks;
 import org.tornotron.echno_backend.organization.dto.OrganizationCreationDto;
 import org.tornotron.echno_backend.organization.dto.OrganizationSimpleDto;
 import org.tornotron.echno_backend.organization.mapper.OrganizationMapper;
@@ -60,7 +61,7 @@ class OrganizationServiceOnboardingTest {
 
     private OrganizationService service() {
         return new OrganizationService(repository, attachmentService, fileStorageService,
-                identityProvider, subscriptionService, userContextService, employeeService,
+                identityProvider, org.mockito.Mockito.mock(IdentityLinks.class), subscriptionService, userContextService, employeeService,
                 organizationMapper, orgSecurity, onboardingSeeder,
                 new PayloadValidator(Validation.buildDefaultValidatorFactory().getValidator()));
     }

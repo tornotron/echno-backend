@@ -21,7 +21,9 @@ import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.service.AttachmentService;
 import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.common.identity.EchnoOrgId;
+import org.tornotron.echno_backend.common.identity.ExternalOrgId;
 import org.tornotron.echno_backend.common.identity.IdentityProvider;
+import org.tornotron.echno_backend.common.identity.link.IdentityLinks;
 import org.tornotron.echno_backend.employee.EmployeeService;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 import org.tornotron.echno_backend.employee.dto.EmployeeJoinOrgDto;
@@ -66,6 +68,7 @@ public class OrganizationService {
     private final AttachmentService attachmentService;
     private final FileStorageService fileStorageService;
     private final IdentityProvider identityProvider;
+    private final IdentityLinks identityLinks;
     private final SubscriptionService subscriptionService;
     private final UserContextService userContextService;
     private final EmployeeService employeeService;
@@ -80,15 +83,17 @@ public class OrganizationService {
      * @param attachmentService The service for managing attachments.
      * @param fileStorageService The service for file storage operations.
      * @param identityProvider The identity provider organizations are created at.
+     * @param identityLinks    Records which organization at the provider a new organization is.
      * @param subscriptionService The service for handling subscription billing.
      * @param onboardingSeeder Seeds the per-organization finance defaults for a new organization.
      * @param payloadValidator Runs the create payload's own constraints.
      */
-    public OrganizationService(OrganizationRepository repository, AttachmentService attachmentService, FileStorageService fileStorageService, IdentityProvider identityProvider, SubscriptionService subscriptionService, UserContextService userContextService, EmployeeService employeeService, org.tornotron.echno_backend.organization.mapper.OrganizationMapper organizationMapper, org.tornotron.echno_backend.common.service.OrganizationSecurityService orgSecurity, OrganizationOnboardingSeeder onboardingSeeder, PayloadValidator payloadValidator) {
+    public OrganizationService(OrganizationRepository repository, AttachmentService attachmentService, FileStorageService fileStorageService, IdentityProvider identityProvider, IdentityLinks identityLinks, SubscriptionService subscriptionService, UserContextService userContextService, EmployeeService employeeService, org.tornotron.echno_backend.organization.mapper.OrganizationMapper organizationMapper, org.tornotron.echno_backend.common.service.OrganizationSecurityService orgSecurity, OrganizationOnboardingSeeder onboardingSeeder, PayloadValidator payloadValidator) {
         this.repository = repository;
         this.attachmentService = attachmentService;
         this.fileStorageService = fileStorageService;
         this.identityProvider = identityProvider;
+        this.identityLinks = identityLinks;
         this.subscriptionService = subscriptionService;
         this.userContextService = userContextService;
         this.employeeService = employeeService;
@@ -207,10 +212,11 @@ public class OrganizationService {
         Organization savedOrganization = repository.save(organization);
 
         // Create it at the identity provider BEFORE joining the organization
-        identityProvider.createOrganization(
+        ExternalOrgId providerOrganization = identityProvider.createOrganization(
                 new EchnoOrgId(savedOrganization.getId()),
                 savedOrganization.getOrganizationName()
         );
+        identityLinks.linkOrganization(providerOrganization, savedOrganization.getId());
 
         EmployeeJoinOrgDto joinOrgDto = new EmployeeJoinOrgDto();
         EmployeeDto employeeDto = employeeService.joinOrganization(currentUser.getId(), savedOrganization.getId(), joinOrgDto);

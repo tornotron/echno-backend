@@ -33,6 +33,9 @@ import java.util.stream.Stream;
 @ConditionalOnKeycloak
 public class KeycloakIdentityProvider implements IdentityProvider {
 
+    /** An organization's group is this and its id, which is what the adapter addresses it by. */
+    static final String GROUP_PREFIX = "org-";
+
     private static final String UPDATE_PASSWORD = "UPDATE_PASSWORD";
     /** How long a password reset link stays usable: Keycloak's own default for such a link. */
     private static final int PASSWORD_RESET_LIFESPAN_SECONDS = 12 * 60 * 60;
@@ -53,7 +56,8 @@ public class KeycloakIdentityProvider implements IdentityProvider {
 
     @Override
     public ExternalOrgId createOrganization(EchnoOrgId organization, String name) {
-        return new ExternalOrgId(groups.createOrganizationGroup(key(organization), name));
+        groups.createOrganizationGroup(key(organization), name);
+        return new ExternalOrgId(GROUP_PREFIX + key(organization));
     }
 
     @Override

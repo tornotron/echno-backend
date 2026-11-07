@@ -12,6 +12,7 @@ import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.common.identity.IdentityProvider;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.employee.EmployeeService;
+import org.tornotron.echno_backend.common.identity.link.IdentityLinks;
 import org.tornotron.echno_backend.organization.dto.OrganizationPatchDto;
 import org.tornotron.echno_backend.organization.mapper.OrganizationMapper;
 import org.tornotron.echno_backend.user.UserContextService;
@@ -49,7 +50,7 @@ class OrganizationServiceBatchAuthzTest {
 
     private OrganizationService service() {
         return new OrganizationService(repository, attachmentService, fileStorageService,
-                identityProvider, subscriptionService, userContextService, employeeService,
+                identityProvider, org.mockito.Mockito.mock(IdentityLinks.class), subscriptionService, userContextService, employeeService,
                 organizationMapper, orgSecurity, onboardingSeeder,
                 new PayloadValidator(Validation.buildDefaultValidatorFactory().getValidator()));
     }
