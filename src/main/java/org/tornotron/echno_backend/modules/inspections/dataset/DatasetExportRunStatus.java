@@ -10,7 +10,9 @@ import com.fasterxml.jackson.annotation.JsonValue;
 public enum DatasetExportRunStatus {
     RUNNING("running"),
     COMPLETED("completed"),
-    FAILED("failed");
+    FAILED("failed"),
+    /** Consent was withdrawn after the run started, so it ended before copying anything. */
+    CANCELLED("cancelled");
 
     private final String value;
 

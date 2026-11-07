@@ -288,13 +288,20 @@ class DatasetExportServiceTest {
     }
 
     @Test
-    void aLineCarriesTheConsentFlagReadWhenTheRowsAreReadNotAConstant() throws Exception {
+    void consentWithdrawnBetweenStartAndExecuteCancelsTheRunWithNothingWritten() {
         DatasetExportRunDto started = service.start(ORG, "user:1");
         org.setDatasetConsent(false); // withdrawn after the run was started
+
         DatasetExportRunDto run = service.execute(started.id(), ORG);
 
-        assertThat(manifestLines(run)).isNotEmpty()
-                .allSatisfy(line -> assertThat(line.get("consent").booleanValue()).isFalse());
+        assertThat(run.status()).isEqualTo(DatasetExportRunStatus.CANCELLED);
+        assertThat(run.errorMessage()).contains("withdrew dataset consent");
+        assertThat(run.finishedAt()).isNotNull();
+        assertThat(run.exportedCount()).isZero();
+        assertThat(run.manifestKey()).isNull();
+        verify(fileStorageService, never()).copyObjectTo(anyString(), anyString(), anyString());
+        verify(fileStorageService, never()).putObject(anyString(), anyString(), any(byte[].class), anyString());
+        verify(itemRepository, never()).save(any());
     }
 
     @Test
