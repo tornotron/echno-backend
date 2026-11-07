@@ -22703,6 +22703,32 @@
         ],
         "type": "object"
       },
+      "Result": {
+        "description": "One observation's outcome.",
+        "properties": {
+          "message": {
+            "description": "Why, when it was refused.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "observationId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "REVIEWED",
+              "ALREADY_REVIEWED",
+              "NOT_FOUND",
+              "REFUSED"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "ReverseJournalRequest": {
         "description": "Payload to reverse a posted journal entry.",
         "properties": {
@@ -22717,6 +22743,73 @@
         "required": [
           "reason"
         ],
+        "type": "object"
+      },
+      "ReviewBatchRequest": {
+        "description": "One decision for the observations a reviewer has looked at. ACCEPT applies outcome NONE; REJECT takes one note and one reason for all of them. MODIFY is refused: it needs the single-item review, where the reviewer sees the whole photo. There is no accept-by-filter: the client sends the ids.",
+        "properties": {
+          "decision": {
+            "description": "ACCEPT or REJECT.",
+            "enum": [
+              "accept",
+              "reject",
+              "modify"
+            ],
+            "type": "string"
+          },
+          "note": {
+            "description": "Reviewer's note. Required on REJECT.",
+            "maxLength": 4000,
+            "minLength": 0,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "observationIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "type": "array"
+          },
+          "rejectReason": {
+            "description": "REJECT only. Required for each observation that has regions from its producer.",
+            "enum": [
+              "false-positive",
+              "duplicate",
+              "out-of-scope",
+              "poor-image"
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "decision",
+          "observationIds"
+        ],
+        "type": "object"
+      },
+      "ReviewBatchResponse": {
+        "description": "What happened to each observation, in the order posted. Each is its own transaction.",
+        "properties": {
+          "batchId": {
+            "description": "Stamped on every reviewed row and its event, so an audit can tell a bulk decision from a single one.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/Result"
+            },
+            "type": "array"
+          }
+        },
         "type": "object"
       },
       "ReviewObservationRequest": {
@@ -76567,6 +76660,118 @@
           }
         },
         "summary": "Record an observation",
+        "tags": [
+          "Observations"
+        ]
+      }
+    },
+    "/api/v1/inspections/web/observations/review-batch": {
+      "post": {
+        "description": "Accept with no outcome, or reject with one reason and one note, for up to 100 ids the reviewer has seen. Results come back per id and each is its own transaction. Every reviewed row and its event carry the batch id. MODIFY and any other outcome stay in the single-item review.",
+        "operationId": "ObservationControllerWeb_reviewBatch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewBatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewBatchResponse"
+                }
+              }
+            },
+            "description": "Per-observation results returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "MODIFY, or the envelope is empty or over its limits; nothing was written"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Decide on many pending observations",
         "tags": [
           "Observations"
         ]

@@ -357,7 +357,24 @@ public class ObservationService {
      */
     @Transactional
     public ObservationDto review(UUID id, ReviewObservationRequest req) {
+        return findById(decide(require(id), req, null).getId(), false);
+    }
+
+    /**
+     * The same decision as {@link #review}, as one item of a bulk decision: the row and its event carry
+     * the batch id. An observation the caller may not see reads as absent.
+     */
+    @Transactional
+    public void reviewInBatch(UUID id, ReviewObservationRequest req, UUID batchId, boolean includeDetections) {
         Observation o = require(id);
+        if (!includeDetections && observationRepo.countDetectionScoped(id) > 0) {
+            throw new ResourceNotFoundException("Observation with ID " + id + " was not found");
+        }
+        decide(o, req, batchId);
+    }
+
+    private Observation decide(Observation o, ReviewObservationRequest req, UUID batchId) {
+        UUID id = o.getId();
         if (o.isReviewed()) {
             throw new ObservationAlreadyReviewedException(id);
         }
@@ -408,10 +425,11 @@ public class ObservationService {
         o.setReviewedById(reviewerId);
         o.setReviewedAt(LocalDateTime.now());
         o.setReviewNote(req.note());
+        o.setReviewBatchId(batchId);
         Observation saved = observationRepo.saveAndFlush(o);
         recordReviewed(saved, ObservationReviewStatus.PENDING, regionEdits);
         log.info("Observation {} reviewed as {} with outcome {}", saved.getId(), decided, saved.getOutcomeKind());
-        return findById(saved.getId(), false);
+        return saved;
     }
 
     private void applyOutcome(Observation o, ReviewObservationRequest.Outcome outcome) {
@@ -1220,6 +1238,7 @@ public class ObservationService {
                 .field("rejectReason", null, o.getRejectReason())
                 .field("outcomeKind", null, o.getOutcomeKind())
                 .field("outcomeRef", null, o.getOutcomeRef())
+                .field("batchId", null, o.getReviewBatchId())
                 .after();
         if (regionEdits != null) {
             Map<String, Object> regions = new LinkedHashMap<>();
