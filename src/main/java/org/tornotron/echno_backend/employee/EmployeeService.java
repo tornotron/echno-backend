@@ -21,6 +21,7 @@ import org.tornotron.echno_backend.common.identity.EchnoOrgId;
 import org.tornotron.echno_backend.common.identity.ExternalUserId;
 import org.tornotron.echno_backend.common.identity.IdentityProvider;
 import org.tornotron.echno_backend.common.identity.link.UserIdentityLookup;
+import org.tornotron.echno_backend.common.identity.task.IdentityTaskQueue;
 import org.tornotron.echno_backend.modules.access.api.AccessRoleAssignments;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.employee.dto.EmployeeCreationDto;
@@ -41,7 +42,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -65,6 +65,7 @@ public class EmployeeService {
     private final IdentityProvider identityProvider;
     private final UserIdentityLookup userIdentityLookup;
     private final AccessRoleAssignments roleAssignments;
+    private final IdentityTaskQueue identityTasks;
     private final EmployeeMapper employeeMapper;
     private final EmployeeHierarchyService employeeHierarchyService;
     private final ShiftTimingRepository shiftTimingRepository;
@@ -79,18 +80,20 @@ public class EmployeeService {
      * @param identityProvider       The identity provider people are members at.
      * @param userIdentityLookup     Finds a user's account at that provider.
      * @param roleAssignments        The one writer of a person's roles.
+     * @param identityTasks          Provider calls that follow a commit.
      * @param employeeHierarchyService The service owning the reporting hierarchy.
      * @param orgSecurity            Answers which org-scoped roles the caller holds, the same bean
      *                               the guards on these endpoints ask. Used by the partial update
      *                               to decide the field scope; see {@link EmployeePatchFieldScope}.
      */
-    public EmployeeService(EmployeeRepository employeeRepository, OrganizationRepository organizationRepository, UserRepository userRepository, IdentityProvider identityProvider, UserIdentityLookup userIdentityLookup, AccessRoleAssignments roleAssignments, EmployeeMapper employeeMapper, EmployeeHierarchyService employeeHierarchyService, ShiftTimingRepository shiftTimingRepository, OrganizationSecurityService orgSecurity) {
+    public EmployeeService(EmployeeRepository employeeRepository, OrganizationRepository organizationRepository, UserRepository userRepository, IdentityProvider identityProvider, UserIdentityLookup userIdentityLookup, AccessRoleAssignments roleAssignments, IdentityTaskQueue identityTasks, EmployeeMapper employeeMapper, EmployeeHierarchyService employeeHierarchyService, ShiftTimingRepository shiftTimingRepository, OrganizationSecurityService orgSecurity) {
         this.employeeRepository = employeeRepository;
         this.organizationRepository = organizationRepository;
         this.userRepository = userRepository;
         this.identityProvider = identityProvider;
         this.userIdentityLookup = userIdentityLookup;
         this.roleAssignments = roleAssignments;
+        this.identityTasks = identityTasks;
         this.employeeMapper = employeeMapper;
         this.employeeHierarchyService = employeeHierarchyService;
         this.shiftTimingRepository = shiftTimingRepository;
@@ -395,6 +398,7 @@ public class EmployeeService {
                     EmployeeStatus status = value != null ? EmployeeStatus.valueOf((String) value) : null;
                     if (!HOLDS_ACCESS.contains(status)) {
                         roleAssignments.refuseIfLastAdministrator(employee.getId());
+                        endSessionsWhenTheyNoLongerHoldAccess(employee);
                     }
                     employee.setStatus(status);
                     break;
@@ -533,21 +537,13 @@ public class EmployeeService {
 
         roleAssignments.refuseIfLastAdministrator(id);
 
-        Optional<ExternalUserId> account = employee.getUser() == null
-                ? Optional.empty()
-                : userIdentityLookup.accountOf(employee.getUser());
-        if (account.isPresent()) {
-            try {
-                identityProvider.removeMember(
-                        account.get(),
-                        new EchnoOrgId(employee.getOrganization().getId())
-                );
-            } catch (Exception e) {
-                log.error("Failed to remove user {} from organization {} at the identity provider: {}",
-                        employee.getUser().getId(),
-                        employee.getOrganization().getId(),
-                        e.getMessage());
-            }
+        // Echno's change is what ends access, on the next request. The provider follows it, and a
+        // failure there is retried and never leaves the person half removed.
+        if (employee.getUser() != null) {
+            userIdentityLookup.accountOf(employee.getUser()).ifPresent(account -> {
+                identityTasks.removeMember(account, new EchnoOrgId(employee.getOrganization().getId()));
+                identityTasks.endSessionsIfNoActiveEmployee(account, employee.getUser().getId());
+            });
         }
 
         employeeRepository.deleteById(id);
@@ -592,29 +588,29 @@ public class EmployeeService {
         return employeeMapper.toDto(employee);
     }
 
+    /**
+     * The status change ends their access on the next request. Their sessions follow, so they stop
+     * getting new tokens. Membership at the provider stays, so reinstating them is only a status change.
+     */
+    private void endSessionsWhenTheyNoLongerHoldAccess(Employee employee) {
+        if (employee.getUser() != null) {
+            userIdentityLookup.accountOf(employee.getUser()).ifPresent(account ->
+                    identityTasks.endSessionsIfNoActiveEmployee(account, employee.getUser().getId()));
+        }
+    }
+
     private Employee employeeInThisOrganization(Long employeeId) {
         return employeeRepository.findByIdAndOrganizationId(employeeId, TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Employee with ID " + employeeId + " was not found in this organization"));
     }
 
-    /** A provider with no copy of the roles has nothing to update. */
+    /** Follows the change at the provider once it commits. Nothing about the provider can undo it. */
     private void recordRoleAtTheProvider(Employee employee, OrgRole role, boolean holdsIt) {
-        identityProvider.capabilities().orgRoleGroups().ifPresent(roleGroups -> {
-            ExternalUserId account = accountOf(employee.getUser());
-            EchnoOrgId organization = new EchnoOrgId(employee.getOrganization().getId());
-            try {
-                if (holdsIt) {
-                    roleGroups.assign(account, organization, role);
-                } else {
-                    roleGroups.remove(account, organization, role);
-                }
-            } catch (Exception e) {
-                log.error("Failed to change role {} of employee {} at the identity provider: {}",
-                        role, employee.getId(), e.getMessage());
-                throw new RuntimeException(
-                        "Failed to change role '" + role + "' of employee " + employee.getId() + " at the identity provider: " + e.getMessage(), e);
-            }
-        });
+        if (identityProvider.capabilities().orgRoleGroups().isEmpty()) {
+            return;
+        }
+        identityTasks.recordRole(accountOf(employee.getUser()),
+                new EchnoOrgId(employee.getOrganization().getId()), role, holdsIt);
     }
 
     private ExternalUserId accountOf(User user) {

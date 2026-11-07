@@ -87,6 +87,9 @@ class EmployeePatchSelfScopeIT extends AbstractIntegrationTest {
     private org.tornotron.echno_backend.modules.access.api.AccessRoleAssignments roleAssignments;
 
     @MockitoBean
+    private org.tornotron.echno_backend.common.identity.task.IdentityTaskQueue identityTasks;
+
+    @MockitoBean
     private FileStorageService fileStorageService;
 
     private Long organizationId;

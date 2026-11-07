@@ -432,6 +432,7 @@ class PartialUpdateNullBehaviourTest {
         @Mock private EmployeeMapper employeeMapper;
         @Mock private EmployeeHierarchyService employeeHierarchyService;
         @Mock private org.tornotron.echno_backend.modules.access.api.AccessRoleAssignments roleAssignments;
+        @Mock private org.tornotron.echno_backend.common.identity.task.IdentityTaskQueue identityTasks;
         @Mock private ShiftTimingRepository shiftTimingRepository;
         @Mock private OrganizationSecurityService orgSecurity;
 

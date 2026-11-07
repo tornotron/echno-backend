@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Calls to the identity provider that must not hold a transaction open or roll one back. A row
+        is written in the caller's transaction, so it exists exactly when the change it follows
+        committed, and a scheduled job makes the call afterwards, repeating until it works. One pending
+        row per dedupe_key, so a later change to the same thing replaces an earlier one still waiting.
+    -->
+    <changeSet id="136-create-identity_task" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="identity_task"/></not>
+        </preConditions>
+        <createTable tableName="identity_task">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_identity_task" nullable="false"/></column>
+            <column name="kind" type="VARCHAR(40)"><constraints nullable="false"/></column>
+            <column name="dedupe_key" type="VARCHAR(400)"><constraints nullable="false"/></column>
+            <column name="account" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="user_id" type="BIGINT"/>
+            <column name="organization_id" type="BIGINT"/>
+            <column name="org_role" type="VARCHAR(60)"/>
+            <column name="status" type="VARCHAR(20)"><constraints nullable="false"/></column>
+            <column name="attempts" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="next_attempt_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="last_error" type="VARCHAR(500)"/>
+            <column name="created_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="finished_at" type="TIMESTAMP"/>
+        </createTable>
+        <sql>CREATE UNIQUE INDEX uq_identity_task_pending ON identity_task (dedupe_key) WHERE status = 'PENDING'</sql>
+        <sql>CREATE INDEX idx_identity_task_due ON identity_task (next_attempt_at) WHERE status = 'PENDING'</sql>
+    </changeSet>
+
+</databaseChangeLog>
