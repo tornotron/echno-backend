@@ -335,6 +335,11 @@ echno:
     # their own compliance.sweep.enabled / compliance.job.enabled switches.
     inspections:
       enabled: ${ECHNO_MODULE_INSPECTIONS_ENABLED:true}
+    # Computer vision is dark until an operator turns it on. A feature key would not keep it off:
+    # in advisory entitlement mode a refused feature is let through. Off, none of its beans exist,
+    # so no endpoint, listener or intake check runs; its tables exist either way.
+    vision:
+      enabled: ${ECHNO_MODULE_VISION_ENABLED:false}
   security:
     jwt:
       # Reject any access token whose audience does not include the backend client
