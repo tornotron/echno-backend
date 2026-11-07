@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Unique keys on (organization_id, id) of the core tables the access links point at, so a
+        link cannot name an employee, project, customer or vendor of another organization. Each id
+        is already unique on its own, so these keys cannot fail on existing rows, and no read or
+        write of those tables changes. Each runs in its own changeset, ahead of the foreign keys
+        that need it, because CockroachDB builds the index when the transaction commits.
+    -->
+
+    <changeSet id="access-002-unique-employee-organization-id" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not><indexExists tableName="employee" indexName="uq_employee_organization_id"/></not>
+        </preConditions>
+        <addUniqueConstraint tableName="employee" columnNames="organization_id, id"
+                             constraintName="uq_employee_organization_id"/>
+    </changeSet>
+
+    <changeSet id="access-002-unique-project-organization-id" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not><indexExists tableName="project" indexName="uq_project_organization_id"/></not>
+        </preConditions>
+        <addUniqueConstraint tableName="project" columnNames="organization_id, id"
+                             constraintName="uq_project_organization_id"/>
+    </changeSet>
+
+    <changeSet id="access-002-unique-customers-organization-id" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not><indexExists tableName="customers" indexName="uq_customers_organization_id"/></not>
+        </preConditions>
+        <addUniqueConstraint tableName="customers" columnNames="organization_id, id"
+                             constraintName="uq_customers_organization_id"/>
+    </changeSet>
+
+    <changeSet id="access-002-unique-vendor-organization-id" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not><indexExists tableName="vendor" indexName="uq_vendor_organization_id"/></not>
+        </preConditions>
+        <addUniqueConstraint tableName="vendor" columnNames="organization_id, id"
+                             constraintName="uq_vendor_organization_id"/>
+    </changeSet>
+
+</databaseChangeLog>

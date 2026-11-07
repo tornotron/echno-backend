@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Which roles a role's holders may hand out: an HR role may give ordinary roles, while only
+        the System Admin may give the administrator role. organization_id appears in both foreign
+        keys, so both sides are roles of the row's own organization. A row goes with either role.
+    -->
+
+    <changeSet id="access-004-create-access_role_grantable" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="access_role_grantable"/></not>
+        </preConditions>
+        <createTable tableName="access_role_grantable">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_access_role_grantable" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="role_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="grantable_role_id" type="UUID"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="access_role_grantable" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_access_role_grantable_organization" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseTableName="access_role_grantable" baseColumnNames="organization_id, role_id"
+                                 referencedTableName="access_role" referencedColumnNames="organization_id, id"
+                                 constraintName="fk_access_role_grantable_role" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseTableName="access_role_grantable" baseColumnNames="organization_id, grantable_role_id"
+                                 referencedTableName="access_role" referencedColumnNames="organization_id, id"
+                                 constraintName="fk_access_role_grantable_grantable" onDelete="CASCADE"/>
+        <addUniqueConstraint tableName="access_role_grantable" columnNames="role_id, grantable_role_id"
+                             constraintName="uq_access_role_grantable"/>
+        <createIndex tableName="access_role_grantable" indexName="idx_access_role_grantable_grantable">
+            <column name="grantable_role_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
