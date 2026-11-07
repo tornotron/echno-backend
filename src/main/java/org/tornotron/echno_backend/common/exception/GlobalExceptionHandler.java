@@ -4,6 +4,7 @@ import org.tornotron.echno_backend.billing.gateway.BillingNotConfiguredException
 import org.tornotron.echno_backend.billing.gateway.MandatePolicyViolationException;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ValidationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.CannotAcquireLockException;
@@ -202,6 +203,23 @@ public class GlobalExceptionHandler {
         ProblemDetail pd = problem(HttpStatus.BAD_REQUEST, "Validation Failed", "Validation Failed", request);
         pd.setProperty("errors", errors);
         return pd;
+    }
+
+    /**
+     * A service refusing a request for a reason it states, such as an attendance correction for an
+     * employee with no shift. Attendance and billing raise this directly and their endpoints
+     * document a 400; with no handler it reached the catch-all and answered 500.
+     *
+     * <p>Only the type itself means that. Its subclasses come from the validation framework
+     * reporting a badly declared constraint, which is a server fault and stays a 500.
+     */
+    @ExceptionHandler(ValidationException.class)
+    public ProblemDetail handleRefusedRequest(ValidationException ex, WebRequest request) {
+        if (ex.getClass() != ValidationException.class) {
+            return handleAllUncaughtException(ex, request);
+        }
+        logger.info("Request refused: {}", ex.getMessage());
+        return problem(HttpStatus.BAD_REQUEST, "Invalid Request", ex.getMessage(), request);
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
