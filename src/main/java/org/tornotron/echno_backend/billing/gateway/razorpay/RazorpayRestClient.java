@@ -41,23 +41,31 @@ public class RazorpayRestClient {
     }
 
     public JsonNode post(String path, Map<String, Object> body) {
-        return exchange(HttpMethod.POST, path, body);
+        return exchange(HttpMethod.POST, path, body, Map.of());
+    }
+
+    /** A POST with extra headers, such as the idempotency key Razorpay's payout API requires. */
+    public JsonNode post(String path, Map<String, Object> body, Map<String, String> headers) {
+        return exchange(HttpMethod.POST, path, body, headers);
     }
 
     public JsonNode patch(String path, Map<String, Object> body) {
-        return exchange(HttpMethod.PATCH, path, body);
+        return exchange(HttpMethod.PATCH, path, body, Map.of());
     }
 
     public JsonNode get(String path) {
-        return exchange(HttpMethod.GET, path, null);
+        return exchange(HttpMethod.GET, path, null, Map.of());
     }
 
-    private JsonNode exchange(HttpMethod method, String path, Map<String, Object> body) {
+    private JsonNode exchange(HttpMethod method, String path, Map<String, Object> body, Map<String, String> headers) {
         try {
             RestClient.RequestBodySpec request = client().method(method)
                     .uri(path)
                     .header("Authorization", basicAuth())
                     .accept(MediaType.APPLICATION_JSON);
+            for (Map.Entry<String, String> header : headers.entrySet()) {
+                request = request.header(header.getKey(), header.getValue());
+            }
             if (body != null) {
                 request = request.contentType(MediaType.APPLICATION_JSON)
                         .body(objectMapper.writeValueAsString(body));
