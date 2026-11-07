@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        For the review queue's model and class filters. CockroachDB builds an index online, so these
+        take no lock a running system would notice, and each is guarded on its own existence.
+        Design: docs/specs/2026-10-26-cv-phase4-design.md, section 4.4.
+    -->
+
+    <changeSet id="134-01-index-observations-by-model" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <indexExists tableName="inspection_observations" indexName="idx_insp_obs_org_model_review"/>
+            </not>
+        </preConditions>
+        <createIndex tableName="inspection_observations" indexName="idx_insp_obs_org_model_review">
+            <column name="organization_id"/>
+            <column name="model_name"/>
+            <column name="model_version"/>
+            <column name="review_status"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="134-02-index-observations-by-category" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <indexExists tableName="inspection_observations" indexName="idx_insp_obs_org_category_review"/>
+            </not>
+        </preConditions>
+        <createIndex tableName="inspection_observations" indexName="idx_insp_obs_org_category_review">
+            <column name="organization_id"/>
+            <column name="category"/>
+            <column name="review_status"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
