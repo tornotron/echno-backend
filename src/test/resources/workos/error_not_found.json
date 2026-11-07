@@ -1,0 +1,5 @@
+{
+  "message": "User not found: 'user_01NOPE000000000000000000'.",
+  "code": "entity_not_found",
+  "entity_id": "user_01NOPE000000000000000000"
+}

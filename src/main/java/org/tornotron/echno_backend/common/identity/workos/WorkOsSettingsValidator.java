@@ -23,6 +23,7 @@ import java.util.List;
 public class WorkOsSettingsValidator implements BeanFactoryPostProcessor, EnvironmentAware {
 
     static final List<String> REQUIRED = List.of(
+            "echno.identity.workos.api-key",
             "echno.identity.workos.client-id",
             "echno.identity.workos.api-url",
             "echno.security.jwt.audience",
@@ -41,7 +42,7 @@ public class WorkOsSettingsValidator implements BeanFactoryPostProcessor, Enviro
         if (!blank.isEmpty()) {
             throw new IllegalStateException("echno.identity.provider is workos, but these settings are blank: "
                     + String.join(", ", blank)
-                    + ". Set WORKOS_CLIENT_ID, ECHNO_JWT_AUDIENCE and ECHNO_JWT_ACCEPTED_ISSUERS.");
+                    + ". Set WORKOS_API_KEY, WORKOS_CLIENT_ID, ECHNO_JWT_AUDIENCE and ECHNO_JWT_ACCEPTED_ISSUERS.");
         }
     }
 
