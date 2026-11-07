@@ -4557,6 +4557,23 @@
         ],
         "type": "object"
       },
+      "ClientConfigDto": {
+        "description": "What an app needs before it signs in: the identity provider, the public client id each app signs in with, and the oldest app versions this backend still serves.",
+        "properties": {
+          "clientIds": {
+            "$ref": "#/components/schemas/ClientIds"
+          },
+          "minimumVersions": {
+            "$ref": "#/components/schemas/MinimumVersions"
+          },
+          "provider": {
+            "description": "The identity provider this backend runs on.",
+            "example": "workos",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "ClientCreationDto": {
         "properties": {
           "adminUrl": {
@@ -4606,6 +4623,30 @@
               "type": "string"
             },
             "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "ClientIds": {
+        "description": "Public client ids. None of them is a secret.",
+        "properties": {
+          "android": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ios": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "web": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "type": "object"
@@ -15214,6 +15255,26 @@
           "title",
           "type"
         ],
+        "type": "object"
+      },
+      "MinimumVersions": {
+        "description": "The oldest app version allowed to sign in. Absent means any version.",
+        "properties": {
+          "android": {
+            "example": "2.4.0",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ios": {
+            "example": "2.4.0",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
         "type": "object"
       },
       "ModuleDescriptorDto": {
@@ -118517,6 +118578,109 @@
         ]
       }
     },
+    "/api/v1/public/client-config": {
+      "get": {
+        "description": "The identity provider, the public client id each app signs in with, and the minimum Android and iOS versions. An app older than its minimum asks the person to update.",
+        "operationId": "clientConfig",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientConfigDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "security": [ ],
+        "summary": "Read the client configuration",
+        "tags": [
+          "Client configuration"
+        ]
+      }
+    },
     "/api/v1/purchase-order-items": {
       "get": {
         "description": "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result.",
@@ -142532,6 +142696,10 @@
     {
       "description": "The reusable per-trade checklists an organization inspects against. An inspection created for a trade starts from a copy of that trade's active template, so later edits never rewrite a checklist already signed off. The starter endpoints expose the product-supplied defaults an organization adopts as its own editable templates. All endpoints are tenant scoped. Defining a template is the QA engineer's authority: setting the tolerance work is judged against is a bigger act than recording a measurement against one. Everyone with inspection read access can see the templates.",
       "name": "Checklist templates"
+    },
+    {
+      "description": "Settings an app reads before signing in. No authentication.",
+      "name": "Client configuration"
     },
     {
       "description": "The organization's own bank accounts used to receive and pay funds, each linked to a ledger account for reconciliation. Endpoints cover listing, reading, creating and deactivating accounts. All endpoints are tenant scoped and limited to system administrators and project managers.",
