@@ -29,5 +29,7 @@ class AccessPermissionTest {
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new AccessPermission("Finance", "read"))
                 .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new AccessPermission(null, "read"))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }
