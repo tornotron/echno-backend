@@ -4,7 +4,8 @@ Status: proposed, for review. Target repos: `echno-backend`, `echno-core`, `echn
 invitations and sign-in also `echno-android` and `echno-ios`.
 Scope: the design the access matrix work is rebuilt on after the review of the first attempt
 (#904 to #913). It replaces those PRs' design where they differ. Business rules marked
-**owner sign-off** are proposals until the product owner approves them on the ticket.
+**owner sign-off** are proposals until the product owner approves them on the ticket. The ordered
+PRs are in the [WorkOS build plan](2026-11-07-workos-build-plan.md).
 
 Background, kept as written: [Auth, Tenancy and Plan Tiers](2026-10-28-auth-and-tenancy-options.md),
 and [Access Permission Mapping](2026-10-30-access-permission-mapping.md) with its
@@ -58,7 +59,7 @@ their own leave, and can change it (Employee only with `access:edit-employee-rol
 ### 2.2 Decision API
 
 `modules/access/api` is the only way the rest of the code asks about access. It speaks in
-decisions, not in roles:
+decisions:
 
 - `check(subject, permission, RecordFacts)`: may this person do this to this record.
 - `filter(subject, permission)`: an `AccessFilter` a list query applies, so a person sees only the
@@ -121,6 +122,18 @@ attachment writes every member can make today). So:
 The signed-off roles then arrive as a data change to the templates, and the backfill (section 4)
 applies them to existing organizations.
 
+Today's `OrgRole` set and the ticket's nine do not line up, so the starting point is:
+
+| Role | Counterpart in `OrgRole` | Starting grants until sign-off |
+| --- | --- | --- |
+| System Admin | `system-admin` | Today's access, plus `access:*` |
+| Project Manager | `project-manager` | Today's access |
+| Site Engineer | `site-engineer` | Today's access |
+| QA/QC Engineer | `qa-engineer` | Today's access |
+| Store Keeper | `store-keeper` | Today's access |
+| Management Director, Procurement Manager, Finance Manager, Client / Owner | none | The baseline only. No access exists today to mirror, and guessing would grant access nobody approved. |
+| HR Admin, Safety Officer, Org Manager, Observation Producer (carried over) | `hr-admin`, `safety-officer`, `org-manager`, `observation-producer` | Today's access. These exist so the backfill leaves nobody short. A new organization's screen does not offer them, and the owner's sign-off says where each one goes. |
+
 Seeded roles are not all `is_system`. Only System Admin (the administrator of one organization; the
 ticket's name, final name open in section 7) and the baseline role are system roles. Every other starting role can be renamed, edited and deleted by the organization.
 
@@ -149,7 +162,7 @@ The Roles & Permissions endpoints enforce these, each with a test:
 
 ### 2.7 Giving a person roles
 
-A person gets their roles when they are added, not afterwards. The form that adds an employee or
+A person gets their roles at the moment they are added. The form that adds an employee or
 sends an invitation (3.4) asks for the roles, and offers only the roles the sender may assign
 (rule 1). Department does not choose or filter roles, because departments are not built (2.4).
 Every assignment goes through `AccessRoleAssignments` (3.3), so the rules in 2.6 apply to it.
@@ -168,6 +181,13 @@ project, and `OWN` means the person's own records in that project. Only an assig
 project can reach the whole organization. The engine applies this in `check` and `filter`, and a
 contract test covers it.
 
+**During the migration, a role with an `OrgRole` counterpart stays organization-wide.** The old checks
+have no idea of a project (audit G-02). Mirroring a project assignment into `employee_org_roles` would
+grant that role everywhere, and leaving it out would make the screen and the old checks disagree. So
+`AccessRoleAssignments` refuses a project on such a role, and the form says why. The column and the
+engine carry the project from the first PR, and a role without a counterpart takes one as soon as its
+areas are converted. Every role takes one once `OrgRole` is deleted.
+
 ### 2.8 Engine
 
 - Facts (a person's roles, grants and project memberships in one organization) load once per
@@ -175,46 +195,48 @@ contract test covers it.
 - Across requests they are cached for five minutes in Redis, with Caffeine in front.
 - Eviction runs in `TransactionSynchronization.afterCommit`, never before commit, so a concurrent
   read cannot cache the old state. Project membership changes evict too.
-- A person whose employee status is null, pending, inactive or left holds nothing. A pending
-  employee's roles take effect only when their invitation is accepted and the account linked (3.4).
+- Employees with status `active`, `onLeave` or `probation` hold their access. Any other status
+  (`inactive`, `terminated`, `resigned`, `suspended`), and null, holds nothing. Today no check reads
+  this field (audit G-18), so the backfill first sets null to `active` (section 4). A person invited
+  but not yet accepted has no employee record at all (3.4).
 - `AccessFilter.admits` checks the record's organization as well as its scope.
 
 ## 3. The identity-provider port
 
 ### 3.1 The port
 
-One interface in `common/identity`, `IdentityProvider`, with an adapter per provider. The owner
-decided on the ticket that Echno moves to WorkOS and does not continue with Keycloak, so
-`WorkOsIdentityProvider` is the target and `KeycloakIdentityProvider` only wraps today's calls until
-the move. Switching providers without changing the apps is designed in
-[Identity Provider Independence](2026-10-30-identity-provider-independence.md) (option C, Echno's own
-tokens, approved by the reviewer). Nothing outside an adapter
-imports a Keycloak or WorkOS type, and an ArchUnit rule says so.
+One interface in `common/identity`, `IdentityProvider`, with an adapter per provider, and one setting,
+`echno.identity.provider`, that picks the adapter per environment. The owner decided on the ticket
+that Echno moves to WorkOS. The first production deployment runs on `WorkOsIdentityProvider` with no
+Keycloak in its stack. `KeycloakIdentityProvider` wraps today's calls and keeps both stagings running
+until a later migration. Apps sign in with the provider, behind one small module per app (option A in
+[Identity Provider Independence](2026-10-30-identity-provider-independence.md), where option C is
+deferred). Nothing outside an adapter imports a Keycloak or WorkOS type, and an ArchUnit rule says so.
 
 | Concern | Operations |
 | --- | --- |
-| Users and credentials | `createUser(NewIdentity) -> ExternalUserId`, `deleteUser`, `updateProfile`, `sendPasswordReset` |
+| Users and credentials | `profile(user) -> (email, emailVerified, name)`, `sendPasswordReset`, `endSessions(user)`. Creating an account with a password is an optional extra only the Keycloak adapter has, for its self-registration; under WorkOS an account comes from accepting an invitation. |
 | Organizations | `createOrganization(Organization) -> ExternalOrgId`, `deleteOrganization` |
-| Membership | `addMember(user, org)`, `removeMember(user, org)`, `memberships(user)` |
-| Invitations | `invite(email, org, inviter, expiry) -> ExternalInvitationId`, `revokeInvitation`. Section 3.4 has the flow. Only the sending is per provider: WorkOS sends its own invitation; the Keycloak adapter uses Keycloak's built-in email that asks the person to fill in their profile and set a password, with no pages of our own, so little is thrown away when Keycloak goes. |
-| Token to principal | `IdentityTokenMapper`: maps a validated provider token to our `Principal(issuer, subject, email, authentication)`. `authentication` records how the person signed in (password, MFA, their company's single sign-on), mapped per adapter; a missing or unreadable value counts as the weakest, so a rule that requires MFA fails closed. The JWT decoder is configured per provider. |
+| Membership | `addMember(user, org)`, `removeMember(user, org)`. Echno reads membership from `Employee`, so the port has no query for it. |
+| Invitations | `invite(email, org, inviter, expiry) -> ExternalInvitationId`, `resendInvitation`, `revokeInvitation`, `invitationState(id) -> (state, acceptedUser)`. Section 3.4 has the flow. WorkOS sends its own invitation; the Keycloak adapter creates the account and uses Keycloak's built-in email that asks the person to fill in their profile and set a password, with no pages of our own, so little is thrown away when Keycloak goes. That email needs the realm's SMTP settings, which the stagings do not have yet, so they need them before they use invitations. |
+| Token to principal | `IdentityTokenMapper`: maps a validated provider token to our `Principal(issuer, subject, email, authentication)`. `email` is optional, since a WorkOS token has none. `authentication` records how the person signed in (password, MFA, their company's single sign-on), mapped per adapter; a missing or unreadable value counts as the weakest, so a rule that requires MFA fails closed. A WorkOS token has no such value, so MFA is set in WorkOS and Echno has no rule on it yet (build plan, section 3). The JWT decoder is configured per provider. |
 
 Roles are not on the port. The provider never stores or returns them.
 
 The active organization is never taken from the token. The `X-Organization-Id` header names it, as
 today, and every request checks it against the person's active `Employee` record. A provider's own
-organization claims are ignored.
+organization, role and permission claims are ignored.
 
 ### 3.2 Who calls the provider today, and where each call goes
 
 | Today | Calls | Through the port |
 | --- | --- | --- |
-| `UserService` registration | `KeycloakUserProvisioningService.createUser`, `deleteUser` | `createUser`, `deleteUser` |
+| `UserService` registration | `KeycloakUserProvisioningService.createUser`, `deleteUser` | The Keycloak adapter's self-registration extra; absent under WorkOS |
 | `OrganizationService` | `KeycloakGroupService.createOrganizationGroup`, `deleteOrganizationGroup`, `addUserToOrganization` | `createOrganization`, `deleteOrganization`, `addMember` |
-| `EmployeeService` | `addUserToOrganization`, `removeUserFromOrganization`, `assignOrgRole`, `removeOrgRole` | `addMember`, `removeMember`; the role calls move to the legacy mirror (3.3) |
+| `EmployeeService` | `addUserToOrganization`, `removeUserFromOrganization`, `assignOrgRole`, `removeOrgRole` | `addMember`, `removeMember`; the role calls go, replaced by the legacy mirror (3.3) |
 | `DevFixtureProvisioner` | group and role writes | the port and the legacy mirror |
-| `JwtAuthConverter` | reads `/org-{id}/{role}` from the `groups` claim, and permissions from the Keycloak authorization claim | `IdentityTokenMapper`. From step 8, membership and org roles come from Echno's tables (3.3); the permission claim stays until the guards that use it are converted, and goes in step 14 |
-| `RPTExchangeFilter`, `KeycloakAuthorizationService`, `KeycloakManagementService` | Keycloak Authorization Services | stay inside the Keycloak adapter, and are deleted with the role-name checks |
+| `JwtAuthConverter` | reads `/org-{id}/{role}` from the `groups` claim, and permissions from the Keycloak authorization claim | `IdentityTokenMapper`, then Echno's tables mint the same authorities (3.3). The permission claim goes with the old guards (build plan steps 11 and 32) |
+| `RPTExchangeFilter`, `KeycloakAuthorizationService`, `KeycloakManagementService` | Keycloak Authorization Services | conditional on the Keycloak adapter, absent under WorkOS, and deleted with the role-name checks |
 
 The port lands before anything else calls Keycloak. The first attempt added direct Keycloak writes
 in the assignment step; the rework does not.
@@ -228,20 +250,26 @@ Until every guard is converted, two systems decide access: the matrix for conver
   template and the copied role).
 - `AccessRoleAssignments` is the only writer of role assignments. It writes each change of a role
   with a counterpart into `employee_org_roles` **in the same transaction**, so the two tables never
-  disagree. The Keycloak role subgroup follows through an outbox: the change is recorded in the same
-  transaction and a repeat-safe job applies it after commit, retrying until it succeeds, with a
-  nightly check for drift (the outbox in [Auth, Tenancy and Plan Tiers](2026-10-28-auth-and-tenancy-options.md)).
-  The mirror is the `LegacyRoleMirror`, deleted in the last step.
+  disagree. This write is the `LegacyRoleMirror`, deleted in the last step.
 - Today three things read roles and memberships from the token's Keycloak groups:
   `@orgSecurity`, `OrgRoleAuthority` (used for salary visibility) and `TenantFilter` (which
-  organizations a person may name). From step 8 they read `employee_org_roles` and `Employee`
-  instead, cached and evicted after commit like the matrix facts, so a change takes effect on the
-  next request.
-- The 156 or so guards written as `hasAuthority('<area>:<action>')` still get their permissions from
-  Keycloak's authorization services, which follow the Keycloak role subgroups. That is why the
-  subgroup mirror stays until those guards are converted. Until then, removing a role reaches those
-  guards only when the person's token refreshes, at most one token lifetime later; the areas behind
-  them are converted early to shorten that window.
+  organizations a person may name). All three read authorities. So `JwtAuthConverter` keeps minting
+  `ORG_MEMBER_{id}` and `ORG_{id}_ROLE_{role}`, from `Employee` and `employee_org_roles` by way of
+  `user_identity`, and those three do not change. The read is cached and evicted after commit like the
+  matrix facts, so a change takes effect on the next request under either provider. Under Keycloak
+  this also ends the wait for a new token.
+- A machine login has no `Employee`. Under Keycloak, a service account's token keeps its groups from
+  the token, so `observation-producer` keeps working. The WorkOS adapter has no such path yet (build
+  plan, section 3).
+- The guards written as `hasAuthority('<area>:<action>')` (141 in the mapping table) are held by nobody
+  today: the audit's G-03 and `docs/org-scoped-roles.md` both show that no such authority is ever
+  minted. They answer no under either provider, as they do now, until their area is converted. The
+  mapping note's check of one token from each staging must confirm this before `auth-workos` reaches
+  `development`.
+- Under Keycloak the role subgroup still follows each change, after commit, through a repeat-safe
+  queue. No guard reads it any more. `KeycloakInitializer.ensureAdminMfa` does: it requires MFA for
+  members of the `system-admin` subgroups, and the stagings keep that rule. Under WorkOS there is no
+  subgroup.
 - A custom role has no counterpart. It affects only converted areas, which is the intended
   behavior.
 - `EmployeeService` role writes go through `AccessRoleAssignments`, so the old screens and the new
@@ -254,21 +282,34 @@ link, never an invite code, and never by registering themselves first. Invite co
 Today's codes give the person no role, which is why this work started. The owner points to
 Atlassian's invitations as the model. The flow:
 
-1. An administrator enters the person's email and the roles they get, with the project for each
-   (2.7). Echno creates the employee record, pending, with those roles, and an invitation.
-2. Echno sends the link through the port (`invite`). The link is single use, expires, can be
-   revoked, and opens only for the invited email.
-3. The link opens the organization's own sign-in page, where the person enters their details (name,
-   and a password unless their company signs in with its own directory). No password is ever sent
-   or stored by Echno.
-4. On first sign-in, the account is linked to the pending employee record, never a second one, and
-   the employee becomes active with the roles chosen in step 1.
-5. Administrators see each invitation's state (sent, accepted, expired, revoked) and can resend or
-   revoke it.
+1. An administrator enters the person's email, the roles they get with the project for each (2.7),
+   and the employee details the form collects today, including the manager. Echno stores an invitation
+   with its roles. No employee record exists yet.
+2. Echno sends the link through the port (`invite`). The link expires and can be revoked. WorkOS sends
+   the email, so the backend needs no mail sender.
+3. The link opens the provider's sign-in page, where the person enters their details (name, and a
+   password unless their company signs in with its own directory). No password is ever sent or stored
+   by Echno.
+4. On first sign-in, Echno asks the provider for the invitation's state. It links the account only when
+   the invitation is accepted, by this person, with a verified email equal to the invited one. It then
+   creates the employee, active, with the roles from step 1, in one transaction. Links are never made
+   on email alone.
+5. Administrators see each invitation's state (sent, accepted, accepted by another address, expired,
+   revoked) and can resend or revoke it.
 
-**Starting a new organization** is the one sign-up without an invitation: the person creates their
-account and the organization together, and holds System Admin in it. Whether anyone may do that, or
-only Echno's own staff, is open (section 7).
+**Why no pending employee record.** An earlier version of this note created one at step 1.
+`employee.user_id` is required, and a WorkOS account does not exist until the person accepts. Every
+employee list, attendance query and manager lookup would also have to learn to skip pending rows. An
+invitation row avoids both, and the invitation screen is where a pending person belongs.
+
+**The invited email is Echno's check.** WorkOS lets an organization invitation on a corporate domain be
+accepted with any address on that domain ([Invitations](https://workos.com/docs/authkit/invitations)).
+Step 4 refuses that case and shows it to the administrator.
+
+**Starting a new organization** is the one case with no invitation from inside it. In the first
+production deployment nobody may do it for themselves: sign-up is off, the organization and its first
+System Admin's invitation come from a one-time runner (build plan, section 7), and any further
+organization is created by Echno's own staff. The stagings keep self-service until they migrate.
 
 Today a person joins by redeeming an invite code (`projectInviteCode`, `/api/v1/invitation/web`,
 and `joinOrganization` on the employee controllers). Those codes and that route are removed when
@@ -277,7 +318,10 @@ this lands.
 ## 4. Existing organizations
 
 Every organization on both stagings has employees and `employee_org_roles` rows but no matrix rows.
-A dev reset is not an option there. The backfill:
+A dev reset is not an option there. A brand-new organization has nothing to backfill and gets its roles
+from the templates. Two preparations run first, because `Employee` and `employee_org_roles` become the
+truth: a null `employee.status` becomes `active`, and under Keycloak each employee's role subgroups are
+imported into `employee_org_roles`, logging every row added. The backfill:
 
 - runs as an `ApplicationRunner` in the access module, once per boot, under a database lock row so
   two replicas cannot run it at once;
@@ -303,38 +347,34 @@ The module contract says these are raised, not made. Each is proposed here for r
 | A boot-time scan of `@PreAuthorize` expressions | Section 2.3, enforced areas and literal validation. |
 | Invitations by link replace `projectInviteCode` and `joinOrganization` | Section 3.4, the owner's decision on the ticket. |
 | `user_identity` and `organization_identity` replace `users_table.keycloak_id` and the Keycloak group link | [Identity Provider Independence](2026-10-30-identity-provider-independence.md), section 3. |
-| Platform administrators recorded in Echno instead of the Keycloak realm role behind `hasRole('platform-admin')` | The provider knows nothing about roles, and Keycloak does not continue. |
+| Platform administrators recorded in Echno instead of the Keycloak role behind `hasRole('platform-admin')` | The provider knows nothing about roles. |
+| Keycloak beans and settings conditional on `echno.identity.provider` | A stack with WorkOS selected must boot with no Keycloak settings at all. |
+| `/auth/register` and self-service organization creation depend on the provider | Sign-up is off under WorkOS (3.4). |
 
 ## 6. Delivery
 
-Each step is one PR into `auth-workos`, merged bottom-up with every check green. `auth-workos` goes
-to `development` in one piece once the migration is complete. The backend comes first, then core,
-then web, then the mobile apps where sign-in changes. The developer guide changes each step needs are tracked in tornotron/echno-docs#20 and
-made in a docs PR when the step merges.
+Each step is one PR into `auth-workos` in its repo, merged bottom-up with every check green and one
+human approval. The backend comes first, then core, then web, then the mobile apps. The developer
+guide changes each step needs are tracked in tornotron/echno-docs#20 and made in a docs PR when the
+step merges. The [build plan](2026-11-07-workos-build-plan.md) has the contents and tests of each. In
+short:
 
-1. Run the pull request checks and CodeRabbit on PRs into `auth-workos`.
-2. This design note and the specs it cites.
-3. Access module and decision API, with the core module flag.
-4. Tables, without groups, with the organization checks, the change log and the project on each
-   assignment.
-5. Engine: per-request facts including roles held on each project, eviction after commit.
-6. Role templates, provisioning and the backfill for existing organizations.
-7. The `@access` guard, the enforced-permission scan and literal validation.
-8. The identity-provider port with the Keycloak adapter and the legacy mirror; membership and org
-   roles read from Echno's tables instead of the token (3.3).
-9. Identity tables in place of `keycloak_id`, the `IdentityProviderContract` test and the in-memory
-   fake adapter (phase 1 of the identity note).
-10. Read and write endpoints for the screen, with the rules in 2.6.
-11. Invitations by link with roles chosen up front (2.7, 3.4); invite codes removed.
-12. One area converted per PR, each applying scope filtering in its list and get queries, starting
-    with the areas behind `hasAuthority` guards (3.3).
-13. Move the remaining role-name queries (managers, attendance geofence, `EmployeeDto.orgRoles`) and
-    record platform administrators in Echno.
-14. Delete `OrgRole`, `employee_org_roles`, the legacy mirror, the token's permission claim and the
-    Keycloak role code.
-15. Echno's own tokens, used first by web (phase 2).
-16. Android and iOS sign in through Echno (phase 3).
-17. The WorkOS adapter, then the move of every account from Keycloak (phase 4).
+1. Prove the WorkOS facts the plan relies on against a sandbox.
+2. Access module, tables with the project on each assignment, engine, guard.
+3. The port with a fake, then the Keycloak adapter, then a backend that boots with no Keycloak.
+4. Identity tables in place of `keycloak_id`.
+5. Membership and org roles read from Echno (3.3), templates and backfill, one assignment writer with
+   the mirror.
+6. The WorkOS adapter, invitations by link, invite codes removed, the first-organization runner, the
+   minimum app version check.
+7. Core, then web's sign-in module, then web on WorkOS and its invitation screens. **The first production
+   deployment can run from here.**
+8. The screen's endpoints and the screen, then one area per PR with scope filtering, then the remaining
+   role-name queries, then removal of the old role code.
+9. Android and iOS behind their sign-in modules, then on WorkOS.
+
+Both stagings stay on the Keycloak adapter throughout. `auth-workos` goes to `development` in one piece
+once the migration is complete. Moving the stagings to WorkOS is a later project.
 
 ## 7. Waiting on the owner
 
@@ -345,6 +385,11 @@ Still open:
 - The starting value of every cell for the nine roles (2.5).
 - Whether Edit also covers creating records, since the owner's levels have no separate Create (2.1).
 - What "the enterprise domain" the invitation link leads to means: a sign-in page per organization,
-  or a web address per organization like Atlassian's (3.4).
-- The administrator role: whether "System Admin" stays its name, whether anyone may start a new
-  organization and so hold it (3.4), and keeping it apart from Echno's platform administrators.
+  or a web address per organization like Atlassian's (3.4). WorkOS's docs show one sign-in address per
+  environment and no per-organization page ([custom domains](https://workos.com/docs/custom-domains/authkit)),
+  so the proposal is one address per client deployment.
+- The administrator role: whether "System Admin" stays its name, and keeping it apart from Echno's
+  platform administrators. Who may start a new organization is settled for the first production
+  deployment (3.4).
+- The starting grants for Management Director, Procurement Manager, Finance Manager and Client / Owner,
+  which hold only the baseline until then (2.5), and where the four carried-over roles go.
