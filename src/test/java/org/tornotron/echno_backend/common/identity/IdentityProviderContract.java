@@ -1,5 +1,6 @@
 package org.tornotron.echno_backend.common.identity;
 
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -56,8 +57,26 @@ public abstract class IdentityProviderContract {
     /** A token this provider would issue for the subject, with these extra claims on it. */
     protected abstract Jwt.Builder tokenBuilder();
 
-    /** The claims that say the person used a second factor, in this provider's own form. */
+    /**
+     * The claims that say the person used a second factor, in this provider's own form. Empty for a
+     * provider whose tokens never say, which skips that test.
+     */
     protected abstract Map<String, Object> multiFactorClaims();
+
+    /** Whether the mapper carries the token's {@code email}. A provider whose token email is not trusted says no. */
+    protected boolean carriesTokenEmail() {
+        return true;
+    }
+
+    /** A fresh address no other test uses. A real provider may need it in a domain of its own. */
+    protected String anEmail() {
+        return "person-" + UUID.randomUUID() + "@example.test";
+    }
+
+    /** The name an organization of the contract's is created with. */
+    protected String organizationName(EchnoOrgId organization) {
+        return "Organization " + organization.value();
+    }
 
     @BeforeEach
     void createAnOrganization() {
@@ -66,12 +85,8 @@ public abstract class IdentityProviderContract {
 
     private EchnoOrgId anotherOrganization() {
         EchnoOrgId created = new EchnoOrgId(NEXT_ORGANIZATION.incrementAndGet());
-        provider().createOrganization(created, "Organization " + created.value());
+        provider().createOrganization(created, organizationName(created));
         return created;
-    }
-
-    private static String anEmail() {
-        return "person-" + UUID.randomUUID() + "@example.test";
     }
 
     private ExternalUserId aUser() {
@@ -82,7 +97,7 @@ public abstract class IdentityProviderContract {
     void creatingAnOrganizationReturnsTheProvidersId() {
         EchnoOrgId fresh = new EchnoOrgId(NEXT_ORGANIZATION.incrementAndGet());
 
-        assertThat(provider().createOrganization(fresh, "Fresh").value()).isNotBlank();
+        assertThat(provider().createOrganization(fresh, organizationName(fresh)).value()).isNotBlank();
     }
 
     @Test
@@ -118,7 +133,7 @@ public abstract class IdentityProviderContract {
         ExternalUserId user = aUser();
         EchnoOrgId missing = new EchnoOrgId(NEXT_ORGANIZATION.incrementAndGet());
         EchnoOrgId neighbour = new EchnoOrgId(missing.value() * 10);
-        provider().createOrganization(neighbour, "Neighbour");
+        provider().createOrganization(neighbour, organizationName(neighbour));
         provider().addMember(user, neighbour);
 
         assertThatThrownBy(() -> provider().addMember(aUser(), missing)).isInstanceOf(RuntimeException.class);
@@ -354,9 +369,18 @@ public abstract class IdentityProviderContract {
 
     @Test
     void anEmailInTheTokenIsCarriedAndItsAbsenceIsFine() {
+        Assumptions.assumeTrue(carriesTokenEmail(), "this provider's mapper ignores the token's email");
         assertThat(tokenMapper().toPrincipal(tokenBuilder().subject("s").claim("email", "a@example.test").build())
                 .email()).isEqualTo("a@example.test");
         assertThat(tokenMapper().toPrincipal(tokenBuilder().subject("s").build()).email()).isNull();
+    }
+
+    @Test
+    void aTokenEmailIsIgnoredWhenTheProviderDoesNotTrustIt() {
+        Assumptions.assumeFalse(carriesTokenEmail(), "this provider's mapper carries the token's email");
+
+        assertThat(tokenMapper().toPrincipal(tokenBuilder().subject("s").claim("email", "a@example.test").build())
+                .email()).isNull();
     }
 
     @Test
@@ -367,6 +391,7 @@ public abstract class IdentityProviderContract {
 
     @Test
     void aSecondFactorIsRecognised() {
+        Assumptions.assumeFalse(multiFactorClaims().isEmpty(), "this provider's tokens never name a second factor");
         Jwt.Builder builder = tokenBuilder().subject("s");
         multiFactorClaims().forEach(builder::claim);
 

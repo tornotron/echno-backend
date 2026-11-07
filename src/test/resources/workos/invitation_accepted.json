@@ -1,0 +1,17 @@
+{
+  "object": "invitation",
+  "id": "invitation_01FIXTURE00000000000000004",
+  "email": "person@example.test",
+  "state": "accepted",
+  "accepted_at": "2026-11-07T22:15:31.545Z",
+  "revoked_at": null,
+  "expires_at": "2026-11-14T22:15:30.716Z",
+  "organization_id": "org_01FIXTURE00000000000000005",
+  "inviter_user_id": null,
+  "accepted_user_id": "user_01FIXTURE00000000000000001",
+  "role_slug": "member",
+  "created_at": "2026-11-07T22:15:30.663Z",
+  "updated_at": "2026-11-07T22:15:31.481Z",
+  "token": "SENTINEL-BEARER-VALUE",
+  "accept_invitation_url": "SENTINEL-BEARER-VALUE"
+}

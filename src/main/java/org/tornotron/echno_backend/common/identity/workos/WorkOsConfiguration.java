@@ -15,12 +15,15 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.tornotron.echno_backend.common.configuration.JwtDecoderConfig;
 import org.tornotron.echno_backend.common.identity.ConditionalOnWorkOs;
 
+import java.time.Clock;
+import java.time.Duration;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * The WorkOS adapter's token side: the decoder and the mapper.
+ * The WorkOS adapter: the identity provider, its health check, and the token side, the decoder and
+ * the mapper.
  *
  * <p>A token is accepted only when all of these hold:
  * <ul>
@@ -39,6 +42,21 @@ import java.util.stream.Collectors;
 @EnableConfigurationProperties(WorkOsSettings.class)
 @Slf4j
 public class WorkOsConfiguration {
+
+    @Bean
+    WorkOsApi workOsApi(WorkOsSettings settings) {
+        return WorkOsApi.create(settings, new RetryAfterInterceptor(3, Duration.ofSeconds(10), Thread::sleep));
+    }
+
+    @Bean
+    WorkOsIdentityProvider workOsIdentityProvider(WorkOsApi api) {
+        return new WorkOsIdentityProvider(api, Clock.systemUTC(), Thread::sleep);
+    }
+
+    @Bean("workos")
+    WorkOsHealthIndicator workOsHealthIndicator(WorkOsApi api) {
+        return new WorkOsHealthIndicator(api);
+    }
 
     @Bean
     WorkOsTokenMapper workOsTokenMapper(WorkOsSettings settings) {

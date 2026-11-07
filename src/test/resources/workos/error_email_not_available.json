@@ -1,0 +1,10 @@
+{
+  "message": "Could not create user.",
+  "code": "user_creation_error",
+  "errors": [
+    {
+      "code": "email_not_available",
+      "message": "This email is not available."
+    }
+  ]
+}

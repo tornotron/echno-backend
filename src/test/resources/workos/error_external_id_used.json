@@ -1,0 +1,4 @@
+{
+  "code": "external_id_already_used",
+  "message": "The external_id provided has already been assigned to another organization."
+}
