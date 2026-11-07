@@ -106,7 +106,9 @@ UPDATE doc_ingest_parse_job
 ```
 
 A close that updates zero rows means the lease expired and the row moved on; discard the outputs and log
-it. Only write DONE after every file in section 4 is fully uploaded. The backend reads them the moment it
+it. Only write DONE after every file in section 4 is fully uploaded. Check the lease immediately before
+uploading, so an attempt that has lost its lease does not write over a newer attempt's outputs under the
+shared prefix. A small window remains between that check and the last upload. The backend reads them the moment it
 sees DONE.
 
 On start-up a worker closes any row still `RUNNING` under its own `worker_id` as FAILED, since it cannot
@@ -143,14 +145,15 @@ organization**:
 SELECT output_prefix, page_count, sheet_count, row_count, pages_ocr, pages_failed
   FROM doc_ingest_parse_job
  WHERE organization_id = :org AND source_sha256 = :sha AND job_type = 'PARSE' AND status = 'DONE'
-   AND reused_output_prefix IS NULL AND id <> :id
+   AND reused_output_prefix IS NULL AND id <> :id AND worker_version = :v
  ORDER BY finished_at LIMIT 1;
 ```
 
 A row found means the worker writes nothing, copies its counts, and closes DONE with
 `reused_output_prefix` set to that row's `output_prefix`. The backend then reads the outputs from there.
 The organization condition is required: a hash shared across tenants would reveal that another tenant
-holds the same tender.
+holds the same tender. The version condition means outputs of an older worker are parsed afresh, so an
+improved reader reaches files seen before.
 
 ## 6. Limits
 
@@ -163,7 +166,7 @@ because a presigned PUT does not bind the size the browser declared.
 | Source file, other than ZIP | 200 MB |
 | ZIP | 1 GiB compressed, 4 GiB expanded, 500 members, ratio 100:1, one nesting level |
 | PDF | 2,000 pages |
-| XLSX | 50 sheets, 200,000 rows, 1 GiB expanded |
+| XLSX, XLS | 50 sheets, 200,000 rows in the whole workbook, 1 GiB expanded |
 | Child process | 2 GiB memory, 30 minutes |
 
 Type is read from the content. RAR, 7z, `.doc`, encrypted workbooks and anything unknown close FAILED with
@@ -197,7 +200,8 @@ One object per non-empty row of a sheet, or per row of a table on a PDF page, in
   date as ISO 8601, or null.
 - `text` is what a person sees in the cell as far as the file states it. An Indian-format number held as text
   keeps `type` `TEXT`; deciding that it is a number belongs to the extractor, which flags it.
-- `formula` true means the cell holds a formula and `value` is its cached result. Formulas are never
+- `formula` true means the cell holds a formula and `value` is its cached result. XLS files do not
+  expose formulas to the reader, so `formula` is always false there and `meta.json` says so in `warnings`. Formulas are never
   calculated. `noCachedValue` true means there is no cached result and `value` is null.
 - `mergeOrigin` names the top-left cell of a merged range for a covered cell, and is null otherwise.
 - A hidden row or a row on a hidden sheet is written with `hidden` true, never dropped.
@@ -222,6 +226,7 @@ The backend creates one child document per member with `source_key`
 
 ## 8. Worker health and versions
 
-The worker serves `GET /healthz` on `HEALTH_PORT`, as `echno-bim-worker` does. `worker_version` is written on
+The worker serves `GET /healthz` on `HEALTH_PORT`. (`echno-bim-worker` has only a heartbeat file; this
+worker has an HTTP endpoint so a probe needs no shell.) `worker_version` is written on
 every close. A change to a column, a status, a key that readers rely on or the layout is a change to this
 file, in both repos, in the same sitting.
