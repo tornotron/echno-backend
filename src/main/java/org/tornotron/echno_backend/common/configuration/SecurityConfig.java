@@ -96,6 +96,8 @@ public class SecurityConfig {
                                 // global inbox and hands off asynchronously, which is what keeps it
                                 // inside the exposure rule described above.
                                 .requestMatchers(HttpMethod.POST, "/api/"+backend_version+"/billing/webhooks/**").permitAll()
+                                // What an app reads before it has a token. Settings only, no data.
+                                .requestMatchers(HttpMethod.GET, "/api/"+backend_version+"/public/client-config").permitAll()
                                 .requestMatchers("/actuator/**").permitAll();
                                 if (swaggerPublicAccess) {
                                     auth.requestMatchers(SWAGGER_PATHS).permitAll();

@@ -96,6 +96,14 @@ class NoKeycloakBootIT extends AbstractIntegrationTest {
     }
 
     @Test
+    void anAppWithNoTokenReadsTheClientConfiguration() {
+        ResponseEntity<String> response = rest.getForEntity("/api/v1/public/client-config", String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).contains("\"provider\":\"fake\"");
+    }
+
+    @Test
     void corsComesFromItsOwnSetting() {
         HttpHeaders headers = new HttpHeaders();
         headers.setOrigin("https://ui.example.test");

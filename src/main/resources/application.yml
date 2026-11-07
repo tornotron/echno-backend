@@ -280,6 +280,14 @@ echno:
       api-key: ${WORKOS_API_KEY:}
       client-id: ${WORKOS_CLIENT_ID:}
       api-url: ${WORKOS_API_URL:https://api.workos.com}
+  # Served at GET /api/v1/public/client-config before an app signs in. Each client id falls back to
+  # the provider's own public client. A minimum version set here makes an older app ask to update.
+  client-config:
+    web-client-id: ${ECHNO_WEB_CLIENT_ID:}
+    android-client-id: ${ECHNO_ANDROID_CLIENT_ID:}
+    ios-client-id: ${ECHNO_IOS_CLIENT_ID:}
+    minimum-android-version: ${ECHNO_MIN_APP_VERSION_ANDROID:}
+    minimum-ios-version: ${ECHNO_MIN_APP_VERSION_IOS:}
   cors:
     # Falls back to the variable environments have always set.
     allowed-origins: ${ECHNO_CORS_ALLOWED_ORIGINS:${keycloak.frontend.web-origin}}
