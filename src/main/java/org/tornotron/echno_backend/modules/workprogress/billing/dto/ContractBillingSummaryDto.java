@@ -34,5 +34,9 @@ public record ContractBillingSummaryDto(
         @Schema(description = "The bill still in progress, if any.", nullable = true)
         BillSummaryDto openBill,
         @Schema(nullable = true)
-        LocalDateTime lastApprovedAt
+        LocalDateTime lastApprovedAt,
+        @Schema(description = "Paid against approved bills' payables, in rupees.")
+        BigDecimal paidToDate,
+        @Schema(description = "Still due on approved bills' payables, in rupees.")
+        BigDecimal amountDue
 ) {}

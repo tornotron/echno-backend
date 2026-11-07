@@ -79,6 +79,9 @@ class ContractBillingControllerAuthzTest {
     static Stream<Arguments> reads() {
         return twins(Stream.of(
                 Arguments.of("overview", (Endpoint) prefix -> get(prefix + "/overview")),
+                Arguments.of("projects", (Endpoint) prefix -> get(prefix + "/projects")),
+                Arguments.of("project", (Endpoint) prefix -> get(prefix + "/projects/1")),
+                Arguments.of("activity", (Endpoint) prefix -> get(prefix + "/activity")),
                 Arguments.of("contracts", (Endpoint) prefix -> get(prefix + "/contracts")),
                 Arguments.of("contract", (Endpoint) prefix -> get(prefix + "/contracts/1")),
                 Arguments.of("boq", (Endpoint) prefix -> get(prefix + "/contracts/1/boq-items")),
