@@ -8364,6 +8364,17 @@
         ],
         "type": "object"
       },
+      "DocumentIngestionStatusDto": {
+        "properties": {
+          "moduleId": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "DocumentReversalDto": {
         "description": "A request to reverse a site transfer, purchase order or goods received note, with the decision taken on it.",
         "properties": {
@@ -56885,6 +56896,107 @@
         "summary": "Change a milestone requirement, including its status",
         "tags": [
           "Contract Billing (web)"
+        ]
+      }
+    },
+    "/api/v1/document-ingestion/status": {
+      "get": {
+        "operationId": "DocumentIngestionStatusController_status",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentIngestionStatusDto"
+                }
+              }
+            },
+            "description": "The module is open"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "MODULE_DISABLED, or the caller is not a member of the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Say whether the module is open to the caller's organization",
+        "tags": [
+          "Document Ingestion"
         ]
       }
     },
@@ -147403,6 +147515,10 @@
     {
       "description": "Copies the organization's consented inspection images into the dataset bucket with a per-run manifest. Refused unless the organization has recorded dataset consent.",
       "name": "Dataset Export"
+    },
+    {
+      "description": "Tender documents read into candidate values that a person accepts, each linked to its source. Off by default: every endpoint answers 403 MODULE_DISABLED until an operator opens the module for the organization.",
+      "name": "Document Ingestion"
     },
     {
       "description": "Requests to reverse a site transfer, purchase order or goods received note, and the decisions taken on them. A document is never deleted: whoever raised it asks for it to be reversed, an administrator or project manager approves or rejects the request with a reason, and on approval the document's stock movements are undone by correcting ledger entries so every affected store returns to the balance it held before. The original stays on the record marked reversed and linked to the request. A document consumed downstream (a receipt against an order, an arrival against a transfer, a payable against a receipt, stock issued since) cannot be reversed while the downstream document stands; the request is refused with a message naming it. Reads and raising a request are open to every member of the tenant, with the service refusing anyone but the document's creator; approving and rejecting stay with system-admin and project-manager, the roles that approve stock adjustments.",

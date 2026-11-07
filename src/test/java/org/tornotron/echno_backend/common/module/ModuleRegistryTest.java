@@ -173,6 +173,48 @@ class ModuleRegistryTest {
     }
 
     @Test
+    void aModuleCanAskForItsSwitchToReadOffWhenUnset() {
+        EchnoModule dark = new EchnoModule() {
+            @Override
+            public ModuleManifest manifest() {
+                return module("dark", List.of()).manifest();
+            }
+
+            @Override
+            public boolean switchedOnWhenUnset() {
+                return false;
+            }
+        };
+        ModuleRegistry unset = new ModuleRegistry(List.of(dark), ENTITLED_TO_EVERYTHING, new MockEnvironment());
+        ModuleRegistry opened = new ModuleRegistry(List.of(dark), ENTITLED_TO_EVERYTHING,
+                new MockEnvironment().withProperty("echno.modules.dark.enabled", "true"));
+
+        assertThat(unset.isSwitchedOn("dark")).isFalse();
+        assertThat(unset.isEnabledForOrg("dark", 7L)).isFalse();
+        assertThat(opened.isEnabledForOrg("dark", 7L)).isTrue();
+    }
+
+    @Test
+    void aModuleCanLimitWhichOrganizationsItIsOfferedTo() {
+        EchnoModule limited = new EchnoModule() {
+            @Override
+            public ModuleManifest manifest() {
+                return module("limited", List.of()).manifest();
+            }
+
+            @Override
+            public boolean isOfferedTo(Long organizationId) {
+                return organizationId == 7L;
+            }
+        };
+        ModuleRegistry registry = new ModuleRegistry(List.of(limited), ENTITLED_TO_EVERYTHING, new MockEnvironment());
+
+        assertThat(registry.isEnabledForOrg("limited", 7L)).isTrue();
+        assertThat(registry.isEnabledForOrg("limited", 8L)).isFalse();
+        assertThat(registry.enabledForOrg(8L)).isEmpty();
+    }
+
+    @Test
     void unknownModulesAreNeverEnabled() {
         ModuleRegistry registry = new ModuleRegistry(List.of(), ENTITLED_TO_EVERYTHING, new MockEnvironment());
 

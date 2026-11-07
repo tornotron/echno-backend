@@ -27,9 +27,9 @@ import java.util.TreeMap;
  *
  * <p>{@link #installed()} is fixed at boot: it is what was compiled in. Whether a module is on for
  * an organization is decided per call by {@link #isEnabledForOrg(String, Long)}, which requires
- * all of: the module is installed, its kill switch {@code echno.modules.<id>.enabled} is not
- * {@code false}, the organization is entitled to it, and every module it depends on is itself
- * enabled for that organization.
+ * all of: the module is installed, its kill switch {@code echno.modules.<id>.enabled} is on, the
+ * module offers itself to the organization, the organization is entitled to it, and every module
+ * it depends on is itself enabled for that organization.
  *
  * <p>Entitlement means: for a module with an {@code entitlementFeatureKey}, whatever the
  * {@link ModuleEntitlementResolver} says; for a module without one, its
@@ -48,6 +48,7 @@ public class ModuleRegistry {
     static final String KILL_SWITCH_SUFFIX = ".enabled";
 
     private final SortedMap<String, ModuleManifest> manifests;
+    private final Map<String, EchnoModule> modulesById;
     private final Map<String, List<NavDescriptor>> navByModule;
     private final Map<String, List<String>> permissionsByModule;
     private final ModuleEntitlementResolver entitlementResolver;
@@ -69,6 +70,7 @@ public class ModuleRegistry {
         SortedMap<String, ModuleManifest> byId = new TreeMap<>();
         Map<String, List<NavDescriptor>> nav = new LinkedHashMap<>();
         Map<String, List<String>> permissions = new LinkedHashMap<>();
+        Map<String, EchnoModule> beans = new LinkedHashMap<>();
         for (EchnoModule module : modules) {
             ModuleManifest manifest = module.manifest();
             if (manifest == null) {
@@ -80,12 +82,14 @@ public class ModuleRegistry {
                 throw new IllegalStateException(
                         "Two modules declare the id '" + manifest.id() + "'");
             }
+            beans.put(manifest.id(), module);
             nav.put(manifest.id(), collectNavigation(module, manifest));
             permissions.put(manifest.id(), collectPermissions(module, manifest));
         }
         validateDependencies(byId);
 
         this.manifests = Collections.unmodifiableSortedMap(byId);
+        this.modulesById = Collections.unmodifiableMap(beans);
         this.navByModule = Collections.unmodifiableMap(nav);
         this.permissionsByModule = Collections.unmodifiableMap(permissions);
 
@@ -115,12 +119,14 @@ public class ModuleRegistry {
     }
 
     /**
-     * The operator kill switch: {@code echno.modules.<id>.enabled}, {@code true} unless the
-     * property is set to {@code false}. Installed-level, independent of any organization.
+     * The operator kill switch: {@code echno.modules.<id>.enabled}. Unset, it reads as whatever the
+     * module's {@link EchnoModule#switchedOnWhenUnset()} says, which is on for all but a module that
+     * asks otherwise. Installed-level, independent of any organization.
      */
     public boolean isSwitchedOn(String moduleId) {
         return isInstalled(moduleId) && environment.getProperty(
-                KILL_SWITCH_PREFIX + moduleId + KILL_SWITCH_SUFFIX, Boolean.class, Boolean.TRUE);
+                KILL_SWITCH_PREFIX + moduleId + KILL_SWITCH_SUFFIX, Boolean.class,
+                modulesById.get(moduleId).switchedOnWhenUnset());
     }
 
     /**
@@ -140,10 +146,13 @@ public class ModuleRegistry {
     }
 
     /**
-     * Installed, switched on, entitled, and every dependency enabled for the same organization.
+     * Installed, switched on, offered to the organization, entitled, and every dependency enabled
+     * for the same organization.
      */
     public boolean isEnabledForOrg(String moduleId, Long organizationId) {
-        if (!isSwitchedOn(moduleId) || !isEntitled(moduleId, organizationId)) {
+        if (!isSwitchedOn(moduleId)
+                || !modulesById.get(moduleId).isOfferedTo(organizationId)
+                || !isEntitled(moduleId, organizationId)) {
             return false;
         }
         for (String dependency : manifests.get(moduleId).dependsOn()) {

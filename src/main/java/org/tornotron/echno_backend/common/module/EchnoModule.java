@@ -38,4 +38,21 @@ public interface EchnoModule {
      */
     default void registerPermissions(PermissionRegistry permissions) {
     }
+
+    /**
+     * What the operator switch reads as when {@code echno.modules.<id>.enabled} is not set at all.
+     * On for every module, except one that has to stay dark until an operator opens it.
+     */
+    default boolean switchedOnWhenUnset() {
+        return true;
+    }
+
+    /**
+     * A condition of the module's own on whether an organization may use it, asked on top of the
+     * switch and the entitlement. In advisory mode the entitlement says yes to everyone, so a
+     * module that has to reach organizations one at a time says so here.
+     */
+    default boolean isOfferedTo(Long organizationId) {
+        return true;
+    }
 }
