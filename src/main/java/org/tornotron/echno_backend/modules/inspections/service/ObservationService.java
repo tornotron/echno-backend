@@ -2,6 +2,7 @@ package org.tornotron.echno_backend.modules.inspections.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,8 @@ import org.tornotron.echno_backend.modules.inspections.ObservationOutcomeKind;
 import org.tornotron.echno_backend.modules.inspections.ObservationReviewDecision;
 import org.tornotron.echno_backend.modules.inspections.ObservationReviewStatus;
 import org.tornotron.echno_backend.modules.inspections.ObservationSource;
+import org.tornotron.echno_backend.modules.inspections.api.IntakeCandidate;
+import org.tornotron.echno_backend.modules.inspections.api.ObservationIntakeCheck;
 import org.tornotron.echno_backend.modules.inspections.domain.Inspection;
 import org.tornotron.echno_backend.modules.inspections.domain.InspectionCheckItem;
 import org.tornotron.echno_backend.modules.inspections.domain.InspectionDefect;
@@ -106,6 +109,7 @@ public class ObservationService {
     private final AttachmentRepository attachmentRepository;
     private final TransactionRetryTemplate retryTemplate;
     private final ObservationRegionRepository regionRepo;
+    private final ObjectProvider<ObservationIntakeCheck> intakeChecks;
 
     /** Regions one observation may be posted with; a model that sees more posts more observations. */
     static final int MAX_REGIONS = 20;
@@ -245,6 +249,8 @@ public class ObservationService {
         }
         requireProject(req.projectId());
         List<NewRegion> regions = prepareRegions(req.regions(), true);
+        IntakeCandidate candidate = candidateOf(req, regions);
+        intakeChecks.orderedStream().forEach(check -> check.check(candidate));
         Observation o = newObservation(req.projectId(), null, req.source(), req.title(), req.description());
         o.setExternalRef(req.externalRef());
         o.setSourceDeviceId(req.sourceDeviceId());
@@ -253,7 +259,7 @@ public class ObservationService {
         o.setSpatialNodeId(resolveNode(req.projectId(), req.spatialNodeId()));
         o.setLocationNote(req.locationNote());
         o.setObservedAt(req.observedAt());
-        o.setCategory(req.category());
+        o.setCategory(categoryOf(candidate));
         o.setSuggestedSeverity(req.suggestedSeverity());
         o.setModelName(req.modelName());
         o.setModelVersion(req.modelVersion());
@@ -285,6 +291,22 @@ public class ObservationService {
                 stored.size());
         return new IntakeResult(withSpatialPath(mapper.toDto(saved))
                 .withRegions(stored.stream().map(ObservationService::toRegionDto).toList()), true);
+    }
+
+    private static IntakeCandidate candidateOf(IntakeObservationRequest req, List<NewRegion> regions) {
+        return new IntakeCandidate(req.source().name(), req.modelName(), req.modelVersion(), req.category(),
+                regions.stream()
+                        .map(r -> new IntakeCandidate.Region(r.classKey(), r.geometry().shape().name(), r.score()))
+                        .toList());
+    }
+
+    /** A model's finding is filed under the class of its first region when it names no category. */
+    private static String categoryOf(IntakeCandidate candidate) {
+        boolean named = candidate.category() != null && !candidate.category().isBlank();
+        if (named || !candidate.isModelOutput() || candidate.regions().isEmpty()) {
+            return candidate.category();
+        }
+        return candidate.regions().getFirst().classKey();
     }
 
     // ---------------------------------------------------------------- review
@@ -850,6 +872,7 @@ public class ObservationService {
                             RegionGeometry.normalise(where, op.shape(), op.box(), op.points()),
                             requireClassKey(where, op.classKey()), null,
                             target.getImageWidth(), target.getImageHeight());
+                    checkReviewerClass(where, r);
                     if (sameRegion(target, r)) {
                         throw new InvalidRequestException(where + ": the replacement is identical to region "
                                 + target.getId());
@@ -888,6 +911,7 @@ public class ObservationService {
                             requireClassKey(where, op.classKey()), null,
                             requirePositive(where, "imageWidth", op.imageWidth()),
                             requirePositive(where, "imageHeight", op.imageHeight()));
+                    checkReviewerClass(where, r);
                     ObservationRegion added = regionRepo.save(newRegion(o, r, RegionOrigin.REVIEWER, reviewerId,
                             nextOrder++));
                     byId.put(added.getId(), added);
@@ -906,6 +930,11 @@ public class ObservationService {
                     "A MODIFY cannot remove every region of a producer's observation; reject the observation instead");
         }
         return new RegionEdits(before, after, applied);
+    }
+
+    private void checkReviewerClass(String where, NewRegion region) {
+        intakeChecks.orderedStream().forEach(check ->
+                check.checkReviewerClass(where, region.classKey(), region.geometry().shape().name()));
     }
 
     private static ObservationRegion activeRegion(String where, Map<UUID, ObservationRegion> byId, UUID regionId) {
