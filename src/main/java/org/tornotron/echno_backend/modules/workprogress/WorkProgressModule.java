@@ -30,6 +30,7 @@ public class WorkProgressModule implements EchnoModule {
     public static final String PERMISSION_BILL = ID + ":bill";
     public static final String PERMISSION_CERTIFY = ID + ":certify";
     public static final String PERMISSION_APPROVE = ID + ":approve";
+    public static final String PERMISSION_PAY = ID + ":pay";
 
     // Any member of the tenant reads the record. The project team records it: the project
     // manager, the site engineer and the system admin, as the product owner asked that the project
@@ -51,8 +52,15 @@ public class WorkProgressModule implements EchnoModule {
     public static final String BILL_APPROVE_GUARD =
             "@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')";
 
+    // Paying an approved bill takes two steps. The office raises a payment; authorizing it follows
+    // Finance > Payables, which is the system admin's. No new role.
+    public static final String BILL_PAY_REQUEST_GUARD =
+            "@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')";
+    public static final String BILL_PAY_AUTHORIZE_GUARD =
+            "@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')";
+
     static final List<String> PERMISSIONS = List.of(PERMISSION_READ, PERMISSION_RECORD, PERMISSION_BILLING_SETUP,
-            PERMISSION_BILL, PERMISSION_CERTIFY, PERMISSION_APPROVE);
+            PERMISSION_BILL, PERMISSION_CERTIFY, PERMISSION_APPROVE, PERMISSION_PAY);
 
     private static final ModuleManifest MANIFEST = new ModuleManifest(
             ID,
