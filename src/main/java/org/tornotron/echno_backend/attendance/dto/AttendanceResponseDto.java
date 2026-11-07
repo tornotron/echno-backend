@@ -39,7 +39,7 @@ public class AttendanceResponseDto {
     @Schema(description = "Id of the project the employee was assigned to on this date.", example = "12")
     private Long projectId;
 
-    @Schema(description = "Name of the project.", example = "Asset Homes Kovilambakkam Phase 2")
+    @Schema(description = "Name of the project.", example = "Riverside Towers Phase 2")
     private String projectName;
 
     @Schema(description = "Computed attendance status for the day.", example = "PRESENT")

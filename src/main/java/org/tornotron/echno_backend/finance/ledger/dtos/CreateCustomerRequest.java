@@ -19,7 +19,7 @@ public class CreateCustomerRequest {
         @NotBlank @Size(max = 30)
         private String code;
 
-        @Schema(description = "Customer name.", example = "Asset Homes Pvt Ltd")
+        @Schema(description = "Customer name.", example = "Riverside Builders Pvt Ltd")
         @NotBlank @Size(max = 200)
         private String name;
 

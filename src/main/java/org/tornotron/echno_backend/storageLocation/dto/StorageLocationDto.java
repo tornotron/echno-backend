@@ -24,7 +24,7 @@ public class StorageLocationDto {
     @Schema(description = "Id of the project this location serves, if any.", example = "12")
     private Long projectId;
 
-    @Schema(description = "Name of the project this location serves, if any.", example = "Asset Homes - Site B")
+    @Schema(description = "Name of the project this location serves, if any.", example = "Riverside Towers - Site B")
     private String projectName;
 
     @Schema(description = "Storage capacity, free text since units vary by material.", example = "5000 sq ft")

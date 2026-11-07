@@ -36,7 +36,7 @@ import java.util.Map;
         name = "Organizations (Platform Admin)",
         description = "Platform-level organization management, used by platform administrators to look up "
                 + "and manage organizations across tenants rather than within the caller's own tenant. "
-                + "Companies such as Asset Homes are represented as an organization, each with its own "
+                + "Companies such as Riverside Builders are represented as an organization, each with its own "
                 + "members, projects and subscription. Tenant-scoped organization access lives on the "
                 + "sibling /organization/web endpoints."
 )

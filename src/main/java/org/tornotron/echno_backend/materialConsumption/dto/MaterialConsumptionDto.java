@@ -29,7 +29,7 @@ public class MaterialConsumptionDto {
     private String details;
     @Schema(description = "Id of the project the material was consumed against.", example = "3")
     private Long projectId;
-    @Schema(description = "Name of the project the material was consumed against.", example = "Asset Homes - Kochi Phase 2")
+    @Schema(description = "Name of the project the material was consumed against.", example = "Riverside Towers Phase 2")
     private String projectName;
     @Schema(description = "Id of the storage location the material was drawn from, if applicable.", example = "2")
     private Long storageLocationId;

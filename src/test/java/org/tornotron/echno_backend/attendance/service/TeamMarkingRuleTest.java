@@ -130,7 +130,7 @@ class TeamMarkingRuleTest {
 
         project = new Project();
         project.setId(PROJECT_ID);
-        project.setProjectName("Asset Homes Kovilambakkam Phase 2");
+        project.setProjectName("Riverside Towers Phase 2");
         project.setProjectLatitude((float) PROJECT_LAT);
         project.setProjectLongitude((float) PROJECT_LON);
         project.setEmployees(new ArrayList<>());

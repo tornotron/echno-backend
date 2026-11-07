@@ -14,7 +14,7 @@ public record CustomerDto(
         @Schema(description = "Customer code, unique within the tenant.", example = "CUST-0042")
         String code,
 
-        @Schema(description = "Customer name.", example = "Asset Homes Pvt Ltd")
+        @Schema(description = "Customer name.", example = "Riverside Builders Pvt Ltd")
         String name,
 
         @Schema(description = "GST identification number. Null where the customer is not registered, or the "

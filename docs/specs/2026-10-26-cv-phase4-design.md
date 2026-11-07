@@ -25,7 +25,7 @@ and a validated producer path (WP1 to WP5), add a small model registry and an in
 follows the BIM worker pattern (WP2, WP6 to WP8), close the loop from review decision to dataset
 (WP9), add a training and evaluation pipeline (WP10), run a stand-in safety model through the whole
 chain on public images (WP11, WP12), and only then train on pilot photos (WP13, WP14). Everything up
-to WP12 can be built and proven before the Asset Homes pilot produces a single photo. The roadmap
+to WP12 can be built and proven before the pilot produces a single photo. The roadmap
 rule holds throughout: AI detection, then confidence, then human verification, then the formal QA
 decision. No path in this design turns a model output into a failed check item, a defect or an NCR
 without a person.
@@ -95,7 +95,7 @@ RF-DETR from the per-model table in its README.
   in scope. Ultralytics reads it more broadly: in their terms, any commercial product that uses
   their code or models must either be released in full under AGPL-3.0 or buy an Enterprise licence.
   We would be relying on the narrow reading against the licensor's stated position.
-- **Per-client production.** Each client gets its own DigitalOcean instance. If
+- **Per-client production.** Each client gets its own isolated instance. If
   we operate it, the hosted case applies per client. If a client ever runs it on its own hardware,
   we convey the worker and weights to them, and they receive AGPL rights to both, including the
   right to redistribute weights trained on another client's photos.
@@ -860,7 +860,7 @@ reviewable observations with evidence and human verification.
 
 ### 4.13 WP13: Pilot capture and release v0.1 (blocked on pilot)
 
-Needs A2 and A3. One half-day field-card session at an Asset Homes site, ingested with
+Needs A2 and A3. One half-day field-card session at a pilot client site, ingested with
 `ingest-session`; the pilot org's own inspection photos exported under consent; annotation in CVAT
 by the D4 annotators; masks and severities reviewed by a second person and boxes spot-checked at 10
 percent (dataset note); release `v0.1` when `counts.json` meets the dataset note's milestone (300
@@ -877,8 +877,8 @@ client are made only from this report.
 
 | # | Decision | Default if not decided |
 |---|---|---|
-| A1 | First target classes, by business value for Asset Homes | Safety first (`worker`, `ppe_helmet`, `ppe_vest`): every site photo carries examples and the review is quick. Then `crack` and `honeycombing`, then `rebar`. |
-| A2 | Pilot consent clause | Asset Homes agrees that site photos captured in Echno and in capture sessions may be used by Fereydon to train and evaluate models; faces and number plates are blurred before annotation; images are not redistributed; the client may withdraw (removal from future releases); **models trained on them may be used for other clients**, without the images. The last point is commercial and needs his explicit call. |
+| A1 | First target classes, by business value for the pilot client | Safety first (`worker`, `ppe_helmet`, `ppe_vest`): every site photo carries examples and the review is quick. Then `crack` and `honeycombing`, then `rebar`. |
+| A2 | Pilot consent clause | The pilot client agrees that site photos captured in Echno and in capture sessions may be used by Fereydon to train and evaluate models; faces and number plates are blurred before annotation; images are not redistributed; the client may withdraw (removal from future releases); **models trained on them may be used for other clients**, without the images. The last point is commercial and needs his explicit call. |
 | A3 | Capture session | One half-day session on the field card, at one site, with a named site contact, before the end of November. |
 | A4 | Whether the pilot org's users see AI detections during the pilot | Internal only (Fereydon reviewers) until WP14's report exists. |
 

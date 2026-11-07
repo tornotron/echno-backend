@@ -78,7 +78,7 @@ public class EmployeeCreationDto {
     @JsonFormat(shape = JsonFormat.Shape.STRING, lenient = OptBoolean.FALSE)
     private LocalDateTime dateOfBirth;
 
-    @Schema(description = "Name of the organization the employee belongs to.", example = "Asset Homes")
+    @Schema(description = "Name of the organization the employee belongs to.", example = "Riverside Builders")
     @Size(max = 255, message = "organizationName must be at most 255 characters")
     private String organizationName;
 }

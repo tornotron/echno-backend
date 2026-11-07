@@ -17,7 +17,7 @@ public class LeavePolicyDto {
     @Schema(description = "Id of the organization the policy belongs to.", example = "2")
     private Long organizationId;
 
-    @Schema(description = "Name of the organization the policy belongs to.", example = "Asset Homes")
+    @Schema(description = "Name of the organization the policy belongs to.", example = "Riverside Builders")
     private String organizationName;
 
     @Schema(description = "Short code identifying the leave type.", example = "CL")
