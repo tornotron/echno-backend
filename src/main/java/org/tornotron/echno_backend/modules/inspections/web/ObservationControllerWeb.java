@@ -31,7 +31,10 @@ import org.tornotron.echno_backend.modules.inspections.dtos.CreateObservationReq
 import org.tornotron.echno_backend.modules.inspections.dtos.ObservationDto;
 import org.tornotron.echno_backend.modules.inspections.dtos.ObservationListFilter;
 import org.tornotron.echno_backend.modules.inspections.dtos.ReviewObservationRequest;
+import org.tornotron.echno_backend.modules.inspections.dtos.ReviewBatchRequest;
+import org.tornotron.echno_backend.modules.inspections.dtos.ReviewBatchResponse;
 import org.tornotron.echno_backend.modules.inspections.service.DetectionVisibility;
+import org.tornotron.echno_backend.modules.inspections.service.ObservationBatchReviewService;
 import org.tornotron.echno_backend.modules.inspections.service.ObservationEvidenceService;
 import org.tornotron.echno_backend.modules.inspections.service.ObservationService;
 
@@ -55,6 +58,7 @@ public class ObservationControllerWeb {
     private final ObservationService service;
     private final ObservationEvidenceService evidenceService;
     private final DetectionVisibility detectionVisibility;
+    private final ObservationBatchReviewService batchReviewService;
 
     @PostMapping
     @PreAuthorize("@inspectionSecurity.canManageInspections()")
@@ -127,6 +131,21 @@ public class ObservationControllerWeb {
     })
     public ObservationDto review(@PathVariable UUID id, @Valid @RequestBody ReviewObservationRequest req) {
         return service.review(id, req);
+    }
+
+    @PostMapping("/review-batch")
+    @PreAuthorize("@inspectionSecurity.canReviewObservations()")
+    @Operation(summary = "Decide on many pending observations",
+            description = "Accept with no outcome, or reject with one reason and one note, for up to 100 ids the "
+                    + "reviewer has seen. Results come back per id and each is its own transaction. Every reviewed row "
+                    + "and its event carry the batch id. MODIFY and any other outcome stay in the single-item review.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Per-observation results returned"),
+            @ApiResponse(responseCode = "400", description = "MODIFY, or the envelope is empty or over its limits; nothing was written"),
+            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+    })
+    public ReviewBatchResponse reviewBatch(@Valid @RequestBody ReviewBatchRequest req) {
+        return batchReviewService.review(req, detectionVisibility.callerMaySeeDetections());
     }
 
     @GetMapping("/{id}/evidence")

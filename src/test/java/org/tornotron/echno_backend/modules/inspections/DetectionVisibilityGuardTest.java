@@ -38,6 +38,7 @@ import org.tornotron.echno_backend.modules.inspections.events.InspectionEventSer
 import org.tornotron.echno_backend.modules.inspections.repositories.ObservationRepository;
 import org.tornotron.echno_backend.modules.inspections.service.DetectionVisibility;
 import org.tornotron.echno_backend.modules.inspections.service.InspectionSecurityService;
+import org.tornotron.echno_backend.modules.inspections.service.ObservationBatchReviewService;
 import org.tornotron.echno_backend.modules.inspections.service.ObservationEvidenceService;
 import org.tornotron.echno_backend.modules.inspections.service.ObservationService;
 import org.tornotron.echno_backend.modules.inspections.web.InspectionEventControllerWeb;
@@ -70,6 +71,9 @@ class DetectionVisibilityGuardTest {
 
     @MockitoBean
     private ObservationEvidenceService evidenceService;
+
+    @MockitoBean
+    private ObservationBatchReviewService batchReviewService;
 
     @MockitoBean
     private InspectionEventService eventService;
@@ -135,6 +139,18 @@ class DetectionVisibilityGuardTest {
         holds("detection-reviewer");
         mockMvc.perform(get("/api/v1/inspections/web/{id}/events", ID).with(jwt())).andExpect(status().isOk());
         verify(eventService).inspectionTimeline(eq(ID), eq(true), any(Pageable.class));
+    }
+
+    @Test
+    void aBatchIsToldWhetherTheCallerSeesDetections() throws Exception {
+        holds("system-admin");
+
+        mockMvc.perform(post("/api/v1/inspections/web/observations/review-batch").with(jwt())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"decision\":\"ACCEPT\",\"observationIds\":[\"" + ID + "\"]}"))
+                .andExpect(status().isOk());
+
+        verify(batchReviewService).review(any(), eq(false));
     }
 
     private boolean listedWithDetections() throws Exception {
