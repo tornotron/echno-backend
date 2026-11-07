@@ -136077,7 +136077,7 @@
     },
     "/api/v1/user/web": {
       "get": {
-        "description": "Resolves the caller's user record from their Keycloak identity.",
+        "description": "Resolves the caller's user record from their identity provider account. This is the first call an app makes after sign-in, and it is where an accepted invitation becomes an employee: the account is linked only when the provider says this account accepted it and its verified address is exactly the invited one.",
         "operationId": "getCurrentUser",
         "responses": {
           "200": {
@@ -136138,7 +136138,7 @@
                 }
               }
             },
-            "description": "No user matches the caller's Keycloak identity"
+            "description": "No user matches the caller's account, and no invitation it accepted could be linked"
           },
           "409": {
             "content": {

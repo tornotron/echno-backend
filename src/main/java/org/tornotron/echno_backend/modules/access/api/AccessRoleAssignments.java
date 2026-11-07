@@ -36,6 +36,12 @@ public interface AccessRoleAssignments {
     void remove(Long employeeId, UUID roleId, @Nullable Long projectId);
 
     /**
+     * The same, made by the system and so outside the caller's rules: a role an accepted invitation
+     * holds, which was checked against its sender's rules when it was sent.
+     */
+    void assignAsSystem(Long employeeId, UUID roleId, @Nullable Long projectId);
+
+    /**
      * Refuses exactly as {@link #assign} would for this role and project, for a person who has no
      * employee record yet: an invitation is checked when it is sent, by the rules of its sender.
      */

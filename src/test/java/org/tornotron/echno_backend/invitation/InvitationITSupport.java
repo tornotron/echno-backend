@@ -15,10 +15,13 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.tornotron.echno_backend.attendance.mapper.ShiftTimingMapperImpl;
 import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.common.identity.EchnoOrgId;
 import org.tornotron.echno_backend.common.identity.fake.FakeIdentityProvider;
+import org.tornotron.echno_backend.common.identity.fake.FakeIdentityTokenMapper;
+import org.tornotron.echno_backend.common.identity.link.IdentityLinks;
 import org.tornotron.echno_backend.common.identity.task.IdentityTaskQueue;
 import org.tornotron.echno_backend.common.mapper.AttachmentMapperImpl;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
@@ -58,7 +61,8 @@ import java.util.UUID;
         ConcurrentMapCacheManager.class, CurrentEmployeeService.class, UserContextService.class,
         EmployeeService.class, EmployeeHierarchyService.class, EmployeeMapperImpl.class,
         AttachmentMapperImpl.class, ShiftTimingMapperImpl.class, OrganizationSecurityService.class,
-        JacksonAutoConfiguration.class, InvitationITSupport.Provider.class})
+        JacksonAutoConfiguration.class, IdentityLinkService.class, IdentityLinks.class, InvitationSyncJob.class,
+        InvitationITSupport.Provider.class})
 abstract class InvitationITSupport extends AbstractIntegrationTest {
 
     @TestConfiguration(proxyBeanMethods = false)
@@ -66,6 +70,11 @@ abstract class InvitationITSupport extends AbstractIntegrationTest {
         @Bean
         FakeIdentityProvider fakeIdentityProvider() {
             return new FakeIdentityProvider();
+        }
+
+        @Bean
+        FakeIdentityTokenMapper fakeIdentityTokenMapper() {
+            return new FakeIdentityTokenMapper();
         }
     }
 
@@ -95,6 +104,9 @@ abstract class InvitationITSupport extends AbstractIntegrationTest {
     @BeforeEach
     void anOrganization() {
         fixtures = new AccessFixtures(em);
+        if (!TransactionSynchronizationManager.isActualTransactionActive()) {
+            return;  // A test that commits sets up its own rows.
+        }
         organization = anotherOrganization("Invitations");
         TenantContext.setCurrentOrgId(organization.getId());
     }

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        A person who joins by accepting an invitation has given the identity provider a name and an
+        address, and nothing else yet. The employee row copies gender, phone and date of birth from the
+        user, so those three can no longer be required at the moment the employee is created.
+    -->
+    <changeSet id="138-employee-details-optional" author="abhijith">
+        <dropNotNullConstraint tableName="employee" columnName="gender" columnDataType="VARCHAR(50)"/>
+        <dropNotNullConstraint tableName="employee" columnName="phone_number" columnDataType="VARCHAR(50)"/>
+        <dropNotNullConstraint tableName="employee" columnName="date_of_birth" columnDataType="TIMESTAMP"/>
+    </changeSet>
+
+</databaseChangeLog>

@@ -99,12 +99,12 @@ public class Employee implements TenantScopedEntity {
     @Column(name = "employee_name",nullable = false)
     private String employeeName;
 
-    /** The gender of the employee. */
-    @Column(name = "gender",nullable = false)
+    /** The gender of the employee. Null until a person who joined by invitation gives it. */
+    @Column(name = "gender")
     private String gender;
 
-    /** The contact phone number of the employee. */
-    @Column(name = "phone_number",nullable = false)
+    /** The contact phone number of the employee. Null until a person who joined by invitation gives it. */
+    @Column(name = "phone_number")
     private String phoneNumber;
 
     /** The physical address of the employee. */
@@ -115,8 +115,8 @@ public class Employee implements TenantScopedEntity {
     @Column(name = "email_address",nullable = false)
     private String emailAddress;
 
-    /** The date of birth of the employee. */
-    @Column(name = "date_of_birth",nullable = false)
+    /** The date of birth of the employee. Null until a person who joined by invitation gives it. */
+    @Column(name = "date_of_birth")
     private LocalDateTime dateOfBirth;
 
     /**
