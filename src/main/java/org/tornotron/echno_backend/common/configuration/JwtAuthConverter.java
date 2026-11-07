@@ -83,12 +83,18 @@ public class JwtAuthConverter implements Converter<Jwt, AbstractAuthenticationTo
         return new EchnoJwtAuthentication(jwt, authorities, principal, membership.userId());
     }
 
+    /**
+     * The configured claim, falling back to {@code sub} when the token has no such claim. WorkOS
+     * tokens carry no {@code preferred_username}.
+     */
     private String getPrincipleClaimName(Jwt jwt) {
-        String claimName = JwtClaimNames.SUB;
-        if(principleAttribute != null) {
-            claimName = principleAttribute;
+        if (principleAttribute != null) {
+            String name = jwt.getClaimAsString(principleAttribute);
+            if (name != null && !name.isBlank()) {
+                return name;
+            }
         }
-        return jwt.getClaim(claimName);
+        return jwt.getClaimAsString(JwtClaimNames.SUB);
     }
 
     private Collection<? extends GrantedAuthority> extractResourceRoles(Jwt jwt) {

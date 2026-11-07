@@ -7,15 +7,17 @@ import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.info.License;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
  * Central OpenAPI document metadata and the bearer-token security scheme.
  * <p>
- * The API is protected by JWT access tokens issued by Keycloak. Declaring the
- * scheme here lets the Swagger UI "Authorize" dialog attach a bearer token to
- * requests, and applies it as the default requirement for every operation.
+ * The API is protected by JWT access tokens issued by the identity provider this
+ * stack runs on ({@code echno.identity.provider}). Declaring the scheme here lets the
+ * Swagger UI "Authorize" dialog attach a bearer token to requests, and applies it as
+ * the default requirement for every operation.
  */
 @Configuration
 public class OpenApiConfig {
@@ -23,15 +25,16 @@ public class OpenApiConfig {
     private static final String BEARER_SCHEME = "bearerAuth";
 
     @Bean
-    public OpenAPI echnoOpenAPI() {
+    public OpenAPI echnoOpenAPI(@Value("${echno.identity.provider:keycloak}") String provider) {
+        String issuer = issuerName(provider);
         return new OpenAPI()
                 .info(new Info()
                         .title("Echno Backend API")
                         .description("REST API for the Echno construction management platform. "
                                 + "It covers employees, projects, tasks, attendance, inventory and goods "
                                 + "receipts, issue tracking, PDF reporting, and a double-entry construction "
-                                + "finance ledger. All endpoints are tenant scoped and require a Keycloak "
-                                + "bearer token unless documented otherwise.")
+                                + "finance ledger. All endpoints are tenant scoped and require a " + issuer
+                                + " bearer token unless documented otherwise.")
                         .version("v1")
                         .contact(new Contact().name("Echno").url("https://echno.xyz").email("info@echno.xyz"))
                         .license(new License().name("AGPL-3.0").url("https://www.gnu.org/licenses/agpl-3.0.html")))
@@ -39,8 +42,17 @@ public class OpenApiConfig {
                         .type(SecurityScheme.Type.HTTP)
                         .scheme("bearer")
                         .bearerFormat("JWT")
-                        .description("Keycloak-issued JWT access token. Paste the raw token (without the "
+                        .description(issuer + "-issued JWT access token. Paste the raw token (without the "
                                 + "\"Bearer\" prefix) into the Authorize dialog.")))
                 .addSecurityItem(new SecurityRequirement().addList(BEARER_SCHEME));
+    }
+
+    /** The provider's name as the document shows it. The committed snapshot is built under Keycloak. */
+    static String issuerName(String provider) {
+        return switch (provider == null ? "" : provider.trim()) {
+            case "workos" -> "WorkOS";
+            case "fake" -> "test";
+            default -> "Keycloak";
+        };
     }
 }

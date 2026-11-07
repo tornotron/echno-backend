@@ -20,7 +20,10 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Builds the resource-server {@link JwtDecoder} so it does more than the default
+ * Builds the resource-server {@link JwtDecoder} under Keycloak. Each provider has its own decoder;
+ * WorkOS's is in its adapter and reuses the two validators below.
+ *
+ * <p>The decoder does more than the default
  * signature + expiry check. Spring's auto-configured decoder (built from
  * {@code jwk-set-uri} alone) accepts any token the realm signed, regardless of who
  * it was minted for; this adds:
@@ -84,11 +87,11 @@ public class JwtDecoderConfig {
     }
 
     /** Fails a token whose {@code aud} claim does not contain the required audience. */
-    static class AudienceValidator implements OAuth2TokenValidator<Jwt> {
+    public static class AudienceValidator implements OAuth2TokenValidator<Jwt> {
 
         private final String requiredAudience;
 
-        AudienceValidator(String requiredAudience) {
+        public AudienceValidator(String requiredAudience) {
             this.requiredAudience = requiredAudience;
         }
 
@@ -105,11 +108,11 @@ public class JwtDecoderConfig {
     }
 
     /** Fails a token whose {@code iss} claim is not one of the accepted issuers. */
-    static class IssuerValidator implements OAuth2TokenValidator<Jwt> {
+    public static class IssuerValidator implements OAuth2TokenValidator<Jwt> {
 
         private final Set<String> acceptedIssuers;
 
-        IssuerValidator(Set<String> acceptedIssuers) {
+        public IssuerValidator(Set<String> acceptedIssuers) {
             this.acceptedIssuers = acceptedIssuers;
         }
 

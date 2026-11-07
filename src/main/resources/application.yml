@@ -274,6 +274,12 @@ echno:
     # KEYCLOAK_* placeholders in this file default to empty so another provider can start without
     # them, and KeycloakSettingsValidator refuses to start on Keycloak with them blank.
     provider: ${ECHNO_IDENTITY_PROVIDER:keycloak}
+    # Read only when the provider is workos. WorkOsSettingsValidator refuses to start on WorkOS with
+    # the client id, ECHNO_JWT_AUDIENCE or ECHNO_JWT_ACCEPTED_ISSUERS blank.
+    workos:
+      api-key: ${WORKOS_API_KEY:}
+      client-id: ${WORKOS_CLIENT_ID:}
+      api-url: ${WORKOS_API_URL:https://api.workos.com}
   cors:
     # Falls back to the variable environments have always set.
     allowed-origins: ${ECHNO_CORS_ALLOWED_ORIGINS:${keycloak.frontend.web-origin}}
@@ -353,6 +359,10 @@ echno:
       # which can differ from the internal URL the backend dials, so list every URL
       # the same realm may present.
       accepted-issuers: ${ECHNO_JWT_ACCEPTED_ISSUERS:}
+      # The audience a token must carry under WorkOS, the value the environment's JWT template puts
+      # in aud (for example echno-api). Required under WorkOS and unused under Keycloak, which checks
+      # the backend client id instead.
+      audience: ${ECHNO_JWT_AUDIENCE:}
   invite-code:
     redemption:
       # How many times a code may be offered before the caller has to wait. An attempt is charged
