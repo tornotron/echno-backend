@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        The starting roles. Their cells are data: the values below come from the permission mapping as
+        corrected in design note 2.5, and an update to these rows reaches every organization's
+        uncustomized role on the next boot, with no release.
+
+        customized marks a role an organization has changed, which the template no longer touches.
+        carried_over marks a role that exists so the backfill leaves nobody short, and which a new
+        organization's screen does not offer.
+    -->
+
+    <changeSet id="access-008-role-flags" author="echno">
+        <addColumn tableName="access_role_template">
+            <column name="carried_over" type="BOOLEAN" defaultValueBoolean="false"><constraints nullable="false"/></column>
+        </addColumn>
+        <addColumn tableName="access_role">
+            <column name="carried_over" type="BOOLEAN" defaultValueBoolean="false"><constraints nullable="false"/></column>
+            <column name="customized" type="BOOLEAN" defaultValueBoolean="false"><constraints nullable="false"/></column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="access-008-create-access_role_template_grantable" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="access_role_template_grantable"/></not>
+        </preConditions>
+        <createTable tableName="access_role_template_grantable">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_access_role_template_grantable" nullable="false"/></column>
+            <column name="template_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="grantable_template_id" type="UUID"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="access_role_template_grantable" baseColumnNames="template_id"
+                                 referencedTableName="access_role_template" referencedColumnNames="id"
+                                 constraintName="fk_access_role_template_grantable_template" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseTableName="access_role_template_grantable" baseColumnNames="grantable_template_id"
+                                 referencedTableName="access_role_template" referencedColumnNames="id"
+                                 constraintName="fk_access_role_template_grantable_target" onDelete="CASCADE"/>
+        <addUniqueConstraint tableName="access_role_template_grantable" columnNames="template_id, grantable_template_id"
+                             constraintName="uq_access_role_template_grantable"/>
+    </changeSet>
+
+    <changeSet id="access-008-seed-role-templates" author="echno">
+        <loadData tableName="access_role_template" file="db/data/access/role-templates.csv" separator=",">
+            <column name="id" type="UUID"/>
+            <column name="slug" type="STRING"/>
+            <column name="name" type="STRING"/>
+            <column name="description" type="STRING"/>
+            <column name="is_system" type="BOOLEAN"/>
+            <column name="is_baseline" type="BOOLEAN"/>
+            <column name="legacy_org_role" type="STRING"/>
+            <column name="carried_over" type="BOOLEAN"/>
+        </loadData>
+        <loadData tableName="access_role_template_grant" file="db/data/access/role-template-grants.csv" separator=",">
+            <column name="id" type="UUID"/>
+            <column name="template_id" type="UUID"/>
+            <column name="permission_key" type="STRING"/>
+            <column name="scope" type="STRING"/>
+        </loadData>
+        <loadData tableName="access_role_template_grantable" file="db/data/access/role-template-grantables.csv" separator=",">
+            <column name="id" type="UUID"/>
+            <column name="template_id" type="UUID"/>
+            <column name="grantable_template_id" type="UUID"/>
+        </loadData>
+    </changeSet>
+
+</databaseChangeLog>

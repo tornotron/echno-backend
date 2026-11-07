@@ -77,6 +77,14 @@ public class AccessRole implements TenantScopedEntity {
     @Column(name = "legacy_org_role", length = 60)
     private String legacyOrgRole;
 
+    // Kept so the backfill leaves nobody short; a new organization's screen does not offer it.
+    @Column(name = "carried_over", nullable = false)
+    private boolean carriedOver;
+
+    // The organization has changed this role, so its template no longer touches it.
+    @Column(name = "customized", nullable = false)
+    private boolean customized;
+
     @OneToMany(mappedBy = "role", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<AccessRoleGrant> grants = new ArrayList<>();
 

@@ -21,7 +21,7 @@ import org.tornotron.echno_backend.common.module.GlobalReferenceData;
  * A starting role, copied into each organization when it is provisioned.
  *
  * <p>Changing the starting matrix is a data change to these rows. An organization's own roles are
- * {@link AccessRole} rows and do not change when a template does.
+ * {@link AccessRole} rows, which follow their template until the organization changes them.
  */
 @Entity
 @Table(name = "access_role_template")
@@ -55,6 +55,9 @@ public class AccessRoleTemplate {
 
     @Column(name = "legacy_org_role", length = 60)
     private String legacyOrgRole;
+
+    @Column(name = "carried_over", nullable = false)
+    private boolean carriedOver;
 
     @OneToMany(mappedBy = "template", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<AccessRoleTemplateGrant> grants = new ArrayList<>();
