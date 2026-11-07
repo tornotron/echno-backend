@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,6 +41,7 @@ import org.tornotron.echno_backend.modules.inspections.dtos.CreateObservationReq
 import org.tornotron.echno_backend.modules.inspections.dtos.InspectionDefectRequest;
 import org.tornotron.echno_backend.modules.inspections.dtos.IntakeObservationRequest;
 import org.tornotron.echno_backend.modules.inspections.dtos.ObservationDto;
+import org.tornotron.echno_backend.modules.inspections.dtos.ObservationListFilter;
 import org.tornotron.echno_backend.modules.inspections.dtos.ReviewObservationRequest;
 import org.tornotron.echno_backend.modules.inspections.events.InspectionEventActorType;
 import org.tornotron.echno_backend.modules.inspections.events.InspectionEventChanges;
@@ -145,6 +147,7 @@ public class ObservationService {
                 .toList());
     }
 
+    /** The whole list, detections included, for a caller that has already decided the caller may see them. */
     @Transactional(readOnly = true)
     public Page<ObservationDto> findAll(Long projectId,
                                         ObservationReviewStatus reviewStatus,
@@ -154,13 +157,20 @@ public class ObservationService {
                                         LocalDateTime from,
                                         LocalDateTime to,
                                         Pageable pageable) {
-        String prefix = spatialNodeId == null ? null
-                : spatialNodeService.subtreePathPrefix(spatialNodeId).orElse(InspectionSpecifications.NO_MATCH);
-        Page<ObservationDto> page = observationRepo.findAll(
-                        ObservationSpecifications.withFilters(projectId, reviewStatus, source, inspectionId,
-                                prefix, from, to),
-                        pageable)
-                .map(mapper::toDto);
+        return findAll(new ObservationListFilter(projectId, reviewStatus, source, inspectionId, spatialNodeId, from, to,
+                true), pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<ObservationDto> findAll(ObservationListFilter filter, Pageable pageable) {
+        String prefix = filter.spatialNodeId() == null ? null
+                : spatialNodeService.subtreePathPrefix(filter.spatialNodeId()).orElse(InspectionSpecifications.NO_MATCH);
+        Specification<Observation> spec = ObservationSpecifications.withFilters(filter.projectId(),
+                filter.reviewStatus(), filter.source(), filter.inspectionId(), prefix, filter.from(), filter.to());
+        if (!filter.includeDetections()) {
+            spec = spec.and(ObservationSpecifications.notADetection());
+        }
+        Page<ObservationDto> page = observationRepo.findAll(spec, pageable).map(mapper::toDto);
         // One breadcrumb lookup for the page (two queries), not one per row.
         Map<UUID, List<SpatialPathSegment>> paths = spatialNodeService.pathsOf(
                 page.getContent().stream().map(ObservationDto::spatialNodeId).filter(Objects::nonNull).toList());

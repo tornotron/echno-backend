@@ -79032,7 +79032,7 @@
     },
     "/api/v1/inspections/web/observations": {
       "get": {
-        "description": "Paged, filtered by project, review status, source, inspection, site structure subtree and observed-at window. The pending queue is reviewStatus=pending.",
+        "description": "Paged, filtered by project, review status, source, inspection, site structure subtree and observed-at window. The pending queue is reviewStatus=pending. A model's detections are listed only for a caller with a role in echno.security.inspection.detection-read-roles.",
         "operationId": "ObservationControllerWeb_list",
         "parameters": [
           {
