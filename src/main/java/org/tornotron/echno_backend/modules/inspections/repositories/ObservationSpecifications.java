@@ -11,6 +11,7 @@ import org.tornotron.echno_backend.modules.inspections.ObservationSource;
 import org.tornotron.echno_backend.modules.inspections.RegionOrigin;
 import org.tornotron.echno_backend.modules.inspections.domain.Observation;
 import org.tornotron.echno_backend.modules.inspections.domain.ObservationRegion;
+import org.tornotron.echno_backend.modules.inspections.dtos.ObservationListFilter;
 import org.tornotron.echno_backend.project.spatial.SpatialNode;
 
 import java.time.LocalDateTime;
@@ -44,6 +45,47 @@ public final class ObservationSpecifications {
     /** The rows a caller without the detection role may see. */
     public static Specification<Observation> notADetection() {
         return (root, query, cb) -> cb.not(isDetection(root, query, cb));
+    }
+
+    /** The filters a reviewer works a model's output with. */
+    public static Specification<Observation> withModelFilters(ObservationListFilter f) {
+        return (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            if (f.modelName() != null) {
+                predicates.add(cb.equal(root.get("modelName"), f.modelName()));
+            }
+            if (f.modelVersion() != null) {
+                predicates.add(cb.equal(root.get("modelVersion"), f.modelVersion()));
+            }
+            if (f.categories() != null && !f.categories().isEmpty()) {
+                predicates.add(root.get("category").in(f.categories()));
+            }
+            if (f.minConfidence() != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("confidence"), f.minConfidence()));
+            }
+            if (f.maxConfidence() != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("confidence"), f.maxConfidence()));
+            }
+            if (f.hasRegions() != null) {
+                Predicate any = cb.exists(activeRegion(root, query, cb, null));
+                predicates.add(f.hasRegions() ? any : cb.not(any));
+            }
+            if (f.attachmentId() != null) {
+                predicates.add(cb.exists(activeRegion(root, query, cb, f.attachmentId())));
+            }
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+    }
+
+    private static Subquery<UUID> activeRegion(Root<Observation> observation, CommonAbstractCriteria query,
+                                               CriteriaBuilder cb, Long attachmentId) {
+        Subquery<UUID> regions = query.subquery(UUID.class);
+        Root<ObservationRegion> region = regions.from(ObservationRegion.class);
+        Predicate active = cb.and(cb.equal(region.get("observationId"), observation.get("id")),
+                cb.isNull(region.get("retiredAt")));
+        regions.select(region.get("id")).where(attachmentId == null ? active
+                : cb.and(active, cb.equal(region.get("attachmentId"), attachmentId)));
+        return regions;
     }
 
     public static Specification<Observation> withFilters(Long projectId,
