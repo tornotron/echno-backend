@@ -12,6 +12,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.UnaryOperator;
 import org.hibernate.Session;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,6 +22,7 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabas
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
@@ -101,6 +103,7 @@ class DetectionVisibilityIT extends AbstractIntegrationTest {
     private UUID droneWithRegion;
     private UUID droneWithoutRegion;
     private UUID personsFinding;
+    private Long imageId;
 
     @BeforeEach
     void seed() {
@@ -124,6 +127,7 @@ class DetectionVisibilityIT extends AbstractIntegrationTest {
         entityManager.persist(image);
         entityManager.flush();
         projectId = project.getId();
+        imageId = image.getId();
         TenantContext.setCurrentOrgId(org.getId());
         entityManager.unwrap(Session.class).enableFilter("orgFilter").setParameter("organizationId", org.getId());
 
@@ -189,6 +193,83 @@ class DetectionVisibilityIT extends AbstractIntegrationTest {
         assertThat(eventSubjects(false)).contains(droneWithoutRegion, personsFinding)
                 .doesNotContain(modelDetection, regionlessAiFinding, droneWithRegion);
         assertThat(eventSubjects(true)).contains(modelDetection, regionlessAiFinding, droneWithRegion);
+    }
+
+    @Test
+    void theModelFiltersCombine() {
+        UUID ppeHigh = detection("f1", "ppe-f", "0.1.0", "ppe_helmet", "0.90");
+        UUID ppeLow = detection("f2", "ppe-f", "0.1.0", "ppe_vest", "0.40");
+        UUID ppeNext = detection("f3", "ppe-f", "0.2.0", "ppe_helmet", "0.70");
+        UUID other = detection("f4", "objects-f", "0.1.0", "rebar", "0.95");
+
+        assertThat(filtered(f -> f.modelName("ppe-f"))).containsExactlyInAnyOrder(ppeHigh, ppeLow, ppeNext);
+        assertThat(filtered(f -> f.modelName("ppe-f").modelVersion("0.1.0"))).containsExactlyInAnyOrder(ppeHigh, ppeLow);
+        assertThat(filtered(f -> f.categories(List.of("ppe_vest", "rebar")))).containsExactlyInAnyOrder(ppeLow, other);
+        assertThat(filtered(f -> f.modelName("ppe-f").minConfidence("0.5"))).containsExactlyInAnyOrder(ppeHigh, ppeNext);
+        assertThat(filtered(f -> f.modelName("ppe-f").minConfidence("0.5").maxConfidence("0.8")))
+                .containsExactly(ppeNext);
+        assertThat(filtered(f -> f.attachmentId(imageId))).contains(ppeHigh, modelDetection, droneWithRegion)
+                .doesNotContain(droneWithoutRegion);
+        assertThat(filtered(f -> f.hasRegions(true))).contains(ppeHigh).doesNotContain(droneWithoutRegion, personsFinding);
+        assertThat(filtered(f -> f.hasRegions(false))).contains(droneWithoutRegion, personsFinding).doesNotContain(ppeHigh);
+    }
+
+    @Test
+    void aRetiredRegionDoesNotCountAsARegion() {
+        UUID id = detection("f5", "ppe", "0.1.0", "ppe_helmet", "0.90");
+        entityManager.createNativeQuery("UPDATE inspection_observation_regions SET retired_at = now() "
+                + "WHERE observation_id = :id").setParameter("id", id).executeUpdate();
+
+        assertThat(filtered(f -> f.hasRegions(true))).doesNotContain(id);
+        assertThat(filtered(f -> f.hasRegions(false))).contains(id);
+    }
+
+    @Test
+    void theListSortsByConfidence() {
+        UUID low = detection("s1", "sort-model", "0.1.0", "ppe_helmet", "0.10");
+        UUID high = detection("s2", "sort-model", "0.1.0", "ppe_helmet", "0.90");
+        UUID mid = detection("s3", "sort-model", "0.1.0", "ppe_helmet", "0.50");
+
+        assertThat(service.findAll(new FilterBuilder().modelName("sort-model").build(projectId),
+                        PageRequest.of(0, 10, Sort.by("confidence").descending()))
+                .getContent().stream().map(ObservationDto::id).toList()).containsExactly(high, mid, low);
+    }
+
+    private List<UUID> filtered(UnaryOperator<FilterBuilder> configure) {
+        return service.findAll(configure.apply(new FilterBuilder()).build(projectId), PageRequest.of(0, 50))
+                .getContent().stream().map(ObservationDto::id).toList();
+    }
+
+    private UUID detection(String ref, String model, String version, String classKey, String confidence) {
+        return service.intake(new IntakeObservationRequest(projectId, ref, ObservationSource.AI, "unit-1", null, null, null,
+                null, LocalDateTime.of(2026, 11, 8, 9, 0), "Seen", null, null, null, model, version,
+                new BigDecimal(confidence), null, List.of(new ObservationRegionRequest(imageId, RegionShape.BOX,
+                        List.of(new BigDecimal("0.1"), new BigDecimal("0.1"), new BigDecimal("0.2"), new BigDecimal("0.2")),
+                        null, classKey, new BigDecimal(confidence), null, null)))).observation().id();
+    }
+
+    /** Reads better at the call site than fifteen positional nulls. */
+    private static final class FilterBuilder {
+        private String modelName;
+        private String modelVersion;
+        private List<String> categories;
+        private BigDecimal minConfidence;
+        private BigDecimal maxConfidence;
+        private Boolean hasRegions;
+        private Long attachmentId;
+
+        FilterBuilder modelName(String value) { modelName = value; return this; }
+        FilterBuilder modelVersion(String value) { modelVersion = value; return this; }
+        FilterBuilder categories(List<String> value) { categories = value; return this; }
+        FilterBuilder minConfidence(String value) { minConfidence = new BigDecimal(value); return this; }
+        FilterBuilder maxConfidence(String value) { maxConfidence = new BigDecimal(value); return this; }
+        FilterBuilder hasRegions(boolean value) { hasRegions = value; return this; }
+        FilterBuilder attachmentId(Long value) { attachmentId = value; return this; }
+
+        ObservationListFilter build(Long projectId) {
+            return new ObservationListFilter(projectId, null, null, null, null, null, null, true, modelName, modelVersion,
+                    categories, minConfidence, maxConfidence, hasRegions, attachmentId);
+        }
     }
 
     private List<UUID> list(boolean includeDetections) {

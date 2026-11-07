@@ -79125,7 +79125,7 @@
     },
     "/api/v1/inspections/web/observations": {
       "get": {
-        "description": "Paged, filtered by project, review status, source, inspection, site structure subtree and observed-at window. The pending queue is reviewStatus=pending. A model's detections are listed only for a caller with a role in echno.security.inspection.detection-read-roles.",
+        "description": "Paged, filtered by project, review status, source, inspection, site structure subtree and observed-at window, and by model name and version, category (repeatable, reads as the class for a model's finding), confidence range, whether it has active regions, and the image a region is on. sort=confidence,asc or desc orders by confidence. The pending queue is reviewStatus=pending. A model's detections are listed only for a caller with a role in echno.security.inspection.detection-read-roles.",
         "operationId": "ObservationControllerWeb_list",
         "parameters": [
           {
@@ -79200,6 +79200,66 @@
             "schema": {
               "format": "date-time",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "modelName",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "modelVersion",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "minConfidence",
+            "required": false,
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "maxConfidence",
+            "required": false,
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "hasRegions",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "attachmentId",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
             }
           },
           {
