@@ -7,7 +7,10 @@ import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.WithoutTenant;
 import org.tornotron.echno_backend.common.identity.EchnoOrgId;
+import org.tornotron.echno_backend.common.identity.ExternalOrgId;
+import org.tornotron.echno_backend.common.identity.ExternalUserId;
 import org.tornotron.echno_backend.common.identity.IdentityProvider;
+import org.tornotron.echno_backend.common.identity.link.IdentityLinks;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.employee.EmployeeService;
@@ -78,6 +81,7 @@ public class DevFixtureProvisioner {
     private final EmployeeRepository employeeRepository;
     private final EmployeeService employeeService;
     private final IdentityProvider identityProvider;
+    private final IdentityLinks identityLinks;
     private final OrganizationOnboardingSeeder onboardingSeeder;
 
     /**
@@ -130,6 +134,7 @@ public class DevFixtureProvisioner {
                     user.setDateOfBirth(DEV_USER_DATE_OF_BIRTH);
                     user.setRole(UserRole.EMPLOYEE);
                     User saved = userRepository.save(user);
+                    identityLinks.linkUser(new ExternalUserId(keycloakUserId), saved.getId());
                     log.info("Created the dev fixture user row (id {})", saved.getId());
                     return saved;
                 });
@@ -212,8 +217,9 @@ public class DevFixtureProvisioner {
      */
     private void ensureOrganizationGroup(Organization organization) {
         try {
-            identityProvider.createOrganization(
+            ExternalOrgId providerOrganization = identityProvider.createOrganization(
                     new EchnoOrgId(organization.getId()), organization.getOrganizationName());
+            identityLinks.linkOrganization(providerOrganization, organization.getId());
             log.info("Created the Keycloak group for the dev fixture organization {}", organization.getId());
         } catch (Exception e) {
             log.info("Keycloak group for the dev fixture organization {} was not created now: {}",

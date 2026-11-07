@@ -22,6 +22,7 @@ import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.identity.ExternalUserId;
 import org.tornotron.echno_backend.common.identity.IdentityProvider;
 import org.tornotron.echno_backend.common.identity.SelfRegistration;
+import org.tornotron.echno_backend.common.identity.link.IdentityLinks;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.organization.dto.OrganizationDto;
@@ -50,6 +51,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final IdentityProvider identityProvider;
+    private final IdentityLinks identityLinks;
     private final AttachmentService attachmentService;
     private final FileStorageService fileStorageService;
     private final EmployeeMapper employeeMapper;
@@ -61,11 +63,13 @@ public class UserService {
      *
      * @param userRepository The repository for user data access.
      * @param identityProvider The identity provider accounts are created at.
+     * @param identityLinks    Records which account a new user is.
      * @param attachmentService The service for attachment operations.
      */
-    public UserService(UserRepository userRepository, IdentityProvider identityProvider, AttachmentService attachmentService,FileStorageService fileStorageService, EmployeeMapper employeeMapper, UserMapper userMapper, org.tornotron.echno_backend.organization.mapper.OrganizationMapper organizationMapper) {
+    public UserService(UserRepository userRepository, IdentityProvider identityProvider, IdentityLinks identityLinks, AttachmentService attachmentService,FileStorageService fileStorageService, EmployeeMapper employeeMapper, UserMapper userMapper, org.tornotron.echno_backend.organization.mapper.OrganizationMapper organizationMapper) {
         this.userRepository = userRepository;
         this.identityProvider = identityProvider;
+        this.identityLinks = identityLinks;
         this.attachmentService = attachmentService;
         this.fileStorageService = fileStorageService;
         this.employeeMapper = employeeMapper;
@@ -103,7 +107,9 @@ public class UserService {
                 throw new IllegalArgumentException("'" + userRegistrationDto.getRole() + "' is not a valid user role");
             }
             user.setKeycloakId(account.value());
-            return userMapper.toDto(userRepository.save(user));
+            User saved = userRepository.save(user);
+            identityLinks.linkUser(account, saved.getId());
+            return userMapper.toDto(saved);
         } catch (Exception e) {
             registration.deleteAccount(account);
             throw e;

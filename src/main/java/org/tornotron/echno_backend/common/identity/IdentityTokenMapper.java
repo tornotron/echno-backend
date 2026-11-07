@@ -10,4 +10,10 @@ import org.springframework.security.oauth2.jwt.Jwt;
 public interface IdentityTokenMapper {
 
     Principal toPrincipal(Jwt token);
+
+    /** The provider's name, as {@code user_identity} and {@code organization_identity} store it. */
+    String provider();
+
+    /** The issuer {@link #toPrincipal} gives this provider's accounts, for a write with no token at hand. */
+    String issuer();
 }

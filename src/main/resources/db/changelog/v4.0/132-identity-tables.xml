@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Who a provider's account is in Echno, kept apart from the user and organization rows so a
+        second provider needs no new column. Filled by the startup backfill and by whatever creates
+        a user or an organization from now on. Nothing reads these yet. The rows go with their user
+        or organization when it is deleted.
+    -->
+
+    <changeSet id="132-create-user_identity" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="user_identity"/></not>
+        </preConditions>
+        <createTable tableName="user_identity">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_user_identity" nullable="false"/></column>
+            <column name="provider" type="VARCHAR(40)"><constraints nullable="false"/></column>
+            <column name="issuer" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="subject" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="user_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="now()"><constraints nullable="false"/></column>
+        </createTable>
+        <addUniqueConstraint tableName="user_identity" columnNames="issuer, subject"
+                             constraintName="uq_user_identity_issuer_subject"/>
+        <addForeignKeyConstraint baseTableName="user_identity" baseColumnNames="user_id"
+                                 referencedTableName="users_table" referencedColumnNames="id"
+                                 constraintName="fk_user_identity_user" onDelete="CASCADE"/>
+        <createIndex tableName="user_identity" indexName="idx_user_identity_user">
+            <column name="user_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="132-create-organization_identity" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="organization_identity"/></not>
+        </preConditions>
+        <createTable tableName="organization_identity">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_organization_identity" nullable="false"/></column>
+            <column name="provider" type="VARCHAR(40)"><constraints nullable="false"/></column>
+            <column name="provider_org_id" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="now()"><constraints nullable="false"/></column>
+        </createTable>
+        <addUniqueConstraint tableName="organization_identity" columnNames="provider, provider_org_id"
+                             constraintName="uq_organization_identity_provider_org"/>
+        <addUniqueConstraint tableName="organization_identity" columnNames="provider, organization_id"
+                             constraintName="uq_organization_identity_provider_organization"/>
+        <addForeignKeyConstraint baseTableName="organization_identity" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_organization_identity_organization" onDelete="CASCADE"/>
+    </changeSet>
+
+    <!--
+        The startup tasks' lock and record. The row named startup-tasks is the lock two replicas
+        compete for; every other row records that the named task finished at least once.
+    -->
+    <changeSet id="132-create-startup_task_state" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="startup_task_state"/></not>
+        </preConditions>
+        <createTable tableName="startup_task_state">
+            <column name="name" type="VARCHAR(80)"><constraints primaryKey="true" primaryKeyName="pk_startup_task_state" nullable="false"/></column>
+            <column name="holder" type="VARCHAR(80)"/>
+            <column name="expires_at" type="TIMESTAMP"/>
+            <column name="completed_at" type="TIMESTAMP"/>
+        </createTable>
+    </changeSet>
+
+</databaseChangeLog>

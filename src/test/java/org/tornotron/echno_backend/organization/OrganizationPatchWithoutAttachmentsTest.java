@@ -9,6 +9,7 @@ import org.tornotron.echno_backend.common.payload.PayloadValidator;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.employee.EmployeeService;
 import org.tornotron.echno_backend.common.identity.IdentityProvider;
+import org.tornotron.echno_backend.common.identity.link.IdentityLinks;
 import org.tornotron.echno_backend.organization.dto.OrganizationSimpleDto;
 import org.tornotron.echno_backend.organization.mapper.OrganizationMapper;
 import org.tornotron.echno_backend.billing.services.SubscriptionService;
@@ -60,6 +61,7 @@ class OrganizationPatchWithoutAttachmentsTest {
                 attachmentService,
                 fileStorageService,
                 identityProvider,
+                org.mockito.Mockito.mock(IdentityLinks.class),
                 subscriptionService,
                 userContextService,
                 employeeService,
