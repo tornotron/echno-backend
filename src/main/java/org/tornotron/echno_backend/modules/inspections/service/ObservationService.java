@@ -27,6 +27,7 @@ import org.tornotron.echno_backend.modules.inspections.ObservationReviewDecision
 import org.tornotron.echno_backend.modules.inspections.ObservationReviewStatus;
 import org.tornotron.echno_backend.modules.inspections.ObservationSource;
 import org.tornotron.echno_backend.modules.inspections.InspectionEvidence;
+import org.tornotron.echno_backend.modules.inspections.api.IntakeActor;
 import org.tornotron.echno_backend.modules.inspections.api.IntakeCandidate;
 import org.tornotron.echno_backend.modules.inspections.api.IntakeRejectedException;
 import org.tornotron.echno_backend.modules.inspections.api.ObservationIntakeCheck;
@@ -244,16 +245,21 @@ public class ObservationService {
      * abort CockroachDB reports for the race instead of the unique violation.
      */
     public IntakeResult intake(IntakeObservationRequest req) {
+        return intake(req, null);
+    }
+
+    /** As {@link #intake(IntakeObservationRequest)}, with the event log naming {@code actor} when one is given. */
+    public IntakeResult intake(IntakeObservationRequest req, IntakeActor actor) {
         if (req.source() == ObservationSource.HUMAN) {
             throw new InvalidRequestException("Intake is for machine producers; people record through the web endpoint");
         }
         return retryTemplate.execute(
                 "ObservationService.intake",
                 failure -> SqlStateDetector.carriesSqlState(failure, SqlStateDetector.UNIQUE_VIOLATION),
-                () -> intakeOnce(req));
+                () -> intakeOnce(req, actor));
     }
 
-    private IntakeResult intakeOnce(IntakeObservationRequest req) {
+    private IntakeResult intakeOnce(IntakeObservationRequest req, IntakeActor namedActor) {
         Optional<Observation> existing = observationRepo.findByExternalRefScoped(req.externalRef());
         if (existing.isPresent()) {
             log.debug("Observation intake repeated externalRef {}; returning the existing row", req.externalRef());
@@ -281,10 +287,16 @@ public class ObservationService {
         o.setEvidenceRefs(req.evidenceRefs());
         Observation saved = observationRepo.saveAndFlush(o);
         List<ObservationRegion> stored = insertRegions(saved, regions, RegionOrigin.PRODUCER, null);
-        InspectionEventActorType actor = req.source() == ObservationSource.AI
-                ? InspectionEventActorType.AI : InspectionEventActorType.DEVICE;
-        String actorId = req.source() == ObservationSource.AI && req.modelName() != null
-                ? req.modelName() : req.sourceDeviceId();
+        InspectionEventActorType actor;
+        String actorId;
+        if (namedActor != null) {
+            actor = namedActor.kind() == IntakeActor.Kind.AI ? InspectionEventActorType.AI : InspectionEventActorType.DEVICE;
+            actorId = namedActor.id();
+        } else {
+            actor = req.source() == ObservationSource.AI ? InspectionEventActorType.AI : InspectionEventActorType.DEVICE;
+            actorId = req.source() == ObservationSource.AI && req.modelName() != null
+                    ? req.modelName() : req.sourceDeviceId();
+        }
         events.recordAs(InspectionEventSubject.observation(saved), InspectionEventType.OBSERVATION_CREATED,
                 actor, actorId, null,
                 InspectionEventChanges.none()
