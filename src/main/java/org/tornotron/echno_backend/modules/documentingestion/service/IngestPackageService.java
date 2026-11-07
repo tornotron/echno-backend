@@ -61,6 +61,18 @@ public class IngestPackageService {
         return PackageDto.of(p, documents.countInPackage(p.getId()));
     }
 
+    /**
+     * Archives a package: it keeps its rows and its provenance and takes no more files. There is no
+     * delete. Once a value is applied, provenance points at the package's sources for good.
+     */
+    @Transactional
+    public PackageDto archive(UUID packageId) {
+        IngestPackage p = requirePackage(packageId);
+        p.setStatus(PackageStatus.ARCHIVED);
+        p.setUpdatedBy(userContextService.getCurrentUserId());
+        return PackageDto.of(packages.save(p), documents.countInPackage(p.getId()));
+    }
+
     IngestPackage requirePackage(UUID packageId) {
         return packages.findByIdScoped(packageId)
                 .orElseThrow(() -> new ResourceNotFoundException("No document package " + packageId));

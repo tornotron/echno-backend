@@ -271,6 +271,23 @@
         },
         "type": "object"
       },
+      "ApplyResultDto": {
+        "properties": {
+          "applied": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "failed": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "remaining": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "ArchiveRoomRequestDto": {
         "description": "Payload to set a room's archived state.",
         "properties": {
@@ -4050,6 +4067,161 @@
         "required": [
           "reason"
         ],
+        "type": "object"
+      },
+      "CandidateDecision": {
+        "description": "One decision on one candidate. EDIT accepts the candidate with the given fields changed.",
+        "properties": {
+          "acknowledgedFlags": {
+            "description": "Codes of the flags the reviewer has read; a flagged candidate needs every one",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "action": {
+            "enum": [
+              "ACCEPT",
+              "REJECT",
+              "EDIT"
+            ],
+            "type": "string"
+          },
+          "candidateId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "edits": {
+            "additionalProperties": {
+              "type": "object"
+            },
+            "description": "Fields to change, for EDIT",
+            "type": "object"
+          }
+        },
+        "required": [
+          "action",
+          "candidateId"
+        ],
+        "type": "object"
+      },
+      "CandidateDto": {
+        "properties": {
+          "acceptedPayload": {
+            "additionalProperties": {
+              "type": "object"
+            },
+            "type": "object"
+          },
+          "acknowledgedFlags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "appliedTargetId": {
+            "type": "string"
+          },
+          "appliedTargetType": {
+            "type": "string"
+          },
+          "applyError": {
+            "type": "string"
+          },
+          "documentId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "flags": {
+            "items": {
+              "$ref": "#/components/schemas/CandidateFlag"
+            },
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "BOQ_ITEM",
+              "PROJECT_FIELD",
+              "MILESTONE",
+              "CONTRACT_TERM",
+              "OBLIGATION",
+              "QUALITY_REQUIREMENT",
+              "DRAWING",
+              "QUALIFICATION_REQUIREMENT",
+              "CHANGE"
+            ],
+            "type": "string"
+          },
+          "method": {
+            "enum": [
+              "DETERMINISTIC",
+              "LLM",
+              "OCR_LLM"
+            ],
+            "type": "string"
+          },
+          "naturalKey": {
+            "type": "string"
+          },
+          "packageId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "payload": {
+            "additionalProperties": {
+              "type": "object"
+            },
+            "type": "object"
+          },
+          "reviewedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "reviewedBy": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "segmentId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/SourceRefDto"
+            },
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "PROPOSED",
+              "ACCEPTED",
+              "REJECTED",
+              "APPLIED",
+              "APPLY_FAILED",
+              "SUPERSEDED"
+            ],
+            "type": "string"
+          },
+          "supersedesCandidateId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "CandidateFlag": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
         "type": "object"
       },
       "CategoryCreationDto": {
@@ -8094,6 +8266,46 @@
             "type": "string"
           },
           "triggeredBy": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "DecideCandidatesRequest": {
+        "properties": {
+          "decisions": {
+            "items": {
+              "$ref": "#/components/schemas/CandidateDecision"
+            },
+            "maxItems": 500,
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "decisions"
+        ],
+        "type": "object"
+      },
+      "DecisionOutcomeDto": {
+        "properties": {
+          "candidateId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "ACCEPTED",
+              "REJECTED",
+              "SKIPPED_FLAGGED",
+              "REFUSED_NO_SOURCE",
+              "REFUSED_STATE",
+              "REFUSED_ROLE",
+              "NOT_FOUND"
+            ],
             "type": "string"
           }
         },
@@ -17934,6 +18146,52 @@
         },
         "type": "object"
       },
+      "PageCandidateDto": {
+        "properties": {
+          "content": {
+            "items": {
+              "$ref": "#/components/schemas/CandidateDto"
+            },
+            "type": "array"
+          },
+          "empty": {
+            "type": "boolean"
+          },
+          "first": {
+            "type": "boolean"
+          },
+          "last": {
+            "type": "boolean"
+          },
+          "number": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "numberOfElements": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "pageable": {
+            "$ref": "#/components/schemas/PageableObject"
+          },
+          "size": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "sort": {
+            "$ref": "#/components/schemas/SortObject"
+          },
+          "totalElements": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "totalPages": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "PageChatMessageDto": {
         "properties": {
           "content": {
@@ -21910,6 +22168,56 @@
         },
         "type": "object"
       },
+      "ProvenanceDto": {
+        "properties": {
+          "acceptedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "acceptedBy": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "appliedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "appliedBy": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "candidateId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "enteredByHand": {
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/SourceRefDto"
+          },
+          "targetField": {
+            "type": "string"
+          },
+          "targetId": {
+            "type": "string"
+          },
+          "targetType": {
+            "type": "string"
+          },
+          "valueAccepted": {
+            "type": "string"
+          },
+          "valueExtracted": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "PurchaseOrderCreationDto": {
         "description": "Payload to raise a purchase order against a vendor, with its line items. The PO number is allocated by the server and returned on the created order; it is not part of this payload.",
         "properties": {
@@ -24901,6 +25209,56 @@
           },
           "unsorted": {
             "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "SourceRefDto": {
+        "properties": {
+          "box": {
+            "items": {
+              "format": "double",
+              "type": "number"
+            },
+            "type": "array"
+          },
+          "cell": {
+            "type": "string"
+          },
+          "documentId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "documentSha256": {
+            "type": "string"
+          },
+          "field": {
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "page": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "paragraph": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "quote": {
+            "type": "string"
+          },
+          "quoteVerified": {
+            "type": "boolean"
+          },
+          "rowNumber": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "sheet": {
+            "type": "string"
           }
         },
         "type": "object"
@@ -57943,6 +58301,551 @@
         ]
       }
     },
+    "/api/v1/document-ingestion/packages/{packageId}/apply": {
+      "post": {
+        "description": "Also asks the guard of the target's own endpoint. Call again while remaining is above zero.",
+        "operationId": "DocumentIngestionReviewController_apply",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "packageId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "enum": [
+                "BOQ_ITEM",
+                "PROJECT_FIELD",
+                "MILESTONE",
+                "CONTRACT_TERM",
+                "OBLIGATION",
+                "QUALITY_REQUIREMENT",
+                "DRAWING",
+                "QUALIFICATION_REQUIREMENT",
+                "CHANGE"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplyResultDto"
+                }
+              }
+            },
+            "description": "What was applied, what failed and what remains"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No applier for that kind yet"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "MODULE_DISABLED, or the caller cannot write the target"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Write a package's accepted values of one kind to their live records",
+        "tags": [
+          "Document Ingestion"
+        ]
+      }
+    },
+    "/api/v1/document-ingestion/packages/{packageId}/archive": {
+      "post": {
+        "operationId": "DocumentIngestionReviewController_archive",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "packageId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PackageDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Archive a package. Packages are never deleted, so provenance keeps its sources",
+        "tags": [
+          "Document Ingestion"
+        ]
+      }
+    },
+    "/api/v1/document-ingestion/packages/{packageId}/candidates": {
+      "get": {
+        "operationId": "DocumentIngestionReviewController_listCandidates",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "packageId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "enum": [
+                "BOQ_ITEM",
+                "PROJECT_FIELD",
+                "MILESTONE",
+                "CONTRACT_TERM",
+                "OBLIGATION",
+                "QUALITY_REQUIREMENT",
+                "DRAWING",
+                "QUALIFICATION_REQUIREMENT",
+                "CHANGE"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "enum": [
+                "PROPOSED",
+                "ACCEPTED",
+                "REJECTED",
+                "APPLIED",
+                "APPLY_FAILED",
+                "SUPERSEDED"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "flagged",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "size",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageCandidateDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List a package's candidate values with their sources, filtered by kind and status",
+        "tags": [
+          "Document Ingestion"
+        ]
+      }
+    },
+    "/api/v1/document-ingestion/packages/{packageId}/candidates/decisions": {
+      "post": {
+        "description": "Each row reports its own outcome. A candidate with no source is never accepted, and a flagged one is skipped unless every flag is acknowledged.",
+        "operationId": "DocumentIngestionReviewController_decide",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "packageId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecideCandidatesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DecisionOutcomeDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "One outcome per decision"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "MODULE_DISABLED, or the caller cannot review"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such package in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Accept, edit or reject candidates, one or many",
+        "tags": [
+          "Document Ingestion"
+        ]
+      }
+    },
     "/api/v1/document-ingestion/packages/{packageId}/documents": {
       "get": {
         "operationId": "DocumentIngestionPackageController_listDocuments",
@@ -58324,6 +59227,128 @@
           }
         },
         "summary": "Confirm an upload and queue the file for reading",
+        "tags": [
+          "Document Ingestion"
+        ]
+      }
+    },
+    "/api/v1/document-ingestion/provenance": {
+      "get": {
+        "operationId": "DocumentIngestionReviewController_provenance",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "targetType",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "targetId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProvenanceDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Say where each field of a live record came from",
         "tags": [
           "Document Ingestion"
         ]
