@@ -37,6 +37,7 @@ import org.tornotron.echno_backend.modules.inspections.dtos.IntakeUploadPresignR
 import org.tornotron.echno_backend.modules.inspections.dtos.IntakeUploadPresignResponse;
 import org.tornotron.echno_backend.modules.inspections.dtos.IntakeUploadRegisterRequest;
 import org.tornotron.echno_backend.modules.inspections.repositories.ObservationIntakeUploadRepository;
+import org.tornotron.echno_backend.modules.inspections.repositories.ObservationRegionRepository;
 import org.tornotron.echno_backend.modules.inspections.service.ObservationIntakeUploadService;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.ProjectRepository;
@@ -58,6 +59,7 @@ class ObservationIntakeUploadServiceTest {
     @Mock private ProjectRepository projectRepository;
     @Mock private TenantEntityHelper tenantEntityHelper;
     @Mock private UserContextService userContextService;
+    @Mock private ObservationRegionRepository regionRepo;
 
     @InjectMocks
     private ObservationIntakeUploadService service;
