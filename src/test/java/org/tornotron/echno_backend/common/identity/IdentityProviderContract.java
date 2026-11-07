@@ -112,6 +112,22 @@ public abstract class IdentityProviderContract {
         assertThatThrownBy(() -> provider().addMember(user, missing)).isInstanceOf(RuntimeException.class);
     }
 
+    /** An organization whose id is the start of another's must never be taken for that other one. */
+    @Test
+    void aMissingOrganizationIsNotMistakenForOneWhoseIdStartsTheSame() {
+        ExternalUserId user = aUser();
+        EchnoOrgId missing = new EchnoOrgId(NEXT_ORGANIZATION.incrementAndGet());
+        EchnoOrgId neighbour = new EchnoOrgId(missing.value() * 10);
+        provider().createOrganization(neighbour, "Neighbour");
+        provider().addMember(user, neighbour);
+
+        assertThatThrownBy(() -> provider().addMember(aUser(), missing)).isInstanceOf(RuntimeException.class);
+        provider().removeMember(user, missing);
+        provider().deleteOrganization(missing);
+
+        assertThat(isMember(user, neighbour)).isTrue();
+    }
+
     @Test
     void removingAMemberEndsOnlyThatMembership() {
         ExternalUserId user = aUser();
