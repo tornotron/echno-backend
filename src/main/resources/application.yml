@@ -358,6 +358,13 @@ echno:
     # so no endpoint, listener or intake check runs; its tables exist either way.
     vision:
       enabled: ${ECHNO_MODULE_VISION_ENABLED:false}
+    # Off by default. In advisory entitlement mode nothing else would keep this
+    # module and what it spends away from a tenant, so an operator turns it on and then names the
+    # organizations that may use it, comma-separated. Design: 2026-11-08-document-ingestion-design.md
+    # section 6.7.
+    document-ingestion:
+      enabled: ${ECHNO_MODULE_DOCUMENT_INGESTION_ENABLED:false}
+      allowed-org-ids: ${ECHNO_MODULE_DOCUMENT_INGESTION_ALLOWED_ORG_IDS:}
   vision:
     # SPDX ids a model version's weights may carry to be activated.
     allowed-licences: ${ECHNO_VISION_ALLOWED_LICENCES:Apache-2.0,BSD-3-Clause,MIT}
