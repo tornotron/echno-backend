@@ -288,6 +288,9 @@ echno:
     ios-client-id: ${ECHNO_IOS_CLIENT_ID:}
     minimum-android-version: ${ECHNO_MIN_APP_VERSION_ANDROID:}
     minimum-ios-version: ${ECHNO_MIN_APP_VERSION_IOS:}
+  invitations:
+    # How long an invitation link lasts, 1 to 30 days (the identity provider's own limits).
+    expiry-days: ${ECHNO_INVITATION_EXPIRY_DAYS:7}
   cors:
     # Falls back to the variable environments have always set.
     allowed-origins: ${ECHNO_CORS_ALLOWED_ORIGINS:${keycloak.frontend.web-origin}}

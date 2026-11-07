@@ -36,6 +36,12 @@ public interface AccessRoleAssignments {
     void remove(Long employeeId, UUID roleId, @Nullable Long projectId);
 
     /**
+     * Refuses exactly as {@link #assign} would for this role and project, for a person who has no
+     * employee record yet: an invitation is checked when it is sent, by the rules of its sender.
+     */
+    void checkAssignable(UUID roleId, @Nullable Long projectId);
+
+    /**
      * Refuses when the person is the organization's last active administrator, for a change that takes
      * them out of it some other way, such as a status change or leaving.
      */

@@ -7,6 +7,8 @@ import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.common.identity.EchnoOrgId;
 import org.tornotron.echno_backend.common.identity.ExternalUserId;
 
+import java.util.UUID;
+
 /**
  * Asks for a call to the identity provider once the caller's transaction commits. Echno's own change
  * takes effect at once, and nothing about the provider can fail or slow it; {@link IdentityTaskWorker}
@@ -20,7 +22,8 @@ import org.tornotron.echno_backend.common.identity.ExternalUserId;
 public class IdentityTaskQueue {
 
     enum Kind {
-        REMOVE_MEMBER, END_SESSIONS, ASSIGN_ROLE, REMOVE_ROLE
+        REMOVE_MEMBER, END_SESSIONS, ASSIGN_ROLE, REMOVE_ROLE,
+        SEND_INVITATION, RESEND_INVITATION, RENEW_INVITATION, REVOKE_INVITATION
     }
 
     private final JdbcTemplate jdbc;
@@ -47,14 +50,44 @@ public class IdentityTaskQueue {
                 account, null, organization.value(), role.name());
     }
 
+    /** Sends the invitation's link. */
+    public void sendInvitation(UUID invitation) {
+        enqueueInvitation(Kind.SEND_INVITATION, invitation);
+    }
+
+    /** Sends the same link again, keeping its expiry. */
+    public void resendInvitation(UUID invitation) {
+        enqueueInvitation(Kind.RESEND_INVITATION, invitation);
+    }
+
+    /** Replaces the link with a new one carrying the invitation's new expiry. */
+    public void renewInvitation(UUID invitation) {
+        enqueueInvitation(Kind.RENEW_INVITATION, invitation);
+    }
+
+    /** Stops the link working. Replaces a send still waiting, so a link revoked before it went never goes. */
+    public void revokeInvitation(UUID invitation) {
+        enqueueInvitation(Kind.REVOKE_INVITATION, invitation);
+    }
+
+    /** One pending request per invitation, so only the latest of a send, resend, renew or revoke is made. */
+    private void enqueueInvitation(Kind kind, UUID invitation) {
+        insert(kind, "invitation:" + invitation, null, null, null, null, invitation);
+    }
+
     private void enqueue(Kind kind, String dedupeKey, ExternalUserId account, @Nullable Long userId,
                          @Nullable Long organizationId, @Nullable String role) {
+        insert(kind, dedupeKey, account.value(), userId, organizationId, role, null);
+    }
+
+    private void insert(Kind kind, String dedupeKey, @Nullable String account, @Nullable Long userId,
+                        @Nullable Long organizationId, @Nullable String role, @Nullable UUID invitation) {
         jdbc.update("""
                 INSERT INTO identity_task (id, kind, dedupe_key, account, user_id, organization_id, org_role,
-                                           status, attempts, next_attempt_at, created_at)
-                VALUES (gen_random_uuid(), ?, ?, ?, ?, ?, ?, 'PENDING', 0, now(), now())
+                                           invitation_id, status, attempts, next_attempt_at, created_at)
+                VALUES (gen_random_uuid(), ?, ?, ?, ?, ?, ?, ?, 'PENDING', 0, now(), now())
                 ON CONFLICT (dedupe_key) WHERE status = 'PENDING' DO UPDATE
                 SET kind = excluded.kind, attempts = 0, next_attempt_at = now(), last_error = NULL
-                """, kind.name(), dedupeKey, account.value(), userId, organizationId, role);
+                """, kind.name(), dedupeKey, account, userId, organizationId, role, invitation);
     }
 }

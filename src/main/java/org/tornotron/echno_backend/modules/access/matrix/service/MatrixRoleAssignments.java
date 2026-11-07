@@ -108,6 +108,13 @@ public class MatrixRoleAssignments implements AccessRoleAssignments {
 
     @Override
     @Transactional
+    public void checkAssignable(UUID roleId, @Nullable Long projectId) {
+        Long organization = prepare();
+        checkTheGrant(organization, null, role(organization, roleId), projectId, caller());
+    }
+
+    @Override
+    @Transactional
     public void refuseIfLastAdministrator(Long employeeId) {
         Long organization = prepare();
         if (isLastAdministrator(organization, employeeId)) {
@@ -176,6 +183,12 @@ public class MatrixRoleAssignments implements AccessRoleAssignments {
         if (!employeeIsIn(organization, employeeId)) {
             throw new ResourceNotFoundException("Employee with ID " + employeeId + " was not found in this organization");
         }
+        checkTheGrant(organization, employeeId, role, projectId, actor);
+    }
+
+    /** The rules that hold for a role and project whoever is to get them, and, when known, who that is. */
+    private void checkTheGrant(Long organization, @Nullable Long employeeId, Role role, @Nullable Long projectId,
+                               Actor actor) {
         if (projectId != null) {
             if (role.legacyOrgRole() != null) {
                 throw new InvalidRequestException("'" + role.slug() + "' holds across the organization until the "
@@ -188,7 +201,7 @@ public class MatrixRoleAssignments implements AccessRoleAssignments {
         if (actor.system()) {
             return;
         }
-        if (employeeId.equals(actor.employeeId())) {
+        if (employeeId != null && employeeId.equals(actor.employeeId())) {
             throw new AccessDeniedException("Nobody changes their own roles");
         }
         if (!mayAssign(organization, actor, role)) {

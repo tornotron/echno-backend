@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -37,17 +38,20 @@ public class IdentityTaskWorker {
     private static final int ERROR_LENGTH = 500;
     private static final int FINISHED_ROWS_KEPT_DAYS = 30;
 
-    private record Task(UUID id, Kind kind, String account, Long userId, Long organizationId, String role, int attempts) {
+    private record Task(UUID id, Kind kind, String account, Long userId, Long organizationId, String role, int attempts,
+                        UUID invitation) {
     }
 
     private final JdbcTemplate jdbc;
     private final IdentityProvider provider;
+    private final ObjectProvider<InvitationDelivery> invitations;
     private final boolean enabled;
 
-    public IdentityTaskWorker(JdbcTemplate jdbc, IdentityProvider provider,
+    public IdentityTaskWorker(JdbcTemplate jdbc, IdentityProvider provider, ObjectProvider<InvitationDelivery> invitations,
                               @Value("${echno.identity.tasks.enabled:true}") boolean enabled) {
         this.jdbc = jdbc;
         this.provider = provider;
+        this.invitations = invitations;
         this.enabled = enabled;
     }
 
@@ -66,14 +70,14 @@ public class IdentityTaskWorker {
     /** One pass over everything due, oldest first. */
     public void runDue() {
         List<Task> due = jdbc.query("""
-                SELECT id, kind, account, user_id, organization_id, org_role, attempts
+                SELECT id, kind, account, user_id, organization_id, org_role, attempts, invitation_id
                 FROM identity_task
                 WHERE status = 'PENDING' AND next_attempt_at <= now()
                 ORDER BY created_at
                 LIMIT ?
                 """, (row, index) -> new Task(row.getObject(1, UUID.class), Kind.valueOf(row.getString(2)),
                 row.getString(3), row.getObject(4, Long.class), row.getObject(5, Long.class),
-                row.getString(6), row.getInt(7)), BATCH);
+                row.getString(6), row.getInt(7), row.getObject(8, UUID.class)), BATCH);
         due.stream().filter(this::claim).forEach(this::run);
         jdbc.update("DELETE FROM identity_task WHERE status <> 'PENDING' AND finished_at < now() - (? * INTERVAL '1 day')",
                 FINISHED_ROWS_KEPT_DAYS);
@@ -96,6 +100,16 @@ public class IdentityTaskWorker {
     }
 
     private void call(Task task) {
+        switch (task.kind()) {
+            case SEND_INVITATION -> invitations.getObject().send(task.invitation());
+            case RESEND_INVITATION -> invitations.getObject().resend(task.invitation());
+            case RENEW_INVITATION -> invitations.getObject().renew(task.invitation());
+            case REVOKE_INVITATION -> invitations.getObject().revoke(task.invitation());
+            default -> callForAccount(task);
+        }
+    }
+
+    private void callForAccount(Task task) {
         ExternalUserId account = new ExternalUserId(task.account());
         switch (task.kind()) {
             case REMOVE_MEMBER -> provider.removeMember(account, new EchnoOrgId(task.organizationId()));
@@ -108,6 +122,7 @@ public class IdentityTaskWorker {
                     account, new EchnoOrgId(task.organizationId()), OrgRole.valueOf(task.role())));
             case REMOVE_ROLE -> provider.capabilities().orgRoleGroups().ifPresent(groups -> groups.remove(
                     account, new EchnoOrgId(task.organizationId()), OrgRole.valueOf(task.role())));
+            default -> throw new IllegalStateException("Not an account task: " + task.kind());
         }
     }
 
