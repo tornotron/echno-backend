@@ -17,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -37,7 +38,16 @@ import org.tornotron.echno_backend.common.startup.StartupTaskState;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.enums.EmployeeStatus;
 import org.tornotron.echno_backend.employee.startup.NullEmployeeStatusCleanup;
+import org.tornotron.echno_backend.modules.access.api.AccessPermission;
+import org.tornotron.echno_backend.modules.access.api.AccessService;
+import org.tornotron.echno_backend.modules.access.api.AccessSubject;
 import org.tornotron.echno_backend.modules.access.matrix.AccessFixtures;
+import org.tornotron.echno_backend.modules.access.matrix.repository.AccessFactsQueries;
+import org.tornotron.echno_backend.modules.access.matrix.service.AccessRoleBackfill;
+import org.tornotron.echno_backend.modules.access.matrix.service.AccessRoleReconciler;
+import org.tornotron.echno_backend.modules.access.matrix.service.CachedAccessFactsSource;
+import org.tornotron.echno_backend.modules.access.matrix.service.DatabaseAccessFactsSource;
+import org.tornotron.echno_backend.modules.access.matrix.service.MatrixAccessService;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.support.AbstractIntegrationTest;
 
@@ -51,7 +61,9 @@ import org.tornotron.echno_backend.support.AbstractIntegrationTest;
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 @Import({PreMigrationOrgIT.Wiring.class, StartupTaskRunner.class, StartupTaskState.class,
         KeycloakIdentityBackfill.class, NullEmployeeStatusCleanup.class, KeycloakRoleImport.class,
-        KeycloakTokenMapper.class, TransactionRetryTemplate.class, TransactionalWorkRunner.class})
+        KeycloakTokenMapper.class, TransactionRetryTemplate.class, TransactionalWorkRunner.class,
+        AccessRoleBackfill.class, AccessRoleReconciler.class, CachedAccessFactsSource.class,
+        DatabaseAccessFactsSource.class, AccessFactsQueries.class, ConcurrentMapCacheManager.class})
 class PreMigrationOrgIT extends AbstractIntegrationTest {
 
     @TestConfiguration(proxyBeanMethods = false)
@@ -73,6 +85,9 @@ class PreMigrationOrgIT extends AbstractIntegrationTest {
 
     @MockitoBean
     private KeycloakGroupService keycloakGroups;
+
+    @Autowired
+    private CachedAccessFactsSource facts;
 
     @Autowired
     private StartupTaskRunner runner;
@@ -250,5 +265,133 @@ class PreMigrationOrgIT extends AbstractIntegrationTest {
 
     private List<String> rolesOf(Long id) {
         return jdbc.queryForList("SELECT role FROM employee_org_roles WHERE employee_id = ?", String.class, id);
+    }
+
+    @Test
+    void everyOldRoleBecomesAnAssignmentAndTheEngineAgrees() {
+        jdbc.update("INSERT INTO employee_org_roles (employee_id, role) VALUES (?, 'STORE_KEEPER')", employee);
+
+        assertThat(runner.runOnce()).isTrue();
+
+        AccessService engine = new MatrixAccessService(facts);
+        AccessSubject subject = new AccessSubject(organization, employee, user);
+        // A store keeper today: inventory, and reads across stores and buying.
+        assertThat(engine.check(subject, AccessPermission.of("inventory:edit"))).isTrue();
+        assertThat(engine.check(subject, AccessPermission.of("vendors:read"))).isTrue();
+        // Not a store keeper's: anything of a project manager's or an administrator's.
+        assertThat(engine.check(subject, AccessPermission.of("vendors:delete"))).isFalse();
+        assertThat(engine.check(subject, AccessPermission.of("finance:edit"))).isFalse();
+        assertThat(engine.check(subject, AccessPermission.of("access:edit"))).isFalse();
+        // What every member reached: the baseline.
+        assertThat(engine.check(subject, AccessPermission.of("chat:read"))).isTrue();
+        assertThat(engine.check(subject, AccessPermission.of("documents:delete"))).isTrue();
+    }
+
+    @Test
+    void everyOldRoleNameHasARoleToLandOn() {
+        assertThat(runner.runOnce()).isTrue();
+
+        for (OrgRole role : OrgRole.values()) {
+            assertThat(jdbc.queryForObject(
+                    "SELECT count(*) FROM access_role WHERE organization_id = ? AND legacy_org_role = ?",
+                    Integer.class, organization, role.getGroupName()))
+                    .as(role.name()).isEqualTo(1);
+        }
+    }
+
+    @Test
+    void anOrganizationGetsEveryTemplateOnceAndARerunChangesNothing() {
+        assertThat(runner.runOnce()).isTrue();
+
+        assertThat(rolesInOrganization()).isEqualTo(14);
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM access_role WHERE organization_id = ? AND is_system",
+                Integer.class, organization)).isEqualTo(2);
+        Integer grants = grantsInOrganization();
+        assertThat(grants).isPositive();
+
+        assertThat(runner.runOnce()).isTrue();
+
+        assertThat(rolesInOrganization()).isEqualTo(14);
+        assertThat(grantsInOrganization()).isEqualTo(grants);
+    }
+
+    @Test
+    void aTemplateChangeReachesAnUncustomizedRoleAndNotACustomizedOne() {
+        assertThat(runner.runOnce()).isTrue();
+        jdbc.update("UPDATE access_role SET customized = true WHERE organization_id = ? AND slug = 'store-keeper'",
+                organization);
+        jdbc.update("DELETE FROM access_role_grant WHERE role_id = (SELECT id FROM access_role "
+                + "WHERE organization_id = ? AND slug = 'store-keeper') AND permission_key = 'vendors:read'",
+                organization);
+        UUID added = UUID.randomUUID();
+        jdbc.update("""
+                INSERT INTO access_role_template_grant (id, template_id, permission_key, scope)
+                SELECT ?, id, 'assets:create', 'ALL' FROM access_role_template WHERE slug = 'site-engineer'
+                """, added);
+        try {
+            assertThat(runner.runOnce()).isTrue();
+
+            assertThat(holds("site-engineer", "assets:create")).isTrue();
+            assertThat(holds("store-keeper", "vendors:read")).isFalse();
+        } finally {
+            jdbc.update("DELETE FROM access_role_template_grant WHERE id = ?", added);
+        }
+
+        assertThat(runner.runOnce()).isTrue();
+        assertThat(holds("site-engineer", "assets:create")).isFalse();
+    }
+
+    @Test
+    void aRoleAlreadyNamedLikeATemplateBlocksOnlyThatTemplate() {
+        jdbc.update("""
+                INSERT INTO access_role (id, organization_id, slug, name, is_system, is_baseline, created_at, updated_at)
+                VALUES (gen_random_uuid(), ?, 'old-custom', 'Store Keeper', false, false, now(), now())
+                """, organization);
+
+        assertThat(runner.runOnce()).isTrue();
+
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM access_role WHERE organization_id = ? AND slug = 'store-keeper'",
+                Integer.class, organization)).isZero();
+        assertThat(rolesInOrganization()).isEqualTo(14);
+    }
+
+    @Test
+    void anAdministratorMayGrantEveryRoleAndHrAdminAllButAdministrator() {
+        assertThat(runner.runOnce()).isTrue();
+
+        assertThat(grantable("system-admin")).contains("system-admin", "project-manager", "hr-admin").hasSize(13);
+        assertThat(grantable("hr-admin")).contains("project-manager", "hr-admin")
+                .doesNotContain("system-admin").hasSize(12);
+        assertThat(grantable("project-manager")).isEmpty();
+    }
+
+    private boolean holds(String slug, String key) {
+        return Boolean.TRUE.equals(jdbc.queryForObject("""
+                SELECT count(*) > 0 FROM access_role_grant g JOIN access_role r ON r.id = g.role_id
+                WHERE r.organization_id = ? AND r.slug = ? AND g.permission_key = ?
+                """, Boolean.class, organization, slug, key));
+    }
+
+    private List<String> grantable(String slug) {
+        return jdbc.queryForList("""
+                SELECT target.slug FROM access_role_grantable g
+                JOIN access_role r ON r.id = g.role_id
+                JOIN access_role target ON target.id = g.grantable_role_id
+                WHERE g.organization_id = ? AND r.slug = ?
+                """, String.class, organization, slug);
+    }
+
+    private Integer rolesInOrganization() {
+        return jdbc.queryForObject("SELECT count(*) FROM access_role WHERE organization_id = ?",
+                Integer.class, organization);
+    }
+
+    private Integer grantsInOrganization() {
+        return jdbc.queryForObject("""
+                SELECT count(*) FROM access_role_grant g JOIN access_role r ON r.id = g.role_id
+                WHERE r.organization_id = ?
+                """, Integer.class, organization);
     }
 }

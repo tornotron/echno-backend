@@ -61,7 +61,7 @@ class OrganizationServiceOnboardingTest {
 
     private OrganizationService service() {
         return new OrganizationService(repository, attachmentService, fileStorageService,
-                identityProvider, org.mockito.Mockito.mock(IdentityLinks.class), subscriptionService, userContextService, employeeService,
+                identityProvider, org.mockito.Mockito.mock(IdentityLinks.class), org.mockito.Mockito.mock(org.tornotron.echno_backend.modules.access.api.AccessStartingRoles.class), subscriptionService, userContextService, employeeService,
                 organizationMapper, orgSecurity, onboardingSeeder,
                 new PayloadValidator(Validation.buildDefaultValidatorFactory().getValidator()));
     }
