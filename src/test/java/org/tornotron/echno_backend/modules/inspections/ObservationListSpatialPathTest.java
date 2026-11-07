@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -11,6 +12,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.tornotron.echno_backend.common.repository.AttachmentRepository;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
+import org.tornotron.echno_backend.modules.inspections.api.ObservationIntakeCheck;
 import org.tornotron.echno_backend.modules.inspections.domain.Observation;
 import org.tornotron.echno_backend.modules.inspections.dtos.ObservationDto;
 import org.tornotron.echno_backend.modules.inspections.events.InspectionEventRecorder;
@@ -53,6 +55,7 @@ class ObservationListSpatialPathTest {
     @Mock private ObservationRegionRepository regionRepo;
     @Mock private AttachmentRepository attachmentRepository;
     @Mock private TransactionRetryTemplate retryTemplate;
+    @Mock private ObjectProvider<ObservationIntakeCheck> intakeChecks;
 
     @Test
     void aPageOfObservationsAsksForItsBreadcrumbsOnce() {
@@ -73,7 +76,7 @@ class ObservationListSpatialPathTest {
 
         ObservationService service = new ObservationService(observationRepo, inspectionRepo, spatialNodeService, events,
                 tenantEntityHelper, userContextService, employeeRepository, mapper, projectRepository, attachmentRepository,
-                retryTemplate, regionRepo);
+                retryTemplate, regionRepo, intakeChecks);
         Page<ObservationDto> page = service.findAll(42L, null, null, null, null, null, null, PageRequest.of(0, 10));
 
         verify(spatialNodeService).pathsOf(List.of(zoneA, zoneA, zoneB));

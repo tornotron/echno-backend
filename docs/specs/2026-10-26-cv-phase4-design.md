@@ -61,13 +61,15 @@ is settled (section 4.2). The critical path to the first proof is WP1, WP2, WP4,
 
 ## 2. Decisions for Abhijith
 
-| # | Decision | Recommendation |
+All five were approved by the CTO on 8 November 2026, exactly as recommended.
+
+| # | Decision | Approved |
 |---|---|---|
-| D1 | Detector licence family | **RF-DETR** (Apache-2.0 sizes only) for both box and polygon tasks; no Ultralytics. Section 3. |
-| D2 | Training on hp-z's GPUs | Ask Prof. Sarith for **one A5000 (GPU 1)** in agreed windows, data under `/hdd2/fereydon`, Python venv only, no driver, Docker or reboot changes. Pilot data trains only on IITM hardware. Section 4.10. |
-| D3 | Run the end-to-end proof through the `.116` compose staging | **Yes**, through the app's own endpoints, in a dedicated test organisation that holds only public images. The worker is added as one CPU-capped compose service through the Ansible apps role; nothing existing is restarted or removed. Section 4.12. |
+| D1 | Detector licence family | **RF-DETR** (Apache-2.0 sizes only) for both box and polygon tasks; no Ultralytics. The registry enforces this with a licence allowlist. Section 3. |
+| D2 | Training on hp-z's GPUs | **One A5000 (GPU 1)** in agreed windows with Prof. Sarith, data under `/hdd2/fereydon`, Python venv only, no driver, Docker or reboot changes. Pilot data trains only on IITM hardware. Section 4.10. |
+| D3 | Run the end-to-end proof through the `.116` compose staging | **Yes**, through the app's own endpoints, in a dedicated test organisation "CV Proof" that holds only public images. The worker is added as one CPU-capped compose service through the Ansible apps role; nothing existing is restarted or removed. Section 4.12. |
 | D4 | CVAT annotator accounts | **Named accounts**, no shared login: Abhijith as admin and reviewer, two annotators (interns or students) who can start on public images now. Pilot images only after the pilot consent clause covers named annotators. Section 4.12. |
-| D5 | Stand-in helmet data | Use **SHWD** (MIT repository, web-collected images) to train the R1 stand-in only. Its images never enter a release, a client org or client-facing weights. Section 4.11. |
+| D5 | Stand-in helmet data | **SHWD** (MIT repository, web-collected images) trains the R1 stand-in only. Its images never enter a release, a client org or client-facing weights. Section 4.11. |
 
 ## 3. Licence analysis (D1)
 
@@ -115,7 +117,7 @@ RF100-VL results, a benchmark of 100 small domain datasets), and it exports to O
 worker. The registry (WP2) enforces this: a model version can only be activated if its `licence` is
 on `echno.vision.allowed-licences` (default `Apache-2.0,BSD-3-Clause,MIT`), and WP10 refuses to
 publish a checkpoint whose name is on the PML list. torchvision (BSD-3-Clause) is the fallback if an
-RF-DETR export or accuracy problem appears. **Decision for Abhijith.**
+RF-DETR export or accuracy problem appears. Approved as D1.
 
 ## 4. Work packages
 
