@@ -286,7 +286,7 @@ This file runs automatically every time an API request comes in. It reads the JW
 
 ### 3. `KeycloakGroupService.java` — Talks to Keycloak
 
-**Path:** `src/main/java/org/tornotron/echno_backend/common/service/KeycloakGroupService.java`
+**Path:** `src/main/java/org/tornotron/echno_backend/common/identity/keycloak/KeycloakGroupService.java`
 
 This is the service that makes API calls to Keycloak to manage groups and subgroups. It has these methods:
 

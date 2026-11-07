@@ -12,7 +12,9 @@ import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.response.ApiResponse;
-import org.tornotron.echno_backend.common.service.KeycloakGroupService;
+import org.tornotron.echno_backend.common.identity.EchnoOrgId;
+import org.tornotron.echno_backend.common.identity.ExternalUserId;
+import org.tornotron.echno_backend.common.identity.IdentityProvider;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.employee.EmployeeService;
@@ -30,13 +32,13 @@ import org.tornotron.echno_backend.user.UserRepository;
 )
 public class KeycloakGroupController {
 
-    private final KeycloakGroupService keycloakGroupService;
+    private final IdentityProvider identityProvider;
     private final UserRepository userRepository;
     private final EmployeeService employeeService;
     private final EmployeeRepository employeeRepository;
 
-    public KeycloakGroupController(KeycloakGroupService keycloakGroupService, UserRepository userRepository, EmployeeService employeeService, EmployeeRepository employeeRepository) {
-        this.keycloakGroupService = keycloakGroupService;
+    public KeycloakGroupController(IdentityProvider identityProvider, UserRepository userRepository, EmployeeService employeeService, EmployeeRepository employeeRepository) {
+        this.identityProvider = identityProvider;
         this.userRepository = userRepository;
         this.employeeService = employeeService;
         this.employeeRepository = employeeRepository;
@@ -65,7 +67,7 @@ public class KeycloakGroupController {
             throw new IllegalStateException("User does not have a Keycloak ID");
         }
 
-        keycloakGroupService.addUserToOrganization(user.getKeycloakId(), TenantContext.getCurrentOrgId().toString());
+        identityProvider.addMember(new ExternalUserId(user.getKeycloakId()), new EchnoOrgId(TenantContext.getCurrentOrgId()));
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("User added to keycloak Org"));
     }
 

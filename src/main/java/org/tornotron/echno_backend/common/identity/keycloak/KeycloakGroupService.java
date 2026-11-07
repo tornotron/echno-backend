@@ -1,4 +1,4 @@
-package org.tornotron.echno_backend.common.service;
+package org.tornotron.echno_backend.common.identity.keycloak;
 
 import jakarta.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
@@ -8,6 +8,7 @@ import org.keycloak.representations.idm.GroupRepresentation;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.tornotron.echno_backend.common.enums.OrgRole;
+import org.tornotron.echno_backend.common.identity.ConditionalOnKeycloak;
 
 import java.util.List;
 
@@ -30,6 +31,7 @@ import java.util.List;
  */
 @Slf4j
 @Service
+@ConditionalOnKeycloak
 public class KeycloakGroupService {
 
     @Value("${keycloak-initializer.url}")
@@ -397,7 +399,7 @@ public class KeycloakGroupService {
      *
      * @return the group ID, or null if not found
      */
-    private String findOrgGroupId(Keycloak keycloak, String organizationId) {
+    String findOrgGroupId(Keycloak keycloak, String organizationId) {
         List<GroupRepresentation> groups = keycloak.realm(realm).groups()
                 .groups("org-" + organizationId, 0, 1);
 
@@ -434,6 +436,15 @@ public class KeycloakGroupService {
                 .findFirst()
                 .map(GroupRepresentation::getId)
                 .orElse(null);
+    }
+
+    String realm() {
+        return realm;
+    }
+
+    /** An admin client for this realm as the backend's own service account. The caller closes it. */
+    Keycloak adminClient() {
+        return getKeycloakAdminClient();
     }
 
     private Keycloak getKeycloakAdminClient() {

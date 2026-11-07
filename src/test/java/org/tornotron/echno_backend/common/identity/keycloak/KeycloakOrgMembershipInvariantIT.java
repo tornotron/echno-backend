@@ -1,4 +1,4 @@
-package org.tornotron.echno_backend.common.service;
+package org.tornotron.echno_backend.common.identity.keycloak;
 
 import dasniko.testcontainers.keycloak.KeycloakContainer;
 import jakarta.ws.rs.core.Response;

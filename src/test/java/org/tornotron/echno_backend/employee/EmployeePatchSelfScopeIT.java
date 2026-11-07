@@ -21,7 +21,7 @@ import org.tornotron.echno_backend.attendance.mapper.ShiftTimingMapperImpl;
 import org.tornotron.echno_backend.common.mapper.AttachmentMapperImpl;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.FileStorageService;
-import org.tornotron.echno_backend.common.service.KeycloakGroupService;
+import org.tornotron.echno_backend.common.identity.IdentityProvider;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.employee.enums.EmployeeStatus;
 import org.tornotron.echno_backend.employee.mapper.EmployeeMapperImpl;
@@ -81,7 +81,7 @@ class EmployeePatchSelfScopeIT extends AbstractIntegrationTest {
     private EntityManager em;
 
     @MockitoBean
-    private KeycloakGroupService keycloakGroupService;
+    private IdentityProvider identityProvider;
 
     @MockitoBean
     private FileStorageService fileStorageService;

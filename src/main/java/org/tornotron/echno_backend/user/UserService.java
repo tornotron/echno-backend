@@ -18,6 +18,10 @@ import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.common.service.AttachmentService;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
+import org.tornotron.echno_backend.common.exception.InvalidRequestException;
+import org.tornotron.echno_backend.common.identity.ExternalUserId;
+import org.tornotron.echno_backend.common.identity.IdentityProvider;
+import org.tornotron.echno_backend.common.identity.SelfRegistration;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.organization.dto.OrganizationDto;
@@ -45,7 +49,7 @@ public class UserService {
     private static final String ATTACHMENT_TYPE_CV = "USER_CV";
 
     private final UserRepository userRepository;
-    private final KeycloakUserProvisioningService keycloakUserProvisioningService;
+    private final IdentityProvider identityProvider;
     private final AttachmentService attachmentService;
     private final FileStorageService fileStorageService;
     private final EmployeeMapper employeeMapper;
@@ -56,12 +60,12 @@ public class UserService {
      * Constructs a UserService with the given UserRepository.
      *
      * @param userRepository The repository for user data access.
-     * @param keycloakUserProvisioningService The service that provisions the Keycloak identity.
+     * @param identityProvider The identity provider accounts are created at.
      * @param attachmentService The service for attachment operations.
      */
-    public UserService(UserRepository userRepository, KeycloakUserProvisioningService keycloakUserProvisioningService, AttachmentService attachmentService,FileStorageService fileStorageService, EmployeeMapper employeeMapper, UserMapper userMapper, org.tornotron.echno_backend.organization.mapper.OrganizationMapper organizationMapper) {
+    public UserService(UserRepository userRepository, IdentityProvider identityProvider, AttachmentService attachmentService,FileStorageService fileStorageService, EmployeeMapper employeeMapper, UserMapper userMapper, org.tornotron.echno_backend.organization.mapper.OrganizationMapper organizationMapper) {
         this.userRepository = userRepository;
-        this.keycloakUserProvisioningService = keycloakUserProvisioningService;
+        this.identityProvider = identityProvider;
         this.attachmentService = attachmentService;
         this.fileStorageService = fileStorageService;
         this.employeeMapper = employeeMapper;
@@ -81,7 +85,10 @@ public class UserService {
             throw new DuplicateResourceException("User with email '" + userRegistrationDto.getEmail() + "' already exists");
         }
 
-        String keycloakId = keycloakUserProvisioningService.createUser(userRegistrationDto.getUserName(), userRegistrationDto.getEmail(), userRegistrationDto.getPassword());
+        SelfRegistration registration = identityProvider.capabilities().selfRegistration()
+                .orElseThrow(() -> new InvalidRequestException("Accounts here come from an invitation, not from registering"));
+
+        ExternalUserId account = registration.createAccount(userRegistrationDto.getUserName(), userRegistrationDto.getEmail(), userRegistrationDto.getPassword());
 
         try {
             User user = new User();
@@ -95,10 +102,10 @@ public class UserService {
             } catch (IllegalArgumentException | NullPointerException e) {
                 throw new IllegalArgumentException("'" + userRegistrationDto.getRole() + "' is not a valid user role");
             }
-            user.setKeycloakId(keycloakId);
+            user.setKeycloakId(account.value());
             return userMapper.toDto(userRepository.save(user));
         } catch (Exception e) {
-            keycloakUserProvisioningService.deleteUser(keycloakId);
+            registration.deleteAccount(account);
             throw e;
         }
     }
