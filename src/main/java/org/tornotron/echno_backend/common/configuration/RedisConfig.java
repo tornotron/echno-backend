@@ -86,6 +86,9 @@ public class RedisConfig {
 
         Map<String, RedisCacheConfiguration> perCache = new HashMap<>();
         perCache.put("subscriptions", base.entryTtl(Duration.ofMinutes(5)));
+        // What a person holds, for access decisions (modules/access). Short, because anything a
+        // writer does not evict after commit is picked up only on expiry.
+        perCache.put("access-facts", base.entryTtl(Duration.ofMinutes(5)));
 
         return RedisCacheManager.builder(connectionFactory)
                 .cacheDefaults(base)

@@ -11,6 +11,7 @@ import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * The rules every access engine keeps, run against each engine by extending this class.
@@ -22,7 +23,12 @@ import org.junit.jupiter.api.Test;
  *
  * <p>The ids come from {@link #world()}, so an engine on a real database can supply rows it created.
  * In every world alice and bob start as people who are not active members.
+ *
+ * <p>{@code @Transactional} does nothing for an engine in maps. An engine on a database runs under
+ * Spring's test transaction, and Spring looks for the annotation on the class that declares the test
+ * method, which is this one.
  */
+@Transactional
 public abstract class AccessServiceContract {
 
     /** The organizations, people and records a test talks about. */
