@@ -1,19 +1,22 @@
 # Identity provider independence
 
-Status: option C (Echno's own tokens) approved by the reviewer on 2026-10-30. The owner decided on
-the ticket that Echno moves to WorkOS and does not continue with Keycloak. Target repos: `echno-backend`, `echno-core`,
-`echno-web`, `echno-android`, `echno-ios`.
+Status: decided 2026-11-07. Option A (backend port with adapters, apps sign in with the provider).
+Option C (Echno's own tokens) is deferred, with its triggers in section 8. The owner decided on the
+ticket that Echno moves to WorkOS. Target repos: `echno-backend`, `echno-core`, `echno-web`,
+`echno-android`, `echno-ios`.
 Scope: what it takes to switch the identity provider (Keycloak today, WorkOS next, possibly another
 later) without rebuilding Echno each time. It covers the benefits, the difficulties, the security
-concerns and the long-term impact of each way of doing it, and recommends one. It builds on
+concerns and the long-term impact of each way of doing it. It builds on
 [Access Matrix and Identity Provider](2026-10-30-access-matrix-and-identity-provider.md), section 3.
+The steps are in the [WorkOS build plan](2026-11-07-workos-build-plan.md).
 
 ## 1. The goal
 
 A provider switch should mean: write or configure one adapter, move the user accounts, change
 settings, and, only if accounts can't be copied in one go (section 10), run both providers side by
-side until everyone has moved. It should not mean changing
-the access rules, the database model of users and organizations, or every client app.
+side until everyone has moved. It should not mean changing the access rules or the database model of
+users and organizations. Under option A a switch still means one change in each app, kept small by
+the sign-in module in section 6.
 
 Two jobs are kept apart:
 
@@ -50,7 +53,7 @@ These hold whichever option in section 4 is chosen.
 2. **Echno holds the truth about membership.** Which organizations a person belongs to is read from
    `Employee`, never from the provider's token. The provider's own organizations, where it has
    them, follow Echno's records. Events the provider sends (a WorkOS webhook that someone joined or
-   left, for example) are notices, not commands: Echno checks each one against its own records and
+   left, for example) are notices only: Echno checks each one against its own records and
    acts only where it matches, such as an accepted invitation for a pending employee. Each event is
    handled once, by its id, and in any order. An event with nothing to match is logged and ignored,
    so nobody joins an organization except through Echno's invitation.
@@ -67,7 +70,7 @@ These hold whichever option in section 4 is chosen.
 
 ## 4. The options for the apps
 
-### Option A: backend port only (the plan as written)
+### Option A: backend port only (chosen)
 
 The backend calls the provider through the port. The apps keep signing in to the provider directly.
 
@@ -95,10 +98,10 @@ The backend calls the provider through the port. The apps keep signing in to the
 ### Option B: configurable sign-in in each app
 
 Each app uses a standard OpenID Connect client. The provider's address and client id are settings
-the app reads at start, not code.
+the app reads at start.
 
 **Benefits**
-- A switch for providers that follow the standard closely is a settings change, not a code change.
+- A switch for providers that follow the standard closely needs only a settings change.
 - Uses well-tested libraries: next-auth's generic OIDC provider, AppAuth on Android and iOS.
 
 **Difficulties**
@@ -116,7 +119,7 @@ the app reads at start, not code.
 **Long-term impact**
 - Cheaper switches than option A, but not free. Each provider's quirks accumulate in three places.
 
-### Option C: Echno issues its own tokens (chosen)
+### Option C: Echno issues its own tokens (deferred, see section 8)
 
 The apps sign in through Echno's backend. The backend sends the person to the provider's sign-in
 page, checks the result, and gives the app an **Echno token**. The apps and the rest of the backend
@@ -179,8 +182,8 @@ only ever see Echno tokens. The provider is visible only inside the backend's ad
 
 ## 6. Cost of deferring option C
 
-If we follow the plan as written (option A) and build Echno tokens later, the token service costs
-about the same whenever it is built. The extra cost is everything done twice.
+We follow option A and may build Echno tokens later. The token service costs about the same whenever
+it is built. The extra cost is everything done twice. Section 8 explains why that cost is small today.
 
 **What it costs to do later**
 
@@ -201,7 +204,8 @@ about the same whenever it is built. The extra cost is everything done twice.
 **What is not lost:** the access matrix, the port and its backend adapters, the identity tables,
 membership in Echno and the contract tests. Option C builds on all of them unchanged.
 
-**If we defer, four cheap steps now keep the later cost to the token service and one app change**
+**Because we defer, these four cheap steps keep the later cost to the token service and one app
+change. All four are in the build plan.**
 
 - Make the changes in section 3 now, especially the identity tables instead of `keycloak_id` and
   membership read only from Echno. These are the expensive ones to retrofit, because every user
@@ -213,9 +217,10 @@ membership in Echno and the contract tests. Option C builds on all of them uncha
   `org.echno.core.auth`, iOS's `AuthSession`), so replacing it later is a local change.
 - Add a minimum app version check, so an update can be required when the sign-in changes.
 
-**When it is cheapest:** together with the WorkOS move. That move already forces app releases, a
-period with both providers running (section 10) and everyone signing in again. Doing both together
-pays each of those once; doing C later pays them twice.
+**When it is cheapest:** together with the WorkOS move, for an installed base. That move forces app
+releases, a period with both providers running (section 10) and everyone signing in again, and doing
+both together pays each of those once. The first production deployment has no installed base, so those
+costs do not arise for it.
 
 ## 7. Security concerns for any option
 
@@ -223,9 +228,12 @@ pays each of those once; doing C later pays them twice.
   to that provider's keys and identity rows. A token from one can never be read as a user of the
   other.
 - **Audience checks.** Every token is checked for Echno's audience, so a token issued for another
-  application is refused.
-- **Removal takes effect at once.** Making an employee inactive revokes their sessions and refresh
-  tokens. The access matrix already gives an inactive person nothing (design note 2.8).
+  application is refused. WorkOS session tokens carry no `aud` by default, so our JWT template sets
+  one (build plan, F1).
+- **Removal takes effect at once.** Making an employee inactive ends their access on the next request,
+  because membership is read from Echno on every request. Sessions and refresh tokens are revoked
+  after that, as a follow-up. The access matrix already gives an inactive person nothing (design note
+  2.8).
 - **Password moves.** Hashes are moved only over a secure channel, never logged, and deleted from
   any export once imported. Where a format can't be imported, people set a new password through a
   link, never a password sent to them.
@@ -234,47 +242,63 @@ pays each of those once; doing C later pays them twice.
 
 ## 8. Decision and phases
 
-Option C, approved by the reviewer. Because the move to WorkOS is decided, option C lands together
-with it (section 6), so the apps change their sign-in once and everyone signs in again once. Each
-phase ships on its own:
+**Option A, with option C deferred.** The history: I advised option C at first, and an earlier version
+of this note recorded that advice as an approval. On 2026-11-07 I changed my mind (comment on #914).
 
-1. The common changes in section 3: identity tables, membership in Echno, the contract test and
-   fake adapter, the small port. These help every option and come right after the port (design
-   note delivery steps 8 and 9).
-2. The Echno token service in the backend, used first by web, which already signs in through its
-   own server, so the change is smallest there (step 15).
-3. Android and iOS move to Echno sign-in (step 16).
-4. The WorkOS adapter, then the move of every account: copied in one go where WorkOS accepts
-   Keycloak's password format, otherwise with both providers side by side for a set period (section
-   10) (step 17).
+Why option C waits:
 
-Between phases 2 and 3, web uses Echno tokens while released Android and iOS builds still send
-Keycloak tokens. The backend accepts both, each checked against its own issuer and mapped through
-`user_identity` to the same Echno user, and nothing else. Provider tokens from WorkOS never reach the
-API, because WorkOS sits behind Echno's sign-in. Keycloak tokens stop being accepted once the
-minimum app version (section 6) rules out the old builds, and before Keycloak is turned off.
+1. **Risk at the worst moment.** Option C makes Echno an OAuth authorization server. We would own
+   signing keys, key rotation, refresh token rotation and revocation, and one bug in that code locks
+   everyone out. The first production deployment should not also be the first run of that code.
+2. **The double-migration cost is small today.** Section 6 is mostly about moving existing people twice
+   and keeping old app builds working. The first production deployment is a brand-new organization
+   with no existing users, and no client has an account or a mobile build on the old sign-in, so there
+   is nothing to move.
+3. **The cheap steps protect us.** The four steps in section 6 keep the later move down to the token
+   service and one app change, and we are doing all four now.
+
+**We revisit option C when** a customer needs a second provider, or the mobile apps have enough
+installed users that a provider change gets expensive to coordinate.
+
+One setting, `echno.identity.provider`, picks the adapter per environment, and each environment trusts
+exactly one provider. Each phase ships on its own:
+
+1. The common changes in section 3 and the four cheap steps: identity tables, membership in Echno, the
+   contract test and fake adapter, the small port, then the Keycloak adapter. Both stagings run on it
+   with no change in behaviour.
+2. The WorkOS adapter, and the backend's invitation and first-organization flows.
+3. Web signs in with WorkOS behind its sign-in module, chosen by the same setting. The first production
+   deployment goes live here, with no Keycloak in its stack.
+4. Android and iOS sign in with the provider, behind their own modules, with the minimum app version
+   check.
+5. Later: the stagings move to WorkOS, by the route in section 10.
+
+The [build plan](2026-11-07-workos-build-plan.md) holds the PR-sized steps. Trusting two providers at
+once (section 3, point 5) is built only if the staging move needs it.
 
 ## 9. What changes in each repo
 
 | Repo | Change |
 | --- | --- |
-| `echno-backend` | Identity tables replace `keycloak_id`; the port's contract test and fake; with option C, the sign-in flow, the token service, key rotation and session revocation. |
-| `echno-core` | With option C, the sign-in and refresh calls point at Echno's endpoints; the token's contents change. |
-| `echno-web` | next-auth uses Echno as its provider instead of `KeycloakProvider`. |
-| `echno-android` | `KeycloakTokenService` is replaced by a sign-in against Echno. |
-| `echno-ios` | The PKCE flow points at Echno instead of the Keycloak realm. |
+| `echno-backend` | Identity tables replace `keycloak_id`; the port, its contract test and fake; the Keycloak and WorkOS adapters; invitations and the first-organization runner; a client config endpoint with the minimum app version. |
+| `echno-core` | Invitation and access clients. Sign-in does not touch core: it never sees a provider, and the organization stays in `X-Organization-Id`. |
+| `echno-web` | All sign-in behind `lib/auth`, with next-auth for Keycloak and `authkit-nextjs` for WorkOS. |
+| `echno-android` | `org.echno.core.auth` behind one interface, the version check, then PKCE against WorkOS. |
+| `echno-ios` | `AuthSession` behind one interface, the version check, then PKCE against WorkOS. |
 
 ## 10. Open questions
 
 - Which provider features do we expect to need per customer (single sign-on, directory sync, MFA),
   so the optional extras are planned rather than added late?
-- Who owns the signing keys and their rotation in the deployment repo?
-- **Moving people's accounts to the new provider.** Passwords live in the provider, not in Echno,
+- **Moving people's accounts to the new provider.** This applies to the later staging move; the first
+  production deployment has nobody to move. Passwords live in the provider,
   so a switch means recreating every account at the new provider. There are two ways:
   1. **Copy everyone across in one go.** If the new provider accepts the old one's stored password
      format (passwords are stored scrambled, and the new provider must support the old provider's
-     method), everyone moves at once and nobody notices. Nothing runs side by side. Check this
-     first: whether WorkOS accepts Keycloak's format.
+     method), everyone moves at once and nobody notices. Nothing runs side by side. WorkOS's import
+     takes `pbkdf2` in PHC form and does not name Keycloak
+     ([password formats](https://workos.com/docs/migrate/other-services)), so this looks possible and
+     needs a proof with one real hash.
   2. **Move people as they sign in.** If the passwords can't be copied, each person is moved at their
      next sign-in: they sign in to the old provider one last time, and their account is created at
      the new one, or they set a new password there. Both providers run side by side meanwhile.
