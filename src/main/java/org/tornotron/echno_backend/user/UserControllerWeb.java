@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
+import org.tornotron.echno_backend.invitation.IdentityLinkService;
 import org.tornotron.echno_backend.organization.dto.OrganizationDto;
 import org.tornotron.echno_backend.user.dto.UserDto;
 import org.tornotron.echno_backend.user.dto.UserPatchDto;
@@ -43,6 +44,7 @@ public class UserControllerWeb {
     private final UserService userService;
     private final JsonPartBinder jsonPartBinder;
     private final UserContextService userContextService;
+    private final IdentityLinkService identityLinks;
 
     /**
      * Constructs a UserController with the given UserService.
@@ -50,10 +52,12 @@ public class UserControllerWeb {
      * @param userService The service for handling user-related business logic.
      * @param jsonPartBinder Reads and validates the JSON part of a multipart request.
      */
-    public UserControllerWeb(UserService userService, JsonPartBinder jsonPartBinder, UserContextService userContextService) {
+    public UserControllerWeb(UserService userService, JsonPartBinder jsonPartBinder, UserContextService userContextService,
+                             IdentityLinkService identityLinks) {
         this.userService = userService;
         this.jsonPartBinder = jsonPartBinder;
         this.userContextService = userContextService;
+        this.identityLinks = identityLinks;
     }
 
     /**
@@ -114,15 +118,19 @@ public class UserControllerWeb {
     @GetMapping
     @Operation(
             summary = "Get the current user",
-            description = "Resolves the caller's user record from their Keycloak identity."
+            description = "Resolves the caller's user record from their identity provider account. This is the "
+                    + "first call an app makes after sign-in, and it is where an accepted invitation becomes an "
+                    + "employee: the account is linked only when the provider says this account accepted it and "
+                    + "its verified address is exactly the invited one."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "User returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Caller is not authenticated"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No user matches the caller's Keycloak identity")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No user matches the caller's account, and no invitation it accepted could be linked")
     })
     public ResponseEntity<UserDto> getCurrentUser() {
-        return ResponseEntity.ok(userService.getCurrentUserDto(userContextService.getCurrentUserId()));
+        Long userId = identityLinks.reconcileCurrent().orElseGet(userContextService::getCurrentUserId);
+        return ResponseEntity.ok(userService.getCurrentUserDto(userId));
     }
 
     @PreAuthorize("isAuthenticated()")

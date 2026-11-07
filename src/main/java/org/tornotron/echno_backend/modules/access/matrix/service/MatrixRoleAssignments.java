@@ -101,6 +101,13 @@ public class MatrixRoleAssignments implements AccessRoleAssignments {
 
     @Override
     @Transactional
+    public void assignAsSystem(Long employeeId, UUID roleId, @Nullable Long projectId) {
+        Long organization = prepare();
+        assign(organization, employeeId, role(organization, roleId), projectId, system());
+    }
+
+    @Override
+    @Transactional
     public void remove(Long employeeId, UUID roleId, @Nullable Long projectId) {
         Long organization = prepare();
         remove(organization, employeeId, role(organization, roleId), projectId, caller());

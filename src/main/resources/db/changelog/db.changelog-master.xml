@@ -503,4 +503,7 @@
     <!-- v4.0 - Invitations by link (#914). After the modules: invitation_role refers to access_role. -->
     <include file="db/changelog/v4.0/137-invitations.xml"/>
 
+    <!-- v4.0 - Employee details a person joining by invitation has not given yet (#914) -->
+    <include file="db/changelog/v4.0/138-employee-details-optional.xml"/>
+
 </databaseChangeLog>
