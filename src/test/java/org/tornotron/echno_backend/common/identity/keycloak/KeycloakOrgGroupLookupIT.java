@@ -133,6 +133,16 @@ class KeycloakOrgGroupLookupIT {
     }
 
     @Test
+    void readingTheMissingOrganizationsRoleMembersFindsNobody() {
+        groupService.assignOrgRole(userId, OTHER_ORG, OrgRole.SYSTEM_ADMIN);
+
+        assertThat(groupService.roleSubgroupMembers(MISSING_ORG)).isEmpty();
+        assertThat(groupService.organizationGroupMembers(MISSING_ORG)).isEmpty();
+        assertThat(groupService.organizationGroupMembers(OTHER_ORG)).containsExactly(userId);
+        assertThat(groupService.roleSubgroupMembers(OTHER_ORG).get(OrgRole.SYSTEM_ADMIN)).containsExactly(userId);
+    }
+
+    @Test
     void deletingTheMissingGroupLeavesTheOtherGroupStanding() {
         groupService.deleteOrganizationGroup(MISSING_ORG);
 

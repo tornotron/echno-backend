@@ -5,12 +5,16 @@ import lombok.extern.slf4j.Slf4j;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.admin.client.KeycloakBuilder;
 import org.keycloak.representations.idm.GroupRepresentation;
+import org.keycloak.representations.idm.UserRepresentation;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.common.identity.ConditionalOnKeycloak;
 
+import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -37,6 +41,7 @@ public class KeycloakGroupService {
 
     /** Only a parent holding a same-named subgroup can add a result, and no such parent is expected. */
     private static final int EXACT_SEARCH_LIMIT = 100;
+    private static final int MEMBER_PAGE = 200;
 
     @Value("${keycloak-initializer.url}")
     private String authServerUrl;
@@ -318,6 +323,55 @@ public class KeycloakGroupService {
                     .toList();
         } finally {
             keycloak.close();
+        }
+    }
+
+    /**
+     * Who is in each of an organization's role subgroups, by Keycloak id, for the role import. Empty
+     * when the organization has no group, which is not a failure: nobody can hold a role in it.
+     * A subgroup that does not match a role in {@link OrgRole} is left out.
+     */
+    public Map<OrgRole, List<String>> roleSubgroupMembers(String organizationId) {
+        Keycloak keycloak = getKeycloakAdminClient();
+        try {
+            String orgGroupId = findOrgGroupId(keycloak, organizationId);
+            if (orgGroupId == null) {
+                return Map.of();
+            }
+            Map<OrgRole, List<String>> members = new EnumMap<>(OrgRole.class);
+            for (OrgRole role : OrgRole.values()) {
+                String subgroupId = findRoleSubgroupId(keycloak, orgGroupId, role.getGroupName());
+                if (subgroupId != null) {
+                    members.put(role, allMembers(keycloak, subgroupId));
+                }
+            }
+            return members;
+        } finally {
+            keycloak.close();
+        }
+    }
+
+    /**
+     * Who is in an organization's own group, by Keycloak id. Empty when the organization has no group.
+     */
+    public List<String> organizationGroupMembers(String organizationId) {
+        Keycloak keycloak = getKeycloakAdminClient();
+        try {
+            String orgGroupId = findOrgGroupId(keycloak, organizationId);
+            return orgGroupId == null ? List.of() : allMembers(keycloak, orgGroupId);
+        } finally {
+            keycloak.close();
+        }
+    }
+
+    private List<String> allMembers(Keycloak keycloak, String groupId) {
+        List<String> ids = new ArrayList<>();
+        for (int first = 0; ; first += MEMBER_PAGE) {
+            List<UserRepresentation> page = keycloak.realm(realm).groups().group(groupId).members(first, MEMBER_PAGE);
+            page.forEach(user -> ids.add(user.getId()));
+            if (page.size() < MEMBER_PAGE) {
+                return ids;
+            }
         }
     }
 
