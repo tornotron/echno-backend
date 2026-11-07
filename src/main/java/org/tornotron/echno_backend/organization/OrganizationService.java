@@ -20,7 +20,8 @@ import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.service.AttachmentService;
 import org.tornotron.echno_backend.common.service.FileStorageService;
-import org.tornotron.echno_backend.common.service.KeycloakGroupService;
+import org.tornotron.echno_backend.common.identity.EchnoOrgId;
+import org.tornotron.echno_backend.common.identity.IdentityProvider;
 import org.tornotron.echno_backend.employee.EmployeeService;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 import org.tornotron.echno_backend.employee.dto.EmployeeJoinOrgDto;
@@ -64,7 +65,7 @@ public class OrganizationService {
     private final OrganizationRepository repository;
     private final AttachmentService attachmentService;
     private final FileStorageService fileStorageService;
-    private final KeycloakGroupService keycloakGroupService;
+    private final IdentityProvider identityProvider;
     private final SubscriptionService subscriptionService;
     private final UserContextService userContextService;
     private final EmployeeService employeeService;
@@ -78,16 +79,16 @@ public class OrganizationService {
      * @param repository The repository for accessing organization data.
      * @param attachmentService The service for managing attachments.
      * @param fileStorageService The service for file storage operations.
-     * @param keycloakGroupService The service for managing Keycloak groups.
+     * @param identityProvider The identity provider organizations are created at.
      * @param subscriptionService The service for handling subscription billing.
      * @param onboardingSeeder Seeds the per-organization finance defaults for a new organization.
      * @param payloadValidator Runs the create payload's own constraints.
      */
-    public OrganizationService(OrganizationRepository repository, AttachmentService attachmentService, FileStorageService fileStorageService, KeycloakGroupService keycloakGroupService, SubscriptionService subscriptionService, UserContextService userContextService, EmployeeService employeeService, org.tornotron.echno_backend.organization.mapper.OrganizationMapper organizationMapper, org.tornotron.echno_backend.common.service.OrganizationSecurityService orgSecurity, OrganizationOnboardingSeeder onboardingSeeder, PayloadValidator payloadValidator) {
+    public OrganizationService(OrganizationRepository repository, AttachmentService attachmentService, FileStorageService fileStorageService, IdentityProvider identityProvider, SubscriptionService subscriptionService, UserContextService userContextService, EmployeeService employeeService, org.tornotron.echno_backend.organization.mapper.OrganizationMapper organizationMapper, org.tornotron.echno_backend.common.service.OrganizationSecurityService orgSecurity, OrganizationOnboardingSeeder onboardingSeeder, PayloadValidator payloadValidator) {
         this.repository = repository;
         this.attachmentService = attachmentService;
         this.fileStorageService = fileStorageService;
-        this.keycloakGroupService = keycloakGroupService;
+        this.identityProvider = identityProvider;
         this.subscriptionService = subscriptionService;
         this.userContextService = userContextService;
         this.employeeService = employeeService;
@@ -205,9 +206,9 @@ public class OrganizationService {
         organization.setIsActive(true);
         Organization savedOrganization = repository.save(organization);
 
-        // Create Keycloak group BEFORE joining the organization
-        keycloakGroupService.createOrganizationGroup(
-                savedOrganization.getId().toString(),
+        // Create it at the identity provider BEFORE joining the organization
+        identityProvider.createOrganization(
+                new EchnoOrgId(savedOrganization.getId()),
                 savedOrganization.getOrganizationName()
         );
 
@@ -563,9 +564,9 @@ public class OrganizationService {
                 .orElseThrow(() -> new ResourceNotFoundException("Organization with ID " + id + " was not found"));
 
         try {
-            keycloakGroupService.deleteOrganizationGroup(id.toString());
+            identityProvider.deleteOrganization(new EchnoOrgId(id));
         } catch (Exception e) {
-            log.error("Failed to delete Keycloak group for organization {}: {}",
+            log.error("Failed to delete organization {} at the identity provider: {}",
                     id, e.getMessage());
         }
 

@@ -6,7 +6,8 @@ import org.springframework.stereotype.Service;
 import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.WithoutTenant;
-import org.tornotron.echno_backend.common.service.KeycloakGroupService;
+import org.tornotron.echno_backend.common.identity.EchnoOrgId;
+import org.tornotron.echno_backend.common.identity.IdentityProvider;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.employee.EmployeeService;
@@ -76,7 +77,7 @@ public class DevFixtureProvisioner {
     private final OrganizationRepository organizationRepository;
     private final EmployeeRepository employeeRepository;
     private final EmployeeService employeeService;
-    private final KeycloakGroupService keycloakGroupService;
+    private final IdentityProvider identityProvider;
     private final OrganizationOnboardingSeeder onboardingSeeder;
 
     /**
@@ -204,15 +205,15 @@ public class DevFixtureProvisioner {
     }
 
     /**
-     * Makes sure the organization's Keycloak group tree exists. {@code createOrganizationGroup} has
+     * Makes sure the organization's Keycloak group tree exists. {@code createOrganization} has
      * no create-if-absent form and rejects a name that is already taken, so a rejected create is how
      * we learn the group is there. A genuine Keycloak failure is not hidden by this: the join that
      * follows needs the group and reports it.
      */
     private void ensureOrganizationGroup(Organization organization) {
         try {
-            keycloakGroupService.createOrganizationGroup(
-                    organization.getId().toString(), organization.getOrganizationName());
+            identityProvider.createOrganization(
+                    new EchnoOrgId(organization.getId()), organization.getOrganizationName());
             log.info("Created the Keycloak group for the dev fixture organization {}", organization.getId());
         } catch (Exception e) {
             log.info("Keycloak group for the dev fixture organization {} was not created now: {}",

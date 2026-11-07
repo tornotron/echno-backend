@@ -1,4 +1,4 @@
-package org.tornotron.echno_backend.user;
+package org.tornotron.echno_backend.common.identity.keycloak;
 
 import jakarta.ws.rs.core.Response;
 import org.keycloak.admin.client.Keycloak;
@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
+import org.tornotron.echno_backend.common.identity.ConditionalOnKeycloak;
 
 import java.util.Collections;
 import java.util.List;
@@ -20,12 +21,13 @@ import java.util.List;
  * initial password and the default {@code user} realm role), delete, and an
  * existence check.
  *
- * These are the low-level Keycloak primitives extracted from {@link UserService}.
- * The registration saga (create Keycloak user, persist the local row, and on a
- * database failure roll the Keycloak user back) stays in {@link UserService};
+ * These are the low-level Keycloak primitives behind the port's self-registration extra.
+ * The registration saga (create the account, persist the local row, and on a
+ * database failure roll the account back) stays in {@code UserService};
  * this service only exposes the individual operations.
  */
 @Service
+@ConditionalOnKeycloak
 public class KeycloakUserProvisioningService {
 
     private static final Logger logger = LoggerFactory.getLogger(KeycloakUserProvisioningService.class);

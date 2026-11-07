@@ -14,7 +14,7 @@ import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.mapper.AttachmentMapperImpl;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.FileStorageService;
-import org.tornotron.echno_backend.common.service.KeycloakGroupService;
+import org.tornotron.echno_backend.common.identity.IdentityProvider;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 import org.tornotron.echno_backend.employee.dto.EmployeeJoinOrgDto;
 import org.tornotron.echno_backend.employee.mapper.EmployeeMapperImpl;
@@ -56,7 +56,7 @@ class EmployeeShiftUnificationIT extends AbstractIntegrationTest {
     private TestEntityManager em;
 
     @MockBean
-    private KeycloakGroupService keycloakGroupService;
+    private IdentityProvider identityProvider;
 
     @MockBean
     private FileStorageService fileStorageService;

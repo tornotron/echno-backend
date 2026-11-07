@@ -9,7 +9,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
-import org.tornotron.echno_backend.common.service.KeycloakGroupService;
+import org.tornotron.echno_backend.common.identity.EchnoOrgId;
+import org.tornotron.echno_backend.common.identity.IdentityProvider;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.employee.EmployeeService;
@@ -56,7 +57,7 @@ class DevFixtureProvisionerTest {
     @Mock
     private EmployeeService employeeService;
     @Mock
-    private KeycloakGroupService keycloakGroupService;
+    private IdentityProvider identityProvider;
     @Mock
     private OrganizationOnboardingSeeder onboardingSeeder;
 
@@ -132,7 +133,7 @@ class DevFixtureProvisionerTest {
         verify(organizationRepository).save(orgCaptor.capture());
         assertThat(orgCaptor.getValue().getOrganizationName())
                 .isEqualTo(DevFixtureProvisioner.DEV_ORG_NAME);
-        verify(keycloakGroupService).createOrganizationGroup("42", DevFixtureProvisioner.DEV_ORG_NAME);
+        verify(identityProvider).createOrganization(new EchnoOrgId(42L), DevFixtureProvisioner.DEV_ORG_NAME);
         verify(onboardingSeeder).seedFinanceDefaults(42L);
 
         // The employee row, written through the application's own onboarding path.
@@ -183,7 +184,7 @@ class DevFixtureProvisionerTest {
 
         verify(userRepository, never()).save(any(User.class));
         verify(organizationRepository, never()).save(any(Organization.class));
-        verify(keycloakGroupService, never()).createOrganizationGroup(any(), any());
+        verify(identityProvider, never()).createOrganization(any(), any());
         verify(employeeService, never()).joinOrganization(anyLong(), anyLong(), any(EmployeeJoinOrgDto.class));
         // The role assignment and the finance defaults are themselves idempotent and are reapplied,
         // so a membership removed by hand or a seed that failed halfway comes back on the next start.
@@ -212,7 +213,7 @@ class DevFixtureProvisionerTest {
         verify(employeeService, never()).joinOrganization(anyLong(), anyLong(), any(EmployeeJoinOrgDto.class));
         verify(employeeService, never()).assignOrgRole(anyLong(), any(OrgRole.class));
         verify(onboardingSeeder, never()).seedFinanceDefaults(anyLong());
-        verify(keycloakGroupService, never()).createOrganizationGroup(any(), any());
+        verify(identityProvider, never()).createOrganization(any(), any());
     }
 
     /**
@@ -232,7 +233,7 @@ class DevFixtureProvisionerTest {
         provisioner.provision(KEYCLOAK_ID, DISPLAY_NAME, EMAIL);
 
         verify(organizationRepository, never()).save(any(Organization.class));
-        verify(keycloakGroupService).createOrganizationGroup("42", DevFixtureProvisioner.DEV_ORG_NAME);
+        verify(identityProvider).createOrganization(new EchnoOrgId(42L), DevFixtureProvisioner.DEV_ORG_NAME);
         verify(employeeService).joinOrganization(eq(7L), eq(42L), any(EmployeeJoinOrgDto.class));
         verify(employeeService).assignOrgRole(19L, OrgRole.SYSTEM_ADMIN);
     }
@@ -247,7 +248,7 @@ class DevFixtureProvisionerTest {
         when(organizationRepository.findOrganizationByOrganizationName(DevFixtureProvisioner.DEV_ORG_NAME))
                 .thenReturn(Optional.of(organization(42L)));
         when(employeeRepository.findByUserIdAndOrganizationId(7L, 42L)).thenReturn(Optional.empty());
-        when(keycloakGroupService.createOrganizationGroup("42", DevFixtureProvisioner.DEV_ORG_NAME))
+        when(identityProvider.createOrganization(new EchnoOrgId(42L), DevFixtureProvisioner.DEV_ORG_NAME))
                 .thenThrow(new RuntimeException("Failed to create organization group 'org-42' (status 409)"));
         when(employeeService.joinOrganization(eq(7L), eq(42L), any(EmployeeJoinOrgDto.class)))
                 .thenReturn(employeeDto(19L));

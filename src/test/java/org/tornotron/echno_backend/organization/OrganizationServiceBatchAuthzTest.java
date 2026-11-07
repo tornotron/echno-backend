@@ -9,7 +9,7 @@ import org.tornotron.echno_backend.billing.services.SubscriptionService;
 import org.tornotron.echno_backend.common.exception.TenantAccessDeniedException;
 import org.tornotron.echno_backend.common.service.AttachmentService;
 import org.tornotron.echno_backend.common.service.FileStorageService;
-import org.tornotron.echno_backend.common.service.KeycloakGroupService;
+import org.tornotron.echno_backend.common.identity.IdentityProvider;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.employee.EmployeeService;
 import org.tornotron.echno_backend.organization.dto.OrganizationPatchDto;
@@ -39,7 +39,7 @@ class OrganizationServiceBatchAuthzTest {
     @Mock private OrganizationRepository repository;
     @Mock private AttachmentService attachmentService;
     @Mock private FileStorageService fileStorageService;
-    @Mock private KeycloakGroupService keycloakGroupService;
+    @Mock private IdentityProvider identityProvider;
     @Mock private SubscriptionService subscriptionService;
     @Mock private UserContextService userContextService;
     @Mock private EmployeeService employeeService;
@@ -49,7 +49,7 @@ class OrganizationServiceBatchAuthzTest {
 
     private OrganizationService service() {
         return new OrganizationService(repository, attachmentService, fileStorageService,
-                keycloakGroupService, subscriptionService, userContextService, employeeService,
+                identityProvider, subscriptionService, userContextService, employeeService,
                 organizationMapper, orgSecurity, onboardingSeeder,
                 new PayloadValidator(Validation.buildDefaultValidatorFactory().getValidator()));
     }
