@@ -11,6 +11,7 @@ import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.common.identity.ConditionalOnKeycloak;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Manages Keycloak groups for organization membership and org-scoped roles.
@@ -33,6 +34,9 @@ import java.util.List;
 @Service
 @ConditionalOnKeycloak
 public class KeycloakGroupService {
+
+    /** Only a parent holding a same-named subgroup can add a result, and no such parent is expected. */
+    private static final int EXACT_SEARCH_LIMIT = 100;
 
     @Value("${keycloak-initializer.url}")
     private String authServerUrl;
@@ -394,20 +398,28 @@ public class KeycloakGroupService {
     }
 
     /**
-     * Finds the Keycloak group ID for an organization's parent group.
-     * Searches for group named "org-{organizationId}".
+     * Finds the Keycloak group ID for an organization's parent group, by its exact name.
      *
-     * @return the group ID, or null if not found
+     * <p>This is the tenant boundary for every group write below, so a near match must never pass.
+     * Keycloak's default search matches any part of a name, so {@code org-5} also finds {@code org-50},
+     * and with its own group missing the search returned the other organization's. The exact search can
+     * still return a parent whose subgroup carries the name, so the result is checked by path as well.
+     *
+     * @return the group ID, or null if this organization has no group
      */
     String findOrgGroupId(Keycloak keycloak, String organizationId) {
-        List<GroupRepresentation> groups = keycloak.realm(realm).groups()
-                .groups("org-" + organizationId, 0, 1);
+        String name = "org-" + organizationId;
+        String path = "/" + name;
+        List<GroupRepresentation> groups = keycloak.realm(realm).groups().groups(name, true, 0, EXACT_SEARCH_LIMIT, true);
 
-        if (groups.isEmpty()) {
-            log.warn("Organization group 'org-{}' not found in Keycloak", organizationId);
-            return null;
+        Optional<String> groupId = groups.stream()
+                .filter(group -> path.equals(group.getPath()))
+                .map(GroupRepresentation::getId)
+                .findFirst();
+        if (groupId.isEmpty()) {
+            log.warn("Organization group '{}' not found in Keycloak", name);
         }
-        return groups.getFirst().getId();
+        return groupId.orElse(null);
     }
 
     /**
