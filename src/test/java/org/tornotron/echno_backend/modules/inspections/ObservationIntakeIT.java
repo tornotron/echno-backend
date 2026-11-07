@@ -37,6 +37,8 @@ import org.tornotron.echno_backend.modules.inspections.domain.Observation;
 import org.tornotron.echno_backend.modules.inspections.api.IntakeActor;
 import org.tornotron.echno_backend.modules.inspections.dtos.IntakeBatchResponse;
 import org.tornotron.echno_backend.modules.inspections.dtos.IntakeObservationRequest;
+import org.tornotron.echno_backend.modules.inspections.dtos.ReviewBatchRequest;
+import org.tornotron.echno_backend.modules.inspections.dtos.ReviewBatchResponse;
 import org.tornotron.echno_backend.modules.inspections.dtos.ObservationDto;
 import org.tornotron.echno_backend.modules.inspections.events.InspectionEventRecorder;
 import org.tornotron.echno_backend.modules.inspections.events.InspectionEventService;
@@ -55,6 +57,7 @@ import org.tornotron.echno_backend.modules.inspections.service.ElementTypeServic
 import org.tornotron.echno_backend.modules.inspections.service.InspectionService;
 import org.tornotron.echno_backend.modules.inspections.service.NcrService;
 import org.tornotron.echno_backend.modules.inspections.service.ObservationBatchIntakeService;
+import org.tornotron.echno_backend.modules.inspections.service.ObservationBatchReviewService;
 import org.tornotron.echno_backend.modules.inspections.service.ObservationService;
 import org.tornotron.echno_backend.modules.inspections.service.TradeService;
 import org.tornotron.echno_backend.organization.Organization;
@@ -106,6 +109,7 @@ import static org.mockito.Mockito.times;
         ElementTypeService.class, ElementTypeMapperImpl.class,
         NcrService.class, NcrMapperImpl.class,
         ObservationService.class, ObservationMapperImpl.class, ObservationBatchIntakeService.class,
+        ObservationBatchReviewService.class,
         ValidationAutoConfiguration.class,
         InspectionEventRecorder.class, InspectionEventService.class,
         DefectAnnotationService.class, DefectPhotoAnnotationMapperImpl.class,
@@ -127,6 +131,9 @@ class ObservationIntakeIT extends AbstractIntegrationTest {
 
     @Autowired
     private ObservationBatchIntakeService batch;
+
+    @Autowired
+    private ObservationBatchReviewService batchReview;
 
     @Autowired
     private SpatialNodeService spatial;
@@ -370,6 +377,82 @@ class ObservationIntakeIT extends AbstractIntegrationTest {
 
         InspectionEvent created = events(id, InspectionEventType.OBSERVATION_CREATED).get(0);
         assertThat(created.getActorId()).isEqualTo("ppe");
+    }
+
+    @Test
+    void aBulkAcceptStampsTheBatchAndAnswersEachIdOnItsOwn() {
+        UUID first = taken("r1");
+        UUID second = taken("r2");
+        UUID already = taken("r3");
+        batchReview.review(new ReviewBatchRequest(ObservationReviewDecision.ACCEPT, List.of(already), null, null), true);
+        UUID unknown = UUID.randomUUID();
+
+        ReviewBatchResponse response = batchReview.review(new ReviewBatchRequest(ObservationReviewDecision.ACCEPT,
+                List.of(first, already, unknown, second), null, null), true);
+
+        assertThat(response.results()).extracting(ReviewBatchResponse.Result::status).containsExactly(
+                ReviewBatchResponse.Status.REVIEWED, ReviewBatchResponse.Status.ALREADY_REVIEWED,
+                ReviewBatchResponse.Status.NOT_FOUND, ReviewBatchResponse.Status.REVIEWED);
+        assertThat(service.findById(first).reviewStatus()).isEqualTo(ObservationReviewStatus.ACCEPTED);
+        assertThat(service.findById(second).outcomeKind()).isEqualTo(ObservationOutcomeKind.NONE);
+        inCommittedTx(() -> {
+            Observation row = entityManager.find(Observation.class, first);
+            assertThat(row.getReviewBatchId()).isEqualTo(response.batchId());
+        });
+        assertThat(events(first, InspectionEventType.OBSERVATION_REVIEWED)).singleElement()
+                .satisfies(event -> assertThat(event.getAfter()).containsEntry("batchId", response.batchId().toString()));
+    }
+
+    @Test
+    void aBulkRejectFollowsTheSameRulesPerItem() {
+        UUID id = taken("r4");
+
+        ReviewBatchResponse noNote = batchReview.review(new ReviewBatchRequest(ObservationReviewDecision.REJECT,
+                List.of(id), null, null), true);
+        assertThat(noNote.results()).singleElement().satisfies(result -> {
+            assertThat(result.status()).isEqualTo(ReviewBatchResponse.Status.REFUSED);
+            assertThat(result.message()).contains("note");
+        });
+        assertThat(service.findById(id).reviewStatus()).isEqualTo(ObservationReviewStatus.PENDING);
+
+        ReviewBatchResponse rejected = batchReview.review(new ReviewBatchRequest(ObservationReviewDecision.REJECT,
+                List.of(id), "Not on our site", ObservationRejectReason.OUT_OF_SCOPE), true);
+
+        assertThat(rejected.results().get(0).status()).isEqualTo(ReviewBatchResponse.Status.REVIEWED);
+        assertThat(service.findById(id).rejectReason()).isEqualTo(ObservationRejectReason.OUT_OF_SCOPE);
+    }
+
+    @Test
+    void aBulkDecisionCannotBeAModifyAndAnotherTenantsIdIsNotFound() {
+        assertThatThrownBy(() -> batchReview.review(new ReviewBatchRequest(ObservationReviewDecision.MODIFY,
+                List.of(UUID.randomUUID()), null, null), true))
+                .isInstanceOf(InvalidRequestException.class);
+
+        UUID theirs = taken("r5");
+        TenantContext.setCurrentOrgId(orgBId);
+        ReviewBatchResponse response = batchReview.review(new ReviewBatchRequest(ObservationReviewDecision.ACCEPT,
+                List.of(theirs), null, null), true);
+        TenantContext.setCurrentOrgId(orgAId);
+
+        assertThat(response.results().get(0).status()).isEqualTo(ReviewBatchResponse.Status.NOT_FOUND);
+        assertThat(service.findById(theirs).reviewStatus()).isEqualTo(ObservationReviewStatus.PENDING);
+    }
+
+    @Test
+    void aDetectionTheCallerMayNotSeeIsNotFoundInABatch() {
+        UUID detection = service.intake(new IntakeObservationRequest(projectId, "r6", ObservationSource.AI, "worker-1", null,
+                null, null, null, LocalDateTime.of(2026, 9, 12, 8, 16), "Helmet", null, null, null, "ppe", "0.1.0", null,
+                null, null)).observation().id();
+
+        ReviewBatchResponse response = batchReview.review(new ReviewBatchRequest(ObservationReviewDecision.ACCEPT,
+                List.of(detection), null, null), false);
+
+        assertThat(response.results().get(0).status()).isEqualTo(ReviewBatchResponse.Status.NOT_FOUND);
+        assertThat(service.findById(detection).reviewStatus()).isEqualTo(ObservationReviewStatus.PENDING);
+    }
+
+    private UUID taken(String ref) {
+        return service.intake(batchItem(ref, projectId)).observation().id();
     }
 
     private IntakeObservationRequest batchItem(String ref, Long project) {
