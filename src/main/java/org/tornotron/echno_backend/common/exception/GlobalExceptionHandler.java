@@ -315,11 +315,25 @@ public class GlobalExceptionHandler {
                 "An unexpected error occurred: " + ex.getMessage(), request);
     }
 
+    /**
+     * A request body that could not be read. Says what is actually wrong with it, because "missing"
+     * for every failure hid a date-time format mismatch behind a registration outage: "missing" is
+     * kept for a body that really is empty, and a field that failed to parse is named along with
+     * what it expects.
+     *
+     * <p>Built from the failure's parts and never from its message, which quotes the rejected
+     * value. The value can be anything a client typed, so it stays out of the answer and the log.
+     */
     @ExceptionHandler(HttpMessageNotReadableException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ProblemDetail handleMissingRequestBody(HttpMessageNotReadableException ex, WebRequest request) {
-        logger.error("Missing request body: ", ex);
-        return problem(HttpStatus.BAD_REQUEST, "Malformed Request", "Required request body is missing", request);
+    public ProblemDetail handleUnreadableRequestBody(HttpMessageNotReadableException ex, WebRequest request) {
+        UnreadableBody unreadable = UnreadableBody.of(ex);
+        logger.info("Unreadable request body: {}", unreadable.detail());
+        ProblemDetail pd = problem(HttpStatus.BAD_REQUEST, "Malformed Request", unreadable.detail(), request);
+        if (unreadable.field() != null) {
+            pd.setProperty("errors", Map.of(unreadable.field(), unreadable.detail()));
+        }
+        return pd;
     }
 
     @ExceptionHandler(InvalidInviteCodeException.class)
