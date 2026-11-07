@@ -2175,6 +2175,84 @@
         },
         "type": "object"
       },
+      "BillActivityDto": {
+        "description": "One recent event on a bill, with the bill and project it belongs to.",
+        "properties": {
+          "actorName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "billId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "billNumber": {
+            "type": "string"
+          },
+          "billingModel": {
+            "enum": [
+              "RUNNING_ACCOUNT",
+              "MILESTONE"
+            ],
+            "type": "string"
+          },
+          "contractName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "projectId": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "projectName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "subContractId": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "type": {
+            "enum": [
+              "CREATED",
+              "CLAIM_UPDATED",
+              "SUBMITTED",
+              "MEASUREMENT_SAVED",
+              "VERIFIED",
+              "ADJUSTMENTS_UPDATED",
+              "CERTIFIED",
+              "APPROVED",
+              "RETURNED",
+              "CANCELLED",
+              "DOCUMENT_ADDED",
+              "DOCUMENT_REMOVED",
+              "NOTE"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "BillAdjustmentDto": {
         "description": "One commercial adjustment on a bill. Before certification the rule lines are a preview worked out from the contract's rules.",
         "properties": {
@@ -2273,6 +2351,20 @@
               "$ref": "#/components/schemas/BillAdjustmentDto"
             },
             "type": "array"
+          },
+          "amountDue": {
+            "description": "Still due on the bill's payable, in rupees, once approved.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "amountPaid": {
+            "description": "Paid against the bill's payable, in rupees, once approved.",
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "amountsFinal": {
             "description": "True once the bill is certified and its figures are frozen.",
@@ -2448,6 +2540,19 @@
             "format": "int64",
             "type": [
               "integer",
+              "null"
+            ]
+          },
+          "paymentState": {
+            "description": "How far the bill has been paid, once approved.",
+            "enum": [
+              "NOTHING_PAYABLE",
+              "UNPAID",
+              "PART_PAID",
+              "PAID"
+            ],
+            "type": [
+              "string",
               "null"
             ]
           },
@@ -2729,6 +2834,20 @@
       "BillSummaryDto": {
         "description": "A bill as a row in a list.",
         "properties": {
+          "amountDue": {
+            "description": "Still due on the bill's payable, in rupees, once approved.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "amountPaid": {
+            "description": "Paid against the bill's payable, in rupees, once approved.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
           "approvedAt": {
             "format": "date-time",
             "type": [
@@ -2788,6 +2907,19 @@
             "description": "The net payable, once the bill is certified.",
             "type": [
               "number",
+              "null"
+            ]
+          },
+          "paymentState": {
+            "description": "How far the bill has been paid, once approved.",
+            "enum": [
+              "NOTHING_PAYABLE",
+              "UNPAID",
+              "PART_PAID",
+              "PAID"
+            ],
+            "type": [
+              "string",
               "null"
             ]
           },
@@ -3032,6 +3164,10 @@
       "BillingOverviewDto": {
         "description": "Organization-wide billing figures for the home page cards.",
         "properties": {
+          "amountDue": {
+            "description": "Still due on approved bills' payables, in rupees.",
+            "type": "number"
+          },
           "approvedBills": {
             "format": "int64",
             "type": "integer"
@@ -3065,6 +3201,20 @@
           },
           "openBills": {
             "description": "Bills not yet approved or cancelled.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "paidToDate": {
+            "description": "Paid against approved bills' payables, in rupees.",
+            "type": "number"
+          },
+          "pendingActions": {
+            "description": "Bills waiting on someone: submitted, verified, certified or returned.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "projectsInBilling": {
+            "description": "Projects with at least one bill other than a cancelled one.",
             "format": "int64",
             "type": "integer"
           },
@@ -5916,6 +6066,10 @@
       "ContractBillingSummaryDto": {
         "description": "One contract on the billing home page: its billing model, what is certified so far and its open bill.",
         "properties": {
+          "amountDue": {
+            "description": "Still due on approved bills' payables, in rupees.",
+            "type": "number"
+          },
           "approvedBillCount": {
             "format": "int32",
             "type": "integer"
@@ -5993,6 +6147,10 @@
               }
             ],
             "description": "The bill still in progress, if any."
+          },
+          "paidToDate": {
+            "description": "Paid against approved bills' payables, in rupees.",
+            "type": "number"
           },
           "projectId": {
             "format": "int64",
@@ -6188,6 +6346,13 @@
             "minLength": 0,
             "type": [
               "string",
+              "null"
+            ]
+          },
+          "draftFromInspections": {
+            "description": "Running account only: start each line's claimed quantity from the inspected progress of its linked activity, instead of zero.",
+            "type": [
+              "boolean",
               "null"
             ]
           },
@@ -18482,6 +18647,52 @@
         },
         "type": "object"
       },
+      "PageProjectBillingSummaryDto": {
+        "properties": {
+          "content": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectBillingSummaryDto"
+            },
+            "type": "array"
+          },
+          "empty": {
+            "type": "boolean"
+          },
+          "first": {
+            "type": "boolean"
+          },
+          "last": {
+            "type": "boolean"
+          },
+          "number": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "numberOfElements": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "pageable": {
+            "$ref": "#/components/schemas/PageableObject"
+          },
+          "size": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "sort": {
+            "$ref": "#/components/schemas/SortObject"
+          },
+          "totalElements": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "totalPages": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "PageProjectDto": {
         "properties": {
           "content": {
@@ -19978,6 +20189,110 @@
           "wbsElementId": {
             "format": "int64",
             "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "ProjectBillingSummaryDto": {
+        "description": "One project on the billing home page: its contracts and bills added up.",
+        "properties": {
+          "amountDue": {
+            "description": "Still due on those bills' payables, in rupees.",
+            "type": "number"
+          },
+          "awaitingSignature": {
+            "description": "Submitted, verified or certified bills waiting for the next signature.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "billCount": {
+            "description": "Bills other than cancelled ones.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "billedPercent": {
+            "description": "certifiedToDate as a percent of the contract value.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "billingState": {
+            "enum": [
+              "NO_CONTRACTS",
+              "NOT_STARTED",
+              "IN_PROGRESS",
+              "PAYMENT_DUE",
+              "SETTLED"
+            ],
+            "type": "string"
+          },
+          "certifiedToDate": {
+            "description": "Gross certified on certified and approved bills, in rupees.",
+            "type": "number"
+          },
+          "city": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "contractCount": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "contractValue": {
+            "description": "Sum of the contract values, in rupees.",
+            "type": "number"
+          },
+          "lastActivityAt": {
+            "description": "When a bill on the project last changed.",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "netApprovedToDate": {
+            "description": "Net payable of approved bills, in rupees.",
+            "type": "number"
+          },
+          "openBills": {
+            "description": "Bills not yet approved or cancelled.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "paidToDate": {
+            "description": "Paid against those bills' payables, in rupees.",
+            "type": "number"
+          },
+          "progress": {
+            "description": "The project's inspected progress, as a percent.",
+            "format": "double",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "projectId": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "projectName": {
+            "type": "string"
+          },
+          "projectStatus": {
+            "description": "The project's own status.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "state": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "type": "object"
@@ -45842,6 +46157,132 @@
         ]
       }
     },
+    "/api/v1/contract-billing/activity": {
+      "get": {
+        "description": "Across the organization, or for one project. At most 50.",
+        "operationId": "ContractBillingController_activity",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "projectId",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BillActivityDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "The events"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "The latest bill events, newest first",
+        "tags": [
+          "Contract Billing"
+        ]
+      }
+    },
     "/api/v1/contract-billing/bills": {
       "get": {
         "description": "Filter by project, contract, status and billing model; all optional.",
@@ -49665,6 +50106,257 @@
         ]
       }
     },
+    "/api/v1/contract-billing/projects": {
+      "get": {
+        "description": "Search by part of the name.",
+        "operationId": "ContractBillingController_projects",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageProjectBillingSummaryDto"
+                }
+              }
+            },
+            "description": "A page of projects"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List projects with their contracts and bills added up, by name",
+        "tags": [
+          "Contract Billing"
+        ]
+      }
+    },
+    "/api/v1/contract-billing/projects/{projectId}": {
+      "get": {
+        "operationId": "ContractBillingController_project",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectBillingSummaryDto"
+                }
+              }
+            },
+            "description": "The project's billing figures"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such project in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Get one project with its contracts and bills added up",
+        "tags": [
+          "Contract Billing"
+        ]
+      }
+    },
     "/api/v1/contract-billing/requirements/{requirementId}": {
       "delete": {
         "operationId": "ContractBillingController_deleteRequirement",
@@ -49887,6 +50579,132 @@
         "summary": "Change a milestone requirement, including its status",
         "tags": [
           "Contract Billing"
+        ]
+      }
+    },
+    "/api/v1/contract-billing/web/activity": {
+      "get": {
+        "description": "Across the organization, or for one project. At most 50.",
+        "operationId": "ContractBillingControllerWeb_activity",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "projectId",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BillActivityDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "The events"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "The latest bill events, newest first",
+        "tags": [
+          "Contract Billing (web)"
         ]
       }
     },
@@ -53708,6 +54526,257 @@
           }
         },
         "summary": "Organization-wide billing figures for the home page",
+        "tags": [
+          "Contract Billing (web)"
+        ]
+      }
+    },
+    "/api/v1/contract-billing/web/projects": {
+      "get": {
+        "description": "Search by part of the name.",
+        "operationId": "ContractBillingControllerWeb_projects",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageProjectBillingSummaryDto"
+                }
+              }
+            },
+            "description": "A page of projects"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List projects with their contracts and bills added up, by name",
+        "tags": [
+          "Contract Billing (web)"
+        ]
+      }
+    },
+    "/api/v1/contract-billing/web/projects/{projectId}": {
+      "get": {
+        "operationId": "ContractBillingControllerWeb_project",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectBillingSummaryDto"
+                }
+              }
+            },
+            "description": "The project's billing figures"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such project in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Get one project with its contracts and bills added up",
         "tags": [
           "Contract Billing (web)"
         ]
