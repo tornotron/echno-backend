@@ -1,5 +1,7 @@
 package org.tornotron.echno_backend.modules.inspections.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
@@ -24,7 +26,10 @@ import org.tornotron.echno_backend.modules.inspections.ObservationOutcomeKind;
 import org.tornotron.echno_backend.modules.inspections.ObservationReviewDecision;
 import org.tornotron.echno_backend.modules.inspections.ObservationReviewStatus;
 import org.tornotron.echno_backend.modules.inspections.ObservationSource;
+import org.tornotron.echno_backend.modules.inspections.InspectionEvidence;
+import org.tornotron.echno_backend.modules.inspections.api.IntakeActor;
 import org.tornotron.echno_backend.modules.inspections.api.IntakeCandidate;
+import org.tornotron.echno_backend.modules.inspections.api.IntakeRejectedException;
 import org.tornotron.echno_backend.modules.inspections.api.ObservationIntakeCheck;
 import org.tornotron.echno_backend.modules.inspections.domain.Inspection;
 import org.tornotron.echno_backend.modules.inspections.domain.InspectionCheckItem;
@@ -55,7 +60,10 @@ import org.tornotron.echno_backend.modules.inspections.domain.ObservationRegion;
 import org.tornotron.echno_backend.modules.inspections.dtos.ObservationRegionDto;
 import org.tornotron.echno_backend.modules.inspections.dtos.ObservationRegionRequest;
 import org.tornotron.echno_backend.modules.inspections.dtos.RegionEditOp;
+import org.tornotron.echno_backend.modules.inspections.observation.IntakeReferenceNotFoundException;
+import org.tornotron.echno_backend.modules.inspections.observation.IntakeRejectedCodes;
 import org.tornotron.echno_backend.modules.inspections.observation.RegionGeometry;
+import org.tornotron.echno_backend.modules.inspections.repositories.ObservationIntakeUploadRepository;
 import org.tornotron.echno_backend.modules.inspections.repositories.ObservationRegionRepository;
 import org.tornotron.echno_backend.project.spatial.SpatialNodeService;
 import org.tornotron.echno_backend.project.spatial.dto.SpatialPathSegment;
@@ -76,6 +84,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.BiFunction;
 
 /**
  * The observation life cycle: proposed, reviewed, outcome linked.
@@ -110,9 +119,13 @@ public class ObservationService {
     private final TransactionRetryTemplate retryTemplate;
     private final ObservationRegionRepository regionRepo;
     private final ObjectProvider<ObservationIntakeCheck> intakeChecks;
+    private final ObservationIntakeUploadRepository intakeUploads;
 
     /** Regions one observation may be posted with; a model that sees more posts more observations. */
     static final int MAX_REGIONS = 20;
+    static final int MAX_EVIDENCE_REFS = 20;
+    static final int MAX_EVIDENCE_REFS_BYTES = 8 * 1024;
+    private static final ObjectMapper JSON = new ObjectMapper();
 
     // ------------------------------------------------------------------ reads
 
@@ -201,7 +214,7 @@ public class ObservationService {
             }
             o.setEvidenceRefs(refs);
         }
-        List<NewRegion> regions = prepareRegions(req.regions(), false);
+        List<NewRegion> regions = prepareRegions(req.regions());
         accept(o, employeeId, ObservationOutcomeKind.NONE, null);
         Observation saved = observationRepo.saveAndFlush(o);
         List<ObservationRegion> stored = insertRegions(saved, regions, RegionOrigin.HUMAN, employeeId);
@@ -232,23 +245,30 @@ public class ObservationService {
      * abort CockroachDB reports for the race instead of the unique violation.
      */
     public IntakeResult intake(IntakeObservationRequest req) {
+        return intake(req, null);
+    }
+
+    /** As {@link #intake(IntakeObservationRequest)}, with the event log naming {@code actor} when one is given. */
+    public IntakeResult intake(IntakeObservationRequest req, IntakeActor actor) {
         if (req.source() == ObservationSource.HUMAN) {
             throw new InvalidRequestException("Intake is for machine producers; people record through the web endpoint");
         }
         return retryTemplate.execute(
                 "ObservationService.intake",
                 failure -> SqlStateDetector.carriesSqlState(failure, SqlStateDetector.UNIQUE_VIOLATION),
-                () -> intakeOnce(req));
+                () -> intakeOnce(req, actor));
     }
 
-    private IntakeResult intakeOnce(IntakeObservationRequest req) {
+    private IntakeResult intakeOnce(IntakeObservationRequest req, IntakeActor namedActor) {
         Optional<Observation> existing = observationRepo.findByExternalRefScoped(req.externalRef());
         if (existing.isPresent()) {
             log.debug("Observation intake repeated externalRef {}; returning the existing row", req.externalRef());
             return new IntakeResult(findById(existing.get().getId(), false), false);
         }
-        requireProject(req.projectId());
-        List<NewRegion> regions = prepareRegions(req.regions(), true);
+        requireIntakeProject(req.projectId());
+        Set<Long> usable = new HashSet<>();
+        List<NewRegion> regions = prepareProducerRegions(req.regions(), req.projectId(), usable);
+        requireEvidenceRefs(req.evidenceRefs(), req.projectId(), usable);
         IntakeCandidate candidate = candidateOf(req, regions);
         intakeChecks.orderedStream().forEach(check -> check.check(candidate));
         Observation o = newObservation(req.projectId(), null, req.source(), req.title(), req.description());
@@ -267,10 +287,16 @@ public class ObservationService {
         o.setEvidenceRefs(req.evidenceRefs());
         Observation saved = observationRepo.saveAndFlush(o);
         List<ObservationRegion> stored = insertRegions(saved, regions, RegionOrigin.PRODUCER, null);
-        InspectionEventActorType actor = req.source() == ObservationSource.AI
-                ? InspectionEventActorType.AI : InspectionEventActorType.DEVICE;
-        String actorId = req.source() == ObservationSource.AI && req.modelName() != null
-                ? req.modelName() : req.sourceDeviceId();
+        InspectionEventActorType actor;
+        String actorId;
+        if (namedActor != null) {
+            actor = namedActor.kind() == IntakeActor.Kind.AI ? InspectionEventActorType.AI : InspectionEventActorType.DEVICE;
+            actorId = namedActor.id();
+        } else {
+            actor = req.source() == ObservationSource.AI ? InspectionEventActorType.AI : InspectionEventActorType.DEVICE;
+            actorId = req.source() == ObservationSource.AI && req.modelName() != null
+                    ? req.modelName() : req.sourceDeviceId();
+        }
         events.recordAs(InspectionEventSubject.observation(saved), InspectionEventType.OBSERVATION_CREATED,
                 actor, actorId, null,
                 InspectionEventChanges.none()
@@ -765,11 +791,38 @@ public class ObservationService {
     /** What a MODIFY did to the regions: active ids before and after, and each op as applied. */
     private record RegionEdits(List<String> before, List<String> after, List<Map<String, Object>> ops) {}
 
+    /** Validates a person's regions before anything is written. A person sends no score, since a score is a model's. */
+    private List<NewRegion> prepareRegions(List<ObservationRegionRequest> requests) {
+        return prepareRegions(requests, (where, r) -> {
+            if (r.score() != null) {
+                throw new InvalidRequestException(where + ": a region a person draws carries no score");
+            }
+            requireRegionImage(where, r.attachmentId());
+            return RegionGeometry.normalise(where, r.shape(), r.box(), r.points());
+        });
+    }
+
     /**
-     * Validates posted regions before anything is written. A producer may send a score; a person
-     * may not, since a score is a model's.
+     * Validates a producer's regions before anything is written: each image must be one this producer
+     * may reference on this project, and a bad shape is refused with a code the producer can act on.
+     *
+     * @param usable the attachments already cleared for this finding, so a photo with many regions is
+     *               looked up once
      */
-    private List<NewRegion> prepareRegions(List<ObservationRegionRequest> requests, boolean producer) {
+    private List<NewRegion> prepareProducerRegions(List<ObservationRegionRequest> requests, Long projectId,
+                                                   Set<Long> usable) {
+        return prepareRegions(requests, (where, r) -> {
+            requireRegionImageForProducer(where, r.attachmentId(), projectId, usable);
+            try {
+                return RegionGeometry.normalise(where, r.shape(), r.box(), r.points());
+            } catch (InvalidRequestException e) {
+                throw new IntakeRejectedException(IntakeRejectedCodes.INVALID_GEOMETRY, where, e.getMessage());
+            }
+        });
+    }
+
+    private List<NewRegion> prepareRegions(List<ObservationRegionRequest> requests,
+                                           BiFunction<String, ObservationRegionRequest, RegionGeometry.Normalised> checks) {
         if (requests == null || requests.isEmpty()) {
             return List.of();
         }
@@ -783,21 +836,52 @@ public class ObservationService {
             if (r == null) {
                 throw new InvalidRequestException(where + ": region is missing");
             }
-            if (!producer && r.score() != null) {
-                throw new InvalidRequestException(where + ": a region a person draws carries no score");
-            }
             if (r.score() != null && (r.score().signum() < 0 || r.score().compareTo(BigDecimal.ONE) > 0)) {
                 throw new InvalidRequestException(where + ": score must be in [0, 1]");
             }
-            requireRegionImage(where, r.attachmentId());
-            prepared.add(new NewRegion(r.attachmentId(),
-                    RegionGeometry.normalise(where, r.shape(), r.box(), r.points()),
+            RegionGeometry.Normalised geometry = checks.apply(where, r);
+            prepared.add(new NewRegion(r.attachmentId(), geometry,
                     requireClassKey(where, r.classKey()),
                     r.score() == null ? null : r.score().setScale(4, RoundingMode.HALF_UP),
                     requirePositive(where, "imageWidth", r.imageWidth()),
                     requirePositive(where, "imageHeight", r.imageHeight())));
         }
         return prepared;
+    }
+
+    /**
+     * An entry with an {@code attachmentId} is held to the same rule as a region's image; the others
+     * (a frame index, a point-cloud id) pass through in the producer's own shape, within the caps.
+     */
+    private void requireEvidenceRefs(List<Map<String, Object>> refs, Long projectId, Set<Long> usable) {
+        if (refs == null || refs.isEmpty()) {
+            return;
+        }
+        if (refs.size() > MAX_EVIDENCE_REFS) {
+            throw new IntakeRejectedException(IntakeRejectedCodes.VALIDATION, "evidenceRefs",
+                    "At most " + MAX_EVIDENCE_REFS + " evidenceRefs per observation");
+        }
+        try {
+            if (JSON.writeValueAsBytes(refs).length > MAX_EVIDENCE_REFS_BYTES) {
+                throw new IntakeRejectedException(IntakeRejectedCodes.VALIDATION, "evidenceRefs",
+                        "evidenceRefs are limited to 8 KB of JSON");
+            }
+        } catch (JsonProcessingException e) {
+            throw new IntakeRejectedException(IntakeRejectedCodes.VALIDATION, "evidenceRefs",
+                    "evidenceRefs are not valid JSON");
+        }
+        for (int i = 0; i < refs.size(); i++) {
+            Map<String, Object> ref = refs.get(i);
+            String where = "evidenceRefs[" + i + "]";
+            Object id = ref == null ? null : ref.get("attachmentId");
+            if (id == null) {
+                continue;
+            }
+            if (!(id instanceof Number number)) {
+                throw new IntakeRejectedException(IntakeRejectedCodes.VALIDATION, where, where + ": attachmentId must be a number");
+            }
+            requireUsableByProducer(where, requireAttachmentForProducer(number.longValue()), projectId, usable);
+        }
     }
 
     private List<ObservationRegion> insertRegions(Observation o, List<NewRegion> regions, RegionOrigin origin,
@@ -1004,6 +1088,55 @@ public class ObservationService {
         }
     }
 
+    private void requireRegionImageForProducer(String where, Long attachmentId, Long projectId, Set<Long> usable) {
+        if (attachmentId == null) {
+            throw new InvalidRequestException(where + ": attachmentId is required");
+        }
+        Attachment attachment = requireAttachmentForProducer(attachmentId);
+        String type = attachment.getContentType();
+        if (type != null && !type.toLowerCase(Locale.ROOT).startsWith("image/")) {
+            throw new InvalidRequestException(where + ": attachment " + attachmentId + " is " + type
+                    + "; regions are drawn on images");
+        }
+        requireUsableByProducer(where, attachment, projectId, usable);
+    }
+
+    private Attachment requireAttachmentForProducer(Long attachmentId) {
+        return attachmentRepository.findByIdAndOrganization_Id(attachmentId, TenantContext.getCurrentOrgId())
+                .orElseThrow(() -> new IntakeReferenceNotFoundException(IntakeRejectedCodes.ATTACHMENT_NOT_FOUND,
+                        "Attachment with ID " + attachmentId + " was not found"));
+    }
+
+    /**
+     * A producer may cite the images it uploaded for this project, and the inspection and observation
+     * evidence already on this project. Nothing else of the organisation: not an HR document, not
+     * another project's photo, not another producer's upload.
+     */
+    private void requireUsableByProducer(String where, Attachment attachment, Long projectId, Set<Long> usable) {
+        if (usable.contains(attachment.getId())) {
+            return;
+        }
+        boolean allowed = switch (attachment.getEntityType()) {
+            case ObservationEvidence.INTAKE_UPLOAD_ENTITY_TYPE -> attachment.getEntityUuid() != null
+                    && intakeUploads.findByIdScoped(attachment.getEntityUuid())
+                            .filter(u -> u.getProjectId().equals(projectId))
+                            .filter(u -> u.getProducerSubject().equals(userContextService.getCurrentKeycloakId()))
+                            .isPresent();
+            case InspectionEvidence.ENTITY_TYPE -> projectId.equals(attachment.getProject() != null
+                    ? attachment.getProject().getId()
+                    : inspectionRepo.findProjectIdByIdScoped(attachment.getEntityUuid()).orElse(null));
+            case ObservationEvidence.ENTITY_TYPE -> projectId.equals(attachment.getProject() != null
+                    ? attachment.getProject().getId()
+                    : observationRepo.findProjectIdByIdScoped(attachment.getEntityUuid()).orElse(null));
+            default -> false;
+        };
+        if (!allowed) {
+            throw new IntakeRejectedException(IntakeRejectedCodes.ATTACHMENT_NOT_ALLOWED, where, where + ": attachment "
+                    + attachment.getId() + " is neither this producer's upload for the project nor evidence on the project");
+        }
+        usable.add(attachment.getId());
+    }
+
     private static String requireClassKey(String where, String classKey) {
         if (classKey == null || classKey.isBlank()) {
             throw new InvalidRequestException(where + ": classKey is required");
@@ -1116,6 +1249,13 @@ public class ObservationService {
     private void requireProject(Long projectId) {
         if (projectId == null || !projectRepository.existsByIdAndOrganization_Id(projectId, TenantContext.getCurrentOrgId())) {
             throw new ResourceNotFoundException("Project with ID " + projectId + " was not found");
+        }
+    }
+
+    private void requireIntakeProject(Long projectId) {
+        if (projectId == null || !projectRepository.existsByIdAndOrganization_Id(projectId, TenantContext.getCurrentOrgId())) {
+            throw new IntakeReferenceNotFoundException(IntakeRejectedCodes.PROJECT_NOT_FOUND,
+                    "Project with ID " + projectId + " was not found");
         }
     }
 

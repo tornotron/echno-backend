@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.stubbing.Answer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.aop.AopAutoConfiguration;
+import org.springframework.boot.autoconfigure.validation.ValidationAutoConfiguration;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
@@ -33,6 +34,8 @@ import org.tornotron.echno_backend.common.retry.TransactionRetryTemplate;
 import org.tornotron.echno_backend.common.retry.TransactionalWorkRunner;
 import org.tornotron.echno_backend.modules.inspections.domain.InspectionEvent;
 import org.tornotron.echno_backend.modules.inspections.domain.Observation;
+import org.tornotron.echno_backend.modules.inspections.api.IntakeActor;
+import org.tornotron.echno_backend.modules.inspections.dtos.IntakeBatchResponse;
 import org.tornotron.echno_backend.modules.inspections.dtos.IntakeObservationRequest;
 import org.tornotron.echno_backend.modules.inspections.dtos.ObservationDto;
 import org.tornotron.echno_backend.modules.inspections.events.InspectionEventRecorder;
@@ -51,6 +54,7 @@ import org.tornotron.echno_backend.modules.inspections.service.DefectAnnotationS
 import org.tornotron.echno_backend.modules.inspections.service.ElementTypeService;
 import org.tornotron.echno_backend.modules.inspections.service.InspectionService;
 import org.tornotron.echno_backend.modules.inspections.service.NcrService;
+import org.tornotron.echno_backend.modules.inspections.service.ObservationBatchIntakeService;
 import org.tornotron.echno_backend.modules.inspections.service.ObservationService;
 import org.tornotron.echno_backend.modules.inspections.service.TradeService;
 import org.tornotron.echno_backend.organization.Organization;
@@ -101,7 +105,8 @@ import static org.mockito.Mockito.times;
         TradeService.class, TradeMapperImpl.class,
         ElementTypeService.class, ElementTypeMapperImpl.class,
         NcrService.class, NcrMapperImpl.class,
-        ObservationService.class, ObservationMapperImpl.class,
+        ObservationService.class, ObservationMapperImpl.class, ObservationBatchIntakeService.class,
+        ValidationAutoConfiguration.class,
         InspectionEventRecorder.class, InspectionEventService.class,
         DefectAnnotationService.class, DefectPhotoAnnotationMapperImpl.class,
         UserContextService.class,
@@ -119,6 +124,9 @@ class ObservationIntakeIT extends AbstractIntegrationTest {
 
     @Autowired
     private ObservationService service;
+
+    @Autowired
+    private ObservationBatchIntakeService batch;
 
     @Autowired
     private SpatialNodeService spatial;
@@ -332,6 +340,43 @@ class ObservationIntakeIT extends AbstractIntegrationTest {
      *
      * @return where the winner's id lands once the race has been run
      */
+    @Test
+    void aBadItemInABatchRollsBackNothingElseAndARepeatIsAllExisting() {
+        List<IntakeObservationRequest> items = List.of(batchItem("b1", projectId), batchItem("b2", projectId),
+                batchItem("b3", 987654L), batchItem("b4", projectId), batchItem("b5", projectId));
+
+        IntakeBatchResponse first = batch.intakeAll(items, null);
+
+        assertThat(first.created()).isEqualTo(4);
+        assertThat(first.rejected()).isEqualTo(1);
+        assertThat(first.results().get(2).status()).isEqualTo(IntakeBatchResponse.Status.REJECTED);
+        assertThat(first.results().get(2).error().code()).isEqualTo("PROJECT_NOT_FOUND");
+        for (int index : List.of(0, 1, 3, 4)) {
+            UUID stored = first.results().get(index).observationId();
+            assertThat(service.findById(stored).id()).isEqualTo(stored);
+        }
+
+        IntakeBatchResponse repeat = batch.intakeAll(List.of(items.get(0), items.get(1), items.get(3), items.get(4)), null);
+
+        assertThat(repeat.existing()).isEqualTo(4);
+        assertThat(repeat.created()).isZero();
+        assertThat(repeat.results().get(0).observationId()).isEqualTo(first.results().get(0).observationId());
+    }
+
+    @Test
+    void aBatchFromAJobNamesTheJobsActor() {
+        UUID id = batch.intakeAll(List.of(batchItem("job-1", projectId)), IntakeActor.ai("ppe")).results().get(0)
+                .observationId();
+
+        InspectionEvent created = events(id, InspectionEventType.OBSERVATION_CREATED).get(0);
+        assertThat(created.getActorId()).isEqualTo("ppe");
+    }
+
+    private IntakeObservationRequest batchItem(String ref, Long project) {
+        return new IntakeObservationRequest(project, ref, ObservationSource.DRONE, "drone-7", null, null, null, null,
+                LocalDateTime.of(2026, 9, 12, 8, 16), "Exposed rebar", null, null, null, null, null, null, null, null);
+    }
+
     private AtomicReference<UUID> raceTheFirstCheck(boolean readFirst) {
         // The repository bean is a JDK proxy, so the spy answers by delegating to it rather than
         // by calling a real method; that delegate is the spy's default answer.
