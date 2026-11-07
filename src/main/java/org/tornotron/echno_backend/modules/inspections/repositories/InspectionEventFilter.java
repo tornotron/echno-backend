@@ -18,9 +18,27 @@ public record InspectionEventFilter(UUID inspectionId,
                                     String eventType,
                                     String actorId,
                                     LocalDateTime from,
-                                    LocalDateTime to) {
+                                    LocalDateTime to,
+                                    boolean hideDetections) {
+
+    public InspectionEventFilter(UUID inspectionId,
+                                 InspectionEventSubjectType subjectType,
+                                 Collection<UUID> subjectIds,
+                                 Long projectId,
+                                 String eventType,
+                                 String actorId,
+                                 LocalDateTime from,
+                                 LocalDateTime to) {
+        this(inspectionId, subjectType, subjectIds, projectId, eventType, actorId, from, to, false);
+    }
 
     public static InspectionEventFilter forInspection(UUID inspectionId) {
         return new InspectionEventFilter(inspectionId, null, null, null, null, null, null, null);
+    }
+
+    /** The same narrowing, also dropping the events of a model's detections. */
+    public InspectionEventFilter hidingDetections() {
+        return new InspectionEventFilter(inspectionId, subjectType, subjectIds, projectId, eventType, actorId, from, to,
+                true);
     }
 }
