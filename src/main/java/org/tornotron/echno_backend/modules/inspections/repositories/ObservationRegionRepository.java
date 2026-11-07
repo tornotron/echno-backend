@@ -21,6 +21,10 @@ public interface ObservationRegionRepository extends JpaRepository<ObservationRe
             + "ORDER BY r.lineOrder, r.createdAt")
     List<ObservationRegion> findActiveByObservationsScoped(@Param("observationIds") Collection<UUID> observationIds);
 
+    /** Of these attachments, the ones a region, active or retired, is drawn on. */
+    @Query("SELECT DISTINCT r.attachmentId FROM ObservationRegion r WHERE r.attachmentId IN :attachmentIds")
+    List<Long> findDrawnOnScoped(@Param("attachmentIds") Collection<Long> attachmentIds);
+
     /** Observations whose regions, active or retired, are drawn on the attachment. */
     @Query("SELECT DISTINCT r.observationId FROM ObservationRegion r WHERE r.attachmentId = :attachmentId")
     List<UUID> findObservationIdsByAttachmentScoped(@Param("attachmentId") Long attachmentId);

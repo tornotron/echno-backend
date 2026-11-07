@@ -1,5 +1,6 @@
 package org.tornotron.echno_backend.modules.inspections.service;
 
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -7,6 +8,7 @@ import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.common.dto.AttachmentOwner;
@@ -27,6 +29,7 @@ import org.tornotron.echno_backend.modules.inspections.dtos.IntakeUploadPresignR
 import org.tornotron.echno_backend.modules.inspections.dtos.IntakeUploadPresignResponse;
 import org.tornotron.echno_backend.modules.inspections.dtos.IntakeUploadRegisterRequest;
 import org.tornotron.echno_backend.modules.inspections.repositories.ObservationIntakeUploadRepository;
+import org.tornotron.echno_backend.modules.inspections.repositories.ObservationRegionRepository;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.user.UserContextService;
@@ -53,6 +56,7 @@ public class ObservationIntakeUploadService {
     private final ProjectRepository projectRepository;
     private final TenantEntityHelper tenantEntityHelper;
     private final UserContextService userContextService;
+    private final ObservationRegionRepository regionRepo;
 
     @Transactional
     public IntakeUploadPresignResponse presign(IntakeUploadPresignRequest req) {
@@ -97,6 +101,34 @@ public class ObservationIntakeUploadService {
         log.info("Registered {} intake uploads under {} on project {}", stored.size(), upload.getId(),
                 upload.getProjectId());
         return stored.stream().map(attachmentMapper::toDto).toList();
+    }
+
+    /**
+     * Deletes the current tenant's intake images older than the cutoff that nothing cites: no region,
+     * active or retired, and no {@code evidenceRefs} entry. Then the presign rows with nothing left.
+     * The stored file goes after the commit, so a rollback cannot leave a row with no file.
+     *
+     * @return how many images were deleted
+     */
+    @Transactional
+    public int deleteUnreferenced(LocalDateTime cutoff, int limit) {
+        Long orgId = TenantContext.getCurrentOrgId();
+        String type = ObservationEvidence.INTAKE_UPLOAD_ENTITY_TYPE;
+        List<Attachment> stale = uploads.findAttachmentsOlderThan(type, cutoff, PageRequest.of(0, limit));
+        Set<Long> drawnOn = stale.isEmpty() ? Set.of()
+                : new HashSet<>(regionRepo.findDrawnOnScoped(stale.stream().map(Attachment::getId).toList()));
+        int deleted = 0;
+        for (Attachment attachment : stale) {
+            if (drawnOn.contains(attachment.getId()) || uploads.countObservationsCiting(orgId,
+                    "[{\"attachmentId\":" + attachment.getId() + "}]") > 0) {
+                continue;
+            }
+            attachmentService.deleteAttachmentOf(ObservationEvidence.intakeUploadOwnerOf(attachment.getEntityUuid()),
+                    attachment.getId());
+            deleted++;
+        }
+        uploads.deleteEmptyOlderThan(orgId, type, cutoff);
+        return deleted;
     }
 
     /** {@code observations/intake/<orgId>/<uploadId>}; a registered key must sit under it. */
