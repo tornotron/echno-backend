@@ -39,8 +39,8 @@ import java.util.Set;
  *       on {@code system-admin} and {@code hr-admin} with no self clause, so leaving it writable
  *       through the map was a way round those two endpoints rather than a decision about it.
  *   <li><b>designation</b> and <b>department</b> are organizational facts rather than personal
- *       ones. Both are set for the person at the point they join, off the invite code
- *       ({@code InviteCodeGenerationDto} requires them and the joiner never supplies them), and
+ *       ones. Both are set for the person at the point they join, off the invitation the
+ *       administrator wrote (the joiner never supplies them), and
  *       both are shown to colleagues as the organization's description of the person: designation
  *       is what a leave approver is labelled with on {@code LeaveApprovalDto}. Neither decides an
  *       authorization today, which is what was checked before deciding. Department is the closer

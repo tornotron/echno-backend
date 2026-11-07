@@ -18,6 +18,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Both guards were doing exactly that. This reads the annotations back off the handlers so a guard
  * put back by habit fails here rather than on someone's first day using the product.
  *
+ * <p>The one thing added since is {@code OrganizationCreationPolicy}, which keeps self-service on
+ * wherever it was (every Keycloak stack, unless it says otherwise) and asks for a platform
+ * administrator only where a stack turns it off. It asks nothing a new account could not hold.
+ *
  * <p>Creating an organization is still not unguarded. The caller must be authenticated, the new
  * organization is a tenant of its own that touches no existing one, and the billing rule now lives
  * in {@code OrganizationService}, which exempts a user's first organization and charges the rest.
@@ -32,21 +36,21 @@ class OrganizationCreateBootstrapWiringTest {
     }
 
     @Test
-    void webCreateAsksOnlyForAnAuthenticatedCaller() {
+    void webCreateAsksOnlyForAnAuthenticatedCallerAndTheCreationPolicy() {
         PreAuthorize guard = createOrganization(OrganizationWebController.class).getAnnotation(PreAuthorize.class);
 
         assertThat(guard).isNotNull();
-        assertThat(guard.value()).isEqualTo("isAuthenticated()");
+        assertThat(guard.value()).isEqualTo("isAuthenticated() and @organizationCreation.allows(authentication)");
     }
 
     @Test
-    void mobileCreateAsksOnlyForAnAuthenticatedCaller() {
+    void mobileCreateAsksOnlyForAnAuthenticatedCallerAndTheCreationPolicy() {
         // This one required 'organization:create', an authority a self-registered account has no
         // way to obtain, because the endpoint that grants roles is the one being guarded.
         PreAuthorize guard = createOrganization(OrganizationController.class).getAnnotation(PreAuthorize.class);
 
         assertThat(guard).isNotNull();
-        assertThat(guard.value()).isEqualTo("isAuthenticated()");
+        assertThat(guard.value()).isEqualTo("isAuthenticated() and @organizationCreation.allows(authentication)");
     }
 
     @Test

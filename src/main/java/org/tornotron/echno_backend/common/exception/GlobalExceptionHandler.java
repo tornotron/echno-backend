@@ -317,13 +317,6 @@ public class GlobalExceptionHandler {
         return problem(HttpStatus.BAD_REQUEST, "Malformed Request", "Required request body is missing", request);
     }
 
-    @ExceptionHandler(InvalidInviteCodeException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ProblemDetail handleInvalidInviteCodeException(InvalidInviteCodeException ex, WebRequest request) {
-        logger.error("Invalid Invite Code: ", ex);
-        return problem(HttpStatus.BAD_REQUEST, "Invalid Invite Code", ex.getMessage(), request);
-    }
-
     /**
      * An operation whose attempt allowance is spent.
      *

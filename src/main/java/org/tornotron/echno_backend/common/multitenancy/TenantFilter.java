@@ -113,11 +113,12 @@ public class TenantFilter extends OncePerRequestFilter {
                 } else {
                     // No ORG_MEMBER_ authority at all. This is the state a user is in between
                     // signing up and joining or creating an organization, and the endpoints that
-                    // get them out of it (the profile lookup, organization creation, invite-code
-                    // redemption) read and write tenant-scoped rows on the way. Their scoping
-                    // comes from the queries themselves, which are keyed on the caller's own user
-                    // id or on an invite code, and not from the tenant layer. Saying so here is
-                    // what separates it from a request that lost its organization by accident.
+                    // get them out of it (the profile lookup, which also links an accepted
+                    // invitation, and organization creation) read and write tenant-scoped rows on
+                    // the way. Their scoping comes from the queries themselves, which are keyed on
+                    // the caller's own user id or verified address, and not from the tenant layer.
+                    // Saying so here is what separates it from a request that lost its
+                    // organization by accident.
                     TenantContext.declareUnscoped(
                             "Authenticated user holds no organization membership");
                     log.debug("[TenantFilter] No organization membership, running with no tenant");

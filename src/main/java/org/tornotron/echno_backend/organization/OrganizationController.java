@@ -69,20 +69,22 @@ public class OrganizationController {
      * @return A {@link ResponseEntity} with the created organization's simple DTO and HTTP status 201 (Created).
      */
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and @organizationCreation.allows(authentication)")
     @Operation(
             summary = "Create an organization",
             description = "Creates an organization from a multipart request. The data part carries the "
                     + "organization details as JSON and the optional attachments part carries supporting "
                     + "files such as a logo. The caller becomes the organization's system admin. A "
                     + "user's first organization is part of signing up and needs no subscription; "
-                    + "each one after it counts against the CREATE_ORGANIZATION subscription feature."
+                    + "each one after it counts against the CREATE_ORGANIZATION subscription feature. "
+                    + "Where echno.identity.self-service-organizations is off, only a platform administrator "
+                    + "may create one."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Organization created"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The data part is not valid organization JSON, or a field failed validation"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "402", description = "Caller already has an organization and their plan does not cover another"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not authenticated")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not authenticated, or this stack lets only a platform administrator start an organization")
     })
     public ResponseEntity<OrganizationSimpleDto> createOrganization(
             @Parameter(schema = @Schema(implementation = OrganizationCreationDto.class))
