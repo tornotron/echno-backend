@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        The starting roles, shared by every organization and copied when one is provisioned, so
+        changing the starting matrix is a data change. These are the platform's own rows: no
+        organization_id, and nothing here is read by a tenant's decisions. Empty until the seed
+        arrives with the role templates step.
+    -->
+
+    <changeSet id="access-006-create-access_role_template" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="access_role_template"/></not>
+        </preConditions>
+        <createTable tableName="access_role_template">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_access_role_template" nullable="false"/></column>
+            <column name="slug" type="VARCHAR(80)"><constraints nullable="false" unique="true" uniqueConstraintName="uq_access_role_template_slug"/></column>
+            <column name="name" type="VARCHAR(120)"><constraints nullable="false"/></column>
+            <column name="subtitle" type="VARCHAR(120)"/>
+            <column name="description" type="TEXT"/>
+            <column name="is_system" type="BOOLEAN" defaultValueBoolean="false"><constraints nullable="false"/></column>
+            <column name="is_baseline" type="BOOLEAN" defaultValueBoolean="false"><constraints nullable="false"/></column>
+            <column name="legacy_org_role" type="VARCHAR(60)"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="access-006-create-access_role_template_grant" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="access_role_template_grant"/></not>
+        </preConditions>
+        <createTable tableName="access_role_template_grant">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_access_role_template_grant" nullable="false"/></column>
+            <column name="template_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="permission_key" type="VARCHAR(120)"><constraints nullable="false"/></column>
+            <column name="scope" type="VARCHAR(20)"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="access_role_template_grant" baseColumnNames="template_id"
+                                 referencedTableName="access_role_template" referencedColumnNames="id"
+                                 constraintName="fk_access_role_template_grant_template" onDelete="CASCADE"/>
+        <addUniqueConstraint tableName="access_role_template_grant" columnNames="template_id, permission_key, scope"
+                             constraintName="uq_access_role_template_grant"/>
+    </changeSet>
+
+</databaseChangeLog>
