@@ -16,4 +16,12 @@ public interface IdentityTokenMapper {
 
     /** The issuer {@link #toPrincipal} gives this provider's accounts, for a write with no token at hand. */
     String issuer();
+
+    /**
+     * Whether this provider's subjects may be in {@code users_table.keycloak_id} and not yet in
+     * {@code user_identity}. Only for a provider that wrote that column.
+     */
+    default boolean subjectMayBeInKeycloakIdColumn() {
+        return false;
+    }
 }

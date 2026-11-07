@@ -125,14 +125,14 @@ public class EmployeeDto {
     private List<AttachmentDto> attachments;
 
     /**
-     * The Keycloak subject of the user this employee record belongs to. Never published: it is
+     * The Echno user this employee record belongs to. Never published: it is
      * an internal identifier, and it is here so the record can say whose it is without a second
      * query. Kept out of the document by {@code @JsonIgnore} and out of the schema by
      * {@code @Schema(hidden = true)}.
      */
     @JsonIgnore
     @Schema(hidden = true)
-    private String userKeycloakId;
+    private Long userId;
 
     /**
      * The salary, for a caller entitled to it, and nothing at all for a caller who is not. See
@@ -153,6 +153,6 @@ public class EmployeeDto {
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public Double getSalary() {
-        return EmployeeSalaryVisibility.visibleTo(userKeycloakId) ? salary : null;
+        return EmployeeSalaryVisibility.visibleTo(userId) ? salary : null;
     }
 }

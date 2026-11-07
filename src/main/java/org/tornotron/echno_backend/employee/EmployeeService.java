@@ -20,6 +20,7 @@ import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 import org.tornotron.echno_backend.common.identity.EchnoOrgId;
 import org.tornotron.echno_backend.common.identity.ExternalUserId;
 import org.tornotron.echno_backend.common.identity.IdentityProvider;
+import org.tornotron.echno_backend.common.identity.link.UserIdentityLookup;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.employee.dto.EmployeeCreationDto;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
@@ -57,6 +58,7 @@ public class EmployeeService {
     private final OrganizationRepository organizationRepository;
     private final UserRepository userRepository;
     private final IdentityProvider identityProvider;
+    private final UserIdentityLookup userIdentityLookup;
     private final EmployeeMapper employeeMapper;
     private final EmployeeHierarchyService employeeHierarchyService;
     private final ShiftTimingRepository shiftTimingRepository;
@@ -69,16 +71,18 @@ public class EmployeeService {
      * @param organizationRepository The repository for organization data access.
      * @param userRepository         The repository for user data access.
      * @param identityProvider       The identity provider people are members at.
+     * @param userIdentityLookup     Finds a user's account at that provider.
      * @param employeeHierarchyService The service owning the reporting hierarchy.
      * @param orgSecurity            Answers which org-scoped roles the caller holds, the same bean
      *                               the guards on these endpoints ask. Used by the partial update
      *                               to decide the field scope; see {@link EmployeePatchFieldScope}.
      */
-    public EmployeeService(EmployeeRepository employeeRepository, OrganizationRepository organizationRepository, UserRepository userRepository, IdentityProvider identityProvider, EmployeeMapper employeeMapper, EmployeeHierarchyService employeeHierarchyService, ShiftTimingRepository shiftTimingRepository, OrganizationSecurityService orgSecurity) {
+    public EmployeeService(EmployeeRepository employeeRepository, OrganizationRepository organizationRepository, UserRepository userRepository, IdentityProvider identityProvider, UserIdentityLookup userIdentityLookup, EmployeeMapper employeeMapper, EmployeeHierarchyService employeeHierarchyService, ShiftTimingRepository shiftTimingRepository, OrganizationSecurityService orgSecurity) {
         this.employeeRepository = employeeRepository;
         this.organizationRepository = organizationRepository;
         this.userRepository = userRepository;
         this.identityProvider = identityProvider;
+        this.userIdentityLookup = userIdentityLookup;
         this.employeeMapper = employeeMapper;
         this.employeeHierarchyService = employeeHierarchyService;
         this.shiftTimingRepository = shiftTimingRepository;
@@ -179,10 +183,10 @@ public class EmployeeService {
 
         // Add the member at the identity provider - if this fails, the transaction will rollback
         try {
-            identityProvider.addMember(new ExternalUserId(user.getKeycloakId()), new EchnoOrgId(org.getId()));
+            identityProvider.addMember(accountOf(user), new EchnoOrgId(org.getId()));
         } catch (Exception e) {
             log.error("Failed to add user {} to organization {} at the identity provider: {}",
-                    user.getKeycloakId(), org.getId(), e.getMessage());
+                    user.getId(), org.getId(), e.getMessage());
             throw new RuntimeException(
                     "Failed to add user " + userId + " to organization " + orgId + " at the identity provider: " + e.getMessage(), e);
         }
@@ -515,15 +519,18 @@ public class EmployeeService {
         Employee employee = employeeRepository.findByIdAndOrganizationId(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Employee with ID " + id + " was not found in this organization"));
 
-        if (employee.getUser() != null && employee.getUser().getKeycloakId() != null) {
+        Optional<ExternalUserId> account = employee.getUser() == null
+                ? Optional.empty()
+                : userIdentityLookup.accountOf(employee.getUser());
+        if (account.isPresent()) {
             try {
                 identityProvider.removeMember(
-                        new ExternalUserId(employee.getUser().getKeycloakId()),
+                        account.get(),
                         new EchnoOrgId(employee.getOrganization().getId())
                 );
             } catch (Exception e) {
                 log.error("Failed to remove user {} from organization {} at the identity provider: {}",
-                        employee.getUser().getKeycloakId(),
+                        employee.getUser().getId(),
                         employee.getOrganization().getId(),
                         e.getMessage());
             }
@@ -554,7 +561,7 @@ public class EmployeeService {
         identityProvider.capabilities().orgRoleGroups().ifPresent(roleGroups -> {
             try {
                 roleGroups.assign(
-                        new ExternalUserId(employee.getUser().getKeycloakId()),
+                        accountOf(employee.getUser()),
                         new EchnoOrgId(employee.getOrganization().getId()),
                         role
                 );
@@ -580,7 +587,7 @@ public class EmployeeService {
         identityProvider.capabilities().orgRoleGroups().ifPresent(roleGroups -> {
             try {
                 roleGroups.remove(
-                        new ExternalUserId(employee.getUser().getKeycloakId()),
+                        accountOf(employee.getUser()),
                         new EchnoOrgId(employee.getOrganization().getId()),
                         role
                 );
@@ -593,6 +600,11 @@ public class EmployeeService {
         });
 
         return employeeMapper.toDto(savedEmployee);
+    }
+
+    private ExternalUserId accountOf(User user) {
+        return userIdentityLookup.accountOf(user).orElseThrow(
+                () -> new IllegalStateException("User " + user.getId() + " has no account at the identity provider"));
     }
 
     @Transactional(readOnly = true)

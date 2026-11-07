@@ -23,6 +23,7 @@ import org.tornotron.echno_backend.common.identity.ExternalUserId;
 import org.tornotron.echno_backend.common.identity.IdentityProvider;
 import org.tornotron.echno_backend.common.identity.SelfRegistration;
 import org.tornotron.echno_backend.common.identity.link.IdentityLinks;
+import org.tornotron.echno_backend.common.identity.link.UserIdentityLookup;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.organization.dto.OrganizationDto;
@@ -52,6 +53,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final IdentityProvider identityProvider;
     private final IdentityLinks identityLinks;
+    private final UserIdentityLookup userIdentityLookup;
     private final AttachmentService attachmentService;
     private final FileStorageService fileStorageService;
     private final EmployeeMapper employeeMapper;
@@ -64,12 +66,14 @@ public class UserService {
      * @param userRepository The repository for user data access.
      * @param identityProvider The identity provider accounts are created at.
      * @param identityLinks    Records which account a new user is.
+     * @param userIdentityLookup Finds the user behind an account.
      * @param attachmentService The service for attachment operations.
      */
-    public UserService(UserRepository userRepository, IdentityProvider identityProvider, IdentityLinks identityLinks, AttachmentService attachmentService,FileStorageService fileStorageService, EmployeeMapper employeeMapper, UserMapper userMapper, org.tornotron.echno_backend.organization.mapper.OrganizationMapper organizationMapper) {
+    public UserService(UserRepository userRepository, IdentityProvider identityProvider, IdentityLinks identityLinks, UserIdentityLookup userIdentityLookup, AttachmentService attachmentService,FileStorageService fileStorageService, EmployeeMapper employeeMapper, UserMapper userMapper, org.tornotron.echno_backend.organization.mapper.OrganizationMapper organizationMapper) {
         this.userRepository = userRepository;
         this.identityProvider = identityProvider;
         this.identityLinks = identityLinks;
+        this.userIdentityLookup = userIdentityLookup;
         this.attachmentService = attachmentService;
         this.fileStorageService = fileStorageService;
         this.employeeMapper = employeeMapper;
@@ -134,14 +138,17 @@ public class UserService {
     }
 
     /**
-     * Retrieves all employees associated with a user by their Keycloak ID.
+     * Retrieves all employees associated with a user.
      *
-     * @param keycloakId The Keycloak ID of the user.
+     * @param userId The Echno id of the user, or null when the caller has none yet.
      * @return A list of employee DTOs.
      */
     @Transactional(readOnly = true)
-    public List<EmployeeDto> getEmployeesForUser(String keycloakId) {
-        return userRepository.findUserWithEmployeesByKeycloakId(keycloakId)
+    public List<EmployeeDto> getEmployeesForUser(Long userId) {
+        if (userId == null) {
+            return List.of();
+        }
+        return userRepository.findUserWithEmployeesById(userId)
                 .map(user -> user.getEmployees().stream()
                         .map(emp -> employeeMapper.toDto(emp))
                         .collect(Collectors.toList()))
@@ -149,17 +156,20 @@ public class UserService {
     }
 
     /**
-     * Retrieves the current user by their Keycloak ID with attachments eagerly loaded.
+     * Retrieves the current user with attachments eagerly loaded.
      *
-     * @param keycloakId The Keycloak ID of the user.
+     * @param userId The Echno id of the user, or null when the caller has none yet.
      * @return The user DTO.
-     * @throws ResourceNotFoundException if no user with the given Keycloak ID is found.
+     * @throws ResourceNotFoundException if the caller has no user.
      */
     @Transactional(readOnly = true)
-    public UserDto getCurrentUserDto(String keycloakId) {
-        return userRepository.findUserWithAttachmentsByKeycloakId(keycloakId)
+    public UserDto getCurrentUserDto(Long userId) {
+        if (userId == null) {
+            throw new ResourceNotFoundException("The signed-in account has no user yet");
+        }
+        return userRepository.findUserWithAttachmentsById(userId)
                 .map(user -> userMapper.toDto(user))
-                .orElseThrow(() -> new ResourceNotFoundException("User with Keycloak ID '" + keycloakId + "' was not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User " + userId + " was not found"));
     }
 
     /**
@@ -192,7 +202,8 @@ public class UserService {
      */
     @Transactional(readOnly = true)
     public UserDto getAnUser(String sub) {
-        return userRepository.findUserByKeycloakId(sub)
+        return userIdentityLookup.userId(sub)
+                .flatMap(userRepository::findById)
                 .map(usr -> userMapper.toDto(usr))
                 .orElseThrow(() -> new ResourceNotFoundException("User with subject identifier '" + sub + "' was not found"));
     }

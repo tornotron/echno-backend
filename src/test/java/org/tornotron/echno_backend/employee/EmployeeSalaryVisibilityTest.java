@@ -12,8 +12,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.tornotron.echno_backend.common.identity.link.EchnoJwtAuthentication;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -24,6 +25,7 @@ import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
@@ -33,7 +35,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -65,11 +67,11 @@ class EmployeeSalaryVisibilityTest {
     private static final long COLLEAGUE = 42L;
     private static final double PAY = 65000.0;
 
-    /** The Keycloak subject on the JWT every request below is made with. */
-    private static final String CALLER = "kc-caller";
+    /** The Echno user every request below is made as. */
+    private static final Long CALLER = 7L;
 
-    /** The Keycloak subject on the record being read, so the record is somebody else's. */
-    private static final String SOMEONE_ELSE = "kc-colleague";
+    /** The Echno user on the record being read, so the record is somebody else's. */
+    private static final Long SOMEONE_ELSE = 8L;
 
     @Autowired
     private MockMvc mockMvc;
@@ -181,10 +183,10 @@ class EmployeeSalaryVisibilityTest {
     @Test
     void theSubjectTheDecisionReadsIsNotPublished() throws Exception {
         mockMvc.perform(get("/api/v1/employee/web/" + COLLEAGUE).with(systemAdmin()))
-                .andExpect(jsonPath("$.userKeycloakId").doesNotHaveJsonPath());
+                .andExpect(jsonPath("$.userId").doesNotHaveJsonPath());
     }
 
-    private static EmployeeDto recordOf(String subject) {
+    private static EmployeeDto recordOf(Long owner) {
         EmployeeDto dto = new EmployeeDto();
         dto.setId(COLLEAGUE);
         dto.setEmployeeName("Ravi Kumar");
@@ -192,7 +194,7 @@ class EmployeeSalaryVisibilityTest {
         dto.setPhoneNumber("9847012345");
         dto.setAddress("45 Anna Nagar, Chennai");
         dto.setDateOfBirth(LocalDateTime.of(1994, 3, 22, 0, 0));
-        dto.setUserKeycloakId(subject);
+        dto.setUserId(owner);
         return dto;
     }
 
@@ -221,11 +223,10 @@ class EmployeeSalaryVisibilityTest {
      * request runs with a real organization scope rather than none.
      */
     private static RequestPostProcessor caller(String... authorities) {
-        return jwt()
-                .jwt(builder -> builder.subject(CALLER))
-                .authorities(Arrays.stream(authorities)
-                        .map(SimpleGrantedAuthority::new)
-                        .toArray(GrantedAuthority[]::new));
+        Jwt token = Jwt.withTokenValue("t").header("alg", "RS256").subject("kc-caller")
+                .issuedAt(Instant.now()).expiresAt(Instant.now().plusSeconds(60)).build();
+        return authentication(new EchnoJwtAuthentication(token,
+                Arrays.stream(authorities).map(SimpleGrantedAuthority::new).toList(), "kc-caller", CALLER));
     }
 
     @TestConfiguration

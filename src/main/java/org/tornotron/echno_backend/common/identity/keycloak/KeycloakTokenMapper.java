@@ -51,6 +51,11 @@ public class KeycloakTokenMapper implements IdentityTokenMapper {
         return ISSUER;
     }
 
+    @Override
+    public boolean subjectMayBeInKeycloakIdColumn() {
+        return true;
+    }
+
     private static SignInMethod signInMethod(Jwt token) {
         if (!(token.getClaim("amr") instanceof List<?> methods)) {
             return SignInMethod.UNKNOWN;

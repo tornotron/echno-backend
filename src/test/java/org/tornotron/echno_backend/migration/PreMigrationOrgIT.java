@@ -114,6 +114,16 @@ class PreMigrationOrgIT extends AbstractIntegrationTest {
         assertThat(identityRows()).isEqualTo(rows);
     }
 
+    @Test
+    void aUserWithNoProviderAccountIsLeftOut() {
+        jdbc.update("UPDATE users_table SET keycloak_id = NULL WHERE id = ?", user);
+
+        assertThat(runner.runOnce()).isTrue();
+
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM user_identity WHERE user_id = ?", Integer.class, user))
+                .isZero();
+    }
+
     private Integer identityRows() {
         return jdbc.queryForObject("""
                 SELECT (SELECT count(*) FROM user_identity WHERE user_id = ?)

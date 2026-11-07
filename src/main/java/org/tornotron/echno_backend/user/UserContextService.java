@@ -9,6 +9,8 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
+import org.tornotron.echno_backend.common.identity.link.EchnoJwtAuthentication;
+import org.tornotron.echno_backend.common.identity.link.UserIdentityLookup;
 
 import javax.naming.AuthenticationException;
 import java.util.Collections;
@@ -22,17 +24,21 @@ import java.util.stream.Collectors;
 public class UserContextService {
 
     private final UserRepository userRepository;
+    private final UserIdentityLookup userIdentityLookup;
 
-//    @Cacheable(value = "userContext", key = "#root.methodName + '_' + @userContextService.getCurrentKeycloakId()")
+//    @Cacheable(value = "userContext", key = "#root.methodName + '_' + @userContextService.currentSubject()")
     public Long getCurrentUserId() {
-        String keycloakId = getCurrentKeycloakId();
-        if (keycloakId == null) {
+        // Resolved once when the token was converted. Null can also mean the user row was created
+        // later in this same request, so a miss is not trusted.
+        Long resolved = EchnoJwtAuthentication.currentUserId();
+        if (resolved != null) {
+            return resolved;
+        }
+        String subject = currentSubject();
+        if (subject == null) {
             return null;
         }
-
-        return userRepository.findUserByKeycloakId(keycloakId)
-                .map(User::getId)
-                .orElse(null);
+        return userIdentityLookup.userId(subject).orElse(null);
     }
 
     public Long getCurrentUserIdOrThrow() throws AuthenticationException {
@@ -45,12 +51,11 @@ public class UserContextService {
     }
 
     public User getCurrentUser() {
-        String keycloakId = getCurrentKeycloakId();
-        if (keycloakId == null) {
+        Long userId = getCurrentUserId();
+        if (userId == null) {
             return null;
         }
-        return userRepository.findUserByKeycloakId(keycloakId)
-                .orElse(null);
+        return userRepository.findById(userId).orElse(null);
     }
 
     public User getCurrentUserOrThrow() throws AuthenticationException {
@@ -61,7 +66,8 @@ public class UserContextService {
         return user;
     }
 
-    public String getCurrentKeycloakId() {
+    /** The subject of the caller's account at the identity provider. */
+    public String currentSubject() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
         if(authentication == null || !authentication.isAuthenticated()) {
@@ -80,7 +86,7 @@ public class UserContextService {
             return name;
         }
 
-        log.warn("Could not extract Keycloak ID from authentication principal of type: {}",
+        log.warn("Could not extract a subject from authentication principal of type: {}",
                 principal.getClass().getName());
         return null;
     }

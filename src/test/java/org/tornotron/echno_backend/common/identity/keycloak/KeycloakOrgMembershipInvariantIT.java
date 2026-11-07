@@ -226,7 +226,13 @@ class KeycloakOrgMembershipInvariantIT {
                 .expiresAt(Instant.now().plusSeconds(300))
                 .build();
 
-        JwtAuthConverter converter = new JwtAuthConverter();
+        JwtAuthConverter converter = new JwtAuthConverter(
+                new org.springframework.beans.factory.support.StaticListableBeanFactory(java.util.Map.of(
+                        "mapper", new KeycloakTokenMapper()))
+                        .getBeanProvider(org.tornotron.echno_backend.common.identity.IdentityTokenMapper.class),
+                new org.springframework.beans.factory.support.StaticListableBeanFactory(java.util.Map.of(
+                        "lookup", org.mockito.Mockito.mock(org.tornotron.echno_backend.common.identity.link.UserIdentityLookup.class)))
+                        .getBeanProvider(org.tornotron.echno_backend.common.identity.link.UserIdentityLookup.class));
         ReflectionTestUtils.setField(converter, "resourceId", "echno-backend-client");
 
         AbstractAuthenticationToken auth = converter.convert(jwt);

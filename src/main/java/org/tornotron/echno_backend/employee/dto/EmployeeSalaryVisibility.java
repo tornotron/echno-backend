@@ -1,8 +1,6 @@
 package org.tornotron.echno_backend.employee.dto;
 
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.jwt.Jwt;
+import org.tornotron.echno_backend.common.identity.link.EchnoJwtAuthentication;
 import org.tornotron.echno_backend.common.service.OrgRoleAuthority;
 
 /**
@@ -47,34 +45,21 @@ final class EmployeeSalaryVisibility {
     }
 
     /**
-     * @param subjectKeycloakId the Keycloak subject of the user whose record is being written
+     * @param ownerUserId the Echno user whose record is being written
      * @return whether the caller may see that person's pay
      */
-    static boolean visibleTo(String subjectKeycloakId) {
-        return isTheCaller(subjectKeycloakId)
+    static boolean visibleTo(Long ownerUserId) {
+        return isTheCaller(ownerUserId)
                 || OrgRoleAuthority.heldForCurrentTenant(PAYROLL_ROLES);
     }
 
     /**
-     * Whether the record belongs to whoever is asking. Compared on the Keycloak subject, which is
-     * on the token and on the record, so the self branch costs nothing and holds across
-     * organizations: {@code GET /user/web/employees} answers with records from every organization
-     * the caller belongs to, and only one of them can be the tenant in scope.
-     *
-     * <p>Mirrors how {@code UserContextService.getCurrentKeycloakId} reads the subject.
+     * Whether the record belongs to whoever is asking. Compared on the Echno user id, which was
+     * resolved when the token was converted and is on the record, so the self branch costs nothing
+     * and holds across organizations: {@code GET /user/web/employees} answers with records from every
+     * organization the caller belongs to, and only one of them can be the tenant in scope.
      */
-    private static boolean isTheCaller(String subjectKeycloakId) {
-        if (subjectKeycloakId == null) {
-            return false;
-        }
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated()) {
-            return false;
-        }
-        Object principal = authentication.getPrincipal();
-        String callerSubject = principal instanceof Jwt jwt
-                ? jwt.getSubject()
-                : authentication.getName();
-        return subjectKeycloakId.equals(callerSubject);
+    private static boolean isTheCaller(Long ownerUserId) {
+        return ownerUserId != null && ownerUserId.equals(EchnoJwtAuthentication.currentUserId());
     }
 }

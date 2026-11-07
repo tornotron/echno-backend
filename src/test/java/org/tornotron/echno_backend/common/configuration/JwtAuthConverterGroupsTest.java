@@ -1,6 +1,10 @@
 package org.tornotron.echno_backend.common.configuration;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.support.StaticListableBeanFactory;
+import org.tornotron.echno_backend.common.identity.IdentityTokenMapper;
+import org.tornotron.echno_backend.common.identity.keycloak.KeycloakTokenMapper;
+import org.tornotron.echno_backend.common.identity.link.UserIdentityLookup;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -11,6 +15,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static org.mockito.Mockito.mock;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -36,7 +41,10 @@ class JwtAuthConverterGroupsTest {
     }
 
     private static Set<String> authorities(Jwt jwt) {
-        JwtAuthConverter converter = new JwtAuthConverter();
+        JwtAuthConverter converter = new JwtAuthConverter(new StaticListableBeanFactory(java.util.Map.of(
+                "mapper", new KeycloakTokenMapper())).getBeanProvider(IdentityTokenMapper.class),
+                new StaticListableBeanFactory(java.util.Map.of(
+                "lookup", mock(UserIdentityLookup.class))).getBeanProvider(UserIdentityLookup.class));
         // No Spring context: inject the @Value fields directly. principleAttribute stays null so the
         // principal defaults to the "sub" claim.
         ReflectionTestUtils.setField(converter, "resourceId", "echno-backend-client");
