@@ -39,17 +39,17 @@ blank. `fake` refuses to start outside the test and local profiles.
 
 ## 2. WorkOS facts this plan relies on
 
-Read from the source on 2026-11-07 and updated from the step 0 run on 2026-11-08 (section 2.1). Where a
+Read from the source on 2026-11-07 and updated from the step 0 runs on 2026-11-08 (section 2.1). Where a
 fact drives a step, the step names it.
 
 | # | Fact | Consequence | Source |
 | --- | --- | --- | --- |
-| F1 | Session access tokens carry no `aud` by default. A JWT template can add one, and there is one template per environment. | Today's `AudienceValidator` would refuse every token. Set `{"aud": "<api id>"}` in the template and keep the check. `aud` is absent from the template's reserved keys (`iss`, `sub`, `exp`, `iat`, `nbf`, `jti`, `act`). Not yet seen on a real token. | [Verify tokens](https://workos.com/blog/verify-workos-access-tokens-in-your-own-api), [JWT templates](https://workos.com/docs/authkit/jwt-templates) |
-| F2 | The `iss` value appears in WorkOS's docs with and without a trailing slash, and as bare `https://api.workos.com` in the reference example. It changes with a custom auth domain. The environment's discovery document names `https://api.workos.com/user_management/<client_id>`, no trailing slash, and `authkit-nextjs` warns that the token's `iss` differs from the AuthKit OAuth issuer. | Pin `ECHNO_JWT_ACCEPTED_ISSUERS` from a decoded token, after the custom domain is set. The token value is still open (section 2.1). Never copy the value from the AuthKit discovery document. | [Sessions](https://workos.com/docs/authkit/sessions), [Session tokens](https://workos.com/docs/reference/authkit/session-tokens), [Verify tokens](https://workos.com/blog/verify-workos-access-tokens-in-your-own-api) |
-| F3 | Signing keys are at `https://api.workos.com/sso/jwks/{client_id}`, which answers with no credentials, one RS256 signing key and `max-age=300`. The discovery document names the same address. Plain `http` answers 301 to `https`, and an unknown client id answers 404. | The adapter derives this address from the client id. | [Session tokens](https://workos.com/docs/reference/authkit/session-tokens), [Verify tokens](https://workos.com/blog/verify-workos-access-tokens-in-your-own-api) |
-| F4 | Token claims include `sub`, `sid`, `client_id`, `org_id`, `role`, `roles`, `permissions`, `entitlements`. The claims table has no email and no sign-in method. `authentication_method` comes back only at the code exchange; the Session object has `auth_method`. | Echno keeps reading `sub` and `iss` only. `Principal.email` and `authentication` are empty on a WorkOS token, so email comes from the Users API at linking, and an Echno rule cannot require MFA from the token. | [Session tokens](https://workos.com/docs/reference/authkit/session-tokens), [Authentication](https://workos.com/docs/reference/authkit/authentication), [Session](https://workos.com/docs/reference/authkit/session) |
-| F5 | Refresh tokens are single use, with a 30 second replay grace. `invalid_grant` ends the session; `408`, `429` and `5xx` are transient. | The kit and any mobile code retry transient failures and sign out only on `invalid_grant`. | [Session resilience](https://workos.com/docs/authkit/session-resilience) |
-| F6 | Sessions can be listed per user and revoked one by one. The docs do not say a revoke stops an access token already issued. | Removal takes effect through Echno's per-request membership read, and access tokens stay short. | [Session](https://workos.com/docs/reference/authkit/session) |
+| F1 | Session access tokens carry no `aud` by default, confirmed on a real token. A JWT template can add one, and there is one template per environment. | Today's `AudienceValidator` would refuse every token. Set `{"aud": "<api id>"}` in the template and keep the check. `aud` is absent from the template's reserved keys (`iss`, `sub`, `exp`, `iat`, `nbf`, `jti`, `act`). A template `aud` has not been seen yet. | [Verify tokens](https://workos.com/blog/verify-workos-access-tokens-in-your-own-api), [JWT templates](https://workos.com/docs/authkit/jwt-templates) |
+| F2 | A real token's `iss` is `https://api.workos.com/user_management/<client_id>`, no trailing slash, and it matches that address's discovery document. It stays the same after a refresh. The docs show other forms, and it changes with a custom auth domain. `authkit-nextjs` warns that it differs from the AuthKit OAuth issuer. | Pin `ECHNO_JWT_ACCEPTED_ISSUERS` from a decoded token, after the custom domain is set. The custom domain form is still unseen. Never copy the value from the AuthKit discovery document. | [Sessions](https://workos.com/docs/authkit/sessions), [Session tokens](https://workos.com/docs/reference/authkit/session-tokens), [Verify tokens](https://workos.com/blog/verify-workos-access-tokens-in-your-own-api) |
+| F3 | Signing keys are at `https://api.workos.com/sso/jwks/{client_id}`, which answers with no credentials, one RS256 signing key and `max-age=300`. The discovery document names the same address. A real token verifies against it, including after a refresh. Plain `http` answers 301 to `https`, and an unknown client id answers 404. | The adapter derives this address from the client id. | [Session tokens](https://workos.com/docs/reference/authkit/session-tokens), [Verify tokens](https://workos.com/blog/verify-workos-access-tokens-in-your-own-api) |
+| F4 | A real token with no organization carries `auth_time`, `client_id`, `email`, `exp`, `iat`, `iss`, `jti`, `sid`, `sub`. With an organization it adds `org_id`, `role`, `roles`, `permissions`. `entitlements` and `feature_flags` did not appear. The docs' claims table omits `email`, and no template is known to add it, so whether it is a stable default is unconfirmed. There is no email-verified claim and no sign-in method. `authentication_method` comes back in the authenticate response; the Session object has `auth_method`. | Echno keeps reading `sub` and `iss` only. The token's `email` is unverified as far as the token shows, so linking still reads email and `email_verified` from the Users API (step 18). `Principal.authentication` is empty, and an Echno rule cannot require MFA from the token. Tokens hold personal data, so they never reach a log. | [Session tokens](https://workos.com/docs/reference/authkit/session-tokens), [Authentication](https://workos.com/docs/reference/authkit/authentication), [Session](https://workos.com/docs/reference/authkit/session) |
+| F5 | Refresh tokens rotate on use, with a documented 30 second replay grace. A used token replayed at once returned the same rotated token, and a replay about 35 seconds after first use still answered 200, so the grace is longer than documented or differs here. The rotated token kept working. `invalid_grant` ends the session; `408`, `429` and `5xx` are transient. | The kit and any mobile code retry transient failures and sign out only on `invalid_grant`. | [Session resilience](https://workos.com/docs/authkit/session-resilience) |
+| F6 | Sessions can be listed per user and revoked one by one. After a revoke, the issued access token still verifies against JWKS, since that check is local, and it lasts until `exp` (300 seconds by default). The refresh token answers `invalid_grant`, "Session has already ended", with or without the secret. The person's other sessions keep working, a new sign-in works, and the list no longer shows the revoked session. | Removal takes effect through Echno's per-request membership read, and access tokens stay short. | [Session](https://workos.com/docs/reference/authkit/session) |
 | F7 | Users are unique by email within one environment. Projects are a free grouping and each holds its own staging and production environments, with users, organizations and keys per environment. | One WorkOS project per client stack, so clients share no accounts and no settings. | [Users and organizations](https://workos.com/docs/authkit/users-organizations), [Projects](https://workos.com/docs/authkit/projects) |
 | F8 | Invitations have `state` (pending, accepted, expired, revoked), `accepted_user_id`, `accepted_at`, `revoked_at`, `expires_at`, `role_slug`, `inviter_user_id`, `token`, `accept_invitation_url`, and send, resend (pending only), revoke, accept, get, get by token and list calls (filters: organization, email). `expires_in_days` is an input only, 1 to 30, default 7. Resend keeps the same id, token and `expires_at`. Revoke then send again gives a new id and token. A second pending invitation to the same address and organization is refused. | Maps onto the port and the invitation screen with little of our own. Resend cannot renew an invitation, so a renewal is revoke then send (step 17). `token` and `accept_invitation_url` are bearer values and never reach a log (step 16). | [Invitation API](https://workos.com/docs/reference/authkit/invitation) |
 | F9 | WorkOS sends invitation, password reset and verification email itself by default, and we can turn any type off and send our own. Production mail comes from `workos-mail.com` unless a custom domain is set, and that shared domain is "best-effort and cannot be guaranteed". A custom domain needs three CNAME records. | The backend needs no mail sender for sign-in. The stack needs the custom email domain before real traffic (section 8). | [Invitations](https://workos.com/docs/authkit/invitations), [Custom emails](https://workos.com/docs/authkit/custom-emails), [Email domain](https://workos.com/docs/custom-domains/email) |
@@ -63,30 +63,29 @@ fact drives a step, the step names it.
 | F17 | AuthKit's first 1M monthly active users are free, then $2,500 per 1M. Custom domain $99/month. SSO and directory sync from $125 per connection per month. | Cost at launch is the custom domain. The pricing page does not say whether that price covers both the auth and the email domain; step 0 asks. | [Pricing](https://workos.com/pricing) |
 | F18 | Password import accepts `bcrypt`, `scrypt`, `firebase-scrypt`, `ssha`, `ssha256`, `pbkdf2`, `argon2`. `pbkdf2` takes PHC form with digest `sha1`, `sha256` or `sha512` and iteration limits. Keycloak is not named. | Only matters for the later staging migration: Keycloak's format looks importable, and needs a proof with one real hash. | [Other services](https://workos.com/docs/migrate/other-services), [User API](https://workos.com/docs/reference/authkit/user) |
 | F19 | User Management allows 1,000 reads and 500 writes per 10 seconds. Each sandbox has a 24-hour invitation email quota (100 attempts), which also applies with a custom email provider. Production limits are not published. | The adapter honours `Retry-After`. Sandbox tests stay small. Ask WorkOS about production limits before a large invite run. | [Rate limits](https://workos.com/docs/reference/rate-limits), [Invitations](https://workos.com/docs/authkit/invitations) |
-| F20 | Native sign-in works by PKCE with a public client id. iOS has an SDK; Android's is a pre-release at 0.2.1. Separate Applications per platform share users, and `client_id` tells them apart. The API reference now marks `client_secret` optional on refresh and on the PKCE code exchange, and both SDK guides refresh without one. With no secret, a bad refresh token answers `invalid_grant`, where the password grant answers `invalid_client`, so client authentication does not stop such a refresh. | Mobile keeps its own PKCE code and points it at WorkOS. A successful refresh with a real token is still open (section 2.1). | [iOS SDK](https://workos.com/docs/sdks/ios), [Android SDK](https://workos.com/blog/sign-in-to-an-android-app-with-the-workos-android-sdk), [Applications](https://workos.com/docs/authkit/applications), [Authentication](https://workos.com/docs/reference/authkit/authentication) |
-| F21 | A user in several organizations gets an organization selection error from the API, and hosted AuthKit handles such errors itself. The docs do not say what the person sees. | Echno ignores `org_id`, so any picker is cosmetic. Still open (section 2.1). | [Organization selection error](https://workos.com/docs/reference/authkit/authentication-errors/organization-selection-error) |
+| F20 | Native sign-in works by PKCE with a public client id. iOS has an SDK; Android's is a pre-release at 0.2.1. Separate Applications per platform share users, and `client_id` tells them apart. The API reference now marks `client_secret` optional on refresh and on the PKCE code exchange, and both SDK guides refresh without one. A real refresh with no secret answered 200 and rotated the token, and the password grant with no secret answered `invalid_client`. This was on the environment's default Application. A PKCE code exchange with no secret passed client authentication on a bad code, and a real one needs a browser. | Mobile keeps its own PKCE code and points it at WorkOS. Step 36 rechecks refresh on the Application it uses. | [iOS SDK](https://workos.com/docs/sdks/ios), [Android SDK](https://workos.com/blog/sign-in-to-an-android-app-with-the-workos-android-sdk), [Applications](https://workos.com/docs/authkit/applications), [Authentication](https://workos.com/docs/reference/authkit/authentication) |
+| F21 | A password grant for a user in two organizations answers 403 `organization_selection_required`, with `organizations` (`id`, `name`), `pending_authentication_token` and `user`. The selection grant then gives a token with that `org_id`. Refresh keeps it, and refresh with `organization_id` moves it to the other organization with no secret. With one organization, `org_id` is set without a choice. With none, it is absent. Hosted AuthKit handles the error itself, and the docs do not say what the person sees. | Echno ignores `org_id`, so any picker is cosmetic. A token can have no `org_id`, so the mapper must not need one (step 15). | [Organization selection error](https://workos.com/docs/reference/authkit/authentication-errors/organization-selection-error) |
 | F22 | A Java SDK `com.workos:workos` exists. The client libraries page does not say what it covers. | The adapter uses Spring's `RestClient` against the nine documented endpoints it needs, with no new runtime dependency. | [Client libraries](https://workos.com/docs/reference/client-libraries) |
 | F23 | Sending an invitation creates the WorkOS user at once, with `email_verified` false, plus a `pending` organization membership. For a person who already has an account, it adds the `pending` membership only. Creating a user at an invited address then fails with `email_not_available`. Revoke leaves the user and the pending membership in place, and deleting that membership works. The accept call activates the membership and sets `accepted_user_id`, and it leaves `email_verified` false. Deleting the user leaves the invitation pending. | Provider user and membership counts include people who never signed in. `accepted` says nothing about a verified email (step 18). A revoke also removes the pending membership (step 16). | Step 0 run |
-| F24 | Each staging environment comes with a Test Organization, an active SSO connection and the verified domain `example.com`. In the run, a password grant for `example.com` addresses answered `sso_required` naming one connection, with or without an invitation token, and a user created there with a verified email was an active member of an organization before any membership call, which is F12's default at work. Invited users did not join that way. Magic Auth can be off per environment (`authentication_method_not_allowed`). | No sandbox test can get a token with an `example.com` address, and creating verified users there adds members to the seeded organization (steps 16, 26). The same would reach real users if a domain were verified, which is one more reason for F12's setting. | [Test SSO](https://workos.com/docs/sso/test-sso), step 0 run |
+| F24 | Each staging environment comes with a Test Organization, an active SSO connection and the verified domain `example.com`. In the run, a password grant for `example.com` addresses answered `sso_required` naming one connection, with or without an invitation token, and each user created there with a verified email became an active member of the seeded organization, which is F12's default at work (the event log confirms it). Invited users did not join that way. `example.org` addresses joined nothing and the password grant worked. Magic Auth can be off per environment (`authentication_method_not_allowed`). | No sandbox test can get a token with an `example.com` address, and creating verified users there adds members to the seeded organization (steps 16, 26). The same would reach real users if a domain were verified, which is one more reason for F12's setting. | [Test SSO](https://workos.com/docs/sso/test-sso), step 0 run |
 
 ### 2.1 Step 0 results (2026-11-08)
 
-Run against a WorkOS staging environment, API only. All objects it created were deleted afterwards.
-Every token-based item stopped at F24, because the run was limited to `example.com` addresses. Those
-items stay open, and rerunning the same script with an address on another domain should settle them. It
-may still fail if the password method is off, since `sso_required` answers before that check can be seen.
+Run against a WorkOS staging environment, API only, in two passes. All objects they created were
+deleted afterwards. The first pass used `example.com` addresses and stopped at F24 for anything needing
+a token. The second used `example.org` addresses and obtained real tokens through the password grant.
 
 | Item | Status | Result |
 | --- | --- | --- |
-| Exact `iss` and all claims on a real token | DOCUMENTED, open | No token obtained (F24). Discovery says `https://api.workos.com/user_management/<client_id>` (F2). Claims as in F4. |
+| Exact `iss` and all claims on a real token | PROVEN on the default domain | F2, F4. The token includes `email`, which the docs' table omits. Custom domain form unseen. |
 | JWKS address | PROVEN | F3. |
-| Token verifies against JWKS | Open | Needs a token. |
-| Refresh with no client secret, and with it | DOCUMENTED, open | Both reach the refresh token check (F20). No real token was refreshed. |
-| Access token after session revoke; refresh token then | DOCUMENTED, open | Needs a token. Verification against JWKS is local, so an issued token should keep verifying until `exp`. The plan already assumes this (F6), so no step depends on the answer. |
-| Person in two organizations; `org_id` | DOCUMENTED, open | Needs a token. Memberships returned `organization_id`, `organization_name`, `role`, `roles`, `status`, `directory_managed`. Step 11 ignores `org_id` either way. What the hosted page shows NEEDS A HUMAN. |
+| Token verifies against JWKS | PROVEN | RS256, before and after refresh (F3). |
+| Refresh with no client secret, and with it | PROVEN on the default Application | Both answer 200 and rotate the token (F20). Replay in F5. |
+| Access token after session revoke; refresh token then | PROVEN | Access token still verifies, refresh token answers `invalid_grant` (F6). Rejection at `exp` was not waited for. The plan already assumed this. |
+| Person in two organizations; `org_id` | PROVEN for the API, NEEDS A HUMAN for hosted | F21. Step 11 ignores `org_id` either way. |
 | Invitation fields and state moves | PROVEN | F8, F23. `pending` to `accepted` and `pending` to `revoked` seen. `expired` not waited for. Refusals: `invite_accepted`, `invite_revoked`, `invite_not_pending`, `email_already_invited_to_organization`, `expires_in_days_too_short`, `expires_in_days_too_long`. |
 | Different same-domain address accepts | PROVEN for the password grant, NEEDS A HUMAN for hosted | Refused on `example.com` (F10). |
-| `aud` without a template; with one | DOCUMENTED, NEEDS A HUMAN | The reference example has no `aud` (F1). Needs a token, and the template needs the dashboard. |
+| `aud` without a template; with one | PROVEN absent, NEEDS A HUMAN with a template | F1. The template needs the dashboard. |
 | `authkit-nextjs` with a runtime-only redirect variable in a shared image | PROVEN from source, 4.6.3 and Next 16.3.3 | Works if the variable is unset during `next build`. Next inlines `process.env.NEXT_PUBLIC_*` only for values present at build, so a value set at build is frozen into the image, and an unset one stays a server read at run time. Client code never sees it, and the library's client components do not read it. Order of use: `redirectUri` option, then the `x-redirect-uri` header the proxy sets, then the variable. The other `WORKOS_*` values are read at run time. Not yet run in a real image (step 24 tests it). |
 | Google or Microsoft sign-up with sign-up off | NEEDS A HUMAN | Question 1 below. |
 | Second Application's `client_id` for JWKS | NEEDS A HUMAN | Question 2 below. |
@@ -99,7 +98,7 @@ described by its purpose.
 2. Open **Authentication**, then **Features** (`dashboard.workos.com/environment/authentication/features`).
 3. Open **JWT Template**, set the template to `{"aud": "<api id>"}` with the same value as
    `ECHNO_JWT_AUDIENCE`, and save.
-4. Rerun the script. It reads `aud` from a new sign-in.
+4. Rerun the script with an `example.org` address. It reads `aud` from a new sign-in.
 
 **Hosted checks, by a person.** These need a browser. Sign-up is the **Sign up** toggle in the
 dashboard's authentication section, per environment.
@@ -120,7 +119,9 @@ dashboard's authentication section, per environment.
    between them?
 3. Does the $99 per month custom domain price cover both the auth domain and the email domain, or is
    each billed separately? Is it charged per environment or per project?
-4. Your docs say a corporate domain invitation can be accepted with any address on that domain. The
+4. A password grant token carries an `email` claim that your claims table omits, with no JWT template we
+   know of. Is it a stable default, and is it also present after hosted AuthKit sign-in?
+5. Your docs say a corporate domain invitation can be accepted with any address on that domain. The
    password grant refused a different `example.com` address with `invitation_cannot_be_used_for_email`.
    How is a domain classed as corporate, does hosted AuthKit apply the same check, and can exact matching
    be required?
@@ -129,11 +130,13 @@ dashboard's authentication section, per environment.
 
 | Step | Change |
 | --- | --- |
+| 15 | The mapper accepts a token with no `org_id` and reads neither `email` nor `org_id`. The issuer value for the default domain is known. |
 | 16 | Revoke also deletes the pending membership. Refusal codes are mapped. Invitation bearer values are kept out of logs. The manual contract avoids `example.com`. |
 | 17 | Renewal is revoke then send, and the record takes the new provider id. |
 | 18 | Verified email comes from the Users API, because `accepted` does not imply it. |
 | 24 | The redirect comes from one run-time variable, `baseURL` is passed, `WORKOS_ISSUER` is set, and an Initiate login route is added. |
 | 26 | Test addresses avoid `example.com`. Hosted invitation acceptance is proved through the web callback. |
+| 36 | Refresh with no secret is proved on the default Application and is rechecked on the mobile one. |
 | Section 7 | One redirect variable, `WORKOS_ISSUER`, and the Initiate login URI setting. |
 
 ## 3. What WorkOS cannot do that the rules need
@@ -141,7 +144,7 @@ dashboard's authentication section, per environment.
 | Need | Gap | What we do |
 | --- | --- | --- |
 | The link opens only for the invited email (design note 3.4) | F10: the docs allow a same-domain address. The password grant refused one, and hosted AuthKit is untested | Echno compares the accepted user's verified email with the invited one, exactly. A mismatch links nothing and shows the administrator the invitation as accepted by another address (step 18). |
-| Removal takes effect at once | F6: nothing promises a revoke stops an issued access token | Echno checks membership on every request (step 11). Revoking sessions only stops new tokens. |
+| Removal takes effect at once | F6: a revoke leaves an issued access token valid until `exp` | Echno checks membership on every request (step 11). Revoking sessions only stops new tokens. |
 | MFA for System Admins only (today's Keycloak rule) | F15: no per-role setting | Not possible through AuthKit. Either the whole organization or nobody. Question in section 10. |
 | A rule in Echno that requires MFA | F4: token has no sign-in method | No such rule in the first deployment. MFA is set in WorkOS. A missing value still counts as the weakest (design note 3.1), so a rule added later fails closed. |
 | Machine logins (`observation-producer`) | Today they are Keycloak service accounts placed in groups. Under WorkOS the JWT template does not render into `client_credentials` tokens ([JWT templates](https://workos.com/docs/authkit/jwt-templates)). | Out of scope for the first deployment, which has no such device. Keycloak mode keeps them working (step 11). A machine credential is a later piece of work. |
@@ -207,9 +210,9 @@ the point the Roles & Permissions screen is usable.
   an access token still validates after a session revoke; whether `authkit-nextjs` works with a
   runtime-only redirect variable in a shared image; what the custom domain price covers. Any
   surprise changes the steps below before they start.
-- State: First run done on 2026-11-08 (section 2.1). Open: every item that needs a real token, the
-  hosted checks and the questions for WorkOS. The token items must close before step 15 pins its
-  issuer and audience and before step 36 relies on refresh with no secret.
+- State: API runs done on 2026-11-08 (section 2.1). Open: the template `aud`, the hosted checks and the
+  questions for WorkOS. The template `aud` must be seen before step 15's audience check runs against
+  a real environment.
 
 ### Backend: matrix foundation
 
@@ -351,7 +354,8 @@ the point the Roles & Permissions screen is usable.
 
 **Step 15. WorkOS tokens.**
 
-- Builds: `WorkOsTokenMapper`. `JwtDecoderConfig` builds per provider: JWKS from the client id (F3),
+- Builds: `WorkOsTokenMapper`, which needs only `sub` and `iss`, since `org_id` can be absent (F21) and
+  the token's `email` is not trusted (F4). `JwtDecoderConfig` builds per provider: JWKS from the client id (F3),
   required `aud` from `ECHNO_JWT_AUDIENCE` (F1), required issuer from the existing
   `ECHNO_JWT_ACCEPTED_ISSUERS` (F2). Under WorkOS an empty issuer list fails boot. `OpenApiConfig`
   per provider.
@@ -541,7 +545,7 @@ local to this workstation, so these steps are sized from their file lists only.
 **Step 36. WorkOS in the apps.**
 
 - Builds: One PR per app: authorize and exchange against WorkOS with the existing PKCE code, a
-  custom scheme redirect, refresh with no secret once step 0 has proved it, `AccessTokenClaims`
+  custom scheme redirect, refresh with no secret (F20, rechecked on this Application), `AccessTokenClaims`
   reduced to what the app needs, roles read from the backend.
 
 ### Not in this plan
