@@ -47,6 +47,8 @@ import org.tornotron.echno_backend.modules.workprogress.billing.dto.DeductionRul
 import org.tornotron.echno_backend.modules.workprogress.billing.dto.MilestoneRequirementDto;
 import org.tornotron.echno_backend.modules.workprogress.billing.dto.MilestoneRequirementRequest;
 import org.tornotron.echno_backend.modules.workprogress.billing.dto.ProjectBillingSummaryDto;
+import org.tornotron.echno_backend.modules.workprogress.billing.payment.BillPaymentStatus;
+import org.tornotron.echno_backend.modules.workprogress.billing.payment.ContractBillPaymentRepository;
 import org.tornotron.echno_backend.modules.workprogress.billing.repository.ContractBillEventRepository;
 import org.tornotron.echno_backend.modules.workprogress.billing.repository.ContractBillRepository;
 import org.tornotron.echno_backend.modules.workprogress.billing.repository.ContractBoqItemRepository;
@@ -77,6 +79,7 @@ public class ContractBillingService {
     private final ContractMilestoneRequirementRepository requirements;
     private final ContractBillRepository bills;
     private final ContractBillEventRepository events;
+    private final ContractBillPaymentRepository payments;
     private final WbsElementRepository elements;
     private final ProjectRepository projects;
     private final BillingSupport support;
@@ -84,7 +87,8 @@ public class ContractBillingService {
 
     public ContractBillingService(ContractBoqItemRepository boqItems, ContractDeductionRuleRepository rules,
                                   ContractMilestoneRequirementRepository requirements, ContractBillRepository bills,
-                                  ContractBillEventRepository events, WbsElementRepository elements,
+                                  ContractBillEventRepository events, ContractBillPaymentRepository payments,
+                                  WbsElementRepository elements,
                                   ProjectRepository projects, BillingSupport support,
                                   TenantEntityHelper tenantEntityHelper) {
         this.boqItems = boqItems;
@@ -92,6 +96,7 @@ public class ContractBillingService {
         this.requirements = requirements;
         this.bills = bills;
         this.events = events;
+        this.payments = payments;
         this.elements = elements;
         this.projects = projects;
         this.support = support;
@@ -129,7 +134,8 @@ public class ContractBillingService {
                 counts.getOrDefault(BillStatus.SUBMITTED, 0L), counts.getOrDefault(BillStatus.VERIFIED, 0L),
                 counts.getOrDefault(BillStatus.CERTIFIED, 0L), counts.getOrDefault(BillStatus.RETURNED, 0L),
                 counts.getOrDefault(BillStatus.APPROVED, 0L), BillMath.money(certified), BillMath.money(approvedNet),
-                bills.projectsInBilling(orgId), pending, BillMath.money(paid), BillMath.money(recorded.subtract(paid)));
+                bills.projectsInBilling(orgId), pending, BillMath.money(paid), BillMath.money(recorded.subtract(paid)),
+                payments.countInStatus(orgId, BillPaymentStatus.IN_FLIGHT));
     }
 
     /**

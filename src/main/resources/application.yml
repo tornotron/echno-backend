@@ -293,6 +293,11 @@ echno:
     # refuses with 402 and the structured reason. Advisory is the default because nothing
     # creates a subscription yet; flip to enforce per environment once payments exist.
     mode: ${ECHNO_ENTITLEMENT_MODE:advisory}
+  # What carries the payment of a contractor's bill, separate from echno.billing above, which collects
+  # subscriptions: none (the default; a person pays from the bank and records the reference) or fake
+  # (for testing the flow; no money moves, never set on a live deployment).
+  contract-payments:
+    provider: ${ECHNO_CONTRACT_PAYMENTS_PROVIDER:none}
   billing:
     # Which payment provider backs subscriptions: none (the default; subscriptions are
     # provisioned manually and every webhook is rejected) or razorpay. The Razorpay keys are

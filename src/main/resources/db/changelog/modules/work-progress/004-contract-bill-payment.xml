@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Paying an approved bill (docs/specs/2026-11-08-billing-in-inspection-and-payments.md): one row
+        per attempt. The payable stays the record of what was paid; this holds the two signatures, what
+        carried the payment and how it ended. Purely additive.
+    -->
+
+    <changeSet id="work-progress-004-create-contract_bill_payment" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="contract_bill_payment"/></not>
+        </preConditions>
+        <createTable tableName="contract_bill_payment">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_contract_bill_payment" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="bill_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="payable_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="amount" type="DECIMAL(18,2)"><constraints nullable="false"/></column>
+            <column name="applied_amount" type="DECIMAL(18,2)"/>
+            <column name="status" type="VARCHAR(20)"><constraints nullable="false"/></column>
+            <column name="provider" type="VARCHAR(20)"><constraints nullable="false"/></column>
+            <column name="provider_ref" type="VARCHAR(100)"/>
+            <column name="bank_reference" type="VARCHAR(100)"/>
+            <column name="paid_on" type="DATE"/>
+            <column name="beneficiary_name" type="VARCHAR(200)"/>
+            <column name="beneficiary_ifsc" type="VARCHAR(20)"/>
+            <column name="beneficiary_account_last4" type="VARCHAR(4)"/>
+            <column name="note" type="TEXT"/>
+            <column name="failure_reason" type="TEXT"/>
+            <column name="last_error" type="TEXT"/>
+            <column name="requested_by" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="requested_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="authorized_by" type="BIGINT"/>
+            <column name="authorized_at" type="TIMESTAMP"/>
+            <column name="self_authorized" type="BOOLEAN" defaultValueBoolean="false"><constraints nullable="false"/></column>
+            <column name="settled_at" type="TIMESTAMP"/>
+            <column name="created_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="updated_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="contract_bill_payment" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_bill_payment_organization"/>
+        <addForeignKeyConstraint baseTableName="contract_bill_payment" baseColumnNames="bill_id"
+                                 referencedTableName="contract_bill" referencedColumnNames="id"
+                                 constraintName="fk_bill_payment_bill"/>
+        <addForeignKeyConstraint baseTableName="contract_bill_payment" baseColumnNames="payable_id"
+                                 referencedTableName="payable" referencedColumnNames="id"
+                                 constraintName="fk_bill_payment_payable"/>
+        <createIndex tableName="contract_bill_payment" indexName="idx_bill_payment_org_bill">
+            <column name="organization_id"/>
+            <column name="bill_id"/>
+        </createIndex>
+        <createIndex tableName="contract_bill_payment" indexName="idx_bill_payment_org_status">
+            <column name="organization_id"/>
+            <column name="status"/>
+        </createIndex>
+        <rollback>
+            <dropTable tableName="contract_bill_payment"/>
+        </rollback>
+    </changeSet>
+</databaseChangeLog>
