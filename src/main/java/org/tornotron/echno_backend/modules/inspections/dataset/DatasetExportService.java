@@ -272,7 +272,7 @@ public class DatasetExportService {
             }
             String exportKey = runPrefix + candidate.kind().folder() + "/" + candidate.exportName();
             List<DefectPhotoAnnotation> boxes = candidate.kind() == DatasetSourceKind.DEFECT_PHOTO
-                    ? annotationsByPhoto.getOrDefault(photoKey(candidate.inspection().getId(), candidate.sourceRef()), List.of())
+                    ? annotationsByPhoto.getOrDefault(candidate.sourceRef(), List.of())
                     : List.of();
             planned.add(new Planned(candidate.kind(), candidate.sourceRef(), candidate.sourceKey(),
                     candidate.inspection() == null ? null : candidate.inspection().getId(), exportKey,
@@ -377,10 +377,13 @@ public class DatasetExportService {
                     attachment.getStorageKey(), attachment, inspection, null, null));
         }
 
+        // One line per stored image, the way the ledger counts them: it is unique per source
+        // reference, so the same photo on a second inspection would fail the batch's insert. The
+        // line carries the first inspection that references the photo.
         Set<String> seenPhotos = new LinkedHashSet<>();
         for (InspectionDefect defect : inspectionRepository.findDefectsForOrganization(organizationId)) {
             for (String photo : defect.getPhotos()) {
-                if (photo == null || !seenPhotos.add(photoKey(defect.getInspection().getId(), photo))) {
+                if (photo == null || !seenPhotos.add(photo)) {
                     continue;
                 }
                 Optional<String> key = fileStorageService.keyForStoredReference(photo);
@@ -446,13 +449,14 @@ public class DatasetExportService {
                 .collect(Collectors.joining(" > "));
     }
 
+    /**
+     * The marks on each stored photo, whichever inspection drew them. A photo on two inspections
+     * has one manifest line, and its ledger row keeps a later run from writing another, so a mark
+     * left off that line would never reach the dataset.
+     */
     private Map<String, List<DefectPhotoAnnotation>> annotationsByPhoto(Long organizationId) {
         return annotationRepository.findByOrganization_IdOrderByPhotoAscLineOrderAsc(organizationId).stream()
-                .collect(Collectors.groupingBy(a -> photoKey(a.getInspectionId(), a.getPhoto())));
-    }
-
-    private static String photoKey(UUID inspectionId, String photo) {
-        return inspectionId + "|" + photo;
+                .collect(Collectors.groupingBy(DefectPhotoAnnotation::getPhoto));
     }
 
     /**
