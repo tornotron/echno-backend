@@ -61,6 +61,17 @@ class ShippedConfigurationDefaultTest {
                 .isNotEqualTo("always");
     }
 
+    @Test
+    @DisplayName("an environment that names no identity provider runs on Keycloak")
+    void identityProviderDefaultsToKeycloak() {
+        String shipped = shippedValue("echno", "identity", "provider");
+
+        assertThat(resolveWithNothingSet(shipped))
+                .as("echno.identity.provider in application.yml, evaluated with no environment set. "
+                        + "Both stagings leave it unset, so anything else here changes what they run on.")
+                .isEqualTo("keycloak");
+    }
+
     private static String resolveWithNothingSet(String value) {
         return UNSET_ENVIRONMENT.replacePlaceholders(value, name -> null);
     }
