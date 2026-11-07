@@ -166,7 +166,8 @@ public class ObservationService {
         String prefix = filter.spatialNodeId() == null ? null
                 : spatialNodeService.subtreePathPrefix(filter.spatialNodeId()).orElse(InspectionSpecifications.NO_MATCH);
         Specification<Observation> spec = ObservationSpecifications.withFilters(filter.projectId(),
-                filter.reviewStatus(), filter.source(), filter.inspectionId(), prefix, filter.from(), filter.to());
+                filter.reviewStatus(), filter.source(), filter.inspectionId(), prefix, filter.from(), filter.to())
+                .and(ObservationSpecifications.withModelFilters(filter));
         if (!filter.includeDetections()) {
             spec = spec.and(ObservationSpecifications.notADetection());
         }

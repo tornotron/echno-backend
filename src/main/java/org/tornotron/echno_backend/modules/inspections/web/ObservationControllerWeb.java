@@ -38,6 +38,7 @@ import org.tornotron.echno_backend.modules.inspections.service.ObservationBatchR
 import org.tornotron.echno_backend.modules.inspections.service.ObservationEvidenceService;
 import org.tornotron.echno_backend.modules.inspections.service.ObservationService;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -94,7 +95,10 @@ public class ObservationControllerWeb {
     @PreAuthorize("@inspectionSecurity.canRead()")
     @Operation(summary = "List observations",
             description = "Paged, filtered by project, review status, source, inspection, site structure "
-                    + "subtree and observed-at window. The pending queue is reviewStatus=pending. A model's detections "
+                    + "subtree and observed-at window, and by model name and version, category (repeatable, reads as the "
+                    + "class for a model's finding), confidence range, whether it has active regions, and the image a "
+                    + "region is on. sort=confidence,asc or desc orders by confidence. The pending queue is "
+                    + "reviewStatus=pending. A model's detections "
                     + "are listed only for a caller with a role in echno.security.inspection.detection-read-roles.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Page of observations returned"),
@@ -109,9 +113,17 @@ public class ObservationControllerWeb {
                                      @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
                                      @RequestParam(required = false)
                                      @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
+                                     @RequestParam(required = false) String modelName,
+                                     @RequestParam(required = false) String modelVersion,
+                                     @RequestParam(required = false) List<String> category,
+                                     @RequestParam(required = false) BigDecimal minConfidence,
+                                     @RequestParam(required = false) BigDecimal maxConfidence,
+                                     @RequestParam(required = false) Boolean hasRegions,
+                                     @RequestParam(required = false) Long attachmentId,
                                      Pageable pageable) {
         return service.findAll(new ObservationListFilter(projectId, reviewStatus, source, inspectionId, spatialNodeId,
-                from, to, detectionVisibility.callerMaySeeDetections()), pageable);
+                from, to, detectionVisibility.callerMaySeeDetections(), modelName, modelVersion, category, minConfidence,
+                maxConfidence, hasRegions, attachmentId), pageable);
     }
 
     @PostMapping("/{id}/review")
