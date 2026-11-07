@@ -1,10 +1,14 @@
 package org.tornotron.echno_backend.migration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.when;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jakarta.persistence.EntityManager;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,17 +20,23 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.tornotron.echno_backend.common.enums.OrgRole;
+import org.tornotron.echno_backend.common.identity.keycloak.KeycloakGroupService;
 import org.tornotron.echno_backend.common.identity.keycloak.KeycloakIdentityBackfill;
+import org.tornotron.echno_backend.common.identity.keycloak.KeycloakRoleImport;
 import org.tornotron.echno_backend.common.identity.keycloak.KeycloakTokenMapper;
 import org.tornotron.echno_backend.common.retry.TransactionRetryTemplate;
 import org.tornotron.echno_backend.common.retry.TransactionalWorkRunner;
 import org.tornotron.echno_backend.common.startup.StartupTaskRunner;
 import org.tornotron.echno_backend.common.startup.StartupTaskState;
 import org.tornotron.echno_backend.employee.Employee;
+import org.tornotron.echno_backend.employee.enums.EmployeeStatus;
+import org.tornotron.echno_backend.employee.startup.NullEmployeeStatusCleanup;
 import org.tornotron.echno_backend.modules.access.matrix.AccessFixtures;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.support.AbstractIntegrationTest;
@@ -40,8 +50,8 @@ import org.tornotron.echno_backend.support.AbstractIntegrationTest;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 @Import({PreMigrationOrgIT.Wiring.class, StartupTaskRunner.class, StartupTaskState.class,
-        KeycloakIdentityBackfill.class, KeycloakTokenMapper.class,
-        TransactionRetryTemplate.class, TransactionalWorkRunner.class})
+        KeycloakIdentityBackfill.class, NullEmployeeStatusCleanup.class, KeycloakRoleImport.class,
+        KeycloakTokenMapper.class, TransactionRetryTemplate.class, TransactionalWorkRunner.class})
 class PreMigrationOrgIT extends AbstractIntegrationTest {
 
     @TestConfiguration(proxyBeanMethods = false)
@@ -60,6 +70,9 @@ class PreMigrationOrgIT extends AbstractIntegrationTest {
 
     @Autowired
     private JdbcTemplate jdbc;
+
+    @MockitoBean
+    private KeycloakGroupService keycloakGroups;
 
     @Autowired
     private StartupTaskRunner runner;
@@ -129,5 +142,113 @@ class PreMigrationOrgIT extends AbstractIntegrationTest {
                 SELECT (SELECT count(*) FROM user_identity WHERE user_id = ?)
                      + (SELECT count(*) FROM organization_identity WHERE organization_id = ?)
                 """, Integer.class, user, organization);
+    }
+
+    @Test
+    void aNullStatusBecomesActiveAndOtherStatusesStay() {
+        Long left = transaction.execute(status -> {
+            AccessFixtures fixtures = new AccessFixtures(em);
+            Organization org = em.find(Organization.class, organization);
+            return fixtures.employee(org, "left-" + UUID.randomUUID(), EmployeeStatus.resigned).getId();
+        });
+        jdbc.update("UPDATE employee SET status = NULL WHERE id = ?", employee);
+
+        assertThat(runner.runOnce()).isTrue();
+
+        assertThat(statusOf(employee)).isEqualTo("active");
+        assertThat(statusOf(left)).isEqualTo("resigned");
+        jdbc.update("DELETE FROM employee WHERE id = ?", left);
+    }
+
+    @Test
+    void aRoleOnlyInKeycloakIsImportedOnce() {
+        when(keycloakGroups.roleSubgroupMembers(Long.toString(organization)))
+                .thenReturn(Map.of(OrgRole.HR_ADMIN, List.of(subject)));
+
+        assertThat(runner.runOnce()).isTrue();
+        assertThat(rolesOf(employee)).containsExactly("HR_ADMIN");
+
+        assertThat(runner.runOnce()).isTrue();
+        assertThat(rolesOf(employee)).containsExactly("HR_ADMIN");
+        assertThat(state.hasCompleted(KeycloakRoleImport.NAME)).isTrue();
+    }
+
+    @Test
+    void aRoleAlreadyInTheTableStaysAndARoleNotInKeycloakIsNotRemoved() {
+        jdbc.update("INSERT INTO employee_org_roles (employee_id, role) VALUES (?, 'STORE_KEEPER')", employee);
+        when(keycloakGroups.roleSubgroupMembers(Long.toString(organization)))
+                .thenReturn(Map.of(OrgRole.HR_ADMIN, List.of(subject)));
+
+        assertThat(runner.runOnce()).isTrue();
+
+        assertThat(rolesOf(employee)).containsExactlyInAnyOrder("HR_ADMIN", "STORE_KEEPER");
+    }
+
+    @Test
+    void aSubgroupMemberWithNoEmployeeHereIsLeftOut() {
+        when(keycloakGroups.roleSubgroupMembers(Long.toString(organization)))
+                .thenReturn(Map.of(OrgRole.OBSERVATION_PRODUCER, List.of("a-machine-login")));
+
+        assertThat(runner.runOnce()).isTrue();
+
+        assertThat(rolesOf(employee)).isEmpty();
+        assertThat(state.hasCompleted(KeycloakRoleImport.NAME)).isTrue();
+    }
+
+    @Test
+    void aGroupMemberWithNoEmployeeIsRecordedOnlyByTheFirstFinishedImport() {
+        jdbc.update("DELETE FROM startup_task_state WHERE name = ?", KeycloakRoleImport.NAME);
+        when(keycloakGroups.organizationGroupMembers(Long.toString(organization)))
+                .thenReturn(List.of(subject, "a-bootstrap-administrator"));
+
+        assertThat(runner.runOnce()).isTrue();
+        assertThat(groupOnlyMembers()).containsExactly("a-bootstrap-administrator");
+
+        when(keycloakGroups.organizationGroupMembers(Long.toString(organization)))
+                .thenReturn(List.of(subject, "a-bootstrap-administrator", "someone-being-removed"));
+
+        assertThat(runner.runOnce()).isTrue();
+        assertThat(groupOnlyMembers()).containsExactly("a-bootstrap-administrator");
+    }
+
+    @Test
+    void aRecordedAccountThatGetsAnEmployeeStopsBeingRecorded() {
+        assertThat(runner.runOnce()).isTrue();
+        jdbc.update("INSERT INTO keycloak_group_only_member (subject, organization_id) VALUES (?, ?)",
+                subject, organization);
+
+        assertThat(runner.runOnce()).isTrue();
+
+        assertThat(groupOnlyMembers()).isEmpty();
+    }
+
+    @Test
+    void keycloakFailingLeavesTheImportUnrecordedAndTheOtherTasksDone() {
+        jdbc.update("DELETE FROM startup_task_state WHERE name = ?", KeycloakRoleImport.NAME);
+        when(keycloakGroups.roleSubgroupMembers(Long.toString(organization)))
+                .thenThrow(new IllegalStateException("Keycloak is down"));
+
+        assertThat(runner.runOnce()).isTrue();
+
+        assertThat(state.hasCompleted(KeycloakRoleImport.NAME)).isFalse();
+        assertThat(state.hasCompleted("keycloak-identity-backfill")).isTrue();
+        assertThat(state.hasCompleted("null-employee-status-cleanup")).isTrue();
+
+        reset(keycloakGroups);
+        assertThat(runner.runOnce()).isTrue();
+        assertThat(state.hasCompleted(KeycloakRoleImport.NAME)).isTrue();
+    }
+
+    private List<String> groupOnlyMembers() {
+        return jdbc.queryForList("SELECT subject FROM keycloak_group_only_member WHERE organization_id = ?",
+                String.class, organization);
+    }
+
+    private String statusOf(Long id) {
+        return jdbc.queryForObject("SELECT status FROM employee WHERE id = ?", String.class, id);
+    }
+
+    private List<String> rolesOf(Long id) {
+        return jdbc.queryForList("SELECT role FROM employee_org_roles WHERE employee_id = ?", String.class, id);
     }
 }

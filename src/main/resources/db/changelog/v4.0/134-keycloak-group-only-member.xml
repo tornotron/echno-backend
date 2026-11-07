@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Accounts that were in an organization's Keycloak group with no employee there when the role
+        import first ran, such as a bootstrap administrator. They have no row for Echno's tables to
+        read, so their token's groups keep deciding for those organizations. Written once, and a row
+        goes when the account gets an employee. Goes with the old role code at the build plan's step 32.
+    -->
+    <changeSet id="134-create-keycloak_group_only_member" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="keycloak_group_only_member"/></not>
+        </preConditions>
+        <createTable tableName="keycloak_group_only_member">
+            <column name="subject" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+        </createTable>
+        <addPrimaryKey tableName="keycloak_group_only_member" columnNames="subject, organization_id"
+                       constraintName="pk_keycloak_group_only_member"/>
+        <addForeignKeyConstraint baseTableName="keycloak_group_only_member" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_keycloak_group_only_member_organization" onDelete="CASCADE"/>
+    </changeSet>
+
+</databaseChangeLog>
