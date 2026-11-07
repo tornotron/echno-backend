@@ -13,9 +13,9 @@ import org.springframework.security.oauth2.jwt.JwtClaimNames;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.stereotype.Component;
 import org.tornotron.echno_backend.common.identity.IdentityTokenMapper;
-import org.tornotron.echno_backend.common.identity.Principal;
+import org.tornotron.echno_backend.common.identity.TokenGroups;
 import org.tornotron.echno_backend.common.identity.link.EchnoJwtAuthentication;
-import org.tornotron.echno_backend.common.identity.link.UserIdentityLookup;
+import org.tornotron.echno_backend.common.identity.link.MembershipAuthorities;
 
 import java.util.Collection;
 import java.util.List;
@@ -30,7 +30,8 @@ public class JwtAuthConverter implements Converter<Jwt, AbstractAuthenticationTo
 
     private final JwtGrantedAuthoritiesConverter jwtGrantedAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();
     private final ObjectProvider<IdentityTokenMapper> mapper;
-    private final ObjectProvider<UserIdentityLookup> userIdentityLookup;
+    private final ObjectProvider<MembershipAuthorities> membershipAuthorities;
+    private final ObjectProvider<TokenGroups> tokenGroups;
 
     @Value("${jwt.auth.converter.resource-id}")
     private String resourceId;
@@ -40,12 +41,15 @@ public class JwtAuthConverter implements Converter<Jwt, AbstractAuthenticationTo
 
     /**
      * Providers because every web slice test loads this class, as a {@code Converter}, and authenticates
-     * directly. Nothing here is needed until a real token arrives, and production always has them.
+     * directly. Nothing here is needed until a real token arrives, and production always has the first
+     * two. Only a provider that carries groups in its tokens has the third.
      */
     public JwtAuthConverter(ObjectProvider<IdentityTokenMapper> mapper,
-                            ObjectProvider<UserIdentityLookup> userIdentityLookup) {
+                            ObjectProvider<MembershipAuthorities> membershipAuthorities,
+                            ObjectProvider<TokenGroups> tokenGroups) {
         this.mapper = mapper;
-        this.userIdentityLookup = userIdentityLookup;
+        this.membershipAuthorities = membershipAuthorities;
+        this.tokenGroups = tokenGroups;
     }
 
     @Override
@@ -54,12 +58,14 @@ public class JwtAuthConverter implements Converter<Jwt, AbstractAuthenticationTo
         Collection<? extends GrantedAuthority> resourceRoles = extractResourceRoles(jwt);
         Collection<? extends GrantedAuthority> permissions = extractPermissions(jwt);
         Collection<? extends GrantedAuthority> groupAuthorities = extractGroupAuthorities(jwt);
+        MembershipAuthorities.Membership membership = membershipAuthorities.getObject().read(mapper.getObject().toPrincipal(jwt));
 
         Collection<GrantedAuthority> authorities = Stream.of(
                 standardAuthorities,
                 resourceRoles,
                 permissions,
-                groupAuthorities
+                groupAuthorities,
+                membership.authorities()
         )
                 .flatMap(Collection::stream)
                 .collect(Collectors.toSet());
@@ -70,15 +76,11 @@ public class JwtAuthConverter implements Converter<Jwt, AbstractAuthenticationTo
         log.debug("Standard authorities: {}", standardAuthorities);
         log.debug("Resource roles: {}", resourceRoles);
         log.debug("Extracted permissions: {}", permissions);
-        log.debug("Group authorities (memberships + org-scoped roles): {}", groupAuthorities);
+        log.debug("Group authorities still honoured from the token: {}", groupAuthorities);
+        log.debug("Authorities from Echno's tables: {}", membership.authorities());
         log.debug("Total authorities: {}", authorities);
 
-        return new EchnoJwtAuthentication(jwt, authorities, principal, echnoUserId(jwt));
-    }
-
-    private Long echnoUserId(Jwt jwt) {
-        Principal identity = mapper.getObject().toPrincipal(jwt);
-        return userIdentityLookup.getObject().userId(identity.issuer(), identity.subject()).orElse(null);
+        return new EchnoJwtAuthentication(jwt, authorities, principal, membership.userId());
     }
 
     private String getPrincipleClaimName(Jwt jwt) {
@@ -145,7 +147,8 @@ public class JwtAuthConverter implements Converter<Jwt, AbstractAuthenticationTo
     }
 
     /**
-     * Extracts organization-related authorities from the JWT "groups" claim.
+     * Extracts organization-related authorities from the groups in the token that still count, which
+     * is only a machine login's once Echno's tables are complete. See {@link TokenGroups}.
      *
      * Keycloak groups follow this structure:
      *   /org-{id}                → flat membership group   → authority: ORG_MEMBER_{id}
@@ -161,9 +164,9 @@ public class JwtAuthConverter implements Converter<Jwt, AbstractAuthenticationTo
      * Both are extracted in a single pass over the groups claim.
      */
     private Collection<? extends GrantedAuthority> extractGroupAuthorities(Jwt jwt) {
-        List<String> groups = jwt.getClaim("groups");
-        if (groups == null || groups.isEmpty()) {
-            log.debug("No 'groups' claim found in JWT");
+        TokenGroups source = tokenGroups.getIfAvailable();
+        List<String> groups = source == null ? List.of() : source.stillHonoured(jwt);
+        if (groups.isEmpty()) {
             return Set.of();
         }
 

@@ -1,81 +1,137 @@
 package org.tornotron.echno_backend.common.configuration;
 
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.support.StaticListableBeanFactory;
-import org.tornotron.echno_backend.common.identity.IdentityTokenMapper;
-import org.tornotron.echno_backend.common.identity.keycloak.KeycloakTokenMapper;
-import org.tornotron.echno_backend.common.identity.link.UserIdentityLookup;
-import org.springframework.security.authentication.AbstractAuthenticationToken;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.test.util.ReflectionTestUtils;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-
-import static org.mockito.Mockito.mock;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.support.StaticListableBeanFactory;
+import org.springframework.security.authentication.AbstractAuthenticationToken;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.test.util.ReflectionTestUtils;
+import org.tornotron.echno_backend.common.identity.IdentityTokenMapper;
+import org.tornotron.echno_backend.common.identity.TokenGroups;
+import org.tornotron.echno_backend.common.identity.keycloak.KeycloakTokenMapper;
+import org.tornotron.echno_backend.common.identity.link.EchnoJwtAuthentication;
+import org.tornotron.echno_backend.common.identity.link.MembershipAuthorities;
 
 /**
- * Contract guard for {@link JwtAuthConverter}'s group-authority mapping (audit item H-4).
- *
- * <p>The org-scoped RBAC model depends on the Keycloak group mapper emitting FULL group paths in the
- * top-level {@code groups} claim, e.g. {@code /org-5} and {@code /org-5/system-admin}. If that mapper
- * is ever reconfigured to emit only leaf names, org membership and org-scoped roles silently vanish
- * and every org-scoped {@code @PreAuthorize} check fails open or closed without any compile error.
- * These tests lock the exact authorities the converter derives from full paths.
+ * What {@link JwtAuthConverter} mints: a person's organizations and roles from Echno's tables, and
+ * groups only from a token the adapter still honours. The group path format is the one
+ * {@code observation-producer} tokens carry.
  */
 class JwtAuthConverterGroupsTest {
 
-    private static Jwt jwtWithGroups(List<String> groups) {
+    private final MembershipAuthorities membership = mock(MembershipAuthorities.class);
+    private final TokenGroups tokenGroups = mock(TokenGroups.class);
+
+    @BeforeEach
+    void nothingHeldByDefault() {
+        when(membership.read(any())).thenReturn(MembershipAuthorities.Membership.none());
+        when(tokenGroups.stillHonoured(any())).thenReturn(List.of());
+    }
+
+    private static <T> ObjectProvider<T> providerOf(T bean, Class<T> type) {
+        return new StaticListableBeanFactory(Map.of("bean", bean)).getBeanProvider(type);
+    }
+
+    private static Jwt.Builder token() {
         return Jwt.withTokenValue("token")
                 .header("alg", "RS256")
                 .subject("user-1")
-                .claim("groups", groups)
                 .issuedAt(Instant.now())
-                .expiresAt(Instant.now().plusSeconds(300))
-                .build();
+                .expiresAt(Instant.now().plusSeconds(300));
     }
 
-    private static Set<String> authorities(Jwt jwt) {
-        JwtAuthConverter converter = new JwtAuthConverter(new StaticListableBeanFactory(java.util.Map.of(
-                "mapper", new KeycloakTokenMapper())).getBeanProvider(IdentityTokenMapper.class),
-                new StaticListableBeanFactory(java.util.Map.of(
-                "lookup", mock(UserIdentityLookup.class))).getBeanProvider(UserIdentityLookup.class));
+    private AbstractAuthenticationToken convert(Jwt jwt) {
+        JwtAuthConverter converter =
+                new JwtAuthConverter(providerOf(new KeycloakTokenMapper(), IdentityTokenMapper.class),
+                providerOf(membership, MembershipAuthorities.class), providerOf(tokenGroups, TokenGroups.class));
         // No Spring context: inject the @Value fields directly. principleAttribute stays null so the
         // principal defaults to the "sub" claim.
         ReflectionTestUtils.setField(converter, "resourceId", "echno-backend-client");
+        return converter.convert(jwt);
+    }
 
-        AbstractAuthenticationToken auth = converter.convert(jwt);
-        return auth.getAuthorities().stream()
+    private Set<String> authorities(Jwt jwt) {
+        return convert(jwt).getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .collect(Collectors.toSet());
     }
 
     @Test
-    void fullGroupPaths_yieldMembershipAndOrgScopedRoleAuthorities() {
-        Set<String> authorities = authorities(jwtWithGroups(List.of("/org-5", "/org-5/system-admin")));
+    void aPersonsOrganizationsAndRolesComeFromEchno() {
+        when(membership.read(any())).thenReturn(new MembershipAuthorities.Membership(7L, Set.of(
+                new SimpleGrantedAuthority("ORG_MEMBER_5"), new SimpleGrantedAuthority("ORG_5_ROLE_system-admin"))));
 
-        // /org-5            -> ORG_MEMBER_5           (plain org membership)
-        // /org-5/system-admin -> ORG_5_ROLE_system-admin (org-scoped role)
-        assertTrue(authorities.contains("ORG_MEMBER_5"),
-                "expected org membership authority ORG_MEMBER_5, got " + authorities);
-        assertTrue(authorities.contains("ORG_5_ROLE_system-admin"),
-                "expected org-scoped role authority ORG_5_ROLE_system-admin, got " + authorities);
+        assertThat(authorities(token().build())).contains("ORG_MEMBER_5", "ORG_5_ROLE_system-admin");
     }
 
     @Test
-    void leafOnlyGroupNames_yieldNoOrgAuthorities() {
-        // What a broken mapper emits: leaf names instead of full paths. This must produce NO org
-        // authorities, which is exactly the regression this guard is here to catch.
-        Set<String> authorities = authorities(jwtWithGroups(List.of("org-5", "system-admin")));
+    void groupsInAPersonsTokenCountForNothingOnceTheAdapterSaysSo() {
+        Set<String> held = authorities(token().claim("groups", List.of("/org-5", "/org-5/system-admin")).build());
 
-        assertTrue(authorities.contains("ORG_MEMBER_5"),
-                "a flat 'org-5' is still membership, got " + authorities);
-        assertFalse(authorities.contains("ORG_5_ROLE_system-admin"),
-                "a leaf 'system-admin' must not resolve to an org-scoped role, got " + authorities);
+        assertThat(held).doesNotContain("ORG_MEMBER_5", "ORG_5_ROLE_system-admin");
+    }
+
+    @Test
+    void fullGroupPathsTheAdapterHonoursBecomeMembershipAndRoles() {
+        when(tokenGroups.stillHonoured(any())).thenReturn(List.of("/org-5", "/org-5/observation-producer"));
+
+        assertThat(authorities(token().build())).contains("ORG_MEMBER_5", "ORG_5_ROLE_observation-producer");
+    }
+
+    @Test
+    void aLeafGroupNameNeverBecomesARole() {
+        when(tokenGroups.stillHonoured(any())).thenReturn(List.of("org-5", "system-admin"));
+
+        assertThat(authorities(token().build())).contains("ORG_MEMBER_5").doesNotContain("ORG_5_ROLE_system-admin");
+    }
+
+    @Test
+    void aProviderWithNoTokenGroupsReadsOnlyEchno() {
+        JwtAuthConverter converter = new JwtAuthConverter(providerOf(new KeycloakTokenMapper(), IdentityTokenMapper.class),
+                providerOf(membership, MembershipAuthorities.class),
+                new StaticListableBeanFactory().getBeanProvider(TokenGroups.class));
+        ReflectionTestUtils.setField(converter, "resourceId", "echno-backend-client");
+
+        AbstractAuthenticationToken converted = converter.convert(token().claim("groups", List.of("/org-5")).build());
+
+        assertThat(converted.getAuthorities()).isEmpty();
+    }
+
+    @Test
+    void organizationAndRoleClaimsInATokenHaveNoEffect() {
+        Set<String> held = authorities(token()
+                .claim("org_id", "org_123")
+                .claim("role", "admin")
+                .claim("roles", List.of("admin"))
+                .claim("permissions", List.of("assets:delete"))
+                .build());
+
+        assertThat(held).noneMatch(a -> a.startsWith("ORG_") || a.contains("admin") || a.contains("assets"));
+    }
+
+    @Test
+    void theEchnoUserTravelsOnTheAuthenticationAndIsReadOnce() {
+        when(membership.read(any())).thenReturn(new MembershipAuthorities.Membership(7L, Set.of()));
+
+        AbstractAuthenticationToken converted = convert(token().build());
+
+        assertThat(converted).isInstanceOfSatisfying(EchnoJwtAuthentication.class,
+                echno -> assertThat(echno.userId()).isEqualTo(7L));
+        verify(membership, times(1)).read(any());
     }
 }

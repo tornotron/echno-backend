@@ -487,6 +487,9 @@
     <!-- v4.0 - Accounts in a Keycloak group with no employee, whose token groups keep counting (#914) -->
     <include file="db/changelog/v4.0/134-keycloak-group-only-member.xml"/>
 
+    <!-- v4.0 - Platform administrators recorded in Echno (#914) -->
+    <include file="db/changelog/v4.0/135-platform-admin.xml"/>
+
     <!-- ============================================================== -->
     <!-- Modules: one directory per module under db/changelog/modules/  -->
     <!-- (#749). Files run in path order; a module's pre-move changesets -->

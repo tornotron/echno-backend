@@ -319,10 +319,13 @@ the point the Roles & Permissions screen is usable.
   mints the same `ORG_MEMBER_{id}`, `ORG_{id}_ROLE_{role}` authorities. It reads with a projection
   query, because it runs before `TenantFilter` sets a tenant. `TenantFilter`, `@orgSecurity`,
   `OrgRoleAuthority` and all 611 guards keep working as written. Adds `platform_admin` and mints
-  `ROLE_platform-admin` from it. Cached per subject and evicted after commit on role, status and
-  membership changes. In Keycloak mode a service-account token keeps its groups from the token, so
-  `observation-producer` keeps working. Closes audit G-18 (an inactive employee now loses access)
-  and the token lag on role changes.
+  `ROLE_platform-admin` from it. Read fresh on each request, one statement, with no cache across
+  requests, so a removal or status change from any writer takes effect on the next request and no read
+  can straddle a commit. In Keycloak mode a service-account token keeps its groups from the token, so
+  `observation-producer` keeps working. A person's token groups count until step 10's import has
+  finished once, and after that only for an organization where the import found them in the group with
+  no employee (`keycloak_group_only_member`), so moving the truth costs nobody access. Closes audit G-18 (an inactive employee now loses access) and the token lag on role
+  changes.
 - Tests: `JwtAuthConverterGroupsTest` rewritten; removal seen on next request; an `org_id` in a
   token has no effect; one query per request.
 
