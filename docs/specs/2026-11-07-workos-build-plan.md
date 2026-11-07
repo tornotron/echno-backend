@@ -502,7 +502,7 @@ the point the Roles & Permissions screen is usable.
 
 - Builds: Web #522 and #524 folded into one PR on the web branch, with the review's spec points:
   Roles and Users tabs only, right-side details panel, only enforced options shown, gated on
-  `access:view`. Then web #523 (`can()`) as its own PR. Core version bumped.
+  `access:read`. Then web #523 (`can()`) as its own PR. Core version bumped.
 
 **Step 30. One area per PR.**
 
