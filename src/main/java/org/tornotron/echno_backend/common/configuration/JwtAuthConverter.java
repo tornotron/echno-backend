@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.common.configuration;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.lang.NonNull;
@@ -9,9 +10,12 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtClaimNames;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.stereotype.Component;
+import org.tornotron.echno_backend.common.identity.IdentityTokenMapper;
+import org.tornotron.echno_backend.common.identity.Principal;
+import org.tornotron.echno_backend.common.identity.link.EchnoJwtAuthentication;
+import org.tornotron.echno_backend.common.identity.link.UserIdentityLookup;
 
 import java.util.Collection;
 import java.util.List;
@@ -25,12 +29,24 @@ import java.util.stream.Stream;
 public class JwtAuthConverter implements Converter<Jwt, AbstractAuthenticationToken> {
 
     private final JwtGrantedAuthoritiesConverter jwtGrantedAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();
+    private final ObjectProvider<IdentityTokenMapper> mapper;
+    private final ObjectProvider<UserIdentityLookup> userIdentityLookup;
 
     @Value("${jwt.auth.converter.resource-id}")
     private String resourceId;
 
     @Value("${jwt.auth.converter.principle-attribute}")
     private String principleAttribute;
+
+    /**
+     * Providers because every web slice test loads this class, as a {@code Converter}, and authenticates
+     * directly. Nothing here is needed until a real token arrives, and production always has them.
+     */
+    public JwtAuthConverter(ObjectProvider<IdentityTokenMapper> mapper,
+                            ObjectProvider<UserIdentityLookup> userIdentityLookup) {
+        this.mapper = mapper;
+        this.userIdentityLookup = userIdentityLookup;
+    }
 
     @Override
     public AbstractAuthenticationToken convert(@NonNull Jwt jwt) {
@@ -57,11 +73,12 @@ public class JwtAuthConverter implements Converter<Jwt, AbstractAuthenticationTo
         log.debug("Group authorities (memberships + org-scoped roles): {}", groupAuthorities);
         log.debug("Total authorities: {}", authorities);
 
-        return new JwtAuthenticationToken(
-                jwt,
-                authorities,
-                principal
-        );
+        return new EchnoJwtAuthentication(jwt, authorities, principal, echnoUserId(jwt));
+    }
+
+    private Long echnoUserId(Jwt jwt) {
+        Principal identity = mapper.getObject().toPrincipal(jwt);
+        return userIdentityLookup.getObject().userId(identity.issuer(), identity.subject()).orElse(null);
     }
 
     private String getPrincipleClaimName(Jwt jwt) {

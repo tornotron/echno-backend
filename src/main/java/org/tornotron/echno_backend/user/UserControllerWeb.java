@@ -122,8 +122,7 @@ public class UserControllerWeb {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No user matches the caller's Keycloak identity")
     })
     public ResponseEntity<UserDto> getCurrentUser() {
-        String keycloakId = userContextService.getCurrentKeycloakId();
-        return ResponseEntity.ok(userService.getCurrentUserDto(keycloakId));
+        return ResponseEntity.ok(userService.getCurrentUserDto(userContextService.getCurrentUserId()));
     }
 
     @PreAuthorize("isAuthenticated()")
@@ -138,8 +137,7 @@ public class UserControllerWeb {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Caller is not authenticated")
     })
     public ResponseEntity<List<EmployeeDto>> getEmployeesForCurrentUser() {
-        String keycloakId = userContextService.getCurrentKeycloakId();
-        List<EmployeeDto> employees = userService.getEmployeesForUser(keycloakId);
+        List<EmployeeDto> employees = userService.getEmployeesForUser(userContextService.getCurrentUserId());
         return ResponseEntity.ok(employees);
     }
 

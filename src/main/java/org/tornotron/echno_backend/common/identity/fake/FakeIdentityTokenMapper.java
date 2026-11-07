@@ -35,6 +35,11 @@ public class FakeIdentityTokenMapper implements IdentityTokenMapper {
         return ISSUER;
     }
 
+    @Override
+    public boolean subjectMayBeInKeycloakIdColumn() {
+        return true;
+    }
+
     private static SignInMethod signInMethod(String value) {
         if (value == null) {
             return SignInMethod.UNKNOWN;

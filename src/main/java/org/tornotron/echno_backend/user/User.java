@@ -28,7 +28,8 @@ public class User {
     @Column(name = "id", nullable = false)
     private Long id;
 
-    @Column(nullable = false, unique = true)
+    /** The account's subject under Keycloak. Read through {@code user_identity}; goes at the build plan's step 33. */
+    @Column(unique = true)
     private String keycloakId;
 
     /** The full name of the user. */

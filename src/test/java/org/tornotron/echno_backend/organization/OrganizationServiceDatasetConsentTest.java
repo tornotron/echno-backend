@@ -68,7 +68,7 @@ class OrganizationServiceDatasetConsentTest {
     void setDatasetConsent_refusesAnUnidentifiedCallerBeforeTouchingTheRow() {
         // No local user and no subject: nothing is read or written, and the refusal is explicit.
         when(userContextService.getCurrentUserId()).thenReturn(null);
-        when(userContextService.getCurrentKeycloakId()).thenReturn(null);
+        when(userContextService.currentSubject()).thenReturn(null);
 
         assertThatThrownBy(() -> service.setDatasetConsent(7L, true))
                 .isInstanceOf(AccessDeniedException.class);

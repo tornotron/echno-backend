@@ -501,7 +501,7 @@ public class OrganizationService {
     public DatasetConsentDto setDatasetConsent(Long id, boolean datasetConsent) {
         // Resolve who is making the statement before anything changes, so the record of the
         // change always names an actor: the local user where one exists, otherwise the
-        // authenticated Keycloak subject.
+        // authenticated subject.
         String actor = consentActor();
         Organization organization = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization with ID " + id + " was not found"));
@@ -518,9 +518,9 @@ public class OrganizationService {
         if (userId != null) {
             return "user " + userId;
         }
-        String subject = userContextService.getCurrentKeycloakId();
+        String subject = userContextService.currentSubject();
         if (subject != null && !subject.isBlank()) {
-            return "keycloak subject " + subject;
+            return "subject " + subject;
         }
         throw new AccessDeniedException("Dataset consent can only be changed by an identified user");
     }
