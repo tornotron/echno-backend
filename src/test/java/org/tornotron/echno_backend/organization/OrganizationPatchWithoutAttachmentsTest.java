@@ -72,7 +72,7 @@ class OrganizationPatchWithoutAttachmentsTest {
     private Organization organization() {
         Organization organization = new Organization();
         organization.setId(ORG_ID);
-        organization.setOrganizationName("Asset Homes");
+        organization.setOrganizationName("Riverside Builders");
         return organization;
     }
 
@@ -84,7 +84,7 @@ class OrganizationPatchWithoutAttachmentsTest {
         when(organizationMapper.toSimpleDto(any())).thenReturn(new OrganizationSimpleDto());
 
         assertThatCode(() -> service().partialUpdateAnOrganization(
-                Map.of("organizationName", "Asset Homes Kerala"),
+                Map.of("organizationName", "Riverside Builders Kerala"),
                 ORG_ID,
                 null,
                 "ORGANIZATION_LOGO"))
@@ -97,6 +97,6 @@ class OrganizationPatchWithoutAttachmentsTest {
 
     private void assertThatOrganizationWasRenamed(Organization stored) {
         org.assertj.core.api.Assertions.assertThat(stored.getOrganizationName())
-                .isEqualTo("Asset Homes Kerala");
+                .isEqualTo("Riverside Builders Kerala");
     }
 }

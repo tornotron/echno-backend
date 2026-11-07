@@ -37,7 +37,7 @@ public class RegularizationCalendarDayDto {
     @Schema(description = "Project of that record.", example = "12", nullable = true)
     private Long projectId;
 
-    @Schema(description = "Name of that project.", example = "Asset Homes Tower B", nullable = true)
+    @Schema(description = "Name of that project.", example = "Lakeview Residency Block B", nullable = true)
     private String projectName;
 
     @Schema(description = "The most recent regularization request for the day, when there is one.",

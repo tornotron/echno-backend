@@ -34,7 +34,7 @@ public class EmployeeDto {
     @Schema(description = "Id of the organization the employee belongs to.", example = "3")
     private Long organizationId;
 
-    @Schema(description = "Name of the organization the employee belongs to.", example = "Asset Homes")
+    @Schema(description = "Name of the organization the employee belongs to.", example = "Riverside Builders")
     private String organizationName;
 
     @Schema(description = "Full name of the employee.", example = "Ravi Kumar")

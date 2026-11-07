@@ -1593,7 +1593,7 @@
           },
           "projectName": {
             "description": "Name of the project.",
-            "example": "Asset Homes Kovilambakkam Phase 2",
+            "example": "Riverside Towers Phase 2",
             "type": "string"
           },
           "regularizations": {
@@ -4847,7 +4847,7 @@
           },
           "projectName": {
             "description": "Name of the project.",
-            "example": "Asset Homes Kovilambakkam Phase 2",
+            "example": "Riverside Towers Phase 2",
             "type": "string"
           },
           "recordedAt": {
@@ -6674,7 +6674,7 @@
           },
           "name": {
             "description": "Customer name.",
-            "example": "Asset Homes Pvt Ltd",
+            "example": "Riverside Builders Pvt Ltd",
             "maxLength": 200,
             "minLength": 1,
             "type": "string"
@@ -7393,7 +7393,7 @@
           },
           "name": {
             "description": "Customer name.",
-            "example": "Asset Homes Pvt Ltd",
+            "example": "Riverside Builders Pvt Ltd",
             "type": "string"
           },
           "pan": {
@@ -8300,7 +8300,7 @@
           },
           "organizationName": {
             "description": "Name of the organization the employee belongs to.",
-            "example": "Asset Homes",
+            "example": "Riverside Builders",
             "maxLength": 255,
             "minLength": 0,
             "type": "string"
@@ -8477,7 +8477,7 @@
           },
           "organizationName": {
             "description": "Name of the organization the employee belongs to.",
-            "example": "Asset Homes",
+            "example": "Riverside Builders",
             "type": "string"
           },
           "phoneNumber": {
@@ -9743,7 +9743,7 @@
           },
           "projectName": {
             "description": "Name of the project.",
-            "example": "Asset Homes Perumbavoor Phase 2",
+            "example": "Riverside Towers Phase 2",
             "type": "string"
           },
           "remarks": {
@@ -9927,7 +9927,7 @@
           },
           "projectName": {
             "description": "Name of the project.",
-            "example": "Asset Homes Perumbavoor Phase 2",
+            "example": "Riverside Towers Phase 2",
             "type": "string"
           },
           "remarks": {
@@ -11243,7 +11243,7 @@
           },
           "customerName": {
             "description": "Customer name captured on the invoice.",
-            "example": "Asset Homes Pvt Ltd",
+            "example": "Riverside Builders Pvt Ltd",
             "type": "string"
           },
           "dueDate": {
@@ -12372,7 +12372,7 @@
           },
           "organizationName": {
             "description": "Name of the organization the worker belongs to.",
-            "example": "Asset Homes",
+            "example": "Riverside Builders",
             "type": "string"
           },
           "overTimeRate": {
@@ -13346,7 +13346,7 @@
           },
           "organizationName": {
             "description": "Name of the organization the policy belongs to.",
-            "example": "Asset Homes",
+            "example": "Riverside Builders",
             "type": "string"
           },
           "requiresAttachment": {
@@ -13650,7 +13650,7 @@
           },
           "handoverNotes": {
             "description": "Notes for the person receiving the handover.",
-            "example": "Site inspection at Asset Homes Chennai is due on 2026-09-15, please coordinate with the QA team",
+            "example": "Site inspection at Riverside Towers is due on 2026-09-15, please coordinate with the QA team",
             "maxLength": 500,
             "minLength": 0,
             "type": "string"
@@ -13824,7 +13824,7 @@
           },
           "handoverNotes": {
             "description": "Notes for the person receiving the handover. Null where none were written.",
-            "example": "Site inspection at Asset Homes Chennai is due on 2026-09-15, please coordinate with the QA team",
+            "example": "Site inspection at Riverside Towers is due on 2026-09-15, please coordinate with the QA team",
             "type": [
               "string",
               "null"
@@ -14575,7 +14575,7 @@
           },
           "projectName": {
             "description": "Name of the project the material was consumed against.",
-            "example": "Asset Homes - Kochi Phase 2",
+            "example": "Riverside Towers Phase 2",
             "type": "string"
           },
           "quantity": {
@@ -15807,7 +15807,7 @@
           },
           "toLocation": {
             "description": "Location the employee travelled to.",
-            "example": "Asset Homes Corporate Office, Chennai",
+            "example": "Riverside Builders Corporate Office, Chennai",
             "type": "string"
           },
           "updatedAt": {
@@ -16879,7 +16879,7 @@
           },
           "organizationName": {
             "description": "Registered name of the organization.",
-            "example": "Asset Homes",
+            "example": "Riverside Builders",
             "type": [
               "string",
               "null"
@@ -19267,7 +19267,7 @@
           },
           "customerName": {
             "description": "Customer name captured on the payment.",
-            "example": "Asset Homes Pvt Ltd",
+            "example": "Riverside Builders Pvt Ltd",
             "type": "string"
           },
           "externalReference": {
@@ -20983,7 +20983,7 @@
           },
           "projectName": {
             "description": "Name of the project. Null whenever projectId is, and also on a project that has no name recorded.",
-            "example": "Asset Homes Perumbavoor Phase 2",
+            "example": "Riverside Towers Phase 2",
             "type": [
               "string",
               "null"
@@ -21406,7 +21406,7 @@
           },
           "receivedFrom": {
             "description": "Name of the person or company the amount was received from.",
-            "example": "Asset Homes Pvt Ltd",
+            "example": "Riverside Builders Pvt Ltd",
             "minLength": 1,
             "type": "string"
           },
@@ -21582,7 +21582,7 @@
           },
           "receivedFrom": {
             "description": "Name of the person or company the amount was received from. Required by the create and update endpoints, so a null belongs to a row written outside them.",
-            "example": "Asset Homes Pvt Ltd",
+            "example": "Riverside Builders Pvt Ltd",
             "type": [
               "string",
               "null"
@@ -21727,7 +21727,7 @@
           },
           "receivedFrom": {
             "description": "Name of the person or company the amount was received from.",
-            "example": "Asset Homes Pvt Ltd",
+            "example": "Riverside Builders Pvt Ltd",
             "minLength": 1,
             "type": "string"
           },
@@ -22288,7 +22288,7 @@
           },
           "projectName": {
             "description": "Name of that project.",
-            "example": "Asset Homes Tower B",
+            "example": "Lakeview Residency Block B",
             "type": [
               "string",
               "null"
@@ -23443,7 +23443,7 @@
           },
           "receivingProjectName": {
             "description": "Name of the receiving project.",
-            "example": "Asset Homes - Coimbatore Villas",
+            "example": "Lakeview Residency Block A",
             "type": "string"
           },
           "receivingStorageLocationId": {
@@ -23478,7 +23478,7 @@
           },
           "sendingProjectName": {
             "description": "Name of the sending project.",
-            "example": "Asset Homes - Kochi Phase 2",
+            "example": "Riverside Towers Phase 2",
             "type": "string"
           },
           "sendingStorageLocationId": {
@@ -24297,7 +24297,7 @@
           },
           "projectName": {
             "description": "Name of the project.",
-            "example": "Asset Homes - Kochi Phase 2",
+            "example": "Riverside Towers Phase 2",
             "type": "string"
           },
           "rejectedAt": {
@@ -24730,7 +24730,7 @@
           },
           "projectName": {
             "description": "Name of the project this location serves, if any.",
-            "example": "Asset Homes - Site B",
+            "example": "Riverside Towers - Site B",
             "type": "string"
           },
           "storageItemsCount": {
@@ -24982,7 +24982,7 @@
           },
           "projectName": {
             "description": "Name of the project.",
-            "example": "Asset Homes Perumbavoor Phase 2",
+            "example": "Riverside Towers Phase 2",
             "type": "string"
           },
           "qualityRating": {
@@ -25266,7 +25266,7 @@
           },
           "projectName": {
             "description": "Name of the project.",
-            "example": "Asset Homes Perumbavoor Phase 2",
+            "example": "Riverside Towers Phase 2",
             "type": "string"
           },
           "qualityRating": {
@@ -26761,7 +26761,7 @@
           },
           "name": {
             "description": "Customer name.",
-            "example": "Asset Homes Pvt Ltd",
+            "example": "Riverside Builders Pvt Ltd",
             "maxLength": 200,
             "minLength": 1,
             "type": "string"
@@ -28383,7 +28383,7 @@
           },
           "projectName": {
             "description": "Name of the project this element belongs to.",
-            "example": "Asset Homes - Kochi Riverside Phase 2",
+            "example": "Riverside Towers Phase 2",
             "type": "string"
           },
           "responsibleEmployeeId": {
@@ -144090,11 +144090,11 @@
       "name": "Observations"
     },
     {
-      "description": "Tenant-scoped organization access for the current user: creating an organization, listing and reading the organizations the caller is a member of, and updating or deleting an organization the caller administers. Companies such as Asset Homes are represented as an organization.",
+      "description": "Tenant-scoped organization access for the current user: creating an organization, listing and reading the organizations the caller is a member of, and updating or deleting an organization the caller administers. Companies such as Riverside Builders are represented as an organization.",
       "name": "Organizations"
     },
     {
-      "description": "Platform-level organization management, used by platform administrators to look up and manage organizations across tenants rather than within the caller's own tenant. Companies such as Asset Homes are represented as an organization, each with its own members, projects and subscription. Tenant-scoped organization access lives on the sibling /organization/web endpoints.",
+      "description": "Platform-level organization management, used by platform administrators to look up and manage organizations across tenants rather than within the caller's own tenant. Companies such as Riverside Builders are represented as an organization, each with its own members, projects and subscription. Tenant-scoped organization access lives on the sibling /organization/web endpoints.",
       "name": "Organizations (Platform Admin)"
     },
     {

@@ -101,7 +101,7 @@ public class LeaveRequestDto {
 
     @Schema(nullable = true, description = "Notes for the person receiving the handover. Null where none "
             + "were written.", example = "Site inspection at "
-            + "Asset Homes Chennai is due on 2026-09-15, please coordinate with the QA team")
+            + "Riverside Towers is due on 2026-09-15, please coordinate with the QA team")
     private String handoverNotes;
 
     @Schema(nullable = true, description = "Time the request was cancelled. Null until the request is "

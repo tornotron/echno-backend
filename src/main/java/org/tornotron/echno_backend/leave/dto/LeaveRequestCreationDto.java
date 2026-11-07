@@ -45,7 +45,7 @@ public class LeaveRequestCreationDto {
     private Long handoverToId;
 
     @Schema(description = "Notes for the person receiving the handover.", example = "Site inspection at "
-            + "Asset Homes Chennai is due on 2026-09-15, please coordinate with the QA team")
+            + "Riverside Towers is due on 2026-09-15, please coordinate with the QA team")
     @Size(max = 500, message = "Handover notes must not exceed 500 characters")
     private String handoverNotes;
 

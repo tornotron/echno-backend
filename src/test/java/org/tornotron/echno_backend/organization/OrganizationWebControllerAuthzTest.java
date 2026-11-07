@@ -82,13 +82,13 @@ class OrganizationWebControllerAuthzTest {
         // screen, so TenantContext is empty. Under the old tenant-scoped role guard this was 403.
         OrganizationDto org = new OrganizationDto();
         org.setId(7L);
-        org.setOrganizationName("Asset Homes");
+        org.setOrganizationName("Riverside Builders");
         when(organizationService.getAllOrganization()).thenReturn(List.of(org));
 
         mockMvc.perform(get("/api/v1/organization/web").with(jwt()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(7))
-                .andExpect(jsonPath("$[0].organizationName").value("Asset Homes"));
+                .andExpect(jsonPath("$[0].organizationName").value("Riverside Builders"));
     }
 
     @Test

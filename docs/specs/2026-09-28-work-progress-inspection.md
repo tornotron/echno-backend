@@ -178,6 +178,6 @@ automatic rescheduling from recorded delays.
 - A progress record is final once saved. A wrong record is corrected by the project manager
   editing the activity, and the next inspection records the true state.
 - Dependencies are shown, never enforced.
-- The Asset Homes schedule has not been received. Until it arrives, activities are entered on the
+- The pilot client schedule has not been received. Until it arrives, activities are entered on the
   WBS tab or through the existing bulk endpoint; an Excel import can follow once the file's
   layout is known.
