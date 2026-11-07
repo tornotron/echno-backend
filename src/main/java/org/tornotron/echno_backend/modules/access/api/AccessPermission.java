@@ -20,6 +20,9 @@ public record AccessPermission(String area, String action) {
     public static final String DELETE = "delete";
 
     public AccessPermission {
+        if (area == null || action == null) {
+            throw new IllegalArgumentException("A permission needs an area and an action");
+        }
         ModuleManifest.requirePermissionKey(area + ":" + action);
     }
 
