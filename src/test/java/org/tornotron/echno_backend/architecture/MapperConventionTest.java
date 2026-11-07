@@ -6,6 +6,7 @@ import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import org.mapstruct.Mapper;
+import org.tornotron.echno_backend.common.identity.IdentityTokenMapper;
 
 import java.util.List;
 import java.util.Set;
@@ -107,7 +108,8 @@ class MapperConventionTest {
      *
      * <p>Excludes the {@code *MapperImpl} classes MapStruct writes, which sit in the same packages
      * and carry {@code @Generated} rather than {@code @Mapper}, and anything nested inside a
-     * mapper.
+     * mapper. Also excludes an {@link IdentityTokenMapper}, which reads a provider's token claims
+     * and converts no entity or DTO, so MapStruct has nothing to generate.
      *
      * @param javaClass The class to judge.
      * @return {@code true} for a mapper written in this repository.
@@ -116,6 +118,7 @@ class MapperConventionTest {
         String simpleName = javaClass.getSimpleName();
         return javaClass.getName().startsWith("org.tornotron.echno_backend.")
                 && simpleName.endsWith("Mapper")
-                && !javaClass.isNestedClass();
+                && !javaClass.isNestedClass()
+                && !javaClass.isAssignableTo(IdentityTokenMapper.class);
     }
 }
