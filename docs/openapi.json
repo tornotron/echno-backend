@@ -10896,6 +10896,132 @@
         },
         "type": "object"
       },
+      "InvitationCreationDto": {
+        "description": "An invitation to join the caller's organization.",
+        "properties": {
+          "email": {
+            "description": "The address the link goes to. Only this exact address can accept it.",
+            "example": "ravi.kumar@example.com",
+            "format": "email",
+            "maxLength": 320,
+            "minLength": 1,
+            "type": "string"
+          },
+          "employee": {
+            "$ref": "#/components/schemas/EmployeeJoinOrgDto",
+            "description": "The employee details the join form collects. The name, contact address and phone come from the person's account at acceptance."
+          },
+          "roles": {
+            "description": "Roles the person gets on acceptance. Each is checked as an assignment by the caller would be.",
+            "items": {
+              "$ref": "#/components/schemas/InvitationRoleDto"
+            },
+            "maxItems": 50,
+            "minItems": 0,
+            "type": "array"
+          }
+        },
+        "required": [
+          "email",
+          "employee",
+          "roles"
+        ],
+        "type": "object"
+      },
+      "InvitationDto": {
+        "description": "An invitation to join the organization, and where it stands.",
+        "properties": {
+          "acceptedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "employee": {
+            "$ref": "#/components/schemas/EmployeeJoinOrgDto"
+          },
+          "expiresAt": {
+            "description": "When the link stops working. Resending keeps it; resending an expired invitation sends a new link with a new expiry.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "invitedByUserId": {
+            "description": "The Echno user who sent it. Absent for one the system created.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "revokedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "roles": {
+            "items": {
+              "$ref": "#/components/schemas/InvitationRoleDto"
+            },
+            "type": "array"
+          },
+          "sentAt": {
+            "description": "When the provider sent the link. Absent while it waits to be sent.",
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "description": "PENDING until accepted, revoked or expired. ACCEPTED_BY_ANOTHER_ADDRESS means the provider let a different address accept, so nobody was added.",
+            "enum": [
+              "PENDING",
+              "ACCEPTED",
+              "ACCEPTED_BY_ANOTHER_ADDRESS",
+              "EXPIRED",
+              "REVOKED"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "InvitationRoleDto": {
+        "description": "A role the invited person gets on acceptance, on one project or, with none, across the organization.",
+        "properties": {
+          "projectId": {
+            "description": "Project the role holds on. Absent for a role across the organization.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "roleId": {
+            "description": "Id of a role in this organization.",
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "roleId"
+        ],
+        "type": "object"
+      },
       "InviteCodeGenerationDto": {
         "properties": {
           "department": {
@@ -30710,7 +30836,7 @@
     "/api/v1/attendance-regularizations/web": {
       "get": {
         "description": "Returns a paged list of regularization requests in the current tenant, in any status. The optional status, approver and requester parameters narrow the result; omitting a parameter leaves that dimension unfiltered.\n\nThe approver and the rejecter are recorded in the same pair of columns, so approvedById on its own means \"requests this person decided\". Pair it with status to separate the two: approvedById with status=APPROVED is what that person approved, and with status=REJECTED what they rejected.\n\nBoth ids are employee ids. A request decided by a caller who has no employee record in this tenant carries no approver id and is not matched by any approvedById.",
-        "operationId": "list_21",
+        "operationId": "list_22",
         "parameters": [
           {
             "in": "query",
@@ -40095,7 +40221,7 @@
     "/api/v1/billing/web/events": {
       "get": {
         "description": "Newest first. Without a status filter, shows FAILED and SKIPPED rows: the dead letters.",
-        "operationId": "list_20",
+        "operationId": "list_21",
         "parameters": [
           {
             "description": "Narrow to one organization",
@@ -40715,7 +40841,7 @@
     },
     "/api/v1/bim/models/{modelId}": {
       "get": {
-        "operationId": "get_21",
+        "operationId": "get_22",
         "parameters": [
           {
             "in": "path",
@@ -44312,7 +44438,7 @@
     "/api/v1/checklist-templates/web": {
       "get": {
         "description": "Returns a page of the organization's templates. The trade and active parameters are optional filters; omitting both returns every template, subject to paging.",
-        "operationId": "list_16",
+        "operationId": "list_17",
         "parameters": [
           {
             "in": "query",
@@ -58625,7 +58751,7 @@
     "/api/v1/finance/accounts/web": {
       "get": {
         "description": "Returns the flat list of accounts in the current tenant. By default only active accounts are returned; set activeOnly to false to include deactivated accounts.",
-        "operationId": "list_15",
+        "operationId": "list_16",
         "parameters": [
           {
             "in": "query",
@@ -59744,7 +59870,7 @@
     "/api/v1/finance/company-bank-accounts/web": {
       "get": {
         "description": "Returns the organization's bank accounts. By default only active accounts are returned; set activeOnly to false to include deactivated accounts as well.",
-        "operationId": "list_14",
+        "operationId": "list_15",
         "parameters": [
           {
             "in": "query",
@@ -59970,7 +60096,7 @@
     "/api/v1/finance/company-bank-accounts/web/{id}": {
       "get": {
         "description": "Returns a single company bank account, including the linked ledger account.",
-        "operationId": "get_20",
+        "operationId": "get_21",
         "parameters": [
           {
             "in": "path",
@@ -60196,7 +60322,7 @@
     "/api/v1/finance/construction-invoices/web": {
       "get": {
         "description": "Returns a paged list of invoices in the current tenant. The optional project, vendor, status and type parameters narrow the result; omitting a parameter leaves that dimension unfiltered.",
-        "operationId": "list_13",
+        "operationId": "list_14",
         "parameters": [
           {
             "in": "query",
@@ -61287,7 +61413,7 @@
     "/api/v1/finance/construction-payments/web": {
       "get": {
         "description": "Returns a paged list of payment vouchers in the current tenant. The optional project, vendor, status, type, payee type, employee, verifier and raiser parameters narrow the result; omitting a parameter leaves that dimension unfiltered.\n\nNarrow here rather than in the client. A filter applied to the rows one page came back in narrows that page and not the register, so it answers a different question from the one it appears to, and an empty result then reads as a complete answer.\n\nThe three person parameters carry ids from two different sequences and are not interchangeable. employeeId is the payee on a salary or advance voucher and is an employee id; verifiedBy and raisedBy are platform user ids, the same ids the response returns beside verifiedByName and raisedByName.",
-        "operationId": "list_12",
+        "operationId": "list_13",
         "parameters": [
           {
             "in": "query",
@@ -62097,7 +62223,7 @@
     "/api/v1/finance/cost-categories/web": {
       "get": {
         "description": "Returns the budget heads in the current tenant. By default only active heads are returned; set activeOnly to false to include deactivated ones.",
-        "operationId": "list_11",
+        "operationId": "list_12",
         "parameters": [
           {
             "in": "query",
@@ -62999,7 +63125,7 @@
     "/api/v1/finance/customers/web/all": {
       "get": {
         "description": "Returns a page of customers in the current tenant. The optional name parameter filters by customer name; omitting it returns all customers, subject to paging.",
-        "operationId": "list_19",
+        "operationId": "list_20",
         "parameters": [
           {
             "in": "query",
@@ -63351,7 +63477,7 @@
     "/api/v1/finance/invoices/web": {
       "get": {
         "description": "Returns a page of customer invoices in the current tenant, newest invoice date first. The optional customer, status and openOnly parameters narrow the result and combine with AND; omitting a parameter leaves that dimension unfiltered. Use pageNo and pageSize to page through the results.",
-        "operationId": "list_10",
+        "operationId": "list_11",
         "parameters": [
           {
             "description": "Restrict to invoices billed to this customer.",
@@ -63628,7 +63754,7 @@
     "/api/v1/finance/invoices/web/{id}": {
       "get": {
         "description": "Returns a single customer invoice, including its computed totals and line items.",
-        "operationId": "get_19",
+        "operationId": "get_20",
         "parameters": [
           {
             "in": "path",
@@ -64702,7 +64828,7 @@
     "/api/v1/finance/payments/web/{id}": {
       "get": {
         "description": "Returns a single customer payment with its invoice allocations.",
-        "operationId": "get_18",
+        "operationId": "get_19",
         "parameters": [
           {
             "in": "path",
@@ -64815,7 +64941,7 @@
     "/api/v1/finance/posting-accounts/web": {
       "get": {
         "description": "Returns all six posting roles with the account each currently resolves to for the tenant, flagged as coming from an explicit mapping (MAPPED) or the configured default (DEFAULT).",
-        "operationId": "list_18",
+        "operationId": "list_19",
         "responses": {
           "200": {
             "content": {
@@ -65168,7 +65294,7 @@
     "/api/v1/finance/projects/{projectId}/budget/web": {
       "get": {
         "description": "Returns the set of budget-head allocations that make up the project's budget.",
-        "operationId": "list_17",
+        "operationId": "list_18",
         "parameters": [
           {
             "in": "path",
@@ -65529,7 +65655,7 @@
     "/api/v1/finance/projects/{projectId}/cost-control/web": {
       "get": {
         "description": "Returns the per-budget-head roll-up of allocated, committed, spent and remaining amounts for the project, plus a project total row. Heads with an allocation or any tagged spend are included; a head whose committed plus spent exceeds its allocation is flagged as over budget.",
-        "operationId": "get_17",
+        "operationId": "get_18",
         "parameters": [
           {
             "in": "path",
@@ -68263,7 +68389,7 @@
     },
     "/api/v1/holidays/web/holiday": {
       "get": {
-        "operationId": "get_16",
+        "operationId": "get_17",
         "parameters": [
           {
             "in": "query",
@@ -73623,7 +73749,7 @@
     "/api/v1/inspections/web": {
       "get": {
         "description": "Returns a page of inspections in the current tenant. The projectId, status, type, category, trade and result parameters are optional filters; omitting all of them returns every inspection, subject to paging.",
-        "operationId": "list_5",
+        "operationId": "list_6",
         "parameters": [
           {
             "in": "query",
@@ -74409,7 +74535,7 @@
     },
     "/api/v1/inspections/web/dataset-export/runs": {
       "get": {
-        "operationId": "list_9",
+        "operationId": "list_10",
         "responses": {
           "200": {
             "content": {
@@ -74613,7 +74739,7 @@
     },
     "/api/v1/inspections/web/dataset-export/runs/{id}": {
       "get": {
-        "operationId": "get_15",
+        "operationId": "get_16",
         "parameters": [
           {
             "in": "path",
@@ -74848,7 +74974,7 @@
     "/api/v1/inspections/web/element-types": {
       "get": {
         "description": "Active types by default, in sort order then name. Pass includeInactive=true to see retired ones too.",
-        "operationId": "list_8",
+        "operationId": "list_9",
         "parameters": [
           {
             "in": "query",
@@ -75473,7 +75599,7 @@
     "/api/v1/inspections/web/observations": {
       "get": {
         "description": "Paged, filtered by project, review status, source, inspection, site structure subtree and observed-at window. The pending queue is reviewStatus=pending.",
-        "operationId": "list_7",
+        "operationId": "list_8",
         "parameters": [
           {
             "in": "query",
@@ -76376,7 +76502,7 @@
     },
     "/api/v1/inspections/web/reinspections/{id}": {
       "get": {
-        "operationId": "get_14",
+        "operationId": "get_15",
         "parameters": [
           {
             "in": "path",
@@ -76612,7 +76738,7 @@
     "/api/v1/inspections/web/trades": {
       "get": {
         "description": "Active trades by default, in sort order then name. Pass includeInactive=true to see retired ones too.",
-        "operationId": "list_6",
+        "operationId": "list_7",
         "parameters": [
           {
             "in": "query",
@@ -82137,6 +82263,588 @@
         "summary": "Update an invite code",
         "tags": [
           "Project Invite Codes"
+        ]
+      }
+    },
+    "/api/v1/invitations/web": {
+      "get": {
+        "description": "The organization's invitations, newest first.",
+        "operationId": "list_5",
+        "parameters": [
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/InvitationDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List invitations",
+        "tags": [
+          "Invitations"
+        ]
+      },
+      "post": {
+        "description": "Records the invitation and has the identity provider send the link. Each role is checked as an assignment by the caller would be.",
+        "operationId": "invite",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvitationCreationDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationDto"
+                }
+              }
+            },
+            "description": "Invitation recorded; the link follows"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "A field failed validation, or a role cannot be given on a project"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller may not invite, may not give one of the roles, or invited their own address"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "A role or project is not in this organization"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The address is already an employee here or has an open invitation"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Invite a person",
+        "tags": [
+          "Invitations"
+        ]
+      }
+    },
+    "/api/v1/invitations/web/{id}": {
+      "get": {
+        "operationId": "get_14",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationDto"
+                }
+              }
+            },
+            "description": "Invitation returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such invitation in this organization"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Read one invitation",
+        "tags": [
+          "Invitations"
+        ]
+      }
+    },
+    "/api/v1/invitations/web/{id}/resend": {
+      "post": {
+        "description": "Sends the same link again and keeps its expiry. An expired invitation is renewed: it gets a new expiry and a new link, and the old link stops working.",
+        "operationId": "resend",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationDto"
+                }
+              }
+            },
+            "description": "Resend or renewal requested"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The invitation was accepted or revoked"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such invitation in this organization"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Resend an invitation",
+        "tags": [
+          "Invitations"
+        ]
+      }
+    },
+    "/api/v1/invitations/web/{id}/revoke": {
+      "post": {
+        "description": "Stops the link working.",
+        "operationId": "revoke",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationDto"
+                }
+              }
+            },
+            "description": "Invitation revoked"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The invitation was already accepted or revoked"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such invitation in this organization"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Revoke an invitation",
+        "tags": [
+          "Invitations"
         ]
       }
     },
@@ -142828,6 +143536,10 @@
     {
       "description": "Movements of material stock, such as receipts, issues and usage, together with derived stock levels by storage location or material. This is the web-console API for the current tenant, and every endpoint is read-only: fetching a transaction, browsing and filtering by material, project, type, date range, storage location or task, and reading current stock and task usage totals. Access is split by what a read is anchored to. A read that names a material, a storage location, a project or a task is open to the system-admin and project-manager roles, because a project manager raises and approves stock adjustments and approving one writes the ADJUST rows carrying the reason the stock moved; all four of those objects are already readable by a project manager, so a ledger read anchored to one of them shows the movements behind something the caller can already open. The four listings that name nothing and range over the whole organization stay closed to a project manager: the unpaginated and paginated listings of every transaction, the listing by transaction type and the listing by date range. Those are the movement report rather than the history behind a document, and no part of the stock-adjustment workflow reaches them. The store-keeper role reads all of it, anchored or not, because this ledger is the record of the receipts, issues and transfers a storekeeper posts and answering for it means being able to read it back.",
       "name": "Inventory Transactions (Web)"
+    },
+    {
+      "description": "Invitations by link to join the caller's organization, with the roles the person gets and the employee details the join form collects. The identity provider sends the email. Nobody becomes an employee until they accept with the invited address.",
+      "name": "Invitations"
     },
     {
       "description": "A comment left on an issue, carrying the comment text, its author and a timestamp. Endpoints cover creation, paginated listing and deletion, gated by tenant membership, with deletion restricted to a system admin or project manager.",

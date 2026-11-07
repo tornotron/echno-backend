@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        An invitation to join an organization, with the roles the person gets and the employee details
+        the join form collects. No employee record exists until the person accepts. The provider sends
+        the email; provider_invitation_id is its id once sent, and a renewal replaces it. Included after
+        the modules because invitation_role refers to access_role.
+    -->
+    <changeSet id="137-create-invitation" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="invitation"/></not>
+        </preConditions>
+        <createTable tableName="invitation">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_invitation" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="email" type="VARCHAR(320)"><constraints nullable="false"/></column>
+            <column name="status" type="VARCHAR(30)"><constraints nullable="false"/></column>
+            <column name="provider_invitation_id" type="VARCHAR(255)"/>
+            <column name="expires_at" type="TIMESTAMPTZ"><constraints nullable="false"/></column>
+            <column name="employee_details" type="JSONB"><constraints nullable="false"/></column>
+            <column name="invited_by_user_id" type="BIGINT"/>
+            <column name="sent_at" type="TIMESTAMPTZ"/>
+            <column name="accepted_at" type="TIMESTAMPTZ"/>
+            <column name="accepted_user_id" type="BIGINT"/>
+            <column name="revoked_at" type="TIMESTAMPTZ"/>
+            <column name="created_at" type="TIMESTAMPTZ" defaultValueComputed="now()"><constraints nullable="false"/></column>
+            <column name="updated_at" type="TIMESTAMPTZ" defaultValueComputed="now()"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="invitation" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_invitation_organization" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseTableName="invitation" baseColumnNames="invited_by_user_id"
+                                 referencedTableName="users_table" referencedColumnNames="id"
+                                 constraintName="fk_invitation_invited_by" onDelete="SET NULL"/>
+        <addForeignKeyConstraint baseTableName="invitation" baseColumnNames="accepted_user_id"
+                                 referencedTableName="users_table" referencedColumnNames="id"
+                                 constraintName="fk_invitation_accepted_user" onDelete="SET NULL"/>
+        <addUniqueConstraint tableName="invitation" columnNames="organization_id, id"
+                             constraintName="uq_invitation_organization_id"/>
+        <!-- One open invitation per address and organization, as the provider also insists. -->
+        <sql>CREATE UNIQUE INDEX uq_invitation_pending_email ON invitation (organization_id, email) WHERE status = 'PENDING'</sql>
+        <createIndex tableName="invitation" indexName="idx_invitation_email">
+            <column name="email"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="137-create-invitation_role" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="invitation_role"/></not>
+        </preConditions>
+        <createTable tableName="invitation_role">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_invitation_role" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="invitation_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="role_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="project_id" type="BIGINT"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="invitation_role" baseColumnNames="organization_id, invitation_id"
+                                 referencedTableName="invitation" referencedColumnNames="organization_id, id"
+                                 constraintName="fk_invitation_role_invitation" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseTableName="invitation_role" baseColumnNames="organization_id, role_id"
+                                 referencedTableName="access_role" referencedColumnNames="organization_id, id"
+                                 constraintName="fk_invitation_role_role" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseTableName="invitation_role" baseColumnNames="organization_id, project_id"
+                                 referencedTableName="project" referencedColumnNames="organization_id, id"
+                                 constraintName="fk_invitation_role_project" onDelete="CASCADE"/>
+        <sql>CREATE UNIQUE INDEX uq_invitation_role ON invitation_role (invitation_id, role_id, coalesce(project_id, 0))</sql>
+    </changeSet>
+
+    <!-- An invitation task names the invitation and no account. -->
+    <changeSet id="137-identity_task-invitation" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="identity_task" columnName="invitation_id"/></not>
+        </preConditions>
+        <addColumn tableName="identity_task">
+            <column name="invitation_id" type="UUID"/>
+        </addColumn>
+        <dropNotNullConstraint tableName="identity_task" columnName="account" columnDataType="VARCHAR(255)"/>
+    </changeSet>
+
+</databaseChangeLog>

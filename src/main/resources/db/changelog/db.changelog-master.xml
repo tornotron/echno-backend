@@ -500,4 +500,7 @@
     <!-- ============================================================== -->
     <includeAll path="db/changelog/modules/" errorIfMissingOrEmpty="false"/>
 
+    <!-- v4.0 - Invitations by link (#914). After the modules: invitation_role refers to access_role. -->
+    <include file="db/changelog/v4.0/137-invitations.xml"/>
+
 </databaseChangeLog>
