@@ -329,6 +329,41 @@ class DatasetExportServiceTest {
     }
 
     @Test
+    void oneDefectPhotoOnTwoInspectionsIsOneLineOneCopyAndOneLedgerRowCarryingTheMarksOfBoth() throws Exception {
+        Inspection other = new Inspection();
+        other.setId(UUID.randomUUID());
+        other.setOrganization(org);
+        other.setProjectId(42L);
+        InspectionDefect onFirst = new InspectionDefect();
+        onFirst.setInspection(inspection);
+        onFirst.setPhotos(new ArrayList<>(List.of(DEFECT_PHOTO_REF)));
+        InspectionDefect onOther = new InspectionDefect();
+        onOther.setInspection(other);
+        onOther.setPhotos(new ArrayList<>(List.of(DEFECT_PHOTO_REF)));
+        when(inspectionRepository.findDefectsForOrganization(ORG)).thenReturn(List.of(onFirst, onOther));
+        when(annotationRepository.findByOrganization_IdOrderByPhotoAscLineOrderAsc(ORG)).thenReturn(List.of(
+                mark(inspection.getId(), DEFECT_PHOTO_REF, "0.10", "0.20", "0.30", "0.40", "crack", 0),
+                mark(other.getId(), DEFECT_PHOTO_REF, "0.50", "0.50", "0.90", "0.95", "spalling", 0)));
+
+        DatasetExportRunDto run = service.runForOrganization(ORG, "user:1");
+
+        verify(fileStorageService, times(1)).copyObjectTo(eq(DEFECT_PHOTO_KEY), anyString(), anyString());
+        ArgumentCaptor<DatasetExportedItem> items = ArgumentCaptor.forClass(DatasetExportedItem.class);
+        verify(itemRepository, times(3)).save(items.capture());
+        assertThat(items.getAllValues()).extracting(DatasetExportedItem::getSourceRef)
+                .containsOnlyOnce(DEFECT_PHOTO_REF);
+
+        List<JsonNode> photoLines = manifestLines(run).stream()
+                .filter(line -> line.get("source").asText().equals("defect_photo"))
+                .toList();
+        assertThat(photoLines).hasSize(1);
+        JsonNode line = photoLines.get(0);
+        assertThat(line.get("inspection_id").asText()).isEqualTo(inspection.getId().toString());
+        assertThat(line.get("annotations")).extracting(box -> box.get("label").asText())
+                .containsExactlyInAnyOrder("crack", "spalling");
+    }
+
+    @Test
     void startRecordsTheRunAsRunningAndCopiesNothing() {
         DatasetExportRunDto run = service.start(ORG, "user:1");
 
