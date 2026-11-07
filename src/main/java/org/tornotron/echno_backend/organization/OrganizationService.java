@@ -233,7 +233,7 @@ public class OrganizationService {
         // they can administer their own org. It is critical: assignOrgRole rethrows on a Keycloak
         // failure, which rolls this creation back so the caller sees the error rather than an
         // org whose creator cannot manage it.
-        employeeService.assignOrgRole(employeeDto.getId(), OrgRole.SYSTEM_ADMIN);
+        employeeService.assignOrgRoleAsSystem(employeeDto.getId(), OrgRole.SYSTEM_ADMIN);
 
         if (attachments != null && !attachments.isEmpty()) {
             attachmentService.uploadAttachments(attachments, "ORGANIZATION", savedOrganization.getId(), ORGANIZATION_FOLDER);

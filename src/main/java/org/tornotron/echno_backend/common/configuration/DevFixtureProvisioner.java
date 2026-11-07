@@ -236,7 +236,7 @@ public class DevFixtureProvisioner {
         Long previous = TenantContext.getCurrentOrgId();
         TenantContext.setCurrentOrgId(organizationId);
         try {
-            employeeService.assignOrgRole(employeeId, DEV_ORG_ROLE);
+            employeeService.assignOrgRoleAsSystem(employeeId, DEV_ORG_ROLE);
         } finally {
             if (previous == null) {
                 TenantContext.clear();
