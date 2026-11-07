@@ -759,6 +759,7 @@ public class ProjectService {
         // Adding somebody to the team is a change to the project, so it stamps like any other.
         stampWrite(project, userContextService.getCurrentUser());
         repository.save(project);
+        eventPublisher.publishEvent(new ProjectMembershipChanged(TenantContext.getCurrentOrgId(), employeeId));
 
         return project.getEmployees().stream()
                 .map(e -> employeeMapper.toDto(e))
@@ -784,6 +785,7 @@ public class ProjectService {
 
         stampWrite(project, userContextService.getCurrentUser());
         repository.save(project);
+        eventPublisher.publishEvent(new ProjectMembershipChanged(TenantContext.getCurrentOrgId(), employeeId));
     }
 
     /**
