@@ -28,5 +28,7 @@ public record BillingOverviewDto(
         @Schema(description = "Paid against approved bills' payables, in rupees.")
         BigDecimal paidToDate,
         @Schema(description = "Still due on approved bills' payables, in rupees.")
-        BigDecimal amountDue
+        BigDecimal amountDue,
+        @Schema(description = "Payments raised and not yet ended.")
+        long paymentsInFlight
 ) {}
