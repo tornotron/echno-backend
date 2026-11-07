@@ -10,7 +10,8 @@ import org.tornotron.echno_backend.common.module.ModuleManifest;
  * sub-contract billing chain that rests on them, running account and milestone bills from the
  * claim through measurement and certification to final approval
  * ({@code docs/specs/2026-09-28-work-progress-inspection.md},
- * {@code docs/specs/2026-10-04-ra-milestone-billing.md}).
+ * {@code docs/specs/2026-10-04-ra-milestone-billing.md},
+ * {@code docs/specs/2026-11-08-billing-in-inspection-and-payments.md}).
  *
  * <p>Paywalled on {@value #FEATURE_KEY}, which the module's feature seed grants on every plan, so
  * no tenant goes dark on release. The schedule it inspects is the core WBS; this module holds only

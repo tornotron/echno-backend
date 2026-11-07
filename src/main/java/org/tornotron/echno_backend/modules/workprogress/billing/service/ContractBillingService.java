@@ -7,9 +7,11 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -20,15 +22,19 @@ import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.modules.workprogress.billing.domain.AdjustmentEffect;
+import org.tornotron.echno_backend.modules.workprogress.billing.domain.BillPaymentState;
 import org.tornotron.echno_backend.modules.workprogress.billing.domain.BillStatus;
 import org.tornotron.echno_backend.modules.workprogress.billing.domain.BillingModel;
 import org.tornotron.echno_backend.modules.workprogress.billing.domain.ContractBill;
+import org.tornotron.echno_backend.modules.workprogress.billing.domain.ContractBillEvent;
 import org.tornotron.echno_backend.modules.workprogress.billing.domain.ContractBoqItem;
 import org.tornotron.echno_backend.modules.workprogress.billing.domain.ContractDeductionRule;
 import org.tornotron.echno_backend.modules.workprogress.billing.domain.ContractMilestoneRequirement;
 import org.tornotron.echno_backend.modules.workprogress.billing.domain.DeductionBasis;
 import org.tornotron.echno_backend.modules.workprogress.billing.domain.DeductionKind;
+import org.tornotron.echno_backend.modules.workprogress.billing.domain.ProjectBillingState;
 import org.tornotron.echno_backend.modules.workprogress.billing.domain.RequirementStatus;
+import org.tornotron.echno_backend.modules.workprogress.billing.dto.BillActivityDto;
 import org.tornotron.echno_backend.modules.workprogress.billing.dto.BillSummaryDto;
 import org.tornotron.echno_backend.modules.workprogress.billing.dto.BillingMilestoneDto;
 import org.tornotron.echno_backend.modules.workprogress.billing.dto.BillingOverviewDto;
@@ -40,11 +46,15 @@ import org.tornotron.echno_backend.modules.workprogress.billing.dto.DeductionRul
 import org.tornotron.echno_backend.modules.workprogress.billing.dto.DeductionRuleRequest;
 import org.tornotron.echno_backend.modules.workprogress.billing.dto.MilestoneRequirementDto;
 import org.tornotron.echno_backend.modules.workprogress.billing.dto.MilestoneRequirementRequest;
+import org.tornotron.echno_backend.modules.workprogress.billing.dto.ProjectBillingSummaryDto;
+import org.tornotron.echno_backend.modules.workprogress.billing.repository.ContractBillEventRepository;
 import org.tornotron.echno_backend.modules.workprogress.billing.repository.ContractBillRepository;
 import org.tornotron.echno_backend.modules.workprogress.billing.repository.ContractBoqItemRepository;
 import org.tornotron.echno_backend.modules.workprogress.billing.repository.ContractDeductionRuleRepository;
 import org.tornotron.echno_backend.modules.workprogress.billing.repository.ContractMilestoneRequirementRepository;
 import org.tornotron.echno_backend.organization.Organization;
+import org.tornotron.echno_backend.project.Project;
+import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.subcontract.ContractMilestone;
 import org.tornotron.echno_backend.subcontract.SubContract;
 import org.tornotron.echno_backend.wbs.WbsElement;
@@ -52,32 +62,38 @@ import org.tornotron.echno_backend.wbs.WbsElementRepository;
 
 /**
  * The commercial set-up of a contract for billing (its BOQ, deduction rules and milestone
- * requirements) and the billing home page: every contract with its billing model, what is
- * certified so far and its open bill. Every read is scoped to the caller's organization, so a
+ * requirements) and the billing home page: every project with its contracts and bills added up,
+ * every contract with its billing model, what is certified so far and its open bill. Every read is scoped to the caller's organization, so a
  * foreign id reads as absent.
  */
 @Service
 public class ContractBillingService {
 
     private static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
+    static final int MAX_ACTIVITY = 50;
 
     private final ContractBoqItemRepository boqItems;
     private final ContractDeductionRuleRepository rules;
     private final ContractMilestoneRequirementRepository requirements;
     private final ContractBillRepository bills;
+    private final ContractBillEventRepository events;
     private final WbsElementRepository elements;
+    private final ProjectRepository projects;
     private final BillingSupport support;
     private final TenantEntityHelper tenantEntityHelper;
 
     public ContractBillingService(ContractBoqItemRepository boqItems, ContractDeductionRuleRepository rules,
                                   ContractMilestoneRequirementRepository requirements, ContractBillRepository bills,
-                                  WbsElementRepository elements, BillingSupport support,
+                                  ContractBillEventRepository events, WbsElementRepository elements,
+                                  ProjectRepository projects, BillingSupport support,
                                   TenantEntityHelper tenantEntityHelper) {
         this.boqItems = boqItems;
         this.rules = rules;
         this.requirements = requirements;
         this.bills = bills;
+        this.events = events;
         this.elements = elements;
+        this.projects = projects;
         this.support = support;
         this.tenantEntityHelper = tenantEntityHelper;
     }
@@ -90,6 +106,12 @@ public class ContractBillingService {
         Map<BillStatus, Long> counts = new HashMap<>();
         BigDecimal certified = BillMath.zero();
         BigDecimal approvedNet = BillMath.zero();
+        BigDecimal recorded = BillMath.zero();
+        BigDecimal paid = BillMath.zero();
+        for (Object[] row : bills.payableTotals(orgId)) {
+            recorded = recorded.add((BigDecimal) row[0]);
+            paid = paid.add((BigDecimal) row[1]);
+        }
         for (Object[] row : bills.statusTotals(orgId)) {
             BillStatus status = (BillStatus) row[0];
             counts.put(status, ((Number) row[1]).longValue());
@@ -101,10 +123,153 @@ public class ContractBillingService {
             }
         }
         long open = counts.entrySet().stream().filter(e -> e.getKey().isOpen()).mapToLong(Map.Entry::getValue).sum();
+        long pending = counts.getOrDefault(BillStatus.SUBMITTED, 0L) + counts.getOrDefault(BillStatus.VERIFIED, 0L)
+                + counts.getOrDefault(BillStatus.CERTIFIED, 0L) + counts.getOrDefault(BillStatus.RETURNED, 0L);
         return new BillingOverviewDto(open, counts.getOrDefault(BillStatus.DRAFT, 0L),
                 counts.getOrDefault(BillStatus.SUBMITTED, 0L), counts.getOrDefault(BillStatus.VERIFIED, 0L),
                 counts.getOrDefault(BillStatus.CERTIFIED, 0L), counts.getOrDefault(BillStatus.RETURNED, 0L),
-                counts.getOrDefault(BillStatus.APPROVED, 0L), BillMath.money(certified), BillMath.money(approvedNet));
+                counts.getOrDefault(BillStatus.APPROVED, 0L), BillMath.money(certified), BillMath.money(approvedNet),
+                bills.projectsInBilling(orgId), pending, BillMath.money(paid), BillMath.money(recorded.subtract(paid)));
+    }
+
+    /**
+     * One page of the organization's projects by name, each with its contracts and bills added up.
+     * A project with nothing to bill is listed too: it is where someone starting out will look.
+     *
+     * @param search Part of the project name, or null for every project.
+     */
+    @Transactional(readOnly = true)
+    public Page<ProjectBillingSummaryDto> projects(String search, int page, int size) {
+        Long orgId = orgId();
+        PageRequest request = PageRequest.of(page, size);
+        String term = trimToNull(search);
+        Page<Project> rows = term == null
+                ? bills.projects(orgId, request)
+                : bills.projectsNamed(orgId, "%" + term.toLowerCase(Locale.ROOT) + "%", request);
+        Map<Long, ProjectTotals> totals = rows.isEmpty() ? Map.of() : projectTotals(orgId, rows.map(Project::getId).toList());
+        return rows.map(project -> projectSummary(project, totals.getOrDefault(project.getId(), new ProjectTotals())));
+    }
+
+    /**
+     * One project with its contracts and bills added up.
+     *
+     * @throws ResourceNotFoundException if there is no such project in the organization
+     */
+    @Transactional(readOnly = true)
+    public ProjectBillingSummaryDto project(Long projectId) {
+        Long orgId = orgId();
+        Project project = projects.findByIdAndOrganization_Id(projectId, orgId)
+                .orElseThrow(() -> new ResourceNotFoundException("Project not found: " + projectId));
+        return projectSummary(project, projectTotals(orgId, List.of(projectId))
+                .getOrDefault(projectId, new ProjectTotals()));
+    }
+
+    private Map<Long, ProjectTotals> projectTotals(Long orgId, List<Long> ids) {
+        Map<Long, ProjectTotals> totals = new HashMap<>();
+        for (Object[] row : bills.contractTotalsByProject(orgId, ids)) {
+            ProjectTotals t = totals.computeIfAbsent((Long) row[0], id -> new ProjectTotals());
+            t.contracts = ((Number) row[1]).intValue();
+            t.contractValue = (BigDecimal) row[2];
+        }
+        for (Object[] row : bills.billTotalsByProject(orgId, ids)) {
+            totals.computeIfAbsent((Long) row[0], id -> new ProjectTotals())
+                    .addBills((BillStatus) row[1], ((Number) row[2]).longValue(), (BigDecimal) row[3], (BigDecimal) row[4],
+                            (LocalDateTime) row[5]);
+        }
+        for (Object[] row : bills.payableTotalsByProject(orgId, ids)) {
+            ProjectTotals t = totals.computeIfAbsent((Long) row[0], id -> new ProjectTotals());
+            t.recorded = (BigDecimal) row[1];
+            t.paid = (BigDecimal) row[2];
+        }
+        return totals;
+    }
+
+    /**
+     * The latest bill events across the organization, or for one project, newest first.
+     *
+     * @param limit How many, at most {@value #MAX_ACTIVITY}.
+     */
+    @Transactional(readOnly = true)
+    public List<BillActivityDto> activity(Long projectId, int limit) {
+        Long orgId = orgId();
+        PageRequest top = PageRequest.of(0, Math.clamp(limit, 1, MAX_ACTIVITY));
+        List<ContractBillEvent> rows = projectId == null
+                ? events.findRecent(orgId, top)
+                : events.findRecentForProject(orgId, projectId, top);
+        Map<UUID, ContractBill> byId = new HashMap<>();
+        for (ContractBill bill : bills.findAllById(rows.stream().map(ContractBillEvent::getBillId).distinct().toList())) {
+            byId.put(bill.getId(), bill);
+        }
+        Map<Long, SubContract> contracts = new HashMap<>();
+        return rows.stream().filter(event -> byId.containsKey(event.getBillId())).map(event -> {
+            ContractBill bill = byId.get(event.getBillId());
+            SubContract contract = contracts.computeIfAbsent(bill.getSubContractId(),
+                    id -> support.requireContract(id, orgId));
+            return new BillActivityDto(event.getId(), bill.getId(), bill.getBillNumber(), bill.getBillingModel(),
+                    contract.getId(), contract.getContractName(), bill.getProjectId(), contract.getProjectName(),
+                    event.getType(), event.getNote(), event.getActorName(), event.getCreatedAt());
+        }).toList();
+    }
+
+    private static ProjectBillingSummaryDto projectSummary(Project project, ProjectTotals t) {
+        BigDecimal due = t.recorded.subtract(t.paid);
+        BigDecimal billedPercent = t.contractValue.signum() > 0
+                ? t.certified.multiply(HUNDRED).divide(t.contractValue, 2, RoundingMode.HALF_UP)
+                : null;
+        return new ProjectBillingSummaryDto(project.getId(), project.getProjectName(), project.getProjectCity(),
+                project.getProjectState(), project.getStatus() == null ? null : project.getStatus().name(),
+                project.getProgress(), t.contracts, BillMath.money(t.contractValue), t.bills, t.open, t.awaitingSignature,
+                BillMath.money(t.certified), BillMath.money(t.net), BillMath.money(t.paid), BillMath.money(due),
+                billedPercent, t.state(due), t.lastActivity);
+    }
+
+    /** The running sums behind one project's row. */
+    private static final class ProjectTotals {
+        private int contracts;
+        private BigDecimal contractValue = BigDecimal.ZERO;
+        private long bills;
+        private long open;
+        private long awaitingSignature;
+        private BigDecimal certified = BigDecimal.ZERO;
+        private BigDecimal net = BigDecimal.ZERO;
+        private BigDecimal recorded = BigDecimal.ZERO;
+        private BigDecimal paid = BigDecimal.ZERO;
+        private LocalDateTime lastActivity;
+
+        private void addBills(BillStatus status, long count, BigDecimal gross, BigDecimal netPayable, LocalDateTime changed) {
+            if (status == BillStatus.CANCELLED) {
+                return;
+            }
+            bills += count;
+            if (status.isOpen()) {
+                open += count;
+            }
+            if (status == BillStatus.SUBMITTED || status == BillStatus.VERIFIED || status == BillStatus.CERTIFIED) {
+                awaitingSignature += count;
+            }
+            if (status.isCertified()) {
+                certified = certified.add(gross);
+            }
+            if (status == BillStatus.APPROVED) {
+                net = net.add(netPayable);
+            }
+            if (changed != null && (lastActivity == null || changed.isAfter(lastActivity))) {
+                lastActivity = changed;
+            }
+        }
+
+        private ProjectBillingState state(BigDecimal due) {
+            if (contracts == 0) {
+                return ProjectBillingState.NO_CONTRACTS;
+            }
+            if (bills == 0) {
+                return ProjectBillingState.NOT_STARTED;
+            }
+            if (due.signum() > 0) {
+                return ProjectBillingState.PAYMENT_DUE;
+            }
+            return open > 0 ? ProjectBillingState.IN_PROGRESS : ProjectBillingState.SETTLED;
+        }
     }
 
     @Transactional(readOnly = true)
@@ -115,13 +280,15 @@ public class ContractBillingService {
                 ? bills.contracts(orgId, request)
                 : bills.contractsOfProject(orgId, projectId, request);
         if (contracts.isEmpty()) {
-            return contracts.map(contract -> summary(contract, List.of()));
+            return contracts.map(contract -> summary(contract, List.of(), Map.of()));
         }
         Map<Long, List<ContractBill>> byContract = new HashMap<>();
-        for (ContractBill bill : bills.findForContracts(orgId, contracts.map(SubContract::getId).toList())) {
+        List<ContractBill> pageBills = bills.findForContracts(orgId, contracts.map(SubContract::getId).toList());
+        for (ContractBill bill : pageBills) {
             byContract.computeIfAbsent(bill.getSubContractId(), id -> new ArrayList<>()).add(bill);
         }
-        return contracts.map(contract -> summary(contract, byContract.getOrDefault(contract.getId(), List.of())));
+        Map<UUID, PayableFigures> payables = payableFigures(orgId, pageBills);
+        return contracts.map(contract -> summary(contract, byContract.getOrDefault(contract.getId(), List.of()), payables));
     }
 
     @Transactional(readOnly = true)
@@ -131,10 +298,11 @@ public class ContractBillingService {
         List<ContractBill> contractBills = bills.findForContract(orgId, subContractId);
         List<BoqItemDto> items = boqDtos(contract, orgId);
         BigDecimal boqTotal = items.stream().map(BoqItemDto::amount).reduce(BillMath.zero(), BigDecimal::add);
-        return new ContractBillingDetailDto(summary(contract, contractBills), contract.getRetentionPercentage(),
+        Map<UUID, PayableFigures> payables = payableFigures(orgId, contractBills);
+        return new ContractBillingDetailDto(summary(contract, contractBills, payables), contract.getRetentionPercentage(),
                 contract.getMobilizationAdvance(), items, boqTotal, ruleDtos(contract, orgId),
                 milestoneDtos(contract, orgId),
-                contractBills.stream().map(bill -> summaryOf(bill, contract)).toList());
+                contractBills.stream().map(bill -> summaryOf(bill, contract, payables.get(bill.getId()))).toList());
     }
 
     // ---------------------------------------------------------------- BOQ
@@ -453,7 +621,21 @@ public class ContractBillingService {
 
     // ---------------------------------------------------------------- summaries
 
-    ContractBillingSummaryDto summary(SubContract contract, List<ContractBill> contractBills) {
+    /** What the given bills' payables were recorded at and paid, by bill. A bill with no payable is absent. */
+    Map<UUID, PayableFigures> payableFigures(Long orgId, Collection<ContractBill> contractBills) {
+        List<UUID> ids = contractBills.stream().filter(bill -> bill.getPayableId() != null).map(ContractBill::getId).toList();
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        Map<UUID, PayableFigures> figures = new HashMap<>();
+        for (Object[] row : bills.payableFigures(orgId, ids)) {
+            figures.put((UUID) row[0], new PayableFigures((BigDecimal) row[1], (BigDecimal) row[2]));
+        }
+        return figures;
+    }
+
+    ContractBillingSummaryDto summary(SubContract contract, List<ContractBill> contractBills,
+                                      Map<UUID, PayableFigures> payables) {
         BillingModel model = null;
         int count = 0;
         int approved = 0;
@@ -461,9 +643,16 @@ public class ContractBillingService {
         BigDecimal net = BillMath.zero();
         ContractBill open = null;
         LocalDateTime lastApproved = null;
+        BigDecimal paid = BillMath.zero();
+        BigDecimal due = BillMath.zero();
         for (ContractBill bill : contractBills) {
             if (bill.getStatus() == BillStatus.CANCELLED) {
                 continue;
+            }
+            PayableFigures figures = payables.get(bill.getId());
+            if (figures != null) {
+                paid = paid.add(figures.paid());
+                due = due.add(figures.due());
             }
             count++;
             model = bill.getBillingModel();
@@ -490,10 +679,11 @@ public class ContractBillingService {
         return new ContractBillingSummaryDto(contract.getId(), trimToNull(contract.getContractId()),
                 contract.getContractName(), contract.getContractorName(), contract.getProjectId(),
                 contract.getProjectName(), value, contract.getStatus(), model, count, approved, certified, net,
-                billedPercent, open == null ? null : summaryOf(open, contract), lastApproved);
+                billedPercent, open == null ? null : summaryOf(open, contract, null), lastApproved, paid, due);
     }
 
-    static BillSummaryDto summaryOf(ContractBill bill, SubContract contract) {
+    /** @param payable The bill's payable figures, or null when it has none. */
+    static BillSummaryDto summaryOf(ContractBill bill, SubContract contract, PayableFigures payable) {
         String milestoneName = bill.getContractMilestoneId() == null ? null : contract.getMilestones().stream()
                 .filter(m -> m.getId().equals(bill.getContractMilestoneId()))
                 .map(ContractMilestone::getName).findFirst().orElse(null);
@@ -501,7 +691,36 @@ public class ContractBillingService {
                 contract.getContractorName(), bill.getProjectId(), contract.getProjectName(), bill.getBillNumber(),
                 bill.getBillingModel(), bill.getStatus(), bill.getPeriodFrom(), bill.getPeriodTo(),
                 bill.getContractMilestoneId(), milestoneName, grossClaimed(bill), bill.getGrossCertified(),
-                bill.getNetPayable(), bill.getSubmittedAt(), bill.getApprovedAt(), bill.getCreatedAt());
+                bill.getNetPayable(), bill.getSubmittedAt(), bill.getApprovedAt(), bill.getCreatedAt(),
+                payable == null ? null : payable.paid(), payable == null ? null : payable.due(),
+                paymentState(bill, payable));
+    }
+
+    /** How far an approved bill has been paid; null before approval. */
+    static BillPaymentState paymentState(ContractBill bill, PayableFigures payable) {
+        if (bill.getStatus() != BillStatus.APPROVED) {
+            return null;
+        }
+        if (payable == null) {
+            return BillPaymentState.NOTHING_PAYABLE;
+        }
+        if (payable.paid().signum() == 0) {
+            return BillPaymentState.UNPAID;
+        }
+        return payable.due().signum() > 0 ? BillPaymentState.PART_PAID : BillPaymentState.PAID;
+    }
+
+    /** A bill's payable, as finance has it: Finance can record a payment directly, so this is read, never kept. */
+    record PayableFigures(BigDecimal recorded, BigDecimal paid) {
+
+        PayableFigures {
+            recorded = recorded == null ? BillMath.zero() : recorded;
+            paid = paid == null ? BillMath.zero() : paid;
+        }
+
+        BigDecimal due() {
+            return recorded.subtract(paid);
+        }
     }
 
     /** The amount a bill claims: claimed quantities at their rates, or the claimed percent of the milestone. */

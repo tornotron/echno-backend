@@ -28,5 +28,7 @@ public record CreateBillRequest(
         @Schema(description = "Where the work billed was done.", example = "Tower B, level 2", nullable = true)
         @Size(max = 200) String location,
         @Schema(nullable = true)
-        @Size(max = 4000) String remarks
+        @Size(max = 4000) String remarks,
+        @Schema(description = "Running account only: start each line's claimed quantity from the inspected progress of its linked activity, instead of zero.", nullable = true)
+        Boolean draftFromInspections
 ) {}

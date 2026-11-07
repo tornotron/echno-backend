@@ -5,6 +5,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import org.tornotron.echno_backend.modules.workprogress.billing.domain.BillPaymentState;
 import org.tornotron.echno_backend.modules.workprogress.billing.domain.BillStatus;
 import org.tornotron.echno_backend.modules.workprogress.billing.domain.BillingModel;
 
@@ -38,5 +39,11 @@ public record BillSummaryDto(
         LocalDateTime submittedAt,
         @Schema(nullable = true)
         LocalDateTime approvedAt,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        @Schema(description = "Paid against the bill's payable, in rupees, once approved.", nullable = true)
+        BigDecimal amountPaid,
+        @Schema(description = "Still due on the bill's payable, in rupees, once approved.", nullable = true)
+        BigDecimal amountDue,
+        @Schema(description = "How far the bill has been paid, once approved.", nullable = true)
+        BillPaymentState paymentState
 ) {}
