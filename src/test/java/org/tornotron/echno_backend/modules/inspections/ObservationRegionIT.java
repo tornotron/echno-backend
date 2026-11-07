@@ -478,6 +478,7 @@ class ObservationRegionIT extends AbstractIntegrationTest {
         attachment.setContentType(contentType);
         attachment.setFileSize(1024L);
         attachment.setOrganization(entityManager.getReference(Organization.class, orgId));
+        attachment.setProject(entityManager.getReference(Project.class, orgId.equals(orgAId) ? projectId : otherProjectId));
         entityManager.persist(attachment);
         entityManager.flush();
         return attachment.getId();

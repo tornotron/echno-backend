@@ -17,6 +17,9 @@ public interface ObservationRepository extends JpaRepository<Observation, UUID>,
     @Query("SELECT o FROM Observation o WHERE o.id = :id")
     Optional<Observation> findByIdScoped(@Param("id") UUID id);
 
+    @Query("SELECT o.projectId FROM Observation o WHERE o.id = :id")
+    Optional<Long> findProjectIdByIdScoped(@Param("id") UUID id);
+
     /** The producer's own reference, scoped to the tenant by the filter; the partial unique index is the guarantee. */
     @Query("SELECT o FROM Observation o WHERE o.externalRef = :externalRef")
     Optional<Observation> findByExternalRefScoped(@Param("externalRef") String externalRef);

@@ -15,7 +15,8 @@ import org.tornotron.echno_backend.modules.inspections.RegionShape;
         + "of the image's width and height in [0, 1], rounded to 6 places, origin top left, x to the right, "
         + "y down, measured on the image as displayed (after EXIF orientation).")
 public record ObservationRegionRequest(
-        @Schema(description = "The image the region is drawn on. Must be in the caller's organisation.")
+        @Schema(description = "The image the region is drawn on, in the caller's organisation. On intake it must be "
+                + "the producer's own upload for the project or evidence of the project.")
         @NotNull Long attachmentId,
         @NotNull RegionShape shape,
         @Schema(description = "BOX only: [x1, y1, x2, y2] with x1 < x2 and y1 < y2.", nullable = true)
