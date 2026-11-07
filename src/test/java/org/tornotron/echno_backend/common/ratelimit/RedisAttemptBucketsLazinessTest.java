@@ -5,8 +5,6 @@ import io.lettuce.core.RedisClient;
 import io.lettuce.core.RedisURI;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
-import org.tornotron.echno_backend.projectInviteCode.InviteCodeRedemptionLimiter;
-import org.tornotron.echno_backend.projectInviteCode.InviteCodeRedemptionProperties;
 
 import java.time.Duration;
 
@@ -24,8 +22,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * failure.
  *
  * <p>It also pins the other half: once a request does arrive and Redis is still not there, the
- * failure surfaces from {@code bucketFor} and the limiter lets the request through. A limit that
- * cannot be consulted must not become an onboarding outage.
+ * failure surfaces from {@code bucketFor}, for the limiter to decide what that means.
  */
 class RedisAttemptBucketsLazinessTest {
 
@@ -54,14 +51,5 @@ class RedisAttemptBucketsLazinessTest {
 
         assertThatThrownBy(() -> buckets.bucketFor("some-key", configuration))
                 .isInstanceOf(RuntimeException.class);
-    }
-
-    @Test
-    void theLimiterTurnsThatFailureIntoAnUnlimitedRequestRatherThanARefusal() {
-        InviteCodeRedemptionProperties properties = new InviteCodeRedemptionProperties();
-        InviteCodeRedemptionLimiter limiter = new InviteCodeRedemptionLimiter(
-                new RedisAttemptBuckets(unreachable, Duration.ofHours(1)), properties);
-
-        assertThatCode(() -> limiter.chargeAttempt("ravi")).doesNotThrowAnyException();
     }
 }

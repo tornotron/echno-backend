@@ -1,11 +1,13 @@
 package org.tornotron.echno_backend.common.ratelimit;
 
 import io.lettuce.core.RedisClient;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.tornotron.echno_backend.projectInviteCode.InviteCodeRedemptionProperties;
+
+import java.time.Duration;
 
 /**
  * Chooses where attempt counts live, from the same single switch as every other piece of
@@ -25,8 +27,8 @@ public class AttemptBucketsConfig {
     @Bean
     @ConditionalOnProperty(name = "echno.cache.provider", havingValue = "redis")
     public AttemptBuckets redisAttemptBuckets(RedisClient bucket4jRedisClient,
-                                              InviteCodeRedemptionProperties inviteCodeRedemption) {
-        return new RedisAttemptBuckets(bucket4jRedisClient, inviteCodeRedemption.getWindow());
+                                              @Value("${echno.attempts.window:1h}") Duration window) {
+        return new RedisAttemptBuckets(bucket4jRedisClient, window);
     }
 
     @Bean

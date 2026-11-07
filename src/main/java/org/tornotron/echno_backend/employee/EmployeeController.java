@@ -14,7 +14,6 @@ import org.springframework.web.bind.annotation.*;
 import org.tornotron.echno_backend.common.response.ApiResponse;
 import org.tornotron.echno_backend.employee.dto.EmployeeCreationDto;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
-import org.tornotron.echno_backend.employee.dto.EmployeeJoinOrgDto;
 import org.tornotron.echno_backend.employee.dto.EmployeePatchDto;
 
 import java.util.List;
@@ -51,56 +50,6 @@ public class EmployeeController {
     }
 
     /**
-     * Adds a user to the caller's own organization as an employee.
-     *
-     * <p>This is an administrative action, not the onboarding route. A person with no membership
-     * yet joins by redeeming an invite code at
-     * {@code POST /api/v1/invitation/web/validate/userId/{userId}}, which is guarded by
-     * {@code @orgSecurity.isSelfUser} precisely because the redeemer has no tenant, and which
-     * reaches {@link EmployeeService#joinOrganization} in process rather than through this route.
-     * Nothing about onboarding passes through here, so binding the guard to an organization
-     * costs that flow nothing.
-     *
-     * <p>The organization check has to be here or nowhere. The route names an organization in
-     * its path and then loads {@link org.tornotron.echno_backend.organization.Organization} by
-     * that id, and the tenant root is the one entity neither ambient defence covers, which is what
-     * {@code isCurrentTenant} does.
-     *
-     * <p>Beside it stood {@code employee:create} or {@code employee:admin}, ANDed on. Those are
-     * bare {@code resource:scope} authorities, minted only by
-     * {@code JwtAuthConverter.extractPermissions} from the {@code authorization} claim of an RPT,
-     * and the realm defines no authorization scopes, so neither is ever granted and the whole
-     * expression refused every caller. That is #734. The half saying who may add somebody to an
-     * organization is now the one the web twin has always used: a system admin or an HR admin of
-     * the tenant the session is scoped to. Both halves are still needed, because being scoped to
-     * an organization is not the same as being entitled to enrol people into it.
-     *
-     * @param userId             The ID of the user joining.
-     * @param orgId              The organization named by the caller, which must be the one their
-     *                           session is scoped to.
-     * @param employeeJoinOrgDto DTO containing additional employment details.
-     * @return A {@link ResponseEntity} with the created employee's DTO and HTTP status 201 (Created).
-     */
-    @PostMapping("/joinOrganization/{userId}/{orgId}")
-    @PreAuthorize("@orgSecurity.isCurrentTenant(#orgId)"
-            + " and @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
-    @Operation(
-            summary = "Add a user to an organization as an employee",
-            description = "Creates an employee record that links the given user to the organization "
-                    + "named in the path, which must be the organization the caller's session is "
-                    + "scoped to. Uses the supplied employment details. Returns the created employee."
-    )
-    @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Employee record created"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The employment details failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant, or named an organization that is not it"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No user or organization with the given id")
-    })
-    public ResponseEntity<EmployeeDto> joinOrganization(@PathVariable Long userId, @PathVariable Long orgId, @Valid @RequestBody EmployeeJoinOrgDto employeeJoinOrgDto) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(employeeService.joinOrganization(userId, orgId, employeeJoinOrgDto));
-    }
-
-    /**
      * Creates a new employee.
      *
      * <p><b>Proposed for removal under #675 and #716; deliberately left refusing until that is
@@ -127,10 +76,8 @@ public class EmployeeController {
      *       a route nobody can reach into a cross-tenant write.
      * </ul>
      *
-     * <p>An administrator adding somebody who has never signed in is a real gap, and the answer to
-     * it is a designed route that says what it does about the Keycloak user, not this one. The
-     * route that works today is {@link #joinOrganization}, reached by an invite code redeemed at
-     * {@code POST /api/v1/invitation/web/validate/userId/{userId}}.
+     * <p>An administrator adding somebody who has never signed in does it with an invitation
+     * ({@code POST /api/v1/invitations/web}), which becomes an employee when the person accepts.
      *
      * @param employeeCreationDto DTO containing the details for the new employee.
      * @return A {@link ResponseEntity} with the created employee's DTO and HTTP status 201 (Created).

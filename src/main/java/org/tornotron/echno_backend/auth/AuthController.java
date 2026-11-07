@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
+import org.tornotron.echno_backend.common.identity.IdentityProvider;
 import org.tornotron.echno_backend.user.UserService;
 import org.tornotron.echno_backend.user.dto.UserDto;
 import org.tornotron.echno_backend.user.dto.UserRegistrationDto;
@@ -26,9 +28,11 @@ import org.tornotron.echno_backend.user.dto.UserRegistrationDto;
 public class AuthController {
 
     private final UserService userService;
+    private final IdentityProvider identityProvider;
 
-    public AuthController(UserService userService) {
+    public AuthController(UserService userService, IdentityProvider identityProvider) {
         this.userService = userService;
+        this.identityProvider = identityProvider;
     }
 
     @PostMapping("/register")
@@ -36,13 +40,18 @@ public class AuthController {
     @Operation(
             summary = "Register a new user",
             description = "Creates a Keycloak identity and a user record from the given registration "
-                    + "details. Open to unauthenticated callers."
+                    + "details. Open to unauthenticated callers. Answers only where the identity provider "
+                    + "takes self-registration; elsewhere people arrive by invitation and this is 404."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "User registered"),
+            @ApiResponse(responseCode = "404", description = "This stack's identity provider takes no self-registration"),
             @ApiResponse(responseCode = "400", description = "A field failed validation, or the username/email is already taken")
     })
     public ResponseEntity<UserDto> registerUser(@Valid @RequestBody UserRegistrationDto userRegistrationDto) {
+        if (identityProvider.capabilities().selfRegistration().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        }
         UserDto createdUser = userService.registerUser(userRegistrationDto);
         return new ResponseEntity<>(createdUser, HttpStatus.CREATED);
     }

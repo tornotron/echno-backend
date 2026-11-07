@@ -506,4 +506,7 @@
     <!-- v4.0 - Employee details a person joining by invitation has not given yet (#914) -->
     <include file="db/changelog/v4.0/138-employee-details-optional.xml"/>
 
+    <!-- v4.0 - Invite codes removed; invitations replace them (#914) -->
+    <include file="db/changelog/v4.0/139-drop-project-invite-code.xml"/>
+
 </databaseChangeLog>

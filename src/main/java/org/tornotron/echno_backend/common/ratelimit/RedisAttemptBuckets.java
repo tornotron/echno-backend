@@ -29,9 +29,9 @@ import java.time.Duration;
  * test that holds the whole application to that, and it is what caught this being built eagerly.
  *
  * <p>Redis is not authoritative state and this deliberately does not fail closed on it. A failure
- * to reach it propagates out of {@link #bucketFor}, and {@code InviteCodeRedemptionLimiter} treats
- * that as an unavailable limit and lets the request through rather than refusing every redemption
- * in the deployment. Availability is chosen over the limit because the limit reduces a rate over an
+ * to reach it propagates out of {@link #bucketFor}, and a limiter treats that as an unavailable
+ * limit and lets the request through rather than refusing every request it guards in the
+ * deployment. Availability is chosen over the limit because the limit reduces a rate over an
  * already-authenticated endpoint; it is not what decides whether a code is valid.
  */
 @Slf4j

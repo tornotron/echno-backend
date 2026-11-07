@@ -18,7 +18,6 @@ import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 import org.tornotron.echno_backend.employee.dto.EmployeeLookupDto;
-import org.tornotron.echno_backend.employee.dto.EmployeeJoinOrgDto;
 import org.tornotron.echno_backend.employee.dto.EmployeeUpdateFieldsDto;
 import org.tornotron.echno_backend.employee.dto.OrgRoleAssignmentDto;
 
@@ -39,11 +38,9 @@ import java.util.Set;
  * Web-client twin of {@link EmployeeController}.
  *
  * <p>There is deliberately no direct create here. An employee is a person's membership of an
- * organization, so the record needs a user to hang off, and the route that supplies one is
- * {@code joinOrganization} below. A person with no membership yet reaches it by redeeming an
- * invite code at {@code POST /api/v1/invitation/web/validate/userId/{userId}}, guarded by
- * {@code isSelfUser} because the redeemer has no tenant to check them against; an administrator
- * adding somebody who already has an account uses {@code joinOrganization} directly.
+ * organization, so the record needs a user to hang off. A person joins by an invitation
+ * ({@code POST /api/v1/invitations/web}), and the employee is created when they accept it with the
+ * invited address.
  *
  * <p>A commented-out {@code @PostMapping createEmployee} sat here until #675 and is gone. It was
  * never routed, so {@code POST /api/v1/employee/web} answered 401 to an anonymous caller exactly
@@ -63,33 +60,6 @@ public class EmployeeControllerWeb {
      */
     public EmployeeControllerWeb(EmployeeService employeeService) {
         this.employeeService = employeeService;
-    }
-
-    /**
-     * Allows a user to join an organization as an employee.
-     *
-     * @param userId             The ID of the user joining.
-     * @param orgId              The ID of the organization to join.
-     * @param employeeJoinOrgDto DTO containing additional employment details.
-     * @return A {@link ResponseEntity} with the created employee's DTO and HTTP status 201 (Created).
-     */
-    @PostMapping("/joinOrganization/userId/{userId}/organizationId/{orgId}")
-    @PreAuthorize("@orgSecurity.isCurrentTenant(#orgId)"
-            + " and @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
-    @Operation(
-            summary = "Add a user to an organization as an employee",
-            description = "Creates an employee record linking the given user to the organization named "
-                    + "in the path, which must be the organization the caller's session is scoped to. "
-                    + "Uses the employment details supplied in the request body."
-    )
-    @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Employee record created"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant, or named an organization that is not it"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No user or organization with the given id")
-    })
-    public ResponseEntity<EmployeeDto> joinOrganization(@PathVariable Long userId, @PathVariable Long orgId, @Valid @RequestBody EmployeeJoinOrgDto employeeJoinOrgDto) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(employeeService.joinOrganization(userId, orgId, employeeJoinOrgDto));
     }
 
     /**

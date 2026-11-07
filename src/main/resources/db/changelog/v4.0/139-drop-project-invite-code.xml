@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Invite codes are gone: a person joins only by an invitation link (invitation, 137). Their
+        table goes with the code that read it.
+    -->
+    <changeSet id="139-drop-project_invite_code" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="project_invite_code"/>
+        </preConditions>
+        <dropTable tableName="project_invite_code" cascadeConstraints="true"/>
+    </changeSet>
+
+</databaseChangeLog>

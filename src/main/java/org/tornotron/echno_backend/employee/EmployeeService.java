@@ -211,14 +211,14 @@ public class EmployeeService {
      * <p>A newly created employee must have a reporting manager (decided on ClickUp 14zdkkvrf25,
      * backend #823). The one exception is the very first employee of an organization, who has
      * nobody to report to: when the organization has no active employee yet, a missing
-     * {@code managerId} is accepted and the fact is logged. Every create path (the direct create,
-     * {@link #joinOrganization} from both controllers, and invite-code redemption, which reaches
-     * {@code joinOrganization} in process) goes through here so they cannot drift apart. Updates
+     * {@code managerId} is accepted and the fact is logged. Every create path (organization
+     * creation and an accepted invitation, both reaching {@link #joinOrganization} in process)
+     * goes through here so they cannot drift apart. Updates
      * are untouched: the manager stays optional to change or clear afterwards.
      *
      * <p>The manager is looked up by the organization the employee is joining rather than by the
      * ambient tenant, so the same-organization rule holds even where the tenant context is not
-     * set, as it is not for a person redeeming an invite code. The employee being created has no
+     * set, as it is not for a person accepting an invitation. The employee being created has no
      * id yet, so it cannot name itself; self-reference on later reassignment is refused by
      * {@link EmployeeHierarchyService#validateManager}.
      *
