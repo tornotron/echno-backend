@@ -3769,6 +3769,33 @@
         },
         "type": "object"
       },
+      "ChangeCvModelVersionStatusRequest": {
+        "description": "Activate or retire a model version. Activating retires the version active before it.",
+        "properties": {
+          "note": {
+            "description": "Why, for the log.",
+            "maxLength": 500,
+            "minLength": 0,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "description": "ACTIVE or RETIRED.",
+            "enum": [
+              "DRAFT",
+              "ACTIVE",
+              "RETIRED"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "type": "object"
+      },
       "Changes": {
         "description": "Fields the reviewer changed. Only the ones set are compared to the proposal.",
         "properties": {
@@ -6681,6 +6708,46 @@
         ],
         "type": "object"
       },
+      "CreateCvModelRequest": {
+        "description": "A new model family.",
+        "properties": {
+          "family": {
+            "enum": [
+              "SAFETY",
+              "DEFECT",
+              "OBJECT",
+              "PROGRESS"
+            ],
+            "type": "string"
+          },
+          "key": {
+            "description": "The stable name producers send as modelName, for example ppe.",
+            "maxLength": 50,
+            "minLength": 1,
+            "pattern": "[a-z][a-z0-9-]*",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          "task": {
+            "enum": [
+              "DETECT",
+              "SEGMENT"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "family",
+          "key",
+          "name",
+          "task"
+        ],
+        "type": "object"
+      },
       "CreateDirectRoomDto": {
         "description": "Payload to open (or reuse) a one-to-one direct room with another employee.",
         "properties": {
@@ -7353,6 +7420,175 @@
               "string",
               "null"
             ]
+          }
+        },
+        "type": "object"
+      },
+      "CvModelClassDto": {
+        "description": "One class a model version outputs.",
+        "properties": {
+          "key": {
+            "description": "A key of the class taxonomy.",
+            "maxLength": 50,
+            "minLength": 1,
+            "type": "string"
+          },
+          "shape": {
+            "description": "BOX or POLYGON; must be the shape the taxonomy gives the class.",
+            "maxLength": 10,
+            "minLength": 1,
+            "type": "string"
+          },
+          "threshold": {
+            "description": "Operating threshold in [0, 1] chosen when the version was evaluated.",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "key",
+          "shape",
+          "threshold"
+        ],
+        "type": "object"
+      },
+      "CvModelDto": {
+        "description": "A model family with its versions, oldest first.",
+        "properties": {
+          "family": {
+            "enum": [
+              "SAFETY",
+              "DEFECT",
+              "OBJECT",
+              "PROGRESS"
+            ],
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "task": {
+            "enum": [
+              "DETECT",
+              "SEGMENT"
+            ],
+            "type": "string"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/CvModelVersionDto"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "CvModelVersionDto": {
+        "description": "One trained version of a model family.",
+        "properties": {
+          "activatedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "baseWeights": {
+            "type": "string"
+          },
+          "classes": {
+            "items": {
+              "$ref": "#/components/schemas/CvModelClassDto"
+            },
+            "type": "array"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "evalReportUri": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "inputSize": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "licence": {
+            "type": "string"
+          },
+          "metrics": {
+            "additionalProperties": {
+              "type": "object"
+            },
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "modelKey": {
+            "type": "string"
+          },
+          "registeredById": {
+            "description": "User who registered it; null for a service account with no user row.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "retiredAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "runtime": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "DRAFT",
+              "ACTIVE",
+              "RETIRED"
+            ],
+            "type": "string"
+          },
+          "trainingRelease": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "trainingRunUri": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "weightsSha256": {
+            "type": "string"
+          },
+          "weightsUri": {
+            "type": "string"
           }
         },
         "type": "object"
@@ -21810,6 +22046,108 @@
         },
         "required": [
           "op"
+        ],
+        "type": "object"
+      },
+      "RegisterCvModelVersionRequest": {
+        "description": "A trained version of a model family. It lands DRAFT; a person activates it after reading its report.",
+        "properties": {
+          "baseWeights": {
+            "description": "What the training started from, for example \"rf-detr-nano COCO (Apache-2.0)\".",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "classes": {
+            "items": {
+              "$ref": "#/components/schemas/CvModelClassDto"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "type": "array"
+          },
+          "evalReportUri": {
+            "description": "Where the evaluation report is. Required before activation.",
+            "maxLength": 500,
+            "minLength": 0,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "inputSize": {
+            "exclusiveMinimum": 0,
+            "format": "int32",
+            "type": "integer"
+          },
+          "licence": {
+            "description": "SPDX id of the licence the weights carry.",
+            "maxLength": 50,
+            "minLength": 1,
+            "type": "string"
+          },
+          "metrics": {
+            "additionalProperties": {
+              "type": "object"
+            },
+            "description": "Summary from the run record. Required before activation.",
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "runtime": {
+            "maxLength": 30,
+            "minLength": 1,
+            "type": "string"
+          },
+          "trainingRelease": {
+            "description": "Dataset release it was trained on.",
+            "maxLength": 50,
+            "minLength": 0,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "trainingRunUri": {
+            "description": "Where the training run record is.",
+            "maxLength": 500,
+            "minLength": 0,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "version": {
+            "description": "Semantic version, unique within the family.",
+            "maxLength": 50,
+            "minLength": 1,
+            "pattern": "\\d+\\.\\d+\\.\\d+(-[0-9A-Za-z.-]+)?",
+            "type": "string"
+          },
+          "weightsSha256": {
+            "description": "Lower-case hex SHA-256 of the weights file.",
+            "minLength": 1,
+            "pattern": "[0-9a-f]{64}",
+            "type": "string"
+          },
+          "weightsUri": {
+            "description": "Where the worker downloads the weights, s3://bucket/key.",
+            "maxLength": 500,
+            "minLength": 1,
+            "pattern": "s3://\\S+",
+            "type": "string"
+          }
+        },
+        "required": [
+          "baseWeights",
+          "classes",
+          "licence",
+          "runtime",
+          "version",
+          "weightsSha256",
+          "weightsUri"
         ],
         "type": "object"
       },
@@ -142231,6 +142569,593 @@
         ]
       }
     },
+    "/api/v1/vision/admin/models": {
+      "post": {
+        "operationId": "VisionModelAdminController_create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCvModelRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/CvModelDto"
+                }
+              }
+            },
+            "description": "Family created"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Validation failed on the request body"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the platform-admin role"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "A family with this key already exists"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Create a model family",
+        "tags": [
+          "Vision model administration"
+        ]
+      }
+    },
+    "/api/v1/vision/admin/models/{key}/versions": {
+      "post": {
+        "description": "Lands DRAFT. Its classes must be in the class taxonomy with the taxonomy's shape, and must suit the family's task.",
+        "operationId": "VisionModelAdminController_register",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterCvModelVersionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/CvModelVersionDto"
+                }
+              }
+            },
+            "description": "Version registered as DRAFT"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Validation failed, or a class is not in the taxonomy"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the platform-admin role"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such model"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "This version already exists"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Register a model version",
+        "tags": [
+          "Vision model administration"
+        ]
+      }
+    },
+    "/api/v1/vision/admin/models/{key}/versions/{version}/status": {
+      "post": {
+        "description": "Activation refuses a licence that is not on echno.vision.allowed-licences, or a version with no metrics or evaluation report, and retires the version active before it. Retired is terminal.",
+        "operationId": "VisionModelAdminController_changeStatus",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeCvModelVersionStatusRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/CvModelVersionDto"
+                }
+              }
+            },
+            "description": "Status changed"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The target is DRAFT, or the version does not qualify for activation"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the platform-admin role"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such model or version"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The version is retired, or already active"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Activate or retire a model version",
+        "tags": [
+          "Vision model administration"
+        ]
+      }
+    },
+    "/api/v1/vision/models": {
+      "get": {
+        "description": "Every family with its versions, oldest first.",
+        "operationId": "VisionModelController_list",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CvModelDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Families returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "The organization is not entitled to the module, in enforce mode"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List model families",
+        "tags": [
+          "Vision models"
+        ]
+      }
+    },
+    "/api/v1/vision/models/{key}/versions/{version}": {
+      "get": {
+        "operationId": "VisionModelController_version",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/CvModelVersionDto"
+                }
+              }
+            },
+            "description": "Version returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "The organization is not entitled to the module, in enforce mode"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such model or version"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Read a model version",
+        "tags": [
+          "Vision models"
+        ]
+      }
+    },
     "/api/v1/workCategories": {
       "get": {
         "description": "Returns a single page of work categories. The pageNo and pageSize parameters control paging; only the page content is returned, without paging metadata.",
@@ -143319,6 +144244,14 @@
     {
       "description": "Web-console counterpart of the vendors API, gated by organization role for the current tenant instead of by the flat vendor authorities used by the mobile variant. Naming a vendor and reaching its contacts are open to the system-admin and store-keeper roles, because a delivery has to say who brought it; the vendor summary, tax identifiers, bank accounts and payment terms are commercial rather than stores information and stay with system-admin, as do all vendor writes. Covers create, browse, search, update, delete and summary operations for vendors and their contacts, tax identifiers, bank accounts and payment terms, for use from the admin web console.",
       "name": "Vendors (Web)"
+    },
+    {
+      "description": "Registers model families and versions and activates them. Platform operators only.",
+      "name": "Vision model administration"
+    },
+    {
+      "description": "The computer vision model registry: model families and their versions. A platform-wide catalogue, read here by an organization entitled to the module.",
+      "name": "Vision models"
     },
     {
       "description": "Work breakdown structure elements for a project, arranged as a tree of phases and activities such as Foundation Works or RCC Column Casting - Block A. Endpoints cover creating a single element or a batch, reading the tree or a flat list, updating and deleting an element, moving an element under a different parent, and recalculating rolled-up cost and progress. Any member of the tenant reads; the system-admin and project-manager roles change the schedule.",

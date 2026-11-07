@@ -29,6 +29,14 @@ public class VisionModule implements EchnoModule {
     public static final String PERMISSION_RUN = ID + ":run";
     public static final String PERMISSION_MODELS_MANAGE = ID + ":models-manage";
 
+    // Reading the registry is for the jobs that review a model's findings, and for the role a
+    // reviewer outside the client's staff holds. One string, so the two handlers cannot drift.
+    public static final String READ_GUARD = "@orgSecurity.hasAnyOrgRoleForCurrentTenant("
+            + "'system-admin','project-manager','qa-engineer','safety-officer','detection-reviewer')";
+    // The registry is global, so writing it is a platform job. An organization's system-admin is
+    // whoever created that organization, and must not choose what every organization runs.
+    public static final String MODELS_MANAGE_GUARD = "hasRole('platform-admin')";
+
     static final List<String> PERMISSIONS = List.of(PERMISSION_READ, PERMISSION_RUN, PERMISSION_MODELS_MANAGE);
 
     private static final ModuleManifest MANIFEST = new ModuleManifest(

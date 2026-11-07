@@ -340,6 +340,11 @@ echno:
     # so no endpoint, listener or intake check runs; its tables exist either way.
     vision:
       enabled: ${ECHNO_MODULE_VISION_ENABLED:false}
+  vision:
+    # SPDX ids a model version's weights may carry to be activated.
+    allowed-licences: ${ECHNO_VISION_ALLOWED_LICENCES:Apache-2.0,BSD-3-Clause,MIT}
+    # Whether a producer may post against a DRAFT version. Staging only.
+    accept-draft-models: ${ECHNO_VISION_ACCEPT_DRAFT_MODELS:false}
   security:
     jwt:
       # Reject any access token whose audience does not include the backend client
