@@ -50,6 +50,7 @@ import org.tornotron.echno_backend.modules.inspections.mapper.ObservationMapper;
 import org.tornotron.echno_backend.modules.inspections.repositories.InspectionRepository;
 import org.tornotron.echno_backend.modules.inspections.repositories.ObservationRegionRepository;
 import org.tornotron.echno_backend.modules.inspections.repositories.ObservationRepository;
+import org.tornotron.echno_backend.modules.inspections.service.ObservationIntakeUploadService;
 import org.tornotron.echno_backend.modules.inspections.service.ObservationService;
 import org.tornotron.echno_backend.modules.inspections.web.InspectionsExceptionHandler;
 import org.tornotron.echno_backend.modules.inspections.web.ObservationIntakeController;
@@ -199,7 +200,7 @@ class ObservationIntakeCheckTest {
         ObservationService refusing = mock(ObservationService.class);
         when(refusing.intake(any())).thenThrow(
                 new IntakeRejectedException("MODEL_NOT_ACTIVE", "modelVersion", "Version 0.1.0 of ppe is not active"));
-        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new ObservationIntakeController(refusing))
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new ObservationIntakeController(refusing, mock(ObservationIntakeUploadService.class)))
                 .setControllerAdvice(new InspectionsExceptionHandler())
                 .build();
 

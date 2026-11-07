@@ -10963,6 +10963,66 @@
         ],
         "type": "object"
       },
+      "IntakeUploadPresignRequest": {
+        "description": "The images a producer is about to upload for one project. JPEG, PNG or WebP, up to 25 MB each.",
+        "properties": {
+          "projectId": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "uploads": {
+            "items": {
+              "$ref": "#/components/schemas/UploadRequest"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "projectId",
+          "uploads"
+        ],
+        "type": "object"
+      },
+      "IntakeUploadPresignResponse": {
+        "description": "Where to PUT each file, and the uploadId to send back when registering them.",
+        "properties": {
+          "uploadId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "uploads": {
+            "items": {
+              "$ref": "#/components/schemas/PresignedUpload"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "IntakeUploadRegisterRequest": {
+        "description": "Confirms the files of one presign call have reached storage.",
+        "properties": {
+          "uploadId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "uploads": {
+            "items": {
+              "$ref": "#/components/schemas/RegisterUploadRequest"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "uploadId",
+          "uploads"
+        ],
+        "type": "object"
+      },
       "InventoryMaterialStockDto": {
         "description": "Current stock held at a single storage location, broken down by material with the location totals.",
         "properties": {
@@ -106419,6 +106479,233 @@
           }
         },
         "summary": "Post a machine observation",
+        "tags": [
+          "Observation intake"
+        ]
+      }
+    },
+    "/api/v1/observations/intake/evidence/presign": {
+      "post": {
+        "description": "Step one of the direct-to-storage path. JPEG, PNG or WebP, up to 25 MB each and 20 per call. Returns an uploadId to send back when registering the files.",
+        "operationId": "ObservationIntakeController_presignEvidence",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IntakeUploadPresignRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntakeUploadPresignResponse"
+                }
+              }
+            },
+            "description": "Presigned upload URLs returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Too many files, a duplicate, an unsupported type or a file over the limit"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the producer role in the current tenant, or the tenant is not entitled to the module"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such project in the organisation"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Presign the images a producer detected on",
+        "tags": [
+          "Observation intake"
+        ]
+      }
+    },
+    "/api/v1/observations/intake/evidence/register": {
+      "post": {
+        "description": "Step two of the direct-to-storage path: confirms the keys once each object is verified present in storage. A region or evidenceRefs entry on intake can then name the attachment. An upload no finding references is deleted after 7 days.",
+        "operationId": "ObservationIntakeController_registerEvidence",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IntakeUploadRegisterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AttachmentDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Images registered"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "A referenced object is missing from storage, or its key was not presigned for this upload"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the producer role in the current tenant, or the tenant is not entitled to the module"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No upload with this id for this producer"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Register the images a producer uploaded",
         "tags": [
           "Observation intake"
         ]
