@@ -27644,7 +27644,11 @@
               "GST",
               "PAN",
               "VAT",
-              "TAX_ID"
+              "TAX_ID",
+              "TAN",
+              "TIN",
+              "CIN",
+              "OTHER"
             ],
             "type": "string"
           },
