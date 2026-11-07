@@ -290,6 +290,13 @@ echno:
     ios-client-id: ${ECHNO_IOS_CLIENT_ID:}
     minimum-android-version: ${ECHNO_MIN_APP_VERSION_ANDROID:}
     minimum-ios-version: ${ECHNO_MIN_APP_VERSION_IOS:}
+  # The first organization of a stack where nobody can sign up, and the address its first System Admin
+  # is invited at. Read on every boot while all three are set; once that organization has an active
+  # System Admin they do nothing, and they can come out at the next deploy.
+  bootstrap:
+    organization-name: ${ECHNO_BOOTSTRAP_ORG_NAME:}
+    organization-email: ${ECHNO_BOOTSTRAP_ORG_EMAIL:}
+    admin-email: ${ECHNO_BOOTSTRAP_ADMIN_EMAIL:}
   invitations:
     # How long an invitation link lasts, 1 to 30 days (the identity provider's own limits).
     expiry-days: ${ECHNO_INVITATION_EXPIRY_DAYS:7}

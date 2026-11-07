@@ -11,8 +11,10 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.common.identity.EchnoOrgId;
+import org.tornotron.echno_backend.common.identity.ExternalOrgId;
 import org.tornotron.echno_backend.common.identity.ExternalUserId;
 import org.tornotron.echno_backend.common.identity.IdentityProvider;
+import org.tornotron.echno_backend.common.identity.link.IdentityLinks;
 import org.tornotron.echno_backend.common.identity.task.IdentityTaskQueue.Kind;
 
 /**
@@ -45,13 +47,16 @@ public class IdentityTaskWorker {
     private final JdbcTemplate jdbc;
     private final IdentityProvider provider;
     private final ObjectProvider<InvitationDelivery> invitations;
+    private final ObjectProvider<IdentityLinks> links;
     private final boolean enabled;
 
     public IdentityTaskWorker(JdbcTemplate jdbc, IdentityProvider provider, ObjectProvider<InvitationDelivery> invitations,
+                              ObjectProvider<IdentityLinks> links,
                               @Value("${echno.identity.tasks.enabled:true}") boolean enabled) {
         this.jdbc = jdbc;
         this.provider = provider;
         this.invitations = invitations;
+        this.links = links;
         this.enabled = enabled;
     }
 
@@ -67,13 +72,16 @@ public class IdentityTaskWorker {
         }
     }
 
-    /** One pass over everything due, oldest first. */
+    /**
+     * One pass over everything due, oldest first. Requests made in one transaction share a time, so
+     * among those an organization is created before anything is sent to it.
+     */
     public void runDue() {
         List<Task> due = jdbc.query("""
                 SELECT id, kind, account, user_id, organization_id, org_role, attempts, invitation_id
                 FROM identity_task
                 WHERE status = 'PENDING' AND next_attempt_at <= now()
-                ORDER BY created_at
+                ORDER BY created_at, CASE kind WHEN 'CREATE_ORGANIZATION' THEN 0 ELSE 1 END
                 LIMIT ?
                 """, (row, index) -> new Task(row.getObject(1, UUID.class), Kind.valueOf(row.getString(2)),
                 row.getString(3), row.getObject(4, Long.class), row.getObject(5, Long.class),
@@ -105,8 +113,17 @@ public class IdentityTaskWorker {
             case RESEND_INVITATION -> invitations.getObject().resend(task.invitation());
             case RENEW_INVITATION -> invitations.getObject().renew(task.invitation());
             case REVOKE_INVITATION -> invitations.getObject().revoke(task.invitation());
+            case CREATE_ORGANIZATION -> createOrganization(task.organizationId());
             default -> callForAccount(task);
         }
+    }
+
+    /** Repeat-safe at the provider, which finds an organization it already has by Echno's id. */
+    private void createOrganization(Long organization) {
+        String name = jdbc.queryForObject("SELECT organization_name FROM organization WHERE id = ?",
+                String.class, organization);
+        ExternalOrgId created = provider.createOrganization(new EchnoOrgId(organization), name);
+        links.getObject().linkOrganization(created, organization);
     }
 
     private void callForAccount(Task task) {

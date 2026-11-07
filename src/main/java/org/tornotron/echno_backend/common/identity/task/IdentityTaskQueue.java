@@ -23,7 +23,8 @@ public class IdentityTaskQueue {
 
     enum Kind {
         REMOVE_MEMBER, END_SESSIONS, ASSIGN_ROLE, REMOVE_ROLE,
-        SEND_INVITATION, RESEND_INVITATION, RENEW_INVITATION, REVOKE_INVITATION
+        SEND_INVITATION, RESEND_INVITATION, RENEW_INVITATION, REVOKE_INVITATION,
+        CREATE_ORGANIZATION
     }
 
     private final JdbcTemplate jdbc;
@@ -48,6 +49,15 @@ public class IdentityTaskQueue {
         enqueue(holdsIt ? Kind.ASSIGN_ROLE : Kind.REMOVE_ROLE,
                 "role:" + account.value() + ":" + organization.value() + ":" + role.name(),
                 account, null, organization.value(), role.name());
+    }
+
+    /**
+     * Creates the organization at the provider and records which one it is. Asked for before the first
+     * invitation to it, so the worker, which runs requests oldest first, makes it before the send.
+     */
+    public void createOrganization(EchnoOrgId organization) {
+        insert(Kind.CREATE_ORGANIZATION, "organization:" + organization.value(), null, null, organization.value(),
+                null, null);
     }
 
     /** Sends the invitation's link. */
