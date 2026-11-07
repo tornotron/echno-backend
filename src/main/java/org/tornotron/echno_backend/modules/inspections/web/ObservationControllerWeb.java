@@ -26,7 +26,7 @@ import org.tornotron.echno_backend.common.entity.AttachmentDto;
 import org.tornotron.echno_backend.common.customAnnotation.RequireSubscription;
 import org.tornotron.echno_backend.modules.inspections.InspectionsModule;
 import org.tornotron.echno_backend.modules.inspections.ObservationReviewStatus;
-import org.tornotron.echno_backend.modules.inspections.ObservationSource;
+import org.tornotron.echno_backend.modules.inspections.api.ObservationSource;
 import org.tornotron.echno_backend.modules.inspections.dtos.CreateObservationRequest;
 import org.tornotron.echno_backend.modules.inspections.dtos.ObservationDto;
 import org.tornotron.echno_backend.modules.inspections.dtos.ObservationListFilter;

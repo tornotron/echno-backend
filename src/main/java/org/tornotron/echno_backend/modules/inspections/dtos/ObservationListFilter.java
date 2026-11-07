@@ -5,7 +5,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import org.tornotron.echno_backend.modules.inspections.ObservationReviewStatus;
-import org.tornotron.echno_backend.modules.inspections.ObservationSource;
+import org.tornotron.echno_backend.modules.inspections.api.ObservationSource;
 
 /**
  * The narrowing of an observation list. Every field but {@code includeDetections} is optional, and they

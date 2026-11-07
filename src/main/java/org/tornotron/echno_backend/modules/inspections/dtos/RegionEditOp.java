@@ -8,7 +8,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 import org.tornotron.echno_backend.modules.inspections.RegionEditKind;
-import org.tornotron.echno_backend.modules.inspections.RegionShape;
+import org.tornotron.echno_backend.modules.inspections.api.RegionShape;
 
 @Schema(description = "One reviewer operation on the observation's regions. replace reads regionId, shape, "
         + "box or points, and classKey; it retires the row and inserts the correction with the same shape on "

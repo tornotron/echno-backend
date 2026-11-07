@@ -5,7 +5,7 @@ import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
-import org.tornotron.echno_backend.modules.inspections.RegionShape;
+import org.tornotron.echno_backend.modules.inspections.api.RegionShape;
 import org.tornotron.echno_backend.modules.inspections.domain.DefectPhotoAnnotation;
 import org.tornotron.echno_backend.modules.inspections.domain.ObservationRegion;
 

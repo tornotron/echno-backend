@@ -1,4 +1,4 @@
-package org.tornotron.echno_backend.modules.inspections.dtos;
+package org.tornotron.echno_backend.modules.inspections.api;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMax;
@@ -9,7 +9,6 @@ import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.util.List;
-import org.tornotron.echno_backend.modules.inspections.RegionShape;
 
 @Schema(description = "A box or polygon on one image already in the Echno store. Coordinates are fractions "
         + "of the image's width and height in [0, 1], rounded to 6 places, origin top left, x to the right, "

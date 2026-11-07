@@ -25,7 +25,7 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.modules.inspections.RegionOrigin;
-import org.tornotron.echno_backend.modules.inspections.RegionShape;
+import org.tornotron.echno_backend.modules.inspections.api.RegionShape;
 import org.tornotron.echno_backend.organization.Organization;
 
 /**

@@ -2,7 +2,7 @@ package org.tornotron.echno_backend.modules.inspections.converter;
 
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.stereotype.Component;
-import org.tornotron.echno_backend.modules.inspections.ObservationSource;
+import org.tornotron.echno_backend.modules.inspections.api.ObservationSource;
 
 /** Binds the slug of {@link ObservationSource} when it arrives as a query parameter on the list endpoint. */
 @Component

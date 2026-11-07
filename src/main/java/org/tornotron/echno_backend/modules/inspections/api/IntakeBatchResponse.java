@@ -1,4 +1,4 @@
-package org.tornotron.echno_backend.modules.inspections.dtos;
+package org.tornotron.echno_backend.modules.inspections.api;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;

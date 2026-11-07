@@ -29,6 +29,8 @@ import org.tornotron.echno_backend.common.mapper.AttachmentMapper;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.service.AttachmentService;
+import org.tornotron.echno_backend.modules.inspections.api.ObservationSource;
+import org.tornotron.echno_backend.modules.inspections.api.RegionShape;
 import org.tornotron.echno_backend.modules.inspections.domain.Observation;
 import org.tornotron.echno_backend.modules.inspections.domain.ObservationIntakeUpload;
 import org.tornotron.echno_backend.modules.inspections.domain.ObservationRegion;

@@ -1,5 +1,6 @@
 package org.tornotron.echno_backend.modules.inspections;
 
+import org.tornotron.echno_backend.modules.inspections.api.ObservationSource;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.hibernate.Session;

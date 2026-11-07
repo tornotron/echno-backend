@@ -25,7 +25,7 @@ import org.tornotron.echno_backend.modules.inspections.DefectSeverity;
 import org.tornotron.echno_backend.modules.inspections.ObservationOutcomeKind;
 import org.tornotron.echno_backend.modules.inspections.ObservationRejectReason;
 import org.tornotron.echno_backend.modules.inspections.ObservationReviewStatus;
-import org.tornotron.echno_backend.modules.inspections.ObservationSource;
+import org.tornotron.echno_backend.modules.inspections.api.ObservationSource;
 import org.tornotron.echno_backend.organization.Organization;
 
 import java.math.BigDecimal;

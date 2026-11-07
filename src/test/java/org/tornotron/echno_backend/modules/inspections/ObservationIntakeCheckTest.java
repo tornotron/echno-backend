@@ -13,6 +13,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import org.tornotron.echno_backend.modules.inspections.api.RegionShape;
+import org.tornotron.echno_backend.modules.inspections.api.ObservationSource;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -42,9 +44,9 @@ import org.tornotron.echno_backend.modules.inspections.api.IntakeCandidate;
 import org.tornotron.echno_backend.modules.inspections.api.IntakeRejectedException;
 import org.tornotron.echno_backend.modules.inspections.api.ObservationIntakeCheck;
 import org.tornotron.echno_backend.modules.inspections.domain.Observation;
-import org.tornotron.echno_backend.modules.inspections.dtos.IntakeObservationRequest;
+import org.tornotron.echno_backend.modules.inspections.api.IntakeObservationRequest;
 import org.tornotron.echno_backend.modules.inspections.dtos.ObservationDto;
-import org.tornotron.echno_backend.modules.inspections.dtos.ObservationRegionRequest;
+import org.tornotron.echno_backend.modules.inspections.api.ObservationRegionRequest;
 import org.tornotron.echno_backend.modules.inspections.events.InspectionEventRecorder;
 import org.tornotron.echno_backend.modules.inspections.mapper.ObservationMapper;
 import org.tornotron.echno_backend.modules.inspections.repositories.InspectionRepository;

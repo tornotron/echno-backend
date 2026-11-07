@@ -1,5 +1,6 @@
 package org.tornotron.echno_backend.modules.inspections.dtos;
 
+import org.tornotron.echno_backend.modules.inspections.api.IntakeObservationRequest;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Size;

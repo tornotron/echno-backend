@@ -1,5 +1,6 @@
 package org.tornotron.echno_backend.modules.inspections;
 
+import org.tornotron.echno_backend.modules.inspections.api.ObservationSource;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -35,8 +36,8 @@ import org.tornotron.echno_backend.common.retry.TransactionalWorkRunner;
 import org.tornotron.echno_backend.modules.inspections.domain.InspectionEvent;
 import org.tornotron.echno_backend.modules.inspections.domain.Observation;
 import org.tornotron.echno_backend.modules.inspections.api.IntakeActor;
-import org.tornotron.echno_backend.modules.inspections.dtos.IntakeBatchResponse;
-import org.tornotron.echno_backend.modules.inspections.dtos.IntakeObservationRequest;
+import org.tornotron.echno_backend.modules.inspections.api.IntakeBatchResponse;
+import org.tornotron.echno_backend.modules.inspections.api.IntakeObservationRequest;
 import org.tornotron.echno_backend.modules.inspections.dtos.ReviewBatchRequest;
 import org.tornotron.echno_backend.modules.inspections.dtos.ReviewBatchResponse;
 import org.tornotron.echno_backend.modules.inspections.dtos.ObservationDto;
