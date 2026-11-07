@@ -22,6 +22,10 @@ import org.tornotron.echno_backend.common.identity.keycloak.KeycloakSettingsVali
 import org.tornotron.echno_backend.common.identity.keycloak.KeycloakTokenMapper;
 import org.tornotron.echno_backend.keycloak.KeycloakManagementController;
 import org.tornotron.echno_backend.keycloak.KeycloakManagementService;
+import org.tornotron.echno_backend.modules.access.api.AccessService;
+import org.tornotron.echno_backend.modules.access.guard.AccessGuard;
+import org.tornotron.echno_backend.modules.access.matrix.catalog.AccessCatalogReader;
+import org.tornotron.echno_backend.modules.access.matrix.service.MatrixAccessService;
 import org.tornotron.echno_backend.support.AbstractIntegrationTest;
 
 import java.util.List;
@@ -128,5 +132,12 @@ class RedisFullContextBootIT extends AbstractIntegrationTest {
         assertThat(context.getBean(FilterChainProxy.class).getFilterChains())
                 .flatMap(chain -> chain.getFilters())
                 .anyMatch(RPTExchangeFilter.class::isInstance);
+    }
+
+    @Test
+    void theAccessGuardAndEngineAreWired() {
+        assertThat(context.getBean("access")).isInstanceOf(AccessGuard.class);
+        assertThat(context.getBean(AccessService.class)).isInstanceOf(MatrixAccessService.class);
+        assertThat(context.getBean(AccessCatalogReader.class).areas()).isNotEmpty();
     }
 }
