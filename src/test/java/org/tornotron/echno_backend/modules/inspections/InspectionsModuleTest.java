@@ -44,6 +44,7 @@ import org.tornotron.echno_backend.modules.inspections.web.InspectionControllerW
 import org.tornotron.echno_backend.modules.inspections.web.NcrControllerWeb;
 import org.tornotron.echno_backend.modules.inspections.web.ObservationControllerWeb;
 import org.tornotron.echno_backend.modules.inspections.web.ObservationIntakeController;
+import org.tornotron.echno_backend.modules.inspections.service.ObservationBatchIntakeService;
 import org.tornotron.echno_backend.modules.inspections.service.ObservationIntakeUploadService;
 import org.tornotron.echno_backend.modules.inspections.service.ObservationService;
 import org.tornotron.echno_backend.modules.inspections.dtos.IntakeObservationRequest;
@@ -192,7 +193,8 @@ class InspectionsModuleTest {
         SubscriptionService subscriptionService = mock(SubscriptionService.class);
         when(subscriptionService.checkFeatureAccess(DARK_ORG, InspectionsModule.FEATURE_KEY))
                 .thenReturn(FeatureAccessResultDto.featureNotInPlan());
-        AspectJProxyFactory factory = new AspectJProxyFactory(new ObservationIntakeController(service, mock(ObservationIntakeUploadService.class)));
+        AspectJProxyFactory factory = new AspectJProxyFactory(new ObservationIntakeController(service, mock(ObservationIntakeUploadService.class),
+                mock(ObservationBatchIntakeService.class)));
         factory.setProxyTargetClass(true);
         factory.addAspect(new SubscriptionAspect(subscriptionService, mock(UserContextService.class),
                 new EntitlementPolicy("enforce")));
