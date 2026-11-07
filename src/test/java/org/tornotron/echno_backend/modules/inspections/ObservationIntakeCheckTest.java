@@ -49,11 +49,13 @@ import org.tornotron.echno_backend.modules.inspections.events.InspectionEventRec
 import org.tornotron.echno_backend.modules.inspections.mapper.ObservationMapper;
 import org.tornotron.echno_backend.modules.inspections.repositories.InspectionRepository;
 import org.tornotron.echno_backend.modules.inspections.repositories.ObservationRegionRepository;
+import org.tornotron.echno_backend.modules.inspections.repositories.ObservationIntakeUploadRepository;
 import org.tornotron.echno_backend.modules.inspections.repositories.ObservationRepository;
 import org.tornotron.echno_backend.modules.inspections.service.ObservationIntakeUploadService;
 import org.tornotron.echno_backend.modules.inspections.service.ObservationService;
 import org.tornotron.echno_backend.modules.inspections.web.InspectionsExceptionHandler;
 import org.tornotron.echno_backend.modules.inspections.web.ObservationIntakeController;
+import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.project.spatial.SpatialNodeService;
 import org.tornotron.echno_backend.user.UserContextService;
@@ -83,6 +85,7 @@ class ObservationIntakeCheckTest {
     @Mock private TransactionRetryTemplate retryTemplate;
     @Mock private ObservationRegionRepository regionRepo;
     @Mock private ObjectProvider<ObservationIntakeCheck> intakeChecks;
+    @Mock private ObservationIntakeUploadRepository intakeUploads;
 
     private ObservationService service;
 
@@ -91,13 +94,18 @@ class ObservationIntakeCheckTest {
         TenantContext.setCurrentOrgId(ORG);
         service = new ObservationService(observationRepo, inspectionRepo, spatialNodeService, events,
                 tenantEntityHelper, userContextService, employeeRepository, mapper, projectRepository,
-                attachmentRepository, retryTemplate, regionRepo, intakeChecks);
+                attachmentRepository, retryTemplate, regionRepo, intakeChecks, intakeUploads);
         lenient().when(retryTemplate.execute(anyString(), any(), any(Supplier.class)))
                 .thenAnswer(call -> call.getArgument(2, Supplier.class).get());
         lenient().when(observationRepo.findByExternalRefScoped(anyString())).thenReturn(Optional.empty());
         lenient().when(projectRepository.existsByIdAndOrganization_Id(PROJECT, ORG)).thenReturn(true);
         Attachment image = new Attachment();
+        image.setId(IMAGE);
+        image.setEntityType("INSPECTION_EVIDENCE");
         image.setContentType("image/jpeg");
+        Project project = new Project();
+        project.setId(PROJECT);
+        image.setProject(project);
         lenient().when(attachmentRepository.findByIdAndOrganization_Id(IMAGE, ORG)).thenReturn(Optional.of(image));
         lenient().when(observationRepo.saveAndFlush(any())).thenAnswer(call -> call.getArgument(0));
         lenient().when(regionRepo.save(any())).thenAnswer(call -> call.getArgument(0));
