@@ -7431,7 +7431,8 @@
             "enum": [
               "running",
               "completed",
-              "failed"
+              "failed",
+              "cancelled"
             ],
             "type": "string"
           },

@@ -64,7 +64,8 @@ import java.util.stream.Collectors;
  *
  * <p>The organization's {@code datasetConsent} flag is checked here, not only by the sweep, so an
  * on-demand run on a non-consenting organization is refused with a 409 rather than silently
- * exporting. Every copied object is recorded in {@link DatasetExportedItem}, unique per source
+ * exporting. It is read once more when a started run reads its rows, and a run whose consent was
+ * withdrawn in between ends as {@code cancelled} with nothing copied. Every copied object is recorded in {@link DatasetExportedItem}, unique per source
  * reference, and a later run skips what is recorded: re-running exports nothing new, which is what
  * the note's definition of done asks for.
  *
@@ -95,6 +96,8 @@ public class DatasetExportService {
 
     static final String MANIFEST_FILE = "manifest.jsonl";
     private static final DateTimeFormatter RUN_KEY_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss");
+    static final String CONSENT_WITHDRAWN_REASON =
+            "Cancelled: the organization withdrew dataset consent after this run started; nothing was copied";
 
     private final OrganizationRepository organizationRepository;
     private final AttachmentRepository attachmentRepository;
@@ -185,6 +188,12 @@ public class DatasetExportService {
         Progress progress = new Progress();
         try {
             ExportPlan plan = transactions.runInTransaction(() -> plan(runId, organizationId));
+            if (plan.consentWithdrawn()) {
+                log.info("Dataset export run {} for organization {} cancelled: consent was withdrawn",
+                        plan.runKey(), organizationId);
+                return transactions.runInTransaction(() -> finish(runId, organizationId, progress,
+                        DatasetExportRunStatus.CANCELLED, CONSENT_WITHDRAWN_REASON));
+            }
             progress.skipped = plan.skipped();
             copy(plan, progress);
         } catch (RuntimeException e) {
@@ -210,7 +219,8 @@ public class DatasetExportService {
     }
 
     /** What one run will copy, resolved while the rows are still attached. */
-    record ExportPlan(UUID runId, Long organizationId, String runKey, String runPrefix, List<Planned> planned, int skipped) {
+    record ExportPlan(UUID runId, Long organizationId, String runKey, String runPrefix, List<Planned> planned, int skipped,
+                      boolean consentWithdrawn) {
     }
 
     /** One object to copy, its target key and its manifest line, with no entity behind it. */
@@ -233,6 +243,12 @@ public class DatasetExportService {
             throw new IllegalStateException("Dataset export run " + run.getRunKey() + " is " + run.getStatus().getValue()
                     + ", not running");
         }
+        String runPrefix = runPrefix(run.getRunKey());
+        // Read in the transaction that reads the rows: start() checked the flag, but a withdrawal
+        // between start() and here has to stop the run before anything reaches the dataset bucket.
+        if (!run.getOrganization().isDatasetConsent()) {
+            return new ExportPlan(runId, organizationId, run.getRunKey(), runPrefix, List.of(), 0, true);
+        }
         List<Candidate> candidates = collectCandidates(organizationId);
         Map<DatasetSourceKind, Set<String>> alreadyExported = new HashMap<>();
         for (DatasetSourceKind kind : DatasetSourceKind.values()) {
@@ -240,11 +256,7 @@ public class DatasetExportService {
         }
         Map<UUID, String> breadcrumbs = breadcrumbsFor(candidates);
         Map<String, List<DefectPhotoAnnotation>> annotationsByPhoto = annotationsByPhoto(organizationId);
-        // Read in the transaction that reads the rows: start() checked the flag, but a withdrawal
-        // between start() and here must reach the lines, and the tooling skips a false one.
-        boolean consent = run.getOrganization().isDatasetConsent();
 
-        String runPrefix = runPrefix(run.getRunKey());
         int cap = Math.max(1, properties.getMaxObjectsPerRun());
         List<Planned> planned = new ArrayList<>();
         int skipped = 0;
@@ -264,10 +276,10 @@ public class DatasetExportService {
                     : List.of();
             planned.add(new Planned(candidate.kind(), candidate.sourceRef(), candidate.sourceKey(),
                     candidate.inspection() == null ? null : candidate.inspection().getId(), exportKey,
-                    toJson(manifestLine(run.getRunKey(), organizationId, consent, candidate, exportKey, breadcrumbs,
+                    toJson(manifestLine(run.getRunKey(), organizationId, true, candidate, exportKey, breadcrumbs,
                             boxes))));
         }
-        return new ExportPlan(runId, organizationId, run.getRunKey(), runPrefix, List.copyOf(planned), skipped);
+        return new ExportPlan(runId, organizationId, run.getRunKey(), runPrefix, List.copyOf(planned), skipped, false);
     }
 
     private void copy(ExportPlan plan, Progress progress) {
