@@ -44,11 +44,12 @@ public record IntakeObservationRequest(
         @Size(max = 50) String modelVersion,
         @Schema(description = "Model confidence in [0, 1].", nullable = true)
         @DecimalMin("0.0") @DecimalMax("1.0") BigDecimal confidence,
-        @Schema(description = "Pointers to captures outside the Echno store (frame index, point-cloud id, "
-                + "crop bounds), in the producer's own shape.", nullable = true)
-        List<Map<String, Object>> evidenceRefs,
+        @Schema(description = "Pointers to captures (frame index, point-cloud id, crop bounds), in the producer's "
+                + "own shape, up to 20 entries and 8 KB of JSON. An entry with an attachmentId is held to the same "
+                + "rule as a region's image.", nullable = true)
+        @Size(max = 20) List<Map<String, Object>> evidenceRefs,
         @Schema(description = "Where the finding is on the images it was seen in: one region per detection is "
-                + "the expected shape, up to 20. Each attachment must be in the caller's organisation.",
-                nullable = true)
+                + "the expected shape, up to 20. Each attachment must be this producer's own upload for the project "
+                + "or inspection or observation evidence of the project.", nullable = true)
         @Valid @Size(max = 20) List<ObservationRegionRequest> regions
 ) {}

@@ -18,6 +18,7 @@ import org.tornotron.echno_backend.modules.inspections.dtos.ObservationDto;
 import org.tornotron.echno_backend.modules.inspections.events.InspectionEventRecorder;
 import org.tornotron.echno_backend.modules.inspections.mapper.ObservationMapper;
 import org.tornotron.echno_backend.modules.inspections.repositories.InspectionRepository;
+import org.tornotron.echno_backend.modules.inspections.repositories.ObservationIntakeUploadRepository;
 import org.tornotron.echno_backend.modules.inspections.repositories.ObservationRepository;
 import org.tornotron.echno_backend.modules.inspections.repositories.ObservationRegionRepository;
 import org.tornotron.echno_backend.modules.inspections.service.ObservationService;
@@ -56,6 +57,7 @@ class ObservationListSpatialPathTest {
     @Mock private AttachmentRepository attachmentRepository;
     @Mock private TransactionRetryTemplate retryTemplate;
     @Mock private ObjectProvider<ObservationIntakeCheck> intakeChecks;
+    @Mock private ObservationIntakeUploadRepository intakeUploads;
 
     @Test
     void aPageOfObservationsAsksForItsBreadcrumbsOnce() {
@@ -76,7 +78,7 @@ class ObservationListSpatialPathTest {
 
         ObservationService service = new ObservationService(observationRepo, inspectionRepo, spatialNodeService, events,
                 tenantEntityHelper, userContextService, employeeRepository, mapper, projectRepository, attachmentRepository,
-                retryTemplate, regionRepo, intakeChecks);
+                retryTemplate, regionRepo, intakeChecks, intakeUploads);
         Page<ObservationDto> page = service.findAll(42L, null, null, null, null, null, null, PageRequest.of(0, 10));
 
         verify(spatialNodeService).pathsOf(List.of(zoneA, zoneA, zoneB));
