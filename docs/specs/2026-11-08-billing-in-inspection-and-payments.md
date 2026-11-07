@@ -164,8 +164,9 @@ and the account are per deployment while organizations are not: an organization 
 manual and can never draw on another's account. The webhook is
 `POST /api/v1/billing/webhooks/razorpay-payouts`, under the prefix the security layer already opens,
 signed with its own secret and checked over the raw bytes before parsing. It carries the payment id
-as `reference_id`, is applied pinned to the payment's organization, and only moves a payment forward,
-so a replay or a late event changes nothing.
+as `reference_id`. The request thread touches no tenant data: an async listener applies the event,
+pinned to the payment's organization, and it only moves a payment forward, so a replay or a late event
+changes nothing.
 
 The beneficiary is the sub-contract's existing bank name, account number and IFSC. With a gateway
 wired, raising a payment on a contract without them is refused and says what to fill in. The transfer
@@ -183,16 +184,17 @@ Existing guards and nav access roles only. No new role, so this does not touch t
 | Raise a payment | system-admin, project-manager | `BILLING_SIGN_ACCESS` |
 | Authorize, reject, record, sync | system-admin | `PAYABLES_ACCESS` |
 
-Authorizing follows Finance > Payables, which is system-admin today. The authorizer must be someone
-other than the requester. A system admin may authorize their own request, and it is recorded as such,
-as with a bill's final approval, because a small organization may have only one.
+Authorizing follows Finance > Payables, which is system-admin today. A project manager's request
+therefore always takes a second person. A system admin who raised a request may authorize it
+themselves, and it is recorded as such, as with a bill's final approval, because a small organization
+may have only one.
 
 ## 8. Defaults chosen
 
 The tickets leave these open. Each can change without a data change unless noted.
 
 1. Part payment is allowed, one payment in flight per bill.
-2. Two signatures: request and authorize, with the system-admin exception above.
+2. Two signatures: request and authorize, and a system admin may give both, on the record.
 3. Payment does not hold up the next bill.
 4. Retention is not released through this flow. It stays deducted, and its release is a later feature.
 5. Milestone bills pay the same way as RA bills, and a milestone's own status is not closed by payment.
