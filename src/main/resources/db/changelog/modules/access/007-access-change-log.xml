@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        The history of every change to who holds what: organization, actor, target, the state
+        before and after, and the time. Append-only: nothing updates or deletes these rows. So it
+        carries no foreign key that could cascade or block, and a row outlives the employee, the
+        role and the organization it talks about.
+    -->
+
+    <changeSet id="access-007-create-access_change_log" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="access_change_log"/></not>
+        </preConditions>
+        <createTable tableName="access_change_log">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_access_change_log" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="actor_user_id" type="BIGINT"/>
+            <column name="action" type="VARCHAR(60)"><constraints nullable="false"/></column>
+            <column name="target_type" type="VARCHAR(40)"><constraints nullable="false"/></column>
+            <column name="target_id" type="VARCHAR(80)"><constraints nullable="false"/></column>
+            <column name="before_state" type="JSONB"/>
+            <column name="after_state" type="JSONB"/>
+            <column name="changed_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="access_change_log" indexName="idx_access_change_log_organization">
+            <column name="organization_id"/>
+            <column name="changed_at"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
