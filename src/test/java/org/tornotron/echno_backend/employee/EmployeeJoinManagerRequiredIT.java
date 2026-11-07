@@ -64,6 +64,9 @@ class EmployeeJoinManagerRequiredIT extends AbstractIntegrationTest {
     private org.tornotron.echno_backend.modules.access.api.AccessRoleAssignments roleAssignments;
 
     @MockBean
+    private org.tornotron.echno_backend.common.identity.task.IdentityTaskQueue identityTasks;
+
+    @MockBean
     private FileStorageService fileStorageService;
 
     private Long orgAId;

@@ -20,6 +20,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import org.tornotron.echno_backend.attendance.mapper.ShiftTimingMapperImpl;
 import org.tornotron.echno_backend.common.identity.IdentityCapabilities;
 import org.tornotron.echno_backend.common.identity.IdentityProvider;
+import org.tornotron.echno_backend.common.identity.task.IdentityTaskQueue;
 import org.tornotron.echno_backend.common.mapper.AttachmentMapperImpl;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.CurrentEmployeeService;
@@ -45,7 +46,7 @@ import org.tornotron.echno_backend.user.UserContextService;
 /** The real assignment writer and {@code EmployeeService}, on CockroachDB, as a caller in one organization. */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import({MatrixRoleAssignments.class, LegacyRoleMirror.class, AccessRoleReconciler.class,
+@Import({IdentityTaskQueue.class, MatrixRoleAssignments.class, LegacyRoleMirror.class, AccessRoleReconciler.class,
         CachedAccessFactsSource.class, DatabaseAccessFactsSource.class, AccessFactsQueries.class,
         ConcurrentMapCacheManager.class, CurrentEmployeeService.class, UserContextService.class,
         EmployeeService.class, EmployeeHierarchyService.class, EmployeeMapperImpl.class,
