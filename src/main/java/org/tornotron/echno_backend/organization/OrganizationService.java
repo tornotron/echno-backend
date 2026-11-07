@@ -78,6 +78,7 @@ public class OrganizationService {
     private final org.tornotron.echno_backend.common.service.OrganizationSecurityService orgSecurity;
     private final OrganizationOnboardingSeeder onboardingSeeder;
     private final PayloadValidator payloadValidator;
+    private final OrganizationProvisioning provisioning;
 
     /**
      * Constructs an {@code OrganizationService} with the necessary dependencies.
@@ -105,6 +106,7 @@ public class OrganizationService {
         this.orgSecurity = orgSecurity;
         this.onboardingSeeder = onboardingSeeder;
         this.payloadValidator = payloadValidator;
+        this.provisioning = new OrganizationProvisioning(repository, startingRoles, onboardingSeeder);
     }
 
     /**
@@ -203,17 +205,7 @@ public class OrganizationService {
         // Read before the tenant context is switched to the new organization below: this is
         // the organization whose plan was just checked, and the one the creation is counted against.
         Long billedOrganizationId = billingOrganizationId(currentUser);
-        Organization organization = new Organization();
-        organization.setOrganizationName(organizationCreationDto.getOrganizationName());
-        organization.setOrganizationAddress(organizationCreationDto.getOrganizationAddress());
-        organization.setCreatedAt(LocalDateTime.now());
-        organization.setOrganizationEmail(organizationCreationDto.getOrganizationEmail());
-        organization.setOrganizationPhone(organizationCreationDto.getOrganizationPhone());
-        organization.setOrganizationWebsite(organizationCreationDto.getOrganizationWebsite());
-        organization.setOrganizationLogo(organizationCreationDto.getOrganizationLogo());
-        organization.setCreatorId(currentUser.getId().intValue());
-        organization.setIsActive(true);
-        Organization savedOrganization = repository.save(organization);
+        Organization savedOrganization = provisioning.provision(organizationCreationDto, currentUser.getId());
 
         // Create it at the identity provider BEFORE joining the organization
         ExternalOrgId providerOrganization = identityProvider.createOrganization(
@@ -221,7 +213,6 @@ public class OrganizationService {
                 savedOrganization.getOrganizationName()
         );
         identityLinks.linkOrganization(providerOrganization, savedOrganization.getId());
-        startingRoles.ensureStartingRoles(savedOrganization.getId());
 
         EmployeeJoinOrgDto joinOrgDto = new EmployeeJoinOrgDto();
         EmployeeDto employeeDto = employeeService.joinOrganization(currentUser.getId(), savedOrganization.getId(), joinOrgDto);
@@ -238,12 +229,6 @@ public class OrganizationService {
         if (attachments != null && !attachments.isEmpty()) {
             attachmentService.uploadAttachments(attachments, "ORGANIZATION", savedOrganization.getId(), ORGANIZATION_FOLDER);
         }
-
-        // Seed the org's finance defaults (chart of accounts, cost categories, finance settings)
-        // AFTER this creating transaction commits, so a seed failure is logged and skipped rather
-        // than rolling back the created org. Running them post-commit is also what lets each
-        // idempotent seeder see the committed org and run in its own transaction.
-        scheduleFinanceSeeding(savedOrganization.getId());
 
         // Count the creation against the CREATE_ORGANIZATION quota of the organization the
         // caller was acting in (the one whose plan was checked), after commit for the same
@@ -287,26 +272,12 @@ public class OrganizationService {
      * seed failure cannot roll back the newly created organization. Falls back to running inline when
      * there is no active transaction (the seeding is idempotent and independently guarded either way).
      */
-    private void scheduleFinanceSeeding(Long organizationId) {
-        afterCommit(() -> onboardingSeeder.seedFinanceDefaults(organizationId));
-    }
-
     /**
      * Defers work until the current transaction commits, or runs it inline when there is no
      * transaction to wait for (which is the case in unit tests and in any direct call).
      */
     private void afterCommit(Runnable action) {
-        if (org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
-            org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
-                    new org.springframework.transaction.support.TransactionSynchronization() {
-                        @Override
-                        public void afterCommit() {
-                            action.run();
-                        }
-                    });
-        } else {
-            action.run();
-        }
+        OrganizationProvisioning.afterCommit(action);
     }
 
     /**
