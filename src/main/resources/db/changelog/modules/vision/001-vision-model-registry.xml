@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        The model registry: a platform-wide catalogue, so neither table has an organization_id.
+        A model family is a cv_models row with its own versions. Runs on every boot whether the
+        module is on or off: plain new tables, each guarded on its own existence, touching nothing
+        that exists. The columns are model_key and model_family because FAMILY is a keyword in a
+        CockroachDB CREATE TABLE, which a plain column of that name fails to parse, and a failed
+        changeset stops the boot. Design: docs/specs/2026-10-26-cv-phase4-design.md, section 4.2.
+    -->
+
+    <changeSet id="vision-001-create-cv-models" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="cv_models"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="cv_models">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" primaryKeyName="pk_cv_models" nullable="false"/>
+            </column>
+            <column name="model_key" type="VARCHAR(50)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_cv_models_model_key"/>
+            </column>
+            <column name="name" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="task" type="VARCHAR(10)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="model_family" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <rollback>
+            <dropTable tableName="cv_models"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="vision-001-create-cv-model-versions" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="cv_model_versions"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="cv_model_versions">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" primaryKeyName="pk_cv_model_versions" nullable="false"/>
+            </column>
+            <column name="model_id" type="UUID">
+                <constraints nullable="false" foreignKeyName="fk_cv_model_versions_model"
+                             referencedTableName="cv_models" referencedColumnNames="id"/>
+            </column>
+            <column name="version" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(10)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="classes" type="JSONB">
+                <constraints nullable="false"/>
+            </column>
+            <column name="licence" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="base_weights" type="VARCHAR(200)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="weights_uri" type="VARCHAR(500)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="weights_sha256" type="VARCHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="runtime" type="VARCHAR(30)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="input_size" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="training_release" type="VARCHAR(50)"/>
+            <column name="training_run_uri" type="VARCHAR(500)"/>
+            <column name="metrics" type="JSONB"/>
+            <column name="eval_report_uri" type="VARCHAR(500)"/>
+            <column name="registered_by_id" type="BIGINT"/>
+            <column name="activated_at" type="TIMESTAMP"/>
+            <column name="retired_at" type="TIMESTAMP"/>
+            <column name="created_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addUniqueConstraint tableName="cv_model_versions" columnNames="model_id, version"
+                             constraintName="uk_cv_model_versions_model_version"/>
+
+        <!-- One active version per model. The activation swap retires the old row first. -->
+        <sql>
+            CREATE UNIQUE INDEX uq_cv_model_versions_one_active ON cv_model_versions (model_id)
+                WHERE status = 'ACTIVE'
+        </sql>
+
+        <rollback>
+            <dropTable tableName="cv_model_versions"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
