@@ -574,7 +574,14 @@ public class DatasetExportService {
             return inspection.getActualStartTime() != null ? inspection.getActualStartTime() : inspection.getCreatedAt();
         }
 
-        /** A file name that is unique within the run and safe as an object key segment. */
+        /**
+         * A file name that is unique within the run and safe as an object key segment.
+         *
+         * <p>An attachment is named by its id. A defect photo has no id, so it is named by the
+         * SHA-256 of its stored reference, the digest its {@code evidence_id} already uses. A
+         * shorter hash could give two references the same name, and the second copy would then
+         * silently overwrite the first with both manifest lines pointing at it.
+         */
         String exportName() {
             String base = sourceKey;
             int slash = base.lastIndexOf('/');
@@ -589,7 +596,7 @@ public class DatasetExportService {
             }
             String safe = base.replaceAll("[^A-Za-z0-9._-]", "_");
             String id = attachment != null ? "att-" + attachment.getId()
-                    : Integer.toHexString(sourceRef.hashCode());
+                    : sha256Hex(sourceRef);
             return id + "-" + safe + ext;
         }
     }

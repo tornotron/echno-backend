@@ -189,7 +189,7 @@ class DatasetExportServiceTest {
     }
 
     @Test
-    void copiesEachImageOnceToTheRunPrefixAndRecordsIt() {
+    void copiesEachImageOnceToTheRunPrefixAndRecordsIt() throws Exception {
         DatasetExportRunDto run = service.runForOrganization(ORG, "user:1");
 
         assertThat(run.status()).isEqualTo(DatasetExportRunStatus.COMPLETED);
@@ -203,7 +203,7 @@ class DatasetExportServiceTest {
         verify(fileStorageService).copyObjectTo(EVIDENCE_KEY, "echno-datasets",
                 prefix + "inspection-evidence/att-11-slab-crack.jpg");
         verify(fileStorageService).copyObjectTo(eq(DEFECT_PHOTO_KEY), eq("echno-datasets"),
-                eq(prefix + "defect-photos/" + Integer.toHexString(DEFECT_PHOTO_REF.hashCode()) + "-defect-1.jpg"));
+                eq(prefix + "defect-photos/" + sha256Hex(DEFECT_PHOTO_REF) + "-defect-1.jpg"));
         verify(fileStorageService).copyObjectTo(OBSERVATION_KEY, "echno-datasets",
                 prefix + "observation-evidence/att-13-rover-frame.png");
         // the PDF was never copied, and the photo referenced by two defects was copied once
@@ -313,6 +313,28 @@ class DatasetExportServiceTest {
         verify(fileStorageService, never()).copyObjectTo(anyString(), anyString(), anyString());
         verify(fileStorageService, never()).putObject(anyString(), anyString(), any(byte[].class), anyString());
         verify(itemRepository, never()).save(any());
+    }
+
+    @Test
+    void twoDefectPhotosWhoseReferencesShareA32BitHashAndABaseNameGetDifferentExportKeys() throws Exception {
+        // "Aa" and "BB" have the same String.hashCode(), so these two references do as well
+        String first = "https://cdn.example.test/Aa/photo.jpg";
+        String second = "https://cdn.example.test/BB/photo.jpg";
+        assertThat(first.hashCode()).isEqualTo(second.hashCode());
+        when(fileStorageService.keyForStoredReference(first)).thenReturn(Optional.of("Aa/photo.jpg"));
+        when(fileStorageService.keyForStoredReference(second)).thenReturn(Optional.of("BB/photo.jpg"));
+        InspectionDefect defect = new InspectionDefect();
+        defect.setInspection(inspection);
+        defect.setPhotos(new ArrayList<>(List.of(first, second)));
+        when(inspectionRepository.findDefectsForOrganization(ORG)).thenReturn(List.of(defect));
+
+        DatasetExportRunDto run = service.runForOrganization(ORG, "user:1");
+
+        String folder = "construction-images/export/" + run.runKey() + "/defect-photos/";
+        verify(fileStorageService).copyObjectTo("Aa/photo.jpg", "echno-datasets",
+                folder + sha256Hex(first) + "-photo.jpg");
+        verify(fileStorageService).copyObjectTo("BB/photo.jpg", "echno-datasets",
+                folder + sha256Hex(second) + "-photo.jpg");
     }
 
     @Test
