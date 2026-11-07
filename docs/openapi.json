@@ -2246,7 +2246,14 @@
               "CANCELLED",
               "DOCUMENT_ADDED",
               "DOCUMENT_REMOVED",
-              "NOTE"
+              "NOTE",
+              "PAYMENT_REQUESTED",
+              "PAYMENT_AUTHORIZED",
+              "PAYMENT_REJECTED",
+              "PAYMENT_SENT",
+              "PAYMENT_SETTLED",
+              "PAYMENT_FAILED",
+              "PAYMENT_REVERSED"
             ],
             "type": "string"
           }
@@ -2730,7 +2737,14 @@
               "CANCELLED",
               "DOCUMENT_ADDED",
               "DOCUMENT_REMOVED",
-              "NOTE"
+              "NOTE",
+              "PAYMENT_REQUESTED",
+              "PAYMENT_AUTHORIZED",
+              "PAYMENT_REJECTED",
+              "PAYMENT_SENT",
+              "PAYMENT_SETTLED",
+              "PAYMENT_FAILED",
+              "PAYMENT_REVERSED"
             ],
             "type": "string"
           }
@@ -2826,6 +2840,217 @@
             "type": "number"
           },
           "unit": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "BillPaymentDto": {
+        "description": "One attempt to pay a bill.",
+        "properties": {
+          "amount": {
+            "description": "Rupees.",
+            "type": "number"
+          },
+          "appliedAmount": {
+            "description": "What went onto the payable when it settled. Less than the amount when finance has a difference to reconcile.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "authorizedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "authorizedByName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "bankReference": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "beneficiaryAccountLast4": {
+            "description": "The last four digits of the account.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "beneficiaryIfsc": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "beneficiaryName": {
+            "description": "Who it was paid to, for a provider payment.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "billId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "failureReason": {
+            "description": "Why it failed or was rejected.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "lastError": {
+            "description": "Why the last attempt to reach the provider got no answer. Sync tries again safely.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "paidOn": {
+            "format": "date",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "provider": {
+            "enum": [
+              "MANUAL",
+              "FAKE",
+              "RAZORPAY"
+            ],
+            "type": "string"
+          },
+          "requestedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "requestedByName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "selfAuthorized": {
+            "description": "True when the same system admin raised and authorized it.",
+            "type": "boolean"
+          },
+          "settledAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "enum": [
+              "REQUESTED",
+              "AUTHORIZED",
+              "PROCESSING",
+              "SETTLED",
+              "FAILED",
+              "REJECTED",
+              "REVERSED"
+            ],
+            "type": "string"
+          },
+          "test": {
+            "description": "True for the test provider: no money moved.",
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "BillPaymentsDto": {
+        "description": "A bill's payments and what is left to pay. The figures are the payable's, so a payment recorded in Finance shows here too.",
+        "properties": {
+          "amountDue": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "amountPaid": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "amountRecorded": {
+            "description": "Rupees; null until the bill is approved with something payable.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "beneficiaryReady": {
+            "description": "Whether the contract has the account number and IFSC a provider needs.",
+            "type": "boolean"
+          },
+          "billId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "billNumber": {
+            "type": "string"
+          },
+          "inFlight": {
+            "description": "True while a payment on this bill has not ended. A bill has one at a time.",
+            "type": "boolean"
+          },
+          "payableId": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "paymentState": {
+            "enum": [
+              "NOTHING_PAYABLE",
+              "UNPAID",
+              "PART_PAID",
+              "PAID"
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "payments": {
+            "description": "Newest first.",
+            "items": {
+              "$ref": "#/components/schemas/BillPaymentDto"
+            },
+            "type": "array"
+          },
+          "provider": {
+            "description": "What would carry a new payment. MANUAL means a person pays from the bank and records the reference.",
+            "enum": [
+              "MANUAL",
+              "FAKE",
+              "RAZORPAY"
+            ],
             "type": "string"
           }
         },
@@ -3207,6 +3432,11 @@
           "paidToDate": {
             "description": "Paid against approved bills' payables, in rupees.",
             "type": "number"
+          },
+          "paymentsInFlight": {
+            "description": "Payments raised and not yet ended.",
+            "format": "int64",
+            "type": "integer"
           },
           "pendingActions": {
             "description": "Bills waiting on someone: submitted, verified, certified or returned.",
@@ -21702,6 +21932,29 @@
         ],
         "type": "object"
       },
+      "RaiseBillPaymentRequest": {
+        "description": "Raises a payment on an approved bill, for the second signature.",
+        "properties": {
+          "amount": {
+            "description": "Rupees, up to the amount due. Less than that is a part payment.",
+            "example": 250000.0,
+            "minimum": 0,
+            "type": "number"
+          },
+          "note": {
+            "maxLength": 2000,
+            "minLength": 0,
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "amount"
+        ],
+        "type": "object"
+      },
       "ReactionRequestDto": {
         "description": "Payload to toggle an emoji reaction on a message.",
         "properties": {
@@ -22152,6 +22405,28 @@
         "required": [
           "amount",
           "receivedFrom"
+        ],
+        "type": "object"
+      },
+      "RecordBillPaymentRequest": {
+        "description": "Says an authorized manual payment was made from the bank.",
+        "properties": {
+          "bankReference": {
+            "description": "The bank's reference for the transfer.",
+            "example": "HDFCR52026110812345",
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          "paidOn": {
+            "description": "The day it was paid; not in the future.",
+            "format": "date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "bankReference",
+          "paidOn"
         ],
         "type": "object"
       },
@@ -46283,6 +46558,478 @@
         ]
       }
     },
+    "/api/v1/contract-billing/bill-payments/{paymentId}/authorize": {
+      "post": {
+        "description": "Sends it when a provider is configured. A send with no answer stays authorized and shows the error; sync tries again safely.",
+        "operationId": "ContractBillPaymentController_authorize",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "paymentId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillPaymentsDto"
+                }
+              }
+            },
+            "description": "Authorized, and sent if a provider carries it"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "It is not waiting for a signature, or is now more than is due"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such payment in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Authorize a payment",
+        "tags": [
+          "Contract Billing"
+        ]
+      }
+    },
+    "/api/v1/contract-billing/bill-payments/{paymentId}/record": {
+      "post": {
+        "description": "With the bank reference and date. This settles it and records it on the payable.",
+        "operationId": "ContractBillPaymentController_record",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "paymentId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordBillPaymentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillPaymentsDto"
+                }
+              }
+            },
+            "description": "Settled"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "It is not an authorized manual payment, or the date is in the future"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such payment in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Record that a manual payment was made",
+        "tags": [
+          "Contract Billing"
+        ]
+      }
+    },
+    "/api/v1/contract-billing/bill-payments/{paymentId}/reject": {
+      "post": {
+        "description": "With a reason, before a provider has acknowledged it.",
+        "operationId": "ContractBillPaymentController_reject",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "paymentId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BillCommentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillPaymentsDto"
+                }
+              }
+            },
+            "description": "Rejected"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "It can no longer be rejected"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such payment in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Reject a payment",
+        "tags": [
+          "Contract Billing"
+        ]
+      }
+    },
+    "/api/v1/contract-billing/bill-payments/{paymentId}/sync": {
+      "post": {
+        "description": "Sends again a payment whose send got no answer, with the same idempotency key, or asks where one stands.",
+        "operationId": "ContractBillPaymentController_sync",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "paymentId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillPaymentsDto"
+                }
+              }
+            },
+            "description": "What is now known"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "It is manual, so a person finishes it"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such payment in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Send again or ask the provider",
+        "tags": [
+          "Contract Billing"
+        ]
+      }
+    },
     "/api/v1/contract-billing/bills": {
       "get": {
         "description": "Filter by project, contract, status and billing model; all optional.",
@@ -48113,6 +48860,239 @@
           }
         },
         "summary": "Add a note to a bill's timeline",
+        "tags": [
+          "Contract Billing"
+        ]
+      }
+    },
+    "/api/v1/contract-billing/bills/{id}/payments": {
+      "get": {
+        "operationId": "ContractBillPaymentController_list",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillPaymentsDto"
+                }
+              }
+            },
+            "description": "The payments, newest first, with the payable's figures"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such bill in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "A bill's payments and what is left to pay",
+        "tags": [
+          "Contract Billing"
+        ]
+      },
+      "post": {
+        "description": "An amount up to what is due; less is a part payment. It then waits for the second signature. A bill has one payment in flight at a time.",
+        "operationId": "ContractBillPaymentController_raise",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RaiseBillPaymentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillPaymentsDto"
+                }
+              }
+            },
+            "description": "Raised"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not approved, nothing due, more than is due, one already in flight, or no bank details for a provider to pay"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such bill in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Raise a payment on an approved bill",
         "tags": [
           "Contract Billing"
         ]
@@ -50708,6 +51688,478 @@
         ]
       }
     },
+    "/api/v1/contract-billing/web/bill-payments/{paymentId}/authorize": {
+      "post": {
+        "description": "Sends it when a provider is configured. A send with no answer stays authorized and shows the error; sync tries again safely.",
+        "operationId": "ContractBillPaymentControllerWeb_authorize",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "paymentId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillPaymentsDto"
+                }
+              }
+            },
+            "description": "Authorized, and sent if a provider carries it"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "It is not waiting for a signature, or is now more than is due"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such payment in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Authorize a payment",
+        "tags": [
+          "Contract Billing"
+        ]
+      }
+    },
+    "/api/v1/contract-billing/web/bill-payments/{paymentId}/record": {
+      "post": {
+        "description": "With the bank reference and date. This settles it and records it on the payable.",
+        "operationId": "ContractBillPaymentControllerWeb_record",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "paymentId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordBillPaymentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillPaymentsDto"
+                }
+              }
+            },
+            "description": "Settled"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "It is not an authorized manual payment, or the date is in the future"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such payment in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Record that a manual payment was made",
+        "tags": [
+          "Contract Billing"
+        ]
+      }
+    },
+    "/api/v1/contract-billing/web/bill-payments/{paymentId}/reject": {
+      "post": {
+        "description": "With a reason, before a provider has acknowledged it.",
+        "operationId": "ContractBillPaymentControllerWeb_reject",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "paymentId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BillCommentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillPaymentsDto"
+                }
+              }
+            },
+            "description": "Rejected"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "It can no longer be rejected"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such payment in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Reject a payment",
+        "tags": [
+          "Contract Billing"
+        ]
+      }
+    },
+    "/api/v1/contract-billing/web/bill-payments/{paymentId}/sync": {
+      "post": {
+        "description": "Sends again a payment whose send got no answer, with the same idempotency key, or asks where one stands.",
+        "operationId": "ContractBillPaymentControllerWeb_sync",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "paymentId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillPaymentsDto"
+                }
+              }
+            },
+            "description": "What is now known"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "It is manual, so a person finishes it"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such payment in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Send again or ask the provider",
+        "tags": [
+          "Contract Billing"
+        ]
+      }
+    },
     "/api/v1/contract-billing/web/bills": {
       "get": {
         "description": "Filter by project, contract, status and billing model; all optional.",
@@ -52540,6 +53992,239 @@
         "summary": "Add a note to a bill's timeline",
         "tags": [
           "Contract Billing (web)"
+        ]
+      }
+    },
+    "/api/v1/contract-billing/web/bills/{id}/payments": {
+      "get": {
+        "operationId": "ContractBillPaymentControllerWeb_list",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillPaymentsDto"
+                }
+              }
+            },
+            "description": "The payments, newest first, with the payable's figures"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such bill in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "A bill's payments and what is left to pay",
+        "tags": [
+          "Contract Billing"
+        ]
+      },
+      "post": {
+        "description": "An amount up to what is due; less is a part payment. It then waits for the second signature. A bill has one payment in flight at a time.",
+        "operationId": "ContractBillPaymentControllerWeb_raise",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RaiseBillPaymentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillPaymentsDto"
+                }
+              }
+            },
+            "description": "Raised"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not approved, nothing due, more than is due, one already in flight, or no bank details for a provider to pay"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such bill in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Raise a payment on an approved bill",
+        "tags": [
+          "Contract Billing"
         ]
       }
     },
@@ -145209,6 +146894,10 @@
     },
     {
       "description": "Work Progress module: running account and milestone bills from the claim to final approval, with the contract BOQ, deduction rules and milestone requirements. Reads for members; the guards per step are in docs/specs/2026-10-04-ra-milestone-billing.md.",
+      "name": "Contract Billing"
+    },
+    {
+      "description": "Work Progress module: running account and milestone bills from the claim to final approval, with the contract BOQ, deduction rules and milestone requirements, and paying an approved bill. Reads for members; the guards per step are in docs/specs/2026-10-04-ra-milestone-billing.md and docs/specs/2026-11-08-billing-in-inspection-and-payments.md.",
       "name": "Contract Billing"
     },
     {
