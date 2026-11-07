@@ -47,8 +47,8 @@ import org.tornotron.echno_backend.modules.inspections.web.ObservationIntakeCont
 import org.tornotron.echno_backend.modules.inspections.service.ObservationBatchIntakeService;
 import org.tornotron.echno_backend.modules.inspections.service.ObservationIntakeUploadService;
 import org.tornotron.echno_backend.modules.inspections.service.ObservationService;
-import org.tornotron.echno_backend.modules.inspections.dtos.IntakeObservationRequest;
-import org.tornotron.echno_backend.modules.inspections.ObservationSource;
+import org.tornotron.echno_backend.modules.inspections.api.IntakeObservationRequest;
+import org.tornotron.echno_backend.modules.inspections.api.ObservationSource;
 
 /**
  * The module's contract with the registry and the gate: what the manifest says, that every

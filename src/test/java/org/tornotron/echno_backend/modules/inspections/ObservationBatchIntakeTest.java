@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import org.tornotron.echno_backend.modules.inspections.api.ObservationSource;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import java.time.LocalDateTime;
@@ -27,8 +28,8 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.modules.inspections.api.IntakeActor;
 import org.tornotron.echno_backend.modules.inspections.api.IntakeRejectedException;
-import org.tornotron.echno_backend.modules.inspections.dtos.IntakeBatchResponse;
-import org.tornotron.echno_backend.modules.inspections.dtos.IntakeObservationRequest;
+import org.tornotron.echno_backend.modules.inspections.api.IntakeBatchResponse;
+import org.tornotron.echno_backend.modules.inspections.api.IntakeObservationRequest;
 import org.tornotron.echno_backend.modules.inspections.dtos.ObservationDto;
 import org.tornotron.echno_backend.modules.inspections.observation.IntakeReferenceNotFoundException;
 import org.tornotron.echno_backend.modules.inspections.service.ObservationBatchIntakeService;

@@ -13,8 +13,10 @@ import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.modules.inspections.api.IntakeActor;
 import org.tornotron.echno_backend.modules.inspections.api.IntakeRejectedException;
-import org.tornotron.echno_backend.modules.inspections.dtos.IntakeBatchResponse;
-import org.tornotron.echno_backend.modules.inspections.dtos.IntakeObservationRequest;
+import org.tornotron.echno_backend.modules.inspections.api.ObservationIntake;
+import org.tornotron.echno_backend.modules.inspections.api.ObservationIntake;
+import org.tornotron.echno_backend.modules.inspections.api.IntakeBatchResponse;
+import org.tornotron.echno_backend.modules.inspections.api.IntakeObservationRequest;
 import org.tornotron.echno_backend.modules.inspections.observation.IntakeReferenceNotFoundException;
 import org.tornotron.echno_backend.modules.inspections.observation.IntakeRejectedCodes;
 
@@ -26,16 +28,12 @@ import org.tornotron.echno_backend.modules.inspections.observation.IntakeRejecte
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class ObservationBatchIntakeService {
+public class ObservationBatchIntakeService implements ObservationIntake {
 
     private final ObservationService observations;
     private final Validator validator;
 
-    /**
-     * @param items the findings, in order
-     * @param actor who the event log names, or null to name each item's own producer
-     * @return one result per item, in the same order
-     */
+    @Override
     public IntakeBatchResponse intakeAll(List<IntakeObservationRequest> items, IntakeActor actor) {
         List<IntakeBatchResponse.Item> results = new ArrayList<>(items.size());
         Set<String> seen = new HashSet<>();

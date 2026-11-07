@@ -6,7 +6,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import org.tornotron.echno_backend.modules.inspections.RegionOrigin;
-import org.tornotron.echno_backend.modules.inspections.RegionShape;
+import org.tornotron.echno_backend.modules.inspections.api.RegionShape;
 
 @Schema(description = "A box or polygon on one image, as fractions of the image in [0, 1]. A reviewer's "
         + "correction is a new row that supersedes the producer's; the producer's row is retired, never edited.")

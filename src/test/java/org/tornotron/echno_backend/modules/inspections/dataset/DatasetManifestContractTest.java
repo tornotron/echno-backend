@@ -18,7 +18,7 @@ import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.modules.inspections.DefectAnnotationShape;
 import org.tornotron.echno_backend.modules.inspections.InspectionCategory;
 import org.tornotron.echno_backend.modules.inspections.InspectionType;
-import org.tornotron.echno_backend.modules.inspections.ObservationSource;
+import org.tornotron.echno_backend.modules.inspections.api.ObservationSource;
 import org.tornotron.echno_backend.modules.inspections.domain.DefectPhotoAnnotation;
 import org.tornotron.echno_backend.modules.inspections.domain.Inspection;
 import org.tornotron.echno_backend.modules.inspections.domain.InspectionDefect;

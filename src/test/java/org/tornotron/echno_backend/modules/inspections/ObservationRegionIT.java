@@ -1,5 +1,7 @@
 package org.tornotron.echno_backend.modules.inspections;
 
+import org.tornotron.echno_backend.modules.inspections.api.RegionShape;
+import org.tornotron.echno_backend.modules.inspections.api.ObservationSource;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.hibernate.Session;
@@ -73,9 +75,9 @@ import org.tornotron.echno_backend.common.retry.TransactionalWorkRunner;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import org.tornotron.echno_backend.common.repository.AttachmentRepository;
-import org.tornotron.echno_backend.modules.inspections.dtos.IntakeObservationRequest;
+import org.tornotron.echno_backend.modules.inspections.api.IntakeObservationRequest;
 import org.tornotron.echno_backend.modules.inspections.dtos.ObservationRegionDto;
-import org.tornotron.echno_backend.modules.inspections.dtos.ObservationRegionRequest;
+import org.tornotron.echno_backend.modules.inspections.api.ObservationRegionRequest;
 import org.tornotron.echno_backend.modules.inspections.dtos.RegionEditOp;
 import org.tornotron.echno_backend.modules.inspections.repositories.ObservationRegionRepository;
 import java.math.BigDecimal;

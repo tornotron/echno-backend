@@ -8,7 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
-import org.tornotron.echno_backend.modules.inspections.RegionShape;
+import org.tornotron.echno_backend.modules.inspections.api.RegionShape;
 
 class RegionGeometryTest {
 
