@@ -20,6 +20,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.tornotron.echno_backend.common.configuration.JwtAuthConverter;
+import org.tornotron.echno_backend.common.identity.link.MembershipAuthorities;
 import org.tornotron.echno_backend.common.enums.OrgRole;
 
 import java.time.Instant;
@@ -227,18 +228,28 @@ class KeycloakOrgMembershipInvariantIT {
                 .build();
 
         JwtAuthConverter converter = new JwtAuthConverter(
-                new org.springframework.beans.factory.support.StaticListableBeanFactory(java.util.Map.of(
-                        "mapper", new KeycloakTokenMapper()))
-                        .getBeanProvider(org.tornotron.echno_backend.common.identity.IdentityTokenMapper.class),
-                new org.springframework.beans.factory.support.StaticListableBeanFactory(java.util.Map.of(
-                        "lookup", org.mockito.Mockito.mock(org.tornotron.echno_backend.common.identity.link.UserIdentityLookup.class)))
-                        .getBeanProvider(org.tornotron.echno_backend.common.identity.link.UserIdentityLookup.class));
+                providerOf(new KeycloakTokenMapper(), org.tornotron.echno_backend.common.identity.IdentityTokenMapper.class),
+                providerOf(noEchnoRows(), MembershipAuthorities.class),
+                providerOf(token -> token.getClaimAsStringList("groups"), org.tornotron.echno_backend.common.identity.TokenGroups.class));
         ReflectionTestUtils.setField(converter, "resourceId", "echno-backend-client");
 
         AbstractAuthenticationToken auth = converter.convert(jwt);
         return auth.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .collect(Collectors.toSet());
+    }
+
+    private static <T> org.springframework.beans.factory.ObjectProvider<T> providerOf(T bean, Class<T> type) {
+        return new org.springframework.beans.factory.support.StaticListableBeanFactory(java.util.Map.of("bean", bean))
+                .getBeanProvider(type);
+    }
+
+    /** The groups are what these tests are about, so Echno's tables add nothing. */
+    private static MembershipAuthorities noEchnoRows() {
+        MembershipAuthorities membership = org.mockito.Mockito.mock(MembershipAuthorities.class);
+        org.mockito.Mockito.when(membership.read(org.mockito.ArgumentMatchers.any()))
+                .thenReturn(MembershipAuthorities.Membership.none());
+        return membership;
     }
 
     /**

@@ -258,11 +258,14 @@ Until every guard is converted, two systems decide access: the matrix for conver
   `@orgSecurity`, `OrgRoleAuthority` (used for salary visibility) and `TenantFilter` (which
   organizations a person may name). All three read authorities. So `JwtAuthConverter` keeps minting
   `ORG_MEMBER_{id}` and `ORG_{id}_ROLE_{role}`, from `Employee` and `employee_org_roles` by way of
-  `user_identity`, and those three do not change. The read is cached and evicted after commit like the
-  matrix facts, so a change takes effect on the next request under either provider. Under Keycloak
-  this also ends the wait for a new token.
+  `user_identity`, and those three do not change. The read runs on every request with no cache across
+  requests, so a change takes effect on the next request under either provider. Under Keycloak this
+  also ends the wait for a new token.
 - A machine login has no `Employee`. Under Keycloak, a service account's token keeps its groups from
-  the token, so `observation-producer` keeps working. The WorkOS adapter has no such path yet (build
+  the token, so `observation-producer` keeps working. A person in an organization's group with no
+  `Employee` there when the role import first ran, such as a bootstrap administrator, is recorded and
+  keeps their token's groups for that organization. Everyone else's token groups stop counting once the
+  import has finished. The WorkOS adapter has no such path yet (build
   plan, section 3).
 - The guards written as `hasAuthority('<area>:<action>')` (141 in the mapping table) are held by nobody
   today: the audit's G-03 and `docs/org-scoped-roles.md` both show that no such authority is ever
