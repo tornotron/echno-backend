@@ -41,6 +41,15 @@ public class SpacesConfig {
     private String secretAccessKey;
 
     /**
+     * The region requests are signed for. It is part of the signature's credential scope, so a
+     * store that validates it refuses anything signed for another region. Both clients below use
+     * it, because a presigned URL is checked the same way as a direct call. The default is the
+     * value this was hard-coded to, for stores that ignore the region.
+     */
+    @Value("${digital-ocean.region:us-east-1}")
+    private String region;
+
+    /**
      * Where the bucket name goes in a request URL. Path-style puts it in the path
      * ({@code http://host/bucket/key}); the alternative, virtual-host style, puts it in the
      * hostname ({@code http://bucket.host/key}).
@@ -74,7 +83,7 @@ public class SpacesConfig {
                 .endpointOverride(URI.create(spaces))
                 .serviceConfiguration(objectStoreServiceConfiguration)
                 .credentialsProvider(objectStoreCredentials())
-                .region(Region.US_EAST_1)
+                .region(Region.of(region))
                 .build();
     }
 
@@ -84,7 +93,7 @@ public class SpacesConfig {
                 .endpointOverride(URI.create(presignEndpoint))
                 .serviceConfiguration(objectStoreServiceConfiguration)
                 .credentialsProvider(objectStoreCredentials())
-                .region(Region.US_EAST_1)
+                .region(Region.of(region))
                 .build();
     }
 
