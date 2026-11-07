@@ -21,6 +21,7 @@ import org.tornotron.echno_backend.common.identity.EchnoOrgId;
 import org.tornotron.echno_backend.common.identity.ExternalUserId;
 import org.tornotron.echno_backend.common.identity.IdentityProvider;
 import org.tornotron.echno_backend.common.identity.link.UserIdentityLookup;
+import org.tornotron.echno_backend.modules.access.api.AccessRoleAssignments;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.employee.dto.EmployeeCreationDto;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
@@ -54,11 +55,16 @@ import java.util.stream.Collectors;
 @Validated
 public class EmployeeService {
 
+    /** The statuses that keep a person's access, the same ones the access checks read. */
+    private static final Set<EmployeeStatus> HOLDS_ACCESS =
+            java.util.EnumSet.of(EmployeeStatus.active, EmployeeStatus.onLeave, EmployeeStatus.probation);
+
     private final EmployeeRepository employeeRepository;
     private final OrganizationRepository organizationRepository;
     private final UserRepository userRepository;
     private final IdentityProvider identityProvider;
     private final UserIdentityLookup userIdentityLookup;
+    private final AccessRoleAssignments roleAssignments;
     private final EmployeeMapper employeeMapper;
     private final EmployeeHierarchyService employeeHierarchyService;
     private final ShiftTimingRepository shiftTimingRepository;
@@ -72,17 +78,19 @@ public class EmployeeService {
      * @param userRepository         The repository for user data access.
      * @param identityProvider       The identity provider people are members at.
      * @param userIdentityLookup     Finds a user's account at that provider.
+     * @param roleAssignments        The one writer of a person's roles.
      * @param employeeHierarchyService The service owning the reporting hierarchy.
      * @param orgSecurity            Answers which org-scoped roles the caller holds, the same bean
      *                               the guards on these endpoints ask. Used by the partial update
      *                               to decide the field scope; see {@link EmployeePatchFieldScope}.
      */
-    public EmployeeService(EmployeeRepository employeeRepository, OrganizationRepository organizationRepository, UserRepository userRepository, IdentityProvider identityProvider, UserIdentityLookup userIdentityLookup, EmployeeMapper employeeMapper, EmployeeHierarchyService employeeHierarchyService, ShiftTimingRepository shiftTimingRepository, OrganizationSecurityService orgSecurity) {
+    public EmployeeService(EmployeeRepository employeeRepository, OrganizationRepository organizationRepository, UserRepository userRepository, IdentityProvider identityProvider, UserIdentityLookup userIdentityLookup, AccessRoleAssignments roleAssignments, EmployeeMapper employeeMapper, EmployeeHierarchyService employeeHierarchyService, ShiftTimingRepository shiftTimingRepository, OrganizationSecurityService orgSecurity) {
         this.employeeRepository = employeeRepository;
         this.organizationRepository = organizationRepository;
         this.userRepository = userRepository;
         this.identityProvider = identityProvider;
         this.userIdentityLookup = userIdentityLookup;
+        this.roleAssignments = roleAssignments;
         this.employeeMapper = employeeMapper;
         this.employeeHierarchyService = employeeHierarchyService;
         this.shiftTimingRepository = shiftTimingRepository;
@@ -384,7 +392,11 @@ public class EmployeeService {
                     employee.setEmployeeId((String) value);
                     break;
                 case "status":
-                    employee.setStatus(value != null ? EmployeeStatus.valueOf((String) value) : null);
+                    EmployeeStatus status = value != null ? EmployeeStatus.valueOf((String) value) : null;
+                    if (!HOLDS_ACCESS.contains(status)) {
+                        roleAssignments.refuseIfLastAdministrator(employee.getId());
+                    }
+                    employee.setStatus(status);
                     break;
                 case "employeeName":
                     employee.setEmployeeName((String) value);
@@ -519,6 +531,8 @@ public class EmployeeService {
         Employee employee = employeeRepository.findByIdAndOrganizationId(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Employee with ID " + id + " was not found in this organization"));
 
+        roleAssignments.refuseIfLastAdministrator(id);
+
         Optional<ExternalUserId> account = employee.getUser() == null
                 ? Optional.empty()
                 : userIdentityLookup.accountOf(employee.getUser());
@@ -549,57 +563,58 @@ public class EmployeeService {
         return employeeHierarchyService.readAllTheManagersByOrganizationId(organizationId);
     }
 
+    /** Gives the employee the role, under the rules for a caller. See {@link AccessRoleAssignments}. */
     @Transactional
     public EmployeeDto assignOrgRole(Long employeeId, OrgRole role) {
-        Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Employee with ID " + employeeId + " was not found in this organization"));
+        Employee employee = employeeInThisOrganization(employeeId);
+        roleAssignments.assignOrgRole(employeeId, role);
+        recordRoleAtTheProvider(employee, role, true);
+        return employeeMapper.toDto(employee);
+    }
 
-        employee.getOrgRoles().add(role);
-        Employee savedEmployee = employeeRepository.save(employee);
-
-        // A provider with no copy of the roles has nothing to update.
-        identityProvider.capabilities().orgRoleGroups().ifPresent(roleGroups -> {
-            try {
-                roleGroups.assign(
-                        accountOf(employee.getUser()),
-                        new EchnoOrgId(employee.getOrganization().getId()),
-                        role
-                );
-            } catch (Exception e) {
-                log.error("Failed to assign role {} to employee {} at the identity provider: {}",
-                        role, employeeId, e.getMessage());
-                throw new RuntimeException(
-                        "Failed to assign role '" + role + "' to employee " + employeeId + " at the identity provider: " + e.getMessage(), e);
-            }
-        });
-
-        return employeeMapper.toDto(savedEmployee);
+    /**
+     * Gives the employee the role with nobody having asked: the first administrator of a new
+     * organization, who is its creator and has nobody to be given the role by.
+     */
+    @Transactional
+    public EmployeeDto assignOrgRoleAsSystem(Long employeeId, OrgRole role) {
+        Employee employee = employeeInThisOrganization(employeeId);
+        roleAssignments.assignOrgRoleAsSystem(employeeId, role);
+        recordRoleAtTheProvider(employee, role, true);
+        return employeeMapper.toDto(employee);
     }
 
     @Transactional
     public EmployeeDto removeOrgRole(Long employeeId, OrgRole role) {
-        Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId,TenantContext.getCurrentOrgId())
+        Employee employee = employeeInThisOrganization(employeeId);
+        roleAssignments.removeOrgRole(employeeId, role);
+        recordRoleAtTheProvider(employee, role, false);
+        return employeeMapper.toDto(employee);
+    }
+
+    private Employee employeeInThisOrganization(Long employeeId) {
+        return employeeRepository.findByIdAndOrganizationId(employeeId, TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Employee with ID " + employeeId + " was not found in this organization"));
+    }
 
-        employee.getOrgRoles().remove(role);
-        Employee savedEmployee = employeeRepository.save(employee);
-
+    /** A provider with no copy of the roles has nothing to update. */
+    private void recordRoleAtTheProvider(Employee employee, OrgRole role, boolean holdsIt) {
         identityProvider.capabilities().orgRoleGroups().ifPresent(roleGroups -> {
+            ExternalUserId account = accountOf(employee.getUser());
+            EchnoOrgId organization = new EchnoOrgId(employee.getOrganization().getId());
             try {
-                roleGroups.remove(
-                        accountOf(employee.getUser()),
-                        new EchnoOrgId(employee.getOrganization().getId()),
-                        role
-                );
+                if (holdsIt) {
+                    roleGroups.assign(account, organization, role);
+                } else {
+                    roleGroups.remove(account, organization, role);
+                }
             } catch (Exception e) {
-                log.error("Failed to remove role {} from employee {} at the identity provider: {}",
-                        role, employeeId, e.getMessage());
+                log.error("Failed to change role {} of employee {} at the identity provider: {}",
+                        role, employee.getId(), e.getMessage());
                 throw new RuntimeException(
-                        "Failed to remove role '" + role + "' from employee " + employeeId + " at the identity provider: " + e.getMessage(), e);
+                        "Failed to change role '" + role + "' of employee " + employee.getId() + " at the identity provider: " + e.getMessage(), e);
             }
         });
-
-        return employeeMapper.toDto(savedEmployee);
     }
 
     private ExternalUserId accountOf(User user) {

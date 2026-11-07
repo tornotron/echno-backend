@@ -98,7 +98,7 @@ class OrganizationServiceOnboardingTest {
 
         // The creator is granted the org's system-admin role (which adds them to the
         // '/org-42/system-admin' Keycloak subgroup under the hood).
-        verify(employeeService).assignOrgRole(CREATOR_EMPLOYEE_ID, OrgRole.SYSTEM_ADMIN);
+        verify(employeeService).assignOrgRoleAsSystem(CREATOR_EMPLOYEE_ID, OrgRole.SYSTEM_ADMIN);
         // The org's finance defaults are seeded for the newly created org id. Without an active
         // transaction in this unit test the seeding runs inline rather than after commit.
         verify(onboardingSeeder).seedFinanceDefaults(NEW_ORG_ID);

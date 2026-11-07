@@ -59,6 +59,9 @@ class EmployeeShiftUnificationIT extends AbstractIntegrationTest {
     private IdentityProvider identityProvider;
 
     @MockBean
+    private org.tornotron.echno_backend.modules.access.api.AccessRoleAssignments roleAssignments;
+
+    @MockBean
     private FileStorageService fileStorageService;
 
     private Long orgAId;

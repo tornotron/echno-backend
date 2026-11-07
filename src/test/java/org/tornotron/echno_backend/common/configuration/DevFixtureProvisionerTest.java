@@ -143,7 +143,7 @@ class DevFixtureProvisionerTest {
         verify(employeeService).joinOrganization(eq(7L), eq(42L), any(EmployeeJoinOrgDto.class));
 
         // And the role subgroup, which is the half the authority checks actually read.
-        verify(employeeService).assignOrgRole(19L, OrgRole.SYSTEM_ADMIN);
+        verify(employeeService).assignOrgRoleAsSystem(19L, OrgRole.SYSTEM_ADMIN);
     }
 
     /**
@@ -158,7 +158,7 @@ class DevFixtureProvisionerTest {
         Employee employee = new Employee();
         employee.setId(19L);
         when(employeeRepository.findByUserIdAndOrganizationId(7L, 42L)).thenReturn(Optional.of(employee));
-        when(employeeService.assignOrgRole(19L, OrgRole.SYSTEM_ADMIN)).thenAnswer(invocation -> {
+        when(employeeService.assignOrgRoleAsSystem(19L, OrgRole.SYSTEM_ADMIN)).thenAnswer(invocation -> {
             assertThat(TenantContext.getCurrentOrgId())
                     .as("the role assignment must run scoped to the fixture's organization")
                     .isEqualTo(42L);
@@ -181,7 +181,7 @@ class DevFixtureProvisionerTest {
         Employee employee = new Employee();
         employee.setId(19L);
         when(employeeRepository.findByUserIdAndOrganizationId(7L, 42L)).thenReturn(Optional.of(employee));
-        when(employeeService.assignOrgRole(19L, OrgRole.SYSTEM_ADMIN)).thenReturn(employeeDto(19L));
+        when(employeeService.assignOrgRoleAsSystem(19L, OrgRole.SYSTEM_ADMIN)).thenReturn(employeeDto(19L));
 
         provisioner.provision(KEYCLOAK_ID, DISPLAY_NAME, EMAIL);
 
@@ -191,7 +191,7 @@ class DevFixtureProvisionerTest {
         verify(employeeService, never()).joinOrganization(anyLong(), anyLong(), any(EmployeeJoinOrgDto.class));
         // The role assignment and the finance defaults are themselves idempotent and are reapplied,
         // so a membership removed by hand or a seed that failed halfway comes back on the next start.
-        verify(employeeService).assignOrgRole(19L, OrgRole.SYSTEM_ADMIN);
+        verify(employeeService).assignOrgRoleAsSystem(19L, OrgRole.SYSTEM_ADMIN);
         verify(onboardingSeeder).seedFinanceDefaults(42L);
     }
 
@@ -214,7 +214,7 @@ class DevFixtureProvisionerTest {
         provisioner.provision(KEYCLOAK_ID, DISPLAY_NAME, EMAIL);
 
         verify(employeeService, never()).joinOrganization(anyLong(), anyLong(), any(EmployeeJoinOrgDto.class));
-        verify(employeeService, never()).assignOrgRole(anyLong(), any(OrgRole.class));
+        verify(employeeService, never()).assignOrgRoleAsSystem(anyLong(), any(OrgRole.class));
         verify(onboardingSeeder, never()).seedFinanceDefaults(anyLong());
         verify(identityProvider, never()).createOrganization(any(), any());
     }
@@ -238,7 +238,7 @@ class DevFixtureProvisionerTest {
         verify(organizationRepository, never()).save(any(Organization.class));
         verify(identityProvider).createOrganization(new EchnoOrgId(42L), DevFixtureProvisioner.DEV_ORG_NAME);
         verify(employeeService).joinOrganization(eq(7L), eq(42L), any(EmployeeJoinOrgDto.class));
-        verify(employeeService).assignOrgRole(19L, OrgRole.SYSTEM_ADMIN);
+        verify(employeeService).assignOrgRoleAsSystem(19L, OrgRole.SYSTEM_ADMIN);
     }
 
     /**
@@ -259,7 +259,7 @@ class DevFixtureProvisionerTest {
         provisioner.provision(KEYCLOAK_ID, DISPLAY_NAME, EMAIL);
 
         verify(employeeService).joinOrganization(eq(7L), eq(42L), any(EmployeeJoinOrgDto.class));
-        verify(employeeService).assignOrgRole(19L, OrgRole.SYSTEM_ADMIN);
+        verify(employeeService).assignOrgRoleAsSystem(19L, OrgRole.SYSTEM_ADMIN);
     }
 
     /** Without a Keycloak id nothing can be bound to the login, so nothing is written. */
