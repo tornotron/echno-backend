@@ -37,8 +37,9 @@ import org.tornotron.echno_backend.support.AbstractIntegrationTest;
 /**
  * The cache against real commits and rollbacks on CockroachDB. A committed change is seen on the
  * next read, a rolled-back one evicts nothing, and a list of a hundred records runs the facts
- * queries once. These tests commit, so they run outside the slice's test transaction, on rows
- * named uniquely.
+ * queries once. These tests commit, so they run outside the slice's test transaction, and they
+ * remove their rows afterwards, because every integration test shares one database and some of
+ * them count what is in it.
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
@@ -65,6 +66,7 @@ class AccessFactsEvictionIT extends AbstractIntegrationTest {
     private Long organization;
     private Long employee;
     private Long project;
+    private Long user;
     private AccessSubject subject;
     private AccessRole role;
 
@@ -88,15 +90,27 @@ class AccessFactsEvictionIT extends AbstractIntegrationTest {
             organization = org.getId();
             employee = person.getId();
             project = tower.getId();
-            subject = new AccessSubject(organization, employee, person.getUser().getId());
+            user = person.getUser().getId();
+            subject = new AccessSubject(organization, employee, user);
             role = holder;
         });
     }
 
     @AfterEach
-    void endTheRequest() {
+    void endTheRequestAndRemoveTheRows() {
         RequestContextHolder.resetRequestAttributes();
         statistics.setStatisticsEnabled(false);
+        transaction.executeWithoutResult(status -> {
+            // The access rows go with these through their foreign keys.
+            delete("project", project);
+            delete("employee", employee);
+            delete("users_table", user);
+            delete("organization", organization);
+        });
+    }
+
+    private void delete(String table, Long id) {
+        em.createNativeQuery("DELETE FROM " + table + " WHERE id = ?1").setParameter(1, id).executeUpdate();
     }
 
     private void assignTheRole() {
