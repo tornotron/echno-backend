@@ -4,6 +4,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.purchaseOrder.mapper.PurchaseOrderMapper;
@@ -27,6 +28,9 @@ import org.tornotron.echno_backend.indentItem.IndentItem;
 import org.tornotron.echno_backend.indentItem.IndentItemRepository;
 import org.tornotron.echno_backend.material.Material;
 import org.tornotron.echno_backend.material.MaterialRepository;
+import org.tornotron.echno_backend.modules.access.api.AccessFilter;
+import org.tornotron.echno_backend.modules.access.api.AccessPermission;
+import org.tornotron.echno_backend.modules.access.api.RecordFacts;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.purchaseOrder.dto.PurchaseOrderCreationDto;
@@ -66,6 +70,10 @@ import java.util.stream.Collectors;
  * {@link PurchaseOrderReceiptReconciler} out of the quantities received and carry the receipt
  * that caused them instead. Recording only the manual ones would leave a trail that skips
  * exactly the transitions nobody typed.
+ *
+ * <p>Every read and write asks {@link PurchaseOrderAccess} about the order itself, not only about the
+ * area: an order the caller may not read is reported missing, one they may read but not act on that
+ * way is refused, and the listings are narrowed in their queries.
  */
 @Service
 public class PurchaseOrderService {
@@ -89,6 +97,7 @@ public class PurchaseOrderService {
     private final StatusTransitionRepository statusTransitionRepository;
     private final StatusTransitionMapper statusTransitionMapper;
     private final UserContextService userContextService;
+    private final PurchaseOrderAccess purchaseOrderAccess;
 
     public PurchaseOrderService(PurchaseOrderRepository purchaseOrderRepository,
                                 VendorRepository vendorRepository,
@@ -105,7 +114,8 @@ public class PurchaseOrderService {
                                 StatusTransitionRecorder statusTransitionRecorder,
                                 StatusTransitionRepository statusTransitionRepository,
                                 StatusTransitionMapper statusTransitionMapper,
-                                UserContextService userContextService) {
+                                UserContextService userContextService,
+                                PurchaseOrderAccess purchaseOrderAccess) {
         this.purchaseOrderRepository = purchaseOrderRepository;
         this.vendorRepository = vendorRepository;
         this.indentRepository = indentRepository;
@@ -122,6 +132,7 @@ public class PurchaseOrderService {
         this.statusTransitionRepository = statusTransitionRepository;
         this.statusTransitionMapper = statusTransitionMapper;
         this.userContextService = userContextService;
+        this.purchaseOrderAccess = purchaseOrderAccess;
     }
 
     /**
@@ -170,6 +181,11 @@ public class PurchaseOrderService {
             indent = indentRepository.findByIdAndOrganization_Id(creationDto.getIndentId(), TenantContext.getCurrentOrgId())
                     .orElseThrow(() -> new ResourceNotFoundException("Indent with ID " + creationDto.getIndentId() + " was not found in this organization"));
         }
+
+        // Checked on the order as it will be raised, before a number is allocated for it, so nobody
+        // raises one on a project or vendor they may not.
+        purchaseOrderAccess.require(AccessPermission.CREATE, PurchaseOrderAccess.facts(
+                TenantContext.getCurrentOrgId(), project.getId(), createdBy.getId(), vendor.getId()));
 
         Organization organization = tenantEntityHelper.resolveCurrentOrganization();
 
@@ -238,8 +254,7 @@ public class PurchaseOrderService {
      */
     @Transactional(readOnly = true)
     public PurchaseOrderDto getPurchaseOrderById(Long id) {
-        PurchaseOrder purchaseOrder = purchaseOrderRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Purchase order with ID " + id + " was not found in this organization"));
+        PurchaseOrder purchaseOrder = requireOrder(id, AccessPermission.READ);
         return purchaseOrderMapper.toDto(purchaseOrder);
     }
 
@@ -254,8 +269,14 @@ public class PurchaseOrderService {
     @Transactional(readOnly = true)
     public Page<PurchaseOrderDto> getAllPurchaseOrders(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.DESC, "createdAt"));
-        return purchaseOrderRepository.findAll(pageable)
-                .map(po -> purchaseOrderMapper.toDto(po));
+        AccessFilter visible = purchaseOrderAccess.filter(AccessPermission.READ);
+        if (visible.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        Page<PurchaseOrder> orders = visible.everything()
+                ? purchaseOrderRepository.findAll(pageable)
+                : purchaseOrderRepository.findAll(PurchaseOrderAccess.admittedBy(visible), pageable);
+        return orders.map(po -> purchaseOrderMapper.toDto(po));
     }
 
     /**
@@ -266,7 +287,15 @@ public class PurchaseOrderService {
      */
     @Transactional(readOnly = true)
     public List<PurchaseOrderDto> getPurchaseOrdersByVendor(Long vendorId) {
-        return purchaseOrderRepository.findByVendorId(vendorId).stream()
+        AccessFilter visible = purchaseOrderAccess.filter(AccessPermission.READ);
+        if (visible.isEmpty()) {
+            return List.of();
+        }
+        List<PurchaseOrder> orders = visible.everything()
+                ? purchaseOrderRepository.findByVendorId(vendorId)
+                : purchaseOrderRepository.findAll(
+                        whereEquals("vendor", vendorId).and(PurchaseOrderAccess.admittedBy(visible)));
+        return orders.stream()
                 .map(po -> purchaseOrderMapper.toDto(po))
                 .collect(Collectors.toList());
     }
@@ -279,7 +308,15 @@ public class PurchaseOrderService {
      */
     @Transactional(readOnly = true)
     public List<PurchaseOrderDto> getPurchaseOrdersByIndent(Long indentId) {
-        return purchaseOrderRepository.findByIndentId(indentId).stream()
+        AccessFilter visible = purchaseOrderAccess.filter(AccessPermission.READ);
+        if (visible.isEmpty()) {
+            return List.of();
+        }
+        List<PurchaseOrder> orders = visible.everything()
+                ? purchaseOrderRepository.findByIndentId(indentId)
+                : purchaseOrderRepository.findAll(
+                        whereEquals("indent", indentId).and(PurchaseOrderAccess.admittedBy(visible)));
+        return orders.stream()
                 .map(po -> purchaseOrderMapper.toDto(po))
                 .collect(Collectors.toList());
     }
@@ -292,7 +329,15 @@ public class PurchaseOrderService {
      */
     @Transactional(readOnly = true)
     public List<PurchaseOrderDto> getPurchaseOrdersByStatus(PurchaseOrderStatus status) {
-        return purchaseOrderRepository.findByStatus(status).stream()
+        AccessFilter visible = purchaseOrderAccess.filter(AccessPermission.READ);
+        if (visible.isEmpty()) {
+            return List.of();
+        }
+        List<PurchaseOrder> orders = visible.everything()
+                ? purchaseOrderRepository.findByStatus(status)
+                : purchaseOrderRepository.findAll(
+                        inStatus(status).and(PurchaseOrderAccess.admittedBy(visible)));
+        return orders.stream()
                 .map(po -> purchaseOrderMapper.toDto(po))
                 .collect(Collectors.toList());
     }
@@ -312,12 +357,17 @@ public class PurchaseOrderService {
      */
     @Transactional
     public PurchaseOrderDto updatePurchaseOrder(PurchaseOrderUpdateDto updateDto) {
-        PurchaseOrder purchaseOrder = purchaseOrderRepository.findByIdAndOrganization_Id(updateDto.getId(),TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Purchase order with ID " + updateDto.getId() + " was not found in this organization"));
+        PurchaseOrder purchaseOrder = requireOrder(updateDto.getId(), AccessPermission.EDIT);
 
         PurchaseOrderStatus previousStatus = purchaseOrder.getStatus();
         if (updateDto.getStatus() != null) {
-            purchaseOrder.setStatus(PurchaseOrderStatus.valueOf(updateDto.getStatus()));
+            PurchaseOrderStatus status = PurchaseOrderStatus.valueOf(updateDto.getStatus());
+            // A status sent on the edit is the same decision the status endpoint makes, so it needs
+            // what that endpoint needs rather than riding on edit.
+            if (status != previousStatus) {
+                purchaseOrderAccess.require(AccessPermission.APPROVE, PurchaseOrderAccess.facts(purchaseOrder));
+            }
+            purchaseOrder.setStatus(status);
         }
 
         if (updateDto.getProjectId() != null) {
@@ -334,6 +384,9 @@ public class PurchaseOrderService {
         if (updateDto.getRemarks() != null) {
             purchaseOrder.setRemarks(updateDto.getRemarks());
         }
+        // An edit can move the order to another project, and must not move it out of what the
+        // caller may edit.
+        purchaseOrderAccess.require(AccessPermission.EDIT, PurchaseOrderAccess.facts(purchaseOrder));
 
         purchaseOrder = purchaseOrderRepository.save(purchaseOrder);
         recordStatusChange(purchaseOrder, previousStatus);
@@ -349,8 +402,7 @@ public class PurchaseOrderService {
      */
     @Transactional
     public void updatePurchaseOrderStatus(Long id, PurchaseOrderStatus status) {
-        PurchaseOrder purchaseOrder = purchaseOrderRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Purchase order with ID " + id + " was not found in this organization"));
+        PurchaseOrder purchaseOrder = requireOrder(id, AccessPermission.APPROVE);
 
         PurchaseOrderStatus previousStatus = purchaseOrder.getStatus();
         // REVERSED is written by an approved reversal, which also posts the link to the request
@@ -388,10 +440,7 @@ public class PurchaseOrderService {
     @Transactional(readOnly = true)
     public Page<StatusTransitionDto> getStatusHistory(Long id, int pageNo, int pageSize) {
         Long orgId = TenantContext.getCurrentOrgId();
-        if (purchaseOrderRepository.findByIdAndOrganization_Id(id, orgId).isEmpty()) {
-            throw new ResourceNotFoundException(
-                    "Purchase order with ID " + id + " was not found in this organization");
-        }
+        requireOrder(id, AccessPermission.READ);
         return statusTransitionRepository
                 .findByEntityTypeAndEntityIdAndOrganization_IdOrderByOccurredAtDescIdDesc(
                         HISTORY_ENTITY_TYPE, id, orgId, PageRequest.of(pageNo, pageSize))
@@ -399,6 +448,37 @@ public class PurchaseOrderService {
     }
 
     // ==================== Helper Methods ====================
+
+    /**
+     * The order, if the caller may act on it this way. One they may not read is reported missing,
+     * as one in another organization is, so an order's existence is not given away; one they may
+     * read but not act on this way is refused.
+     */
+    private PurchaseOrder requireOrder(Long id, String action) {
+        PurchaseOrder purchaseOrder = purchaseOrderRepository.findByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId())
+                .orElseThrow(() -> notFound(id));
+        RecordFacts facts = PurchaseOrderAccess.facts(purchaseOrder);
+        if (!purchaseOrderAccess.allows(AccessPermission.READ, facts)) {
+            throw notFound(id);
+        }
+        if (!AccessPermission.READ.equals(action)) {
+            purchaseOrderAccess.require(action, facts);
+        }
+        return purchaseOrder;
+    }
+
+    private static ResourceNotFoundException notFound(Long id) {
+        return new ResourceNotFoundException("Purchase order with ID " + id + " was not found in this organization");
+    }
+
+    private static Specification<PurchaseOrder> inStatus(PurchaseOrderStatus status) {
+        return (root, query, cb) -> cb.equal(root.get("status"), status);
+    }
+
+    /** Orders whose association of this name is the record with this id. */
+    private static Specification<PurchaseOrder> whereEquals(String association, Long id) {
+        return (root, query, cb) -> cb.equal(root.get(association).get("id"), id);
+    }
 
     /**
      * Files a status change somebody made, against the person who made it.

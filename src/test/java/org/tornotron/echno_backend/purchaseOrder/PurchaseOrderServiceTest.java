@@ -87,7 +87,8 @@ class PurchaseOrderServiceTest {
                 purchaseOrderMapper, tenantEntityHelper, employeeRepository, projectRepository,
                 purchaseOrderItemRepository, materialRepository, indentItemRepository,
                 documentNumberAllocator, retryTemplate, statusTransitionRecorder,
-                statusTransitionRepository, statusTransitionMapper, userContextService);
+                statusTransitionRepository, statusTransitionMapper, userContextService,
+                PurchaseOrderAccessStubs.allowingEverything());
         // The template's own behaviour is covered by its own tests; here it just runs the work.
         lenient().when(retryTemplate.execute(anyString(), any(Predicate.class), any(Supplier.class)))
                 .thenAnswer(invocation -> invocation.getArgument(2, Supplier.class).get());
@@ -294,6 +295,9 @@ class PurchaseOrderServiceTest {
         PurchaseOrder po = new PurchaseOrder();
         po.setId(1L);
         po.setStatus(PurchaseOrderStatus.DRAFT);
+        Organization org = new Organization();
+        org.setId(ORG);
+        po.setOrganization(org);
         when(purchaseOrderRepository.findByIdAndOrganization_Id(1L, ORG)).thenReturn(Optional.of(po));
 
         service.updatePurchaseOrderStatus(1L, PurchaseOrderStatus.APPROVED);

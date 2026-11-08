@@ -1,18 +1,21 @@
 package org.tornotron.echno_backend.purchaseOrderItem;
 
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 import org.tornotron.echno_backend.indentItem.IndentItemRepository;
 import org.tornotron.echno_backend.material.MaterialRepository;
+import org.tornotron.echno_backend.purchaseOrder.PurchaseOrderAccessStubs;
 import org.tornotron.echno_backend.purchaseOrder.PurchaseOrderRepository;
 import org.tornotron.echno_backend.purchaseOrder.PurchaseOrderService;
 
@@ -50,8 +53,20 @@ class PurchaseOrderItemServicePaginationTest {
     @Mock
     private PurchaseOrderService purchaseOrderService;
 
-    @InjectMocks
     private PurchaseOrderItemService service;
+
+    @BeforeEach
+    void setUp() {
+        TenantContext.setCurrentOrgId(100L);
+        service = new PurchaseOrderItemService(purchaseOrderItemRepository, purchaseOrderRepository,
+                materialRepository, indentItemRepository, tenantEntityHelper, purchaseOrderService,
+                PurchaseOrderAccessStubs.allowingEverything());
+    }
+
+    @AfterEach
+    void tearDown() {
+        TenantContext.clear();
+    }
 
     private Pageable capturePageable() {
         ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);

@@ -2,6 +2,7 @@ package org.tornotron.echno_backend.purchaseOrderItem;
 
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -11,7 +12,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
-public interface PurchaseOrderItemRepository extends JpaRepository<PurchaseOrderItem, Long> {
+public interface PurchaseOrderItemRepository extends JpaRepository<PurchaseOrderItem, Long>, JpaSpecificationExecutor<PurchaseOrderItem> {
 
     void deleteByIdAndOrganization_Id(Long id, Long organizationId);
 
