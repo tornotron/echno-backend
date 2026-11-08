@@ -20,6 +20,9 @@ import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.service.AttachmentService;
+import org.tornotron.echno_backend.modules.access.api.AccessFilter;
+import org.tornotron.echno_backend.modules.access.api.AccessPermission;
+import org.tornotron.echno_backend.modules.access.api.RecordFacts;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.siteTransferItem.SiteTransferItem;
@@ -29,6 +32,11 @@ import org.tornotron.echno_backend.storageLocation.StorageLocationRepository;
 import org.tornotron.echno_backend.user.UserContextService;
 import org.tornotron.echno_backend.vendor.Vendor;
 import org.tornotron.echno_backend.vendor.VendorRepository;
+
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
+import org.springframework.data.jpa.domain.Specification;
+import org.tornotron.echno_backend.common.entity.Attachment;
 
 import java.time.Duration;
 import java.time.LocalDate;
@@ -75,6 +83,7 @@ public class AssetService {
     private final UserContextService userContextService;
     private final AttachmentService attachmentService;
     private final SiteTransferItemRepository siteTransferItemRepository;
+    private final AssetAccess assetAccess;
 
     public AssetService(AssetRepository assetRepository,
                         AssetMapper assetMapper,
@@ -86,7 +95,8 @@ public class AssetService {
                         AssetMovementMapper assetMovementMapper,
                         UserContextService userContextService,
                         AttachmentService attachmentService,
-                        SiteTransferItemRepository siteTransferItemRepository) {
+                        SiteTransferItemRepository siteTransferItemRepository,
+                        AssetAccess assetAccess) {
         this.assetRepository = assetRepository;
         this.assetMapper = assetMapper;
         this.tenantEntityHelper = tenantEntityHelper;
@@ -98,6 +108,7 @@ public class AssetService {
         this.userContextService = userContextService;
         this.attachmentService = attachmentService;
         this.siteTransferItemRepository = siteTransferItemRepository;
+        this.assetAccess = assetAccess;
     }
 
     /**
@@ -124,20 +135,30 @@ public class AssetService {
                 creationDto.getMovedAt(),
                 null, null, null, null,
                 true);
+        // Checked on the asset as registered, so nobody registers one where they may not, and the
+        // refusal rolls the whole registration back.
+        assetAccess.require(AccessPermission.CREATE, AssetAccess.facts(saved));
 
         return toDto(assetRepository.save(saved));
     }
 
     @Transactional(readOnly = true)
     public AssetDto getAssetById(Long id) {
-        return toDto(requireAsset(id));
+        return toDto(requireAsset(id, AccessPermission.READ));
     }
 
 
     @Transactional(readOnly = true)
     public Page<AssetDto> getAllAssets(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.DESC, "createdAt"));
-        Page<AssetDto> page = assetRepository.findAll(pageable).map(assetMapper::toDto);
+        AccessFilter visible = assetAccess.filter(AccessPermission.READ);
+        if (visible.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        Page<Asset> assets = visible.everything()
+                ? assetRepository.findAll(pageable)
+                : assetRepository.findAll(AssetAccess.admittedBy(visible), pageable);
+        Page<AssetDto> page = assets.map(assetMapper::toDto);
         markInTransit(page.getContent());
         return page;
     }
@@ -152,7 +173,7 @@ public class AssetService {
      */
     @Transactional
     public AssetDto updateAsset(Long id, AssetCreationDto creationDto) {
-        Asset asset = requireAsset(id);
+        Asset asset = requireAsset(id, AccessPermission.EDIT);
         applyFields(asset, creationDto);
 
         applyPlacement(asset,
@@ -164,6 +185,8 @@ public class AssetService {
                 creationDto.getMovedAt(),
                 null, null, null, null,
                 false);
+        // An edit can move the asset, and must not move it out of what the caller may edit.
+        assetAccess.require(AccessPermission.EDIT, AssetAccess.facts(asset));
 
         return toDto(assetRepository.save(asset));
     }
@@ -180,7 +203,7 @@ public class AssetService {
      */
     @Transactional
     public void deleteAsset(Long id) {
-        Asset asset = requireAsset(id);
+        Asset asset = requireAsset(id, AccessPermission.DELETE);
         long movements = assetMovementRepository
                 .countByAsset_IdAndOrganization_Id(id, TenantContext.getCurrentOrgId());
         if (movements > 0) {
@@ -205,7 +228,7 @@ public class AssetService {
      */
     @Transactional
     public AssetMovementDto recordMovement(Long assetId, AssetMovementCreationDto dto) {
-        Asset asset = requireAsset(assetId);
+        Asset asset = requireAsset(assetId, AccessPermission.CREATE);
 
         Long corrects = dto.getCorrectsMovementId();
         if (corrects != null) {
@@ -238,6 +261,8 @@ public class AssetService {
                     + " there is no movement to record. Send correctsMovementId to restate an"
                     + " earlier entry instead.");
         }
+        // The asset's new placement must still be one the caller may record movements on.
+        assetAccess.require(AccessPermission.CREATE, AssetAccess.facts(asset));
 
         assetRepository.save(asset);
         return assetMovementMapper.toDto(movement);
@@ -246,7 +271,7 @@ public class AssetService {
     /** One page of an asset's ledger, newest entry first. */
     @Transactional(readOnly = true)
     public Page<AssetMovementDto> getMovements(Long assetId, int pageNo, int pageSize) {
-        requireAsset(assetId);
+        requireAsset(assetId, AccessPermission.READ);
         return assetMovementRepository
                 .findByAsset_IdAndOrganization_IdOrderByMovedAtDescIdDesc(
                         assetId, TenantContext.getCurrentOrgId(), PageRequest.of(pageNo, pageSize))
@@ -267,7 +292,7 @@ public class AssetService {
      */
     @Transactional(readOnly = true)
     public Page<AssetPlacementSpanDto> getPlacementHistory(Long assetId) {
-        requireAsset(assetId);
+        requireAsset(assetId, AccessPermission.READ);
         Page<AssetMovement> page = assetMovementRepository
                 .findByAsset_IdAndOrganization_IdOrderByMovedAtDescIdDesc(
                         assetId, TenantContext.getCurrentOrgId(),
@@ -313,7 +338,7 @@ public class AssetService {
      */
     @Transactional(readOnly = true)
     public List<AttachmentDto> getDocuments(Long assetId) {
-        requireAsset(assetId);
+        requireAsset(assetId, AccessPermission.READ);
         return attachmentService.getAttachments(AssetDocuments.ENTITY_TYPE, assetId);
     }
 
@@ -327,8 +352,25 @@ public class AssetService {
         if (withinDays < 0) {
             throw new InvalidRequestException("withinDays must not be negative");
         }
-        return attachmentService.getExpiringDocuments(AssetDocuments.ENTITY_TYPE,
-                LocalDate.now().plusDays(withinDays));
+        LocalDate cutoff = LocalDate.now().plusDays(withinDays);
+        AccessFilter visible = assetAccess.filter(AccessPermission.READ);
+        if (visible.isEmpty()) {
+            return List.of();
+        }
+        if (visible.everything()) {
+            return attachmentService.getExpiringDocuments(AssetDocuments.ENTITY_TYPE, cutoff);
+        }
+        return attachmentService.getExpiringDocuments(AssetDocuments.ENTITY_TYPE, cutoff, onVisibleAssets(visible));
+    }
+
+    /** Documents filed against an asset the filter admits, decided in the query so the cap stays right. */
+    static Specification<Attachment> onVisibleAssets(AccessFilter visible) {
+        return (root, query, cb) -> {
+            Subquery<Long> assets = query.subquery(Long.class);
+            Root<Asset> asset = assets.from(Asset.class);
+            assets.select(asset.get("id")).where(AssetAccess.admits(asset, cb, visible));
+            return root.get("entityId").in(assets);
+        };
     }
 
     /**
@@ -597,7 +639,28 @@ public class AssetService {
 
     private Asset requireAsset(Long id) {
         return assetRepository.findByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Asset with ID " + id + " was not found in this organization"));
+                .orElseThrow(() -> notFound(id));
+    }
+
+    /**
+     * The asset, if the caller may act on it this way. One they may not read is reported missing, as one
+     * in another organization is, so an asset's existence is not given away; one they may read but not
+     * act on this way is refused.
+     */
+    private Asset requireAsset(Long id, String action) {
+        Asset asset = requireAsset(id);
+        RecordFacts facts = AssetAccess.facts(asset);
+        if (!assetAccess.allows(AccessPermission.READ, facts)) {
+            throw notFound(id);
+        }
+        if (!AccessPermission.READ.equals(action)) {
+            assetAccess.require(action, facts);
+        }
+        return asset;
+    }
+
+    private static ResourceNotFoundException notFound(Long id) {
+        return new ResourceNotFoundException("Asset with ID " + id + " was not found in this organization");
     }
 
     /**

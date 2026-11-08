@@ -34,7 +34,9 @@ import java.util.List;
                 + "detail. Endpoints cover listing, paginated listing, lookup by id, creation, update and "
                 + "deletion, plus the append-only movement ledger that records where each asset has been "
                 + "and the documents filed against it. All scoped to the caller's current tenant "
-                + "organization."
+                + "organization, and to the assets the caller's roles let them see: each endpoint needs "
+                + "the assets permission named for its action (read, create, edit or delete), and an "
+                + "asset outside the caller's scope reads as not found."
 )
 public class AssetControllerWeb {
 
@@ -45,21 +47,21 @@ public class AssetControllerWeb {
     }
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('assets', 'read')")
     @Operation(
             summary = "List all assets",
             description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Assets returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither a member of the current tenant nor holds an elevated role in it")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read assets")
     })
     public ResponseEntity<List<AssetDto>> readAllAssets() {
         return UnpagedResultCap.respond(assetService.getAllAssets(0, UnpagedResultCap.MAX_ROWS));
     }
 
     @GetMapping("/paginated")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('assets', 'read')")
     @Operation(
             summary = "List assets, paginated",
             description = "Returns a page of assets for the caller's current tenant organization. The "
@@ -67,7 +69,7 @@ public class AssetControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of assets returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither a member of the current tenant nor holds an elevated role in it")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read assets")
     })
     public ResponseEntity<Page<AssetDto>> readAllAssetsPaginated(
             @Valid @ParameterObject PageQuery pageQuery) {
@@ -75,14 +77,14 @@ public class AssetControllerWeb {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('assets', 'read')")
     @Operation(
             summary = "Get an asset by id",
             description = "Returns a single asset, including its resolved vendor and storage location."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Asset found"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither a member of the current tenant nor holds an elevated role in it"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read assets"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No asset with the given id")
     })
     public ResponseEntity<AssetDto> readAnAsset(@PathVariable Long id) {
@@ -90,7 +92,7 @@ public class AssetControllerWeb {
     }
 
     @PostMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('assets', 'create')")
     @Operation(
             summary = "Create an asset",
             description = "Adds a new asset to the current tenant organization's asset register, for "
@@ -99,14 +101,14 @@ public class AssetControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Asset created"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to assets")
     })
     public ResponseEntity<AssetDto> createAsset(@Valid @RequestBody AssetCreationDto creationDto) {
         return new ResponseEntity<>(assetService.createAsset(creationDto), HttpStatus.CREATED);
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('assets', 'edit')")
     @Operation(
             summary = "Update an asset",
             description = "Replaces the details of an existing asset with the given values."
@@ -114,7 +116,7 @@ public class AssetControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Asset updated"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to assets"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No asset with the given id")
     })
     public ResponseEntity<AssetDto> updateAsset(@PathVariable Long id, @Valid @RequestBody AssetCreationDto creationDto) {
@@ -122,7 +124,7 @@ public class AssetControllerWeb {
     }
 
     @PostMapping("/{id}/movements")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('assets', 'create')")
     @Operation(
             summary = "Move an asset",
             description = "Appends an entry to the asset's movement ledger and brings the asset's "
@@ -134,7 +136,7 @@ public class AssetControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Movement recorded"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation, the movement is dated in the future, or it would move the asset nowhere"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to assets"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No asset, project, location or corrected entry with the given id")
     })
     public ResponseEntity<AssetMovementDto> recordMovement(@PathVariable Long id,
@@ -143,7 +145,7 @@ public class AssetControllerWeb {
     }
 
     @GetMapping("/{id}/movements")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('assets', 'read')")
     @Operation(
             summary = "Read an asset's movement ledger",
             description = "Returns a page of the asset's movement entries, newest first: what moved, "
@@ -151,7 +153,7 @@ public class AssetControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of movements returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither a member of the current tenant nor holds an elevated role in it"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read assets"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No asset with the given id")
     })
     public ResponseEntity<Page<AssetMovementDto>> readMovements(@PathVariable Long id,
@@ -160,7 +162,7 @@ public class AssetControllerWeb {
     }
 
     @GetMapping("/{id}/placement-history")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('assets', 'read')")
     @Operation(
             summary = "Read how long an asset spent in each place",
             description = "Turns consecutive ledger entries into the stretches of time the asset "
@@ -173,7 +175,7 @@ public class AssetControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Placement history returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither a member of the current tenant nor holds an elevated role in it"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read assets"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No asset with the given id")
     })
     public ResponseEntity<List<AssetPlacementSpanDto>> readPlacementHistory(@PathVariable Long id) {
@@ -181,7 +183,7 @@ public class AssetControllerWeb {
     }
 
     @GetMapping("/{id}/documents")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('assets', 'read')")
     @Operation(
             summary = "List an asset's documents",
             description = "Returns the files filed against the asset: purchase invoice, warranty, "
@@ -193,7 +195,7 @@ public class AssetControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Documents returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither a member of the current tenant nor holds an elevated role in it"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read assets"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No asset with the given id")
     })
     public ResponseEntity<List<AttachmentDto>> readDocuments(@PathVariable Long id) {
@@ -201,7 +203,7 @@ public class AssetControllerWeb {
     }
 
     @GetMapping("/documents/expiring")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('assets', 'read')")
     @Operation(
             summary = "List asset documents that are about to expire",
             description = "Returns every asset document in the organization whose expiry falls on or "
@@ -212,7 +214,7 @@ public class AssetControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Expiring documents returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "withinDays was negative"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither a member of the current tenant nor holds an elevated role in it")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read assets")
     })
     public ResponseEntity<List<AttachmentDto>> readExpiringDocuments(
             @RequestParam(defaultValue = "30") int withinDays) {
@@ -220,7 +222,7 @@ public class AssetControllerWeb {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('assets', 'delete')")
     @Operation(
             summary = "Delete an asset",
             description = "Removes the asset with the given id from the register. Refused once the "
@@ -230,7 +232,7 @@ public class AssetControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Asset deleted"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The asset has recorded movements and cannot be deleted"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to assets"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No asset with the given id")
     })
     public ResponseEntity<ApiResponse> deleteAsset(@PathVariable Long id) {

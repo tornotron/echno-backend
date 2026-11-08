@@ -79,7 +79,7 @@ class AssetMovementLedgerTest {
 
         service = new AssetService(assetRepository, assetMapper, tenantEntityHelper, vendorRepository,
                 storageLocationRepository, projectRepository, assetMovementRepository,
-                assetMovementMapper, userContextService, attachmentService, siteTransferItemRepository);
+                assetMovementMapper, userContextService, attachmentService, siteTransferItemRepository, AssetAccessStubs.allowingEverything());
 
         lenient().when(tenantEntityHelper.resolveCurrentOrganization()).thenReturn(organization);
         lenient().when(assetRepository.save(any(Asset.class))).thenAnswer(inv -> {

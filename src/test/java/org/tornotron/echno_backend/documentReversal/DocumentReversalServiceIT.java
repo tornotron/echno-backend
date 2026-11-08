@@ -1,5 +1,6 @@
 package org.tornotron.echno_backend.documentReversal;
 
+import org.tornotron.echno_backend.asset.AssetAccessStubs;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.AfterEach;
@@ -213,7 +214,7 @@ class DocumentReversalServiceIT extends AbstractIntegrationTest {
         AssetService assetService = new AssetService(assetRepository, Mappers.getMapper(AssetMapper.class),
                 new TenantEntityHelper(organizationRepository), vendorRepository, storageLocationRepository,
                 projectRepository, assetMovementRepository, Mappers.getMapper(AssetMovementMapper.class),
-                userContext, mock(AttachmentService.class), siteTransferItemRepository);
+                userContext, mock(AttachmentService.class), siteTransferItemRepository, AssetAccessStubs.allowingEverything());
         return new SiteTransferAssetLines(assetRepository, assetService, assetMovementRepository,
                 siteTransferItemRepository);
     }

@@ -1,5 +1,6 @@
 package org.tornotron.echno_backend.siteTransfer;
 
+import org.tornotron.echno_backend.asset.AssetAccessStubs;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.AfterEach;
@@ -184,7 +185,7 @@ class SiteTransferAssetLinesIT extends AbstractIntegrationTest {
         assetService = new AssetService(assetRepository, Mappers.getMapper(AssetMapper.class), tenantEntityHelper,
                 vendorRepository, storageLocationRepository, projectRepository, assetMovementRepository,
                 Mappers.getMapper(AssetMovementMapper.class), userContext, mock(AttachmentService.class),
-                siteTransferItemRepository);
+                siteTransferItemRepository, AssetAccessStubs.allowingEverything());
         SiteTransferAssetLines assetLines = new SiteTransferAssetLines(assetRepository, assetService,
                 assetMovementRepository, siteTransferItemRepository);
 

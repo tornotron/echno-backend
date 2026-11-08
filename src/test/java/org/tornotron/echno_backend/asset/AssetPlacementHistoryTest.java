@@ -63,7 +63,7 @@ class AssetPlacementHistoryTest {
         TenantContext.setCurrentOrgId(ORG);
         service = new AssetService(assetRepository, assetMapper, tenantEntityHelper, vendorRepository,
                 storageLocationRepository, projectRepository, assetMovementRepository,
-                assetMovementMapper, userContextService, attachmentService, siteTransferItemRepository);
+                assetMovementMapper, userContextService, attachmentService, siteTransferItemRepository, AssetAccessStubs.allowingEverything());
 
         Organization organization = new Organization();
         organization.setId(ORG);
