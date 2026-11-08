@@ -16,6 +16,10 @@ public interface IngestDocumentRepository extends JpaRepository<IngestDocument, 
     @Query("SELECT d FROM IngestDocument d WHERE d.id = :id")
     Optional<IngestDocument> findByIdScoped(@Param("id") UUID id);
 
+    /** Documents by id, through the tenant filter (a find by id would skip it). */
+    @Query("SELECT d FROM IngestDocument d WHERE d.id IN :ids")
+    java.util.List<IngestDocument> findByIdsScoped(@Param("ids") java.util.Collection<UUID> ids);
+
     @Query("SELECT d FROM IngestDocument d WHERE d.packageId = :packageId ORDER BY d.createdAt")
     Page<IngestDocument> findByPackage(@Param("packageId") UUID packageId, Pageable pageable);
 

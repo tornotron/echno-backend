@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        The contract term register (one row per term of a package) and the Contract Obligation Register
+        (one row per accepted obligation), both written only by the apply step, with provenance. Each row
+        can name the project risk raised from it.
+
+        Design: docs/specs/2026-11-08-document-ingestion-design.md, sections 4.5 and 6.3.
+    -->
+
+    <changeSet id="document-ingestion-008-create-contract-term" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="doc_ingest_contract_term"/></not>
+        </preConditions>
+        <createTable tableName="doc_ingest_contract_term">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_doc_ingest_contract_term" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="package_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="project_id" type="BIGINT"/>
+            <column name="term" type="VARCHAR(40)"><constraints nullable="false"/></column>
+            <column name="value_text" type="VARCHAR(1000)"><constraints nullable="false"/></column>
+            <column name="clause" type="VARCHAR(100)"/>
+            <column name="source_class" type="VARCHAR(30)"/>
+            <column name="document_id" type="UUID"/>
+            <column name="candidate_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="risk_id" type="UUID"/>
+            <column name="updated_by" type="BIGINT"/>
+            <column name="created_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="updated_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+        </createTable>
+        <addUniqueConstraint tableName="doc_ingest_contract_term" columnNames="package_id, term"
+                             constraintName="uq_doc_ingest_contract_term_package_term"/>
+        <addForeignKeyConstraint baseTableName="doc_ingest_contract_term" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_doc_ingest_contract_term_organization"/>
+        <addForeignKeyConstraint baseTableName="doc_ingest_contract_term" baseColumnNames="package_id"
+                                 referencedTableName="doc_ingest_package" referencedColumnNames="id"
+                                 constraintName="fk_doc_ingest_contract_term_package"/>
+        <createIndex tableName="doc_ingest_contract_term" indexName="idx_doc_ingest_contract_term_org">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="document-ingestion-008-create-obligation" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="doc_ingest_obligation"/></not>
+        </preConditions>
+        <createTable tableName="doc_ingest_obligation">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_doc_ingest_obligation" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="package_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="project_id" type="BIGINT"/>
+            <column name="candidate_id" type="UUID"><constraints nullable="false" unique="true" uniqueConstraintName="uq_doc_ingest_obligation_candidate"/></column>
+            <column name="clause" type="VARCHAR(100)"/>
+            <column name="responsible_party" type="VARCHAR(255)"/>
+            <column name="topic" type="VARCHAR(255)"/>
+            <column name="trigger_event" type="VARCHAR(1000)"/>
+            <column name="deadline_text" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="deadline_days" type="INT"/>
+            <column name="required_document" type="VARCHAR(500)"/>
+            <column name="financial_impact" type="VARCHAR(1000)"/>
+            <column name="source_class" type="VARCHAR(30)"/>
+            <column name="document_id" type="UUID"/>
+            <column name="risk_id" type="UUID"/>
+            <column name="updated_by" type="BIGINT"/>
+            <column name="created_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="updated_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="doc_ingest_obligation" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_doc_ingest_obligation_organization"/>
+        <addForeignKeyConstraint baseTableName="doc_ingest_obligation" baseColumnNames="package_id"
+                                 referencedTableName="doc_ingest_package" referencedColumnNames="id"
+                                 constraintName="fk_doc_ingest_obligation_package"/>
+        <createIndex tableName="doc_ingest_obligation" indexName="idx_doc_ingest_obligation_package">
+            <column name="package_id"/>
+            <column name="clause"/>
+        </createIndex>
+        <createIndex tableName="doc_ingest_obligation" indexName="idx_doc_ingest_obligation_org">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>

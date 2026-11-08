@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -60,6 +61,20 @@ public class ProjectRiskService {
     public RiskDto get(Long projectId, UUID riskId) {
         requireProject(projectId);
         return RiskDto.from(requireRisk(projectId, riskId));
+    }
+
+    /**
+     * The risk the project holds under an import reference, if any: how a caller that raises one risk
+     * per source, such as document ingestion, finds the risk it raised before.
+     */
+    @Transactional(readOnly = true)
+    public Optional<RiskDto> findImported(Long projectId, String importRef) {
+        requireProject(projectId);
+        if (importRef == null || importRef.isBlank()) {
+            return Optional.empty();
+        }
+        return riskRepository.findByProjectIdAndOrganization_IdAndImportRef(projectId, TenantContext.getCurrentOrgId(),
+                importRef.trim()).map(RiskDto::from);
     }
 
     /** Records a risk with the project's next R-number. */

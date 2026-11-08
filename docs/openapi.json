@@ -6996,6 +6996,99 @@
         },
         "type": "object"
       },
+      "ContractTermCoverageDto": {
+        "description": "The 19 contract terms of a package, each found with its values and clauses, or not found with the pages searched.",
+        "properties": {
+          "notice": {
+            "description": "A sentence the screen shows with the terms and obligations.",
+            "type": "string"
+          },
+          "read": {
+            "description": "The parts of the documents read for contract terms: one per confirmed GCC, SCC or contract data segment, with its latest reading.",
+            "items": {
+              "$ref": "#/components/schemas/ReadPart"
+            },
+            "type": "array"
+          },
+          "terms": {
+            "description": "The 19 terms, in a fixed order.",
+            "items": {
+              "$ref": "#/components/schemas/TermCoverage"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "ContractTermEntryDto": {
+        "description": "One accepted contract term of a package, as printed, with the clause and the part of the documents it came from. These describe the main contract as the tender states it; Echno does not interpret the clause.",
+        "properties": {
+          "candidateId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "clause": {
+            "description": "The clause number where it is stated.",
+            "example": 47.1,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "documentId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "label": {
+            "description": "The term's name.",
+            "example": "LD rate",
+            "type": "string"
+          },
+          "packageId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "projectId": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "riskId": {
+            "description": "The project risk raised from this term, if any.",
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sourceClass": {
+            "description": "GCC, SCC or CONTRACT_DATA.",
+            "example": "SCC",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "term": {
+            "description": "The term's key, such as ld_rate.",
+            "example": "ld_rate",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "value": {
+            "description": "The value as printed.",
+            "example": "0.5% of the Contract Price per week of delay",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "CostCategoryDto": {
         "description": "A budget head (cost category) in the org-level master list, optionally aligned to a ledger expense account.",
         "properties": {
@@ -10596,6 +10689,46 @@
               "number",
               "null"
             ]
+          }
+        },
+        "type": "object"
+      },
+      "FoundValue": {
+        "description": "One value read for a term.",
+        "properties": {
+          "candidateId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "clause": {
+            "example": 47.1,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "docClass": {
+            "example": "SCC",
+            "type": "string"
+          },
+          "overridden": {
+            "description": "True on a general conditions' value that the special conditions or contract data restate.",
+            "type": "boolean"
+          },
+          "status": {
+            "example": "PROPOSED",
+            "type": "string"
+          },
+          "supersedesCandidateId": {
+            "description": "The value this one replaces, for a special conditions' value.",
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "value": {
+            "type": "string"
           }
         },
         "type": "object"
@@ -17936,6 +18069,109 @@
         },
         "type": "object"
       },
+      "ObligationEntryDto": {
+        "description": "One obligation found in the conditions of contract with a stated deadline, as printed and accepted by a person. The register lists the obligations found, not every obligation of the contract, and Echno does not interpret the clause.",
+        "properties": {
+          "candidateId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "clause": {
+            "example": 52.1,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "deadline": {
+            "description": "The deadline as printed.",
+            "example": 21,
+            "type": "string"
+          },
+          "deadlineDays": {
+            "description": "The deadline in days, only when it reads plainly as calendar days or weeks.",
+            "example": 21,
+            "format": "int32",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "documentId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "financialImpact": {
+            "description": "The money at stake, as printed.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "packageId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "projectId": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "requiredDocument": {
+            "example": "Performance Security",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "responsibleParty": {
+            "example": "Contractor",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "riskId": {
+            "description": "The project risk raised from this obligation, if any.",
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sourceClass": {
+            "description": "GCC, SCC or CONTRACT_DATA.",
+            "example": "GCC",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "topic": {
+            "example": "performance security",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "trigger": {
+            "description": "The event the time runs from.",
+            "example": "receipt of the Letter of Acceptance",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "ObservationDto": {
         "description": "A finding on site as recorded by a person, a model or a device, with its review decision and the record it produced.",
         "properties": {
@@ -20509,6 +20745,52 @@
           "content": {
             "items": {
               "$ref": "#/components/schemas/NotificationDto"
+            },
+            "type": "array"
+          },
+          "empty": {
+            "type": "boolean"
+          },
+          "first": {
+            "type": "boolean"
+          },
+          "last": {
+            "type": "boolean"
+          },
+          "number": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "numberOfElements": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "pageable": {
+            "$ref": "#/components/schemas/PageableObject"
+          },
+          "size": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "sort": {
+            "$ref": "#/components/schemas/SortObject"
+          },
+          "totalElements": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "totalPages": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "PageObligationEntryDto": {
+        "properties": {
+          "content": {
+            "items": {
+              "$ref": "#/components/schemas/ObligationEntryDto"
             },
             "type": "array"
           },
@@ -24186,6 +24468,84 @@
         ],
         "type": "object"
       },
+      "RaiseRiskRequest": {
+        "description": "Optional choices for the risk raised from a contract term or an obligation; every field may be left out.",
+        "properties": {
+          "category": {
+            "example": "contractual-legal",
+            "pattern": "design-engineering|contractual-legal|financial-commercial|procurement-supply-chain|construction-execution|site-ground-conditions|health-safety-security|environmental|quality|resource-manpower|plant-equipment|schedule-planning|client-stakeholder|statutory-regulatory|external-force-majeure|subcontractor|technology-data-information|commissioning-handover|reputational-business|schedule|cost|scope|safety|technical|external|resource",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "impact": {
+            "example": "major",
+            "pattern": "negligible|minor|moderate|major|catastrophic",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "owner": {
+            "example": "Site manager",
+            "maxLength": 255,
+            "minLength": 0,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "probability": {
+            "example": "medium",
+            "pattern": "very-low|low|medium|high|very-high",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "responseType": {
+            "example": "mitigate",
+            "pattern": "avoid|mitigate|transfer|accept",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "example": "Liquidated damages on late handover",
+            "maxLength": 255,
+            "minLength": 0,
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "RaisedRiskDto": {
+        "description": "The project risk raised from a contract term or an obligation. Raising again returns the same risk with created false.",
+        "properties": {
+          "created": {
+            "description": "True when this call added the risk; false when it was raised before.",
+            "type": "boolean"
+          },
+          "projectId": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "riskId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "riskNumber": {
+            "example": "R-007",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "Range": {
         "description": "One page range and its class.",
         "properties": {
@@ -24240,6 +24600,48 @@
         "required": [
           "emoji"
         ],
+        "type": "object"
+      },
+      "ReadPart": {
+        "description": "One part of the documents read for contract terms.",
+        "properties": {
+          "docClass": {
+            "example": "GCC",
+            "type": "string"
+          },
+          "documentId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "fileName": {
+            "type": "string"
+          },
+          "pagesNotRead": {
+            "description": "Pages of the part that were not read, such as a page not in English or one whose reading failed.",
+            "items": {
+              "format": "int32",
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "pagesSearched": {
+            "description": "The pages read, such as \"1 to 8, 11 to 40\".",
+            "example": 1,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "segmentId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "status": {
+            "description": "The latest reading's status.",
+            "example": "DONE",
+            "type": "string"
+          }
+        },
         "type": "object"
       },
       "ReceiptCreationDto": {
@@ -29287,6 +29689,50 @@
           },
           "updatedAt": {
             "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "TermCoverage": {
+        "description": "One of the 19 terms.",
+        "properties": {
+          "found": {
+            "items": {
+              "$ref": "#/components/schemas/FoundValue"
+            },
+            "type": "array"
+          },
+          "label": {
+            "example": "LD rate",
+            "type": "string"
+          },
+          "message": {
+            "description": "For a term not found, \"Not found, pages searched: ...\"; for one not read yet, why.",
+            "example": "Not found, pages searched: 1 to 40 of Conditions.pdf",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "proposedCandidateId": {
+            "description": "The value proposed among those found: the special conditions' or the contract data's over the general conditions'.",
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "enum": [
+              "FOUND",
+              "NOT_FOUND",
+              "NOT_READ"
+            ],
+            "type": "string"
+          },
+          "term": {
+            "example": "ld_rate",
             "type": "string"
           }
         },
@@ -63065,6 +63511,138 @@
         ]
       }
     },
+    "/api/v1/document-ingestion/contract-terms/{termId}/risk": {
+      "post": {
+        "description": "Adds a risk to the package's project register through the register's import, with the import reference set from the term's candidate, so raising twice gives one risk; the second call returns it with created false. The body is optional.",
+        "operationId": "DocumentIngestionContractController_raiseRiskFromTerm",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "termId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RaiseRiskRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RaisedRiskDto"
+                }
+              }
+            },
+            "description": "The risk was raised before; it is returned as it is"
+          },
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RaisedRiskDto"
+                }
+              }
+            },
+            "description": "The risk was added"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The package has no project, or a field failed validation"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "MODULE_DISABLED, or the caller cannot manage risks"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such contract term in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Raise a project risk from a contract term",
+        "tags": [
+          "Document Ingestion"
+        ]
+      }
+    },
     "/api/v1/document-ingestion/documents/{documentId}": {
       "get": {
         "operationId": "DocumentIngestionPackageController_getDocument",
@@ -64137,6 +64715,138 @@
           }
         },
         "summary": "List the calls that sent pages to the outside AI service, newest first",
+        "tags": [
+          "Document Ingestion"
+        ]
+      }
+    },
+    "/api/v1/document-ingestion/obligations/{obligationId}/risk": {
+      "post": {
+        "description": "Adds a risk to the package's project register through the register's import, with the import reference set from the obligation's candidate, so raising twice gives one risk; the second call returns it with created false. The body is optional.",
+        "operationId": "DocumentIngestionContractController_raiseRiskFromObligation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "obligationId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RaiseRiskRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RaisedRiskDto"
+                }
+              }
+            },
+            "description": "The risk was raised before; it is returned as it is"
+          },
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RaisedRiskDto"
+                }
+              }
+            },
+            "description": "The risk was added"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The package has no project, or a field failed validation"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "MODULE_DISABLED, or the caller cannot manage risks"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such obligation in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Raise a project risk from an obligation",
         "tags": [
           "Document Ingestion"
         ]
@@ -65400,6 +66110,235 @@
         ]
       }
     },
+    "/api/v1/document-ingestion/packages/{packageId}/contract-terms": {
+      "get": {
+        "description": "One row per term applied from the general conditions, special conditions or contract data, as printed, with its clause. Written only by applying accepted CONTRACT_TERM candidates; provenance for each field is under GET /provenance with target type CONTRACT_TERM. These are the main contract's terms and are not written to sub-contracts or deduction rules.",
+        "operationId": "DocumentIngestionContractController_listContractTerms",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "packageId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ContractTermEntryDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "The terms, by term key"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such package in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List a package's accepted contract terms",
+        "tags": [
+          "Document Ingestion"
+        ]
+      }
+    },
+    "/api/v1/document-ingestion/packages/{packageId}/contract-terms/coverage": {
+      "get": {
+        "description": "A term found lists every value read for it, with its clause and the part it came from; where the special conditions or the contract data restate a general conditions term, both are listed and theirs is the proposed one. A term not found reads \"Not found, pages searched: ...\", naming the pages read of each document.",
+        "operationId": "DocumentIngestionContractController_contractTermCoverage",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "packageId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContractTermCoverageDto"
+                }
+              }
+            },
+            "description": "The 19 terms and the parts read"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such package in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Show each of the 19 contract terms as found, not found or not read",
+        "tags": [
+          "Document Ingestion"
+        ]
+      }
+    },
     "/api/v1/document-ingestion/packages/{packageId}/documents": {
       "get": {
         "operationId": "DocumentIngestionPackageController_listDocuments",
@@ -66289,6 +67228,139 @@
           }
         },
         "summary": "Read what reading this package has used, against the package's and the month's limits",
+        "tags": [
+          "Document Ingestion"
+        ]
+      }
+    },
+    "/api/v1/document-ingestion/packages/{packageId}/obligations": {
+      "get": {
+        "description": "The Contract Obligation Register: obligations with a stated deadline, accepted and applied, each as printed with its clause, responsible party, trigger, deadline, required document and financial impact. It lists the obligations found, not every obligation of the contract. Provenance for each field is under GET /provenance with target type OBLIGATION.",
+        "operationId": "DocumentIngestionContractController_listObligations",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "packageId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "size",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageObligationEntryDto"
+                }
+              }
+            },
+            "description": "A page of obligations, by clause"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such package in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List the obligations found in a package's conditions of contract",
         "tags": [
           "Document Ingestion"
         ]
