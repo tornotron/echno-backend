@@ -68,6 +68,10 @@ public interface CandidateRepository extends JpaRepository<Candidate, UUID> {
     @Query("SELECT c FROM Candidate c WHERE c.extractJobId = :jobId AND c.kind = :kind ORDER BY c.createdAt, c.id")
     List<Candidate> findOfJob(@Param("jobId") UUID jobId, @Param("kind") CandidateKind kind);
 
+    /** The rows that name this one as the row they supersede, of one kind, oldest first. A handful per row. */
+    @Query("SELECT c FROM Candidate c WHERE c.supersedesCandidateId = :priorId AND c.kind = :kind ORDER BY c.createdAt, c.id")
+    List<Candidate> findSuccessors(@Param("priorId") UUID priorId, @Param("kind") CandidateKind kind);
+
     /** A document's candidates of one kind, oldest first, bounded by the page. */
     @Query("SELECT c FROM Candidate c WHERE c.documentId = :documentId AND c.kind = :kind ORDER BY c.createdAt, c.id")
     List<Candidate> findForDocument(@Param("documentId") UUID documentId, @Param("kind") CandidateKind kind,

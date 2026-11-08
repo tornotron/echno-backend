@@ -2,6 +2,7 @@ package org.tornotron.echno_backend.modules.documentingestion.extraction.corrige
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -89,5 +90,68 @@ class ChangeMatcherTest {
                 List.of(rejected, ownRow, proposedLater, applied), false);
 
         assertThat(m.priorId()).isEqualTo(applied.getId());
+    }
+
+    @Test
+    void aMeasureIsReadWholeOrNotAtAll() {
+        assertThat(ChangeMatcher.measure("920 cum")).isEqualByComparingTo("920");
+        assertThat(ChangeMatcher.measure("1 200 cum")).isEqualByComparingTo("1200");
+        assertThat(ChangeMatcher.measure("Rs. 640 per sqm")).isEqualByComparingTo("640");
+        assertThat(ChangeMatcher.measure("9,800/cum")).isEqualByComparingTo("9800");
+        assertThat(ChangeMatcher.measure(new BigDecimal("12.5"))).isEqualByComparingTo("12.5");
+        assertThat(ChangeMatcher.measure("1/2")).isNull();
+        assertThat(ChangeMatcher.measure("2 coats of paint")).isNull();
+        assertThat(ChangeMatcher.measure("about 900")).isNull();
+    }
+
+    @Test
+    void aValueWithItsUnitIsComparedAndPricedAsTheNumber() {
+        Candidate rcc = boq("1.03", "850", "9800", CandidateStatus.APPLIED, UUID.randomUUID());
+        ChangeMatcher.Match m = ChangeMatcher.match(change("1.03", "quantity", "850 cum", "920 cum"), null, List.of(rcc),
+                false);
+
+        assertThat(m.flags()).isEmpty();
+        assertThat(m.additions()).containsEntry(ChangeMatcher.QUANTITY_VARIANCE, "70")
+                .containsEntry(ChangeMatcher.MONEY_IMPACT, "686000");
+    }
+
+    @Test
+    void aProjectFieldChangeNeedsNoFieldToFindTheEarlierValue() {
+        Candidate due = new Candidate();
+        due.setId(UUID.randomUUID());
+        due.setKind(CandidateKind.PROJECT_FIELD);
+        due.setNaturalKey("bid_due_date");
+        due.setPayload(new LinkedHashMap<>(Map.of("value", "2026-12-01")));
+        due.setStatus(CandidateStatus.PROPOSED);
+        Map<String, Object> change = new LinkedHashMap<>();
+        change.put(ChangeMatcher.TARGET_KIND, "PROJECT_FIELD");
+        change.put(ChangeMatcher.TARGET, "bid_due_date");
+        change.put(ChangeMatcher.OLD_VALUE, "2026-11-20");
+        change.put(ChangeMatcher.NEW_VALUE, "2026-12-15");
+
+        ChangeMatcher.Match m = ChangeMatcher.match(change, null, List.of(due), false);
+
+        assertThat(m.priorId()).isEqualTo(due.getId());
+        assertThat(m.additions()).containsEntry(ChangeMatcher.PRIOR_VALUE, "2026-12-01");
+        assertThat(codes(m)).containsExactly(ChangeMatcher.OLD_VALUE_DIFFERS);
+    }
+
+    @Test
+    void aLiveRowAChangeWasAppliedToStillMatchesWithTheValueOnTheRecord() {
+        Candidate live = boq("1.03", "850", "9800", CandidateStatus.SUPERSEDED, UUID.randomUUID());
+        live.setAppliedTargetId(UUID.randomUUID().toString());
+        Candidate replacedDraft = boq("1.03", "700", "9800", CandidateStatus.SUPERSEDED, UUID.randomUUID());
+
+        ChangeMatcher.Match m = ChangeMatcher.match(change("1.03", "quantity", "920", "950"), null,
+                List.of(replacedDraft, live), false, c -> {
+                    Map<String, Object> values = new LinkedHashMap<>(ChangeMatcher.values(c));
+                    values.put("quantity", "920");
+                    return values;
+                });
+
+        assertThat(m.priorId()).isEqualTo(live.getId());
+        assertThat(m.additions()).containsEntry(ChangeMatcher.PRIOR_VALUE, "920")
+                .containsEntry(ChangeMatcher.QUANTITY_VARIANCE, "30");
+        assertThat(m.flags()).isEmpty();
     }
 }

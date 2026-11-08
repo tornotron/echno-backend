@@ -1,9 +1,11 @@
 package org.tornotron.echno_backend.modules.documentingestion.service;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -36,13 +38,17 @@ import org.tornotron.echno_backend.modules.documentingestion.repository.SourceRe
  * row-by-row comparison of a revised BOQ with the BOQ it replaces, with no LLM. Every changed field of an
  * item is one {@code CHANGE} candidate citing the revised file's cell; an item only in the revised file, or
  * only in the earlier one, is a change flagged as added or removed. Nothing is applied here: changes go to
- * review like any other candidate.
+ * review like any other candidate. Each change records the file it was compared against, so changing that
+ * file is refused while its changes are in review.
  */
 @Service
 public class RevisionService {
 
-    /** The most BOQ rows read from each of the two files. */
-    static final int MAX_ROWS = 20_000;
+    /** How many rows are read at a time; every page is read before comparing. */
+    static final int PAGE = 5_000;
+
+    /** On a change from a comparison: the file the revised one was compared against. */
+    public static final String BASELINE = "baselineDocumentId";
     static final List<BoqField> COMPARED = List.of(BoqField.DESCRIPTION, BoqField.UNIT, BoqField.QUANTITY, BoqField.RATE);
 
     private final IngestDocumentRepository documents;
@@ -76,6 +82,11 @@ public class RevisionService {
             if (earlier.getId().equals(doc.getId())) {
                 throw new InvalidRequestException("A document cannot be a revision of itself");
             }
+            if (doc.getSupersedesDocumentId() != null && !doc.getSupersedesDocumentId().equals(earlier.getId())
+                    && comparisonChanges(doc.getId()).stream().anyMatch(c -> c.getStatus() != CandidateStatus.REJECTED)) {
+                throw new InvalidRequestException("Changes from comparing " + doc.getFileName() + " with the file it "
+                        + "replaces are still in review. Reject them first, then change the file it replaces.");
+            }
             for (UUID step = earlier.getSupersedesDocumentId(); step != null; ) {
                 if (step.equals(doc.getId())) {
                     throw new InvalidRequestException("That would make the revision chain a loop");
@@ -97,16 +108,22 @@ public class RevisionService {
             if (doc.getSupersedesDocumentId() == null) {
                 throw new InvalidRequestException(doc.getFileName() + " is not marked as a revision of another file");
             }
-            Map<String, Candidate> before = byCode(candidates.findForDocument(doc.getSupersedesDocumentId(),
-                    CandidateKind.BOQ_ITEM, PageRequest.of(0, MAX_ROWS)));
-            Map<String, Candidate> after = byCode(candidates.findForDocument(documentId, CandidateKind.BOQ_ITEM,
-                    PageRequest.of(0, MAX_ROWS)));
+            UUID baseline = doc.getSupersedesDocumentId();
+            Map<String, Candidate> before = byCode(all(baseline, CandidateKind.BOQ_ITEM));
+            Map<String, Candidate> after = byCode(all(documentId, CandidateKind.BOQ_ITEM));
             if (after.isEmpty()) {
                 throw new InvalidRequestException("Read the BOQ of " + doc.getFileName() + " first, then compare it");
             }
-            java.util.Set<String> existing = new java.util.HashSet<>();
-            candidates.findForDocument(documentId, CandidateKind.CHANGE, PageRequest.of(0, MAX_ROWS))
+            if (before.isEmpty()) {
+                String name = documents.findByIdScoped(baseline).map(IngestDocument::getFileName).orElse("the earlier file");
+                throw new InvalidRequestException("Read the BOQ of " + name + " first, then compare " + doc.getFileName()
+                        + " with it");
+            }
+            Set<String> existing = new HashSet<>();
+            comparisonChanges(documentId).stream()
+                    .filter(c -> baseline.toString().equals(String.valueOf(c.getPayload().get(BASELINE))))
                     .forEach(c -> existing.add(c.getNaturalKey()));
+            UUID revisedSegment = after.values().iterator().next().getSegmentId();
             List<ProposedCandidate> proposed = new ArrayList<>();
             int added = 0;
             int removed = 0;
@@ -115,19 +132,22 @@ public class RevisionService {
                 Candidate revised = e.getValue();
                 Candidate earlier = before.get(e.getKey());
                 Map<String, SourceRef> refs = refs(revised);
+                String code = value(revised, BoqField.ITEM_CODE);
+                SourceRef codeRef = refs.get(BoqField.ITEM_CODE.key());
                 if (earlier == null) {
                     added++;
-                    change(proposed, existing, doc, revised, e.getKey(), null, null, value(revised, BoqField.QUANTITY),
-                            refs.get(BoqField.ITEM_CODE.key()), new CandidateFlag(ChangeMatcher.ITEM_ADDED,
-                                    "This item is in the revised file only."));
+                    change(proposed, existing, doc, baseline, revised.getSegmentId(), code, null, null,
+                            value(revised, BoqField.QUANTITY), codeRef, refs.get(BoqField.QUANTITY.key()),
+                            new CandidateFlag(ChangeMatcher.ITEM_ADDED, "This item is in the revised file only."));
                     continue;
                 }
                 compared++;
                 for (BoqField f : COMPARED) {
                     String old = value(earlier, f);
                     String now = value(revised, f);
-                    if (now != null && (old == null || !ChangeMatcher.same(old, now))) {
-                        change(proposed, existing, doc, revised, e.getKey(), f.key(), old, now, refs.get(f.key()), null);
+                    if (now != null && (old == null || !ChangeMatcher.sameValue(f, old, now))) {
+                        change(proposed, existing, doc, baseline, revised.getSegmentId(), code, f.key(), old, now, codeRef,
+                                refs.get(f.key()), null);
                     }
                 }
             }
@@ -135,8 +155,10 @@ public class RevisionService {
                 if (!after.containsKey(e.getKey())) {
                     removed++;
                     Candidate earlier = e.getValue();
-                    change(proposed, existing, doc, earlier, e.getKey(), null, value(earlier, BoqField.QUANTITY), "0",
-                            refs(earlier).get(BoqField.ITEM_CODE.key()), new CandidateFlag(ChangeMatcher.ITEM_REMOVED,
+                    // No new value: the removal is inferred from the row's absence, so only the earlier row is cited.
+                    change(proposed, existing, doc, baseline, revisedSegment, value(earlier, BoqField.ITEM_CODE), null,
+                            value(earlier, BoqField.QUANTITY), null, refs(earlier).get(BoqField.ITEM_CODE.key()), null,
+                            new CandidateFlag(ChangeMatcher.ITEM_REMOVED,
                                     "This item is in the earlier file only; the revised file leaves it out."));
                 }
             }
@@ -148,10 +170,15 @@ public class RevisionService {
         });
     }
 
-    private void change(List<ProposedCandidate> out, java.util.Set<String> existing, IngestDocument doc, Candidate from,
-                        String code, String field, String oldValue, String newValue, SourceRef ref, CandidateFlag flag) {
+    /**
+     * One change of a comparison. The item code is cited from its cell, and the new value from the cell that
+     * holds it; a change with no new value, a removal, cites the code only.
+     */
+    private void change(List<ProposedCandidate> out, Set<String> existing, IngestDocument doc, UUID baseline,
+                        UUID segmentId, String code, String field, String oldValue, String newValue, SourceRef codeRef,
+                        SourceRef valueRef, CandidateFlag flag) {
         String key = ChangeMatcher.naturalKey(CandidateKind.BOQ_ITEM.name(), code, field);
-        if (ref == null || !existing.add(key)) {
+        if (codeRef == null || (newValue != null && valueRef == null) || !existing.add(key)) {
             return;
         }
         Map<String, Object> payload = new LinkedHashMap<>();
@@ -167,14 +194,39 @@ public class RevisionService {
             payload.put(ChangeMatcher.NEW_VALUE, newValue);
         }
         payload.put(ChangeMatcher.ORIGIN, ChangeMatcher.ORIGIN_REVISED_FILE);
+        payload.put(BASELINE, baseline.toString());
         List<ProposedCandidate.ProposedSource> src = new ArrayList<>();
-        for (String f : List.of(ChangeMatcher.TARGET, ChangeMatcher.NEW_VALUE)) {
-            src.add(new ProposedCandidate.ProposedSource(f, ref.getDocumentId(), ref.getDocumentSha256(), ref.getPage(),
-                    ref.getBox(), ref.getSheet(), ref.getRowNumber(), ref.getCell(), ref.getParagraph(), ref.getQuote(),
-                    ref.isQuoteVerified()));
+        src.add(source(ChangeMatcher.TARGET, codeRef));
+        if (newValue != null) {
+            src.add(source(ChangeMatcher.NEW_VALUE, valueRef));
         }
-        out.add(new ProposedCandidate(doc.getPackageId(), doc.getId(), from.getSegmentId(), CandidateKind.CHANGE, key,
+        out.add(new ProposedCandidate(doc.getPackageId(), doc.getId(), segmentId, CandidateKind.CHANGE, key,
                 payload, flag == null ? List.of() : List.of(flag), ExtractionMethod.DETERMINISTIC, src, null));
+    }
+
+    private static ProposedCandidate.ProposedSource source(String field, SourceRef ref) {
+        return new ProposedCandidate.ProposedSource(field, ref.getDocumentId(), ref.getDocumentSha256(), ref.getPage(),
+                ref.getBox(), ref.getSheet(), ref.getRowNumber(), ref.getCell(), ref.getParagraph(), ref.getQuote(),
+                ref.isQuoteVerified());
+    }
+
+    /** Every candidate of one kind read from a document, page by page. */
+    private List<Candidate> all(UUID documentId, CandidateKind kind) {
+        List<Candidate> out = new ArrayList<>();
+        for (int page = 0; ; page++) {
+            List<Candidate> rows = candidates.findForDocument(documentId, kind, PageRequest.of(page, PAGE));
+            out.addAll(rows);
+            if (rows.size() < PAGE) {
+                return out;
+            }
+        }
+    }
+
+    /** The changes a comparison proposed on a document. */
+    private List<Candidate> comparisonChanges(UUID documentId) {
+        return all(documentId, CandidateKind.CHANGE).stream()
+                .filter(c -> ChangeMatcher.ORIGIN_REVISED_FILE.equals(c.getPayload().get(ChangeMatcher.ORIGIN)))
+                .toList();
     }
 
     private Map<String, SourceRef> refs(Candidate c) {
@@ -189,16 +241,21 @@ public class RevisionService {
         return out;
     }
 
-    /** The rows by item code, the latest row for a code winning; rejected and superseded rows left out. */
+    /**
+     * The rows read from a file, by item code with case and spacing ignored, the latest row for a code
+     * winning. A rejected row is left out. A superseded row stays: the comparison is of the two files as
+     * read, so accepting a change from it does not change what it compares. A revision proposed by applying
+     * a change is not a row read from the file, so it is left out too.
+     */
     private static Map<String, Candidate> byCode(List<Candidate> rows) {
         Map<String, Candidate> out = new LinkedHashMap<>();
         for (Candidate c : rows) {
-            if (c.getStatus() == CandidateStatus.REJECTED || c.getStatus() == CandidateStatus.SUPERSEDED) {
+            if (c.getStatus() == CandidateStatus.REJECTED || c.getSupersedesCandidateId() != null) {
                 continue;
             }
             String code = value(c, BoqField.ITEM_CODE);
             if (code != null) {
-                out.put(code, c);
+                out.put(ChangeMatcher.codeKey(code), c);
             }
         }
         return out;

@@ -74,7 +74,7 @@ public class ContractBoqPortAdapter implements ContractBoqPort {
         ContractBoqItem item = boqItems.findScoped(itemId, TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("BOQ item not found: " + itemId));
         BoqItemRequest req = new BoqItemRequest(line.itemCode(), line.description(), line.unit(), line.quantity(),
-                line.rate(), item.getWbsElementId(), line.sortOrder() != null ? line.sortOrder() : item.getSortOrder());
+                line.rate(), item.getWbsElementId(), item.getSortOrder());
         validate(req);
         billing.updateBoqItem(itemId, req);
     }
