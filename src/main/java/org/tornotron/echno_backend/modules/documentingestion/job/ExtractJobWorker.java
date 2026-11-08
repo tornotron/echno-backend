@@ -404,19 +404,21 @@ public class ExtractJobWorker {
     }
 
     /**
-     * The table rows in the segment's pages, or every row of a workbook. A PDF with no table may have no
-     * {@code tables.jsonl} from a worker before 0.2.0, which reads as no rows.
+     * The table rows in the segment's pages, or every row of a workbook. A PDF may have no
+     * {@code tables.jsonl} from a worker before 0.2.0, which reads as no rows; a file that is there and
+     * cannot be read fails the attempt like any other output.
      */
     private List<TableRow> tables(String outputPrefix, ExtractContext c) {
         List<TableRow> rows;
-        try {
-            rows = outputs.tables(outputPrefix);
-        } catch (RuntimeException e) {
-            if (c.fileType() != DocumentFileType.PDF) {
-                throw e;
+        if (c.fileType() == DocumentFileType.PDF) {
+            Optional<List<TableRow>> written = outputs.tablesIfWritten(outputPrefix);
+            if (written.isEmpty()) {
+                log.info("Extract job {}: the PDF's reading has no tables.jsonl, so no table rows", c.jobId());
+                return List.of();
             }
-            log.info("Extract job {}: no table rows were read for a PDF ({})", c.jobId(), e.getMessage());
-            return List.of();
+            rows = written.get();
+        } else {
+            rows = outputs.tables(outputPrefix);
         }
         return rows.stream()
                 .filter(r -> r.page() == null || c.pageFrom() == null || r.page() >= c.pageFrom())

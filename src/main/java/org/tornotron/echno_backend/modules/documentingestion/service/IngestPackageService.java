@@ -94,7 +94,8 @@ public class IngestPackageService {
     /**
      * Sets the sub-contract the package's BOQ is written to, or clears it. The contract must be in the
      * organization, and in the package's project when the package has one. Once BOQ rows are on a
-     * contract, the target cannot move, or one tender BOQ would end up split across two contracts.
+     * contract, the target cannot move, or one tender BOQ would end up split across two contracts; the same
+     * holds once its payment milestones are on one.
      */
     @Transactional
     public PackageDto setBoqTarget(UUID packageId, BoqTargetRequest req) {
@@ -110,6 +111,10 @@ public class IngestPackageService {
         boolean moving = p.getSubContractId() != null && !p.getSubContractId().equals(target);
         if (moving && candidates.countByStatus(packageId, CandidateKind.BOQ_ITEM, CandidateStatus.APPLIED) > 0) {
             throw new InvalidRequestException("BOQ rows of this package are already on a contract, so the target cannot change");
+        }
+        if (moving && candidates.countByStatus(packageId, CandidateKind.MILESTONE, CandidateStatus.APPLIED) > 0) {
+            throw new InvalidRequestException("Payment milestones of this package are already on a contract, so the target "
+                    + "cannot change");
         }
         p.setSubContractId(target);
         p.setUpdatedBy(userContextService.getCurrentUserId());

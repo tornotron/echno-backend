@@ -110,4 +110,62 @@ class MilestoneTablesTest {
         assertThat(MilestoneTables.read(context(DocumentFileType.XLSX, rows), true)).isEmpty();
         assertThat(MilestoneTables.read(context(DocumentFileType.XLSX, rows), false)).hasSize(1);
     }
+
+    @Test
+    void aPageThatRepeatsTheHeaderGoesOnWithTheSameSchedule() {
+        List<ProposedCandidate> found = MilestoneTables.read(context(DocumentFileType.PDF, List.of(
+                pdfRow(3, 1, "Milestone", "Target date", "Payment %"),
+                pdfRow(3, 2, "Foundations", "15.08.2027", "50"),
+                pdfRow(4, 1, "Milestone", "Target date", "Payment %"),
+                pdfRow(4, 2, "Completion of work", "15.03.2027", "50"))), false);
+
+        assertThat(found).extracting(ProposedCandidate::naturalKey).containsExactly("Foundations", "Completion of work");
+        assertThat(found).allSatisfy(c -> assertThat(codes(c)).doesNotContain(MilestoneTables.PERCENT_TOTAL));
+        assertThat(codes(found.get(1))).as("the date order runs across the page").contains(MilestoneTables.DATE_ORDER);
+    }
+
+    @Test
+    void aRowOfValuesOnTheNextPageIsNeverTakenForAHeader() {
+        List<ProposedCandidate> found = MilestoneTables.read(context(DocumentFileType.PDF, List.of(
+                pdfRow(3, 1, "Milestone", "Month", "Payment %"),
+                pdfRow(3, 2, "Foundations", "Month 3", "50"),
+                pdfRow(4, 1, "Completion of work", "Month 12", "50"))), false);
+
+        assertThat(found).extracting(ProposedCandidate::naturalKey).containsExactly("Foundations", "Completion of work");
+    }
+
+    @Test
+    void aLaterHeaderInASheetStartsANewScheduleWithItsOwnColumns() {
+        List<ProposedCandidate> found = MilestoneTables.read(context(DocumentFileType.XLSX, List.of(
+                sheetRow(1, "Milestone", "Date", "%"),
+                sheetRow(2, "Foundations", "15.03.2027", "100"),
+                sheetRow(4, "Payment %", "Stage", "Due date"),
+                sheetRow(5, "40", "Roof slab", "15.08.2027"),
+                sheetRow(6, "60", "Handover", "15.12.2027"))), false);
+
+        assertThat(found).extracting(ProposedCandidate::naturalKey).containsExactly("Foundations", "Roof slab", "Handover");
+        assertThat(found.get(1).payload()).containsEntry("percent", "40").containsEntry("time", "15.08.2027");
+        assertThat(found).allSatisfy(c -> assertThat(codes(c)).doesNotContain(MilestoneTables.PERCENT_TOTAL));
+    }
+
+    @Test
+    void aPaymentMilestoneHeaderNamesTheMilestone() {
+        assertThat(MilestoneTables.classify("payment milestone")).isEqualTo(MilestoneTables.Column.NAME);
+        assertThat(MilestoneTables.classify("milestone payment")).isEqualTo(MilestoneTables.Column.AMOUNT);
+        assertThat(MilestoneTables.classify("milestone amount (rs.)")).isEqualTo(MilestoneTables.Column.AMOUNT);
+        assertThat(MilestoneTables.classify("milestone date")).isEqualTo(MilestoneTables.Column.TIME);
+        List<ProposedCandidate> found = MilestoneTables.read(context(DocumentFileType.XLSX, List.of(
+                sheetRow(1, "Payment milestone", "Due date", "Payment %"),
+                sheetRow(2, "Advance", "01.01.2027", "100"))), true);
+        assertThat(found).singleElement().satisfies(c -> assertThat(c.payload()).containsEntry("name", "Advance")
+                .containsEntry("percent", "100"));
+    }
+
+    @Test
+    void aTimeCountedFromAnotherEventIsFlaggedAsLeftEmpty() {
+        assertThat(MilestoneTables.relativeFlag("3 Months from the Date of LOA"))
+                .hasValueSatisfying(f -> assertThat(f.message()).contains("other than the start"));
+        assertThat(MilestoneTables.relativeFlag("Month 4"))
+                .hasValueSatisfying(f -> assertThat(f.message()).contains("project's start date"));
+    }
 }

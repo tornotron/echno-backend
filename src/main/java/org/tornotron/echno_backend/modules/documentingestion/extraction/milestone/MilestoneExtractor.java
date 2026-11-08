@@ -120,13 +120,20 @@ public class MilestoneExtractor implements Extractor {
         }
         List<ProposedCandidate> out = new ArrayList<>();
         Set<String> keys = new HashSet<>();
+        Set<List<String>> seen = new HashSet<>();
         int index = 0;
         for (JsonNode m : list) {
             String name = text(m.get("name"));
-            if (name == null || !keys.add(name)) {
+            Integer page = m.path("page").isInt() ? m.path("page").asInt() : null;
+            // The same milestone given twice is read once; two milestones that share a name are both kept.
+            if (name == null || !seen.add(java.util.Arrays.asList(name, text(m.get("time")), text(m.get("percent")),
+                    text(m.get("amount"))))) {
                 continue;
             }
-            Integer page = m.path("page").isInt() ? m.path("page").asInt() : null;
+            String key = name;
+            for (int n = 2; !keys.add(key); n++) {
+                key = name + (page == null ? " (" + n + ")" : " (page " + page + ", " + n + ")");
+            }
             String quote = text(m.get("quote"));
             Map<String, Object> values = new LinkedHashMap<>();
             values.put(MilestoneTables.NAME, name.length() <= MilestoneTables.MAX_NAME_LENGTH ? name
@@ -137,7 +144,7 @@ public class MilestoneExtractor implements Extractor {
             MilestoneTables.percentFromAmount(values);
             List<QuotedCandidates.LlmValue> quoted = new ArrayList<>();
             values.forEach((field, value) -> quoted.add(new QuotedCandidates.LlmValue(field, value, page, quote)));
-            ProposedCandidate c = QuotedCandidates.build(context, chunk, CandidateKind.MILESTONE, name, quoted);
+            ProposedCandidate c = QuotedCandidates.build(context, chunk, CandidateKind.MILESTONE, key, quoted);
             if (c == null || c.payload().get(MilestoneTables.NAME) == null) {
                 continue;
             }
@@ -159,7 +166,8 @@ public class MilestoneExtractor implements Extractor {
             }
             return;
         }
-        writer.flagJob(context.jobId(), CandidateKind.MILESTONE, payloads -> MilestoneTables.percentTotal(
+        writer.flagJob(context.jobId(), CandidateKind.MILESTONE, MilestoneTables.PERCENT_TOTAL,
+                payloads -> MilestoneTables.percentTotal(
                 payloads.stream().map(p -> p.get(MilestoneTables.PERCENT)).toList()).orElse(null));
     }
 

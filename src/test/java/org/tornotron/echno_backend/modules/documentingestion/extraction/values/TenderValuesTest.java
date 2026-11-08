@@ -52,4 +52,44 @@ class TenderValuesTest {
         assertThat(TenderValues.days("90 days")).contains(90);
         assertThat(TenderValues.days("3 months")).contains(90);
     }
+
+    @Test
+    void aSignedValueOrAPercentageIsNotReadAsAnAmount() {
+        assertThat(TenderValues.amount("Rs. -5000")).isEmpty();
+        assertThat(TenderValues.amount("Rs.-5,000")).isEmpty();
+        assertThat(TenderValues.amount("2% of estimated cost")).as("a percentage EMD has no amount").isEmpty();
+        assertThat(TenderValues.amount("2 per cent of the estimate")).isEmpty();
+        assertThat(TenderValues.amount("Rs. 4,20,00,000/-")).isPresent();
+        assertThat(TenderValues.percent("-5%")).isEmpty();
+        assertThat(TenderValues.percent("2-3%")).as("a range keeps its second figure").contains(new BigDecimal("3"));
+    }
+
+    @Test
+    void anHourWithNoMinutesIsReadWithItsAmOrPm() {
+        assertThat(TenderValues.dateTime("25 Nov 2026 at 3 PM")).contains(LocalDateTime.of(2026, 11, 25, 15, 0));
+        assertThat(TenderValues.dateTime("25.11.2026, 11 a.m.")).contains(LocalDateTime.of(2026, 11, 25, 11, 0));
+        assertThat(TenderValues.dateTime("25.11.2026 12 am")).contains(LocalDateTime.of(2026, 11, 25, 0, 0));
+        assertThat(TenderValues.dateTime("25.11.2026, 5 amendments")).contains(LocalDateTime.of(2026, 11, 25, 23, 59));
+    }
+
+    @Test
+    void aBareNumberIsDaysAndAFractionalOrAbsurdSpanIsNotRead() {
+        assertThat(TenderValues.days("90")).contains(90);
+        assertThat(TenderValues.days(" 120 ")).contains(120);
+        assertThat(TenderValues.span("Month 4.5")).isEmpty();
+        assertThat(TenderValues.span("Month 4,5")).isEmpty();
+        assertThat(TenderValues.span("2147483648 days")).isEmpty();
+        assertThat(TenderValues.span("Month 2147483648")).isEmpty();
+        assertThat(TenderValues.days("2147483648 days")).isEmpty();
+    }
+
+    @Test
+    void aSpanCountedFromAnotherEventIsNotCountedFromTheStart() {
+        assertThat(TenderValues.spanFromStart("3 Months from the Date of LOA")).isEmpty();
+        assertThat(TenderValues.spanFromStart("30 days after award of work")).isEmpty();
+        assertThat(TenderValues.spanFromStart("Month 4")).contains(new TenderValues.Span(4, TenderValues.Unit.MONTH));
+        assertThat(TenderValues.spanFromStart("120 (one hundred twenty) days from the date of start")).isPresent();
+        assertThat(TenderValues.spanFromStart("within 90 days of the start")).isPresent();
+        assertThat(TenderValues.spanFromStart("6 months from commencement")).isPresent();
+    }
 }

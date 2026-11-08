@@ -157,44 +157,44 @@ public class ProjectFieldApplier implements IngestionApplier {
         t.setProjectId(p.getProjectId());
         String column = switch (field) {
             case CLIENT -> {
-                t.setClient(cut(value));
+                t.setClient(fit(field, value));
                 yield "client";
             }
             case ESTIMATED_VALUE -> {
-                t.setEstimatedValueText(cut(value));
+                t.setEstimatedValueText(fit(field, value));
                 t.setEstimatedValue(TenderValues.amount(value).orElse(null));
                 yield "estimatedValue";
             }
             case EMD -> {
-                t.setEmdText(cut(value));
+                t.setEmdText(fit(field, value));
                 t.setEmdAmount(TenderValues.amount(value).orElse(null));
                 yield "emdAmount";
             }
             case TENDER_FEE -> {
-                t.setTenderFeeText(cut(value));
+                t.setTenderFeeText(fit(field, value));
                 t.setTenderFeeAmount(TenderValues.amount(value).orElse(null));
                 yield "tenderFeeAmount";
             }
             case BID_DUE_DATE -> {
-                t.setBidDueText(cut(value));
+                t.setBidDueText(fit(field, value));
                 t.setBidDueAt(TenderValues.dateTime(value).orElse(null));
                 yield "bidDueAt";
             }
             case BID_VALIDITY -> {
-                t.setBidValidityText(cut(value));
+                t.setBidValidityText(fit(field, value));
                 t.setBidValidityDays(TenderValues.days(value).orElse(null));
                 yield "bidValidityDays";
             }
             case DURATION -> {
-                t.setDurationText(cut(value));
+                t.setDurationText(fit(field, value));
                 yield "durationText";
             }
             case CONSULTANT -> {
-                t.setConsultant(cut(value));
+                t.setConsultant(fit(field, value));
                 yield "consultant";
             }
             case ENGINEER -> {
-                t.setEngineer(cut(value));
+                t.setEngineer(fit(field, value));
                 yield "engineer";
             }
             case SCOPE -> {
@@ -254,8 +254,13 @@ public class ProjectFieldApplier implements IngestionApplier {
         return field.key().replace('_', ' ');
     }
 
-    private static String cut(String value) {
-        return value.length() <= PROFILE_TEXT_MAX ? value : value.substring(0, PROFILE_TEXT_MAX);
+    /** The value as accepted; one longer than its column is refused, never cut, so the profile holds what provenance says. */
+    private static String fit(ProjectField field, String value) {
+        if (value.length() > PROFILE_TEXT_MAX) {
+            throw new InvalidRequestException("The " + label(field) + " is longer than " + PROFILE_TEXT_MAX
+                    + " characters; shorten it in the review first");
+        }
+        return value;
     }
 
     private static String text(Object value) {

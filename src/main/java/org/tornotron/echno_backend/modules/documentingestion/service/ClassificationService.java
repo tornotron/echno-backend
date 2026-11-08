@@ -212,15 +212,19 @@ public class ClassificationService {
     }
 
     /**
-     * A workbook of a class read by extractors, such as a milestone schedule, gets one confirmed segment
-     * for the whole file, and those extractors are queued on it. A BOQ workbook keeps its per-sheet flow,
+     * A workbook of a class read by extractors of table rows, such as a milestone schedule, gets one
+     * confirmed segment for the whole file, and those extractors are queued on it. A class read only from
+     * pages, such as a NIT, is not read from a workbook. A BOQ workbook keeps its per-sheet flow,
      * whose segments are made when a sheet's mapping is confirmed. Changing the class drops the old
      * whole-workbook segment unless a value read from it is already on a live record.
      *
      * @return jobs queued
      */
     private int confirmWorkbook(IngestDocument doc, DocClass docClass, Long userId, LocalDateTime now) {
-        List<Extractor> readers = docClass == DocClass.BOQ ? List.of() : registry.segmentExtractors(docClass);
+        // Only a reader of table rows can read a workbook; a page reader, such as project setup, would get no
+        // pages and end as if it had read the file.
+        List<Extractor> readers = docClass == DocClass.BOQ ? List.of()
+                : registry.segmentExtractors(docClass).stream().filter(Extractor::readsTables).toList();
         Segment kept = null;
         for (Segment s : segments.findWholeWorkbook(doc.getId())) {
             if (kept == null && !readers.isEmpty() && docClass.name().equals(s.getDocClass())) {
