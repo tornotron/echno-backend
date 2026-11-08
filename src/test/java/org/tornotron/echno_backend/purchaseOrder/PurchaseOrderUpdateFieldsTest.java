@@ -77,6 +77,7 @@ class PurchaseOrderUpdateFieldsTest {
     @Mock private org.tornotron.echno_backend.common.history.mapper.StatusTransitionMapper statusTransitionMapper;
     @Mock private org.tornotron.echno_backend.user.UserContextService userContextService;
     @Mock private PurchaseOrderService purchaseOrderService;
+    @Mock private PurchaseOrderEditPolicy editPolicy;
 
     @BeforeEach
     void setTenant() {
@@ -106,6 +107,7 @@ class PurchaseOrderUpdateFieldsTest {
                 statusTransitionRepository,
                 statusTransitionMapper,
                 userContextService,
+                editPolicy,
                 PurchaseOrderAccessStubs.allowingEverything());
     }
 
@@ -117,6 +119,7 @@ class PurchaseOrderUpdateFieldsTest {
                 indentItemRepository,
                 tenantEntityHelper,
                 purchaseOrderService,
+                editPolicy,
                 PurchaseOrderAccessStubs.allowingEverything());
     }
 

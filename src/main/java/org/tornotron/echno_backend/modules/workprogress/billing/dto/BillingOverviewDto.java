@@ -20,5 +20,15 @@ public record BillingOverviewDto(
         @Schema(description = "Gross certified on certified and approved bills, in rupees.")
         BigDecimal certifiedToDate,
         @Schema(description = "Net payable of approved bills, in rupees.")
-        BigDecimal netApprovedToDate
+        BigDecimal netApprovedToDate,
+        @Schema(description = "Projects with at least one bill other than a cancelled one.")
+        long projectsInBilling,
+        @Schema(description = "Bills waiting on someone: submitted, verified, certified or returned.")
+        long pendingActions,
+        @Schema(description = "Paid against approved bills' payables, in rupees.")
+        BigDecimal paidToDate,
+        @Schema(description = "Still due on approved bills' payables, in rupees.")
+        BigDecimal amountDue,
+        @Schema(description = "Payments raised and not yet ended.")
+        long paymentsInFlight
 ) {}

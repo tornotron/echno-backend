@@ -10,6 +10,7 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
 import org.springframework.context.annotation.Import;
+import org.tornotron.echno_backend.common.configuration.JpaAuditingConfig;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.enums.EmployeeStatus;
 import org.tornotron.echno_backend.modules.access.api.AccessPermission;
@@ -33,7 +34,10 @@ import org.tornotron.echno_backend.support.AbstractIntegrationTest;
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import({AccessFactsQueries.class, DatabaseAccessFactsSource.class})
+// Customer carries Spring Data's AuditingEntityListener, so this slice imports the auditing
+// configuration for a handler of its own; without it the listener is configured by whichever earlier
+// context last enabled auditing, and a persist fails once the context cache has closed that one.
+@Import({AccessFactsQueries.class, DatabaseAccessFactsSource.class, JpaAuditingConfig.class})
 class DatabaseAccessServiceContractIT extends AbstractIntegrationTest {
 
     @Autowired

@@ -93,10 +93,6 @@ public class LeavePolicyUpdateFieldsDto {
     @Schema(nullable = true, description = "Whether the policy is available for new requests.", example = "true")
     private Boolean isActive;
 
-    @Schema(nullable = true, description = "Whether requests go through the full multi-level approval chain.",
-            example = "true")
-    private Boolean multiLevelApprovalEnabled;
-
     @Schema(nullable = true, description = "Order this policy is shown in, relative to the organization's others.",
             example = "1")
     private Integer displayOrder;

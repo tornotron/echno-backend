@@ -113,9 +113,11 @@ class PurchaseOrderServiceAccessTest {
                 purchaseOrderMapper, tenantEntityHelper, employeeRepository, projectRepository,
                 purchaseOrderItemRepository, materialRepository, indentItemRepository,
                 documentNumberAllocator, retryTemplate, statusTransitionRecorder,
-                statusTransitionRepository, statusTransitionMapper, userContextService, purchaseOrderAccess);
+                statusTransitionRepository, statusTransitionMapper, userContextService,
+                org.mockito.Mockito.mock(PurchaseOrderEditPolicy.class), purchaseOrderAccess);
         lines = new PurchaseOrderItemService(purchaseOrderItemRepository, purchaseOrderRepository,
-                materialRepository, indentItemRepository, tenantEntityHelper, orders, purchaseOrderAccess);
+                materialRepository, indentItemRepository, tenantEntityHelper, orders,
+                org.mockito.Mockito.mock(PurchaseOrderEditPolicy.class), purchaseOrderAccess);
         lenient().when(retryTemplate.execute(anyString(), any(Predicate.class), any(Supplier.class)))
                 .thenAnswer(invocation -> invocation.getArgument(2, Supplier.class).get());
         PurchaseOrder mine = order(ON_MY_PROJECT, MY_PROJECT);

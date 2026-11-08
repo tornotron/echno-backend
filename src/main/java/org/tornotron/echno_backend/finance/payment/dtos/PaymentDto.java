@@ -19,7 +19,7 @@ public record PaymentDto(
                 example = "6b1e9c22-9f8a-4a1b-9c0e-1d2f3a4b5c6d")
         UUID customerId,
 
-        @Schema(description = "Customer name captured on the payment.", example = "Asset Homes Pvt Ltd")
+        @Schema(description = "Customer name captured on the payment.", example = "Riverside Builders Pvt Ltd")
         String customerName,
 
         @Schema(description = "Date the payment was received.", example = "2026-08-10")

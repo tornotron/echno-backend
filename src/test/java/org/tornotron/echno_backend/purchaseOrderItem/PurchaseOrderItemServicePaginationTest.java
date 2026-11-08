@@ -60,6 +60,7 @@ class PurchaseOrderItemServicePaginationTest {
         TenantContext.setCurrentOrgId(100L);
         service = new PurchaseOrderItemService(purchaseOrderItemRepository, purchaseOrderRepository,
                 materialRepository, indentItemRepository, tenantEntityHelper, purchaseOrderService,
+                org.mockito.Mockito.mock(org.tornotron.echno_backend.purchaseOrder.PurchaseOrderEditPolicy.class),
                 PurchaseOrderAccessStubs.allowingEverything());
     }
 

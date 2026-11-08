@@ -318,11 +318,11 @@ final class ReviewedResponseSchemas {
      * consolidated in the {@code v4.0} baseline. Both paths were read, because a column that is
      * nullable on one install and not on the other would make the answer depend on how the
      * database was built; they agree, and every {@code @Column} and {@code @JoinColumn} in the
-     * module matches its changeset. {@code multi_level_approval_enabled} arrives later, in
-     * {@code v4.0/039}, as {@code NOT NULL DEFAULT true}, so it is non-null on every install path.
+     * module matches its changeset. {@code multi_level_approval_enabled} (added in
+     * {@code v4.0/039}) is still in the table but no longer mapped: single approval retired it.
      *
      * <ul>
-     *   <li>{@code LeavePolicyDto} is nullable on 15 of its 28 properties, which is the schema's
+     *   <li>{@code LeavePolicyDto} is nullable on 15 of its 27 properties, which is the schema's
      *       shape rather than an omission. A policy carries one column for each rule an
      *       organization may choose not to set, and most organizations set few of them. The
      *       three enum rules added by #838 ({@code accrualMethod},
@@ -644,7 +644,7 @@ final class ReviewedResponseSchemas {
                                 "minServiceMonths", "requiresAttachment", "supportingDocumentNote"),
                         Set.of("accrualMethod", "annualQuota", "approverRole", "createdAt", "id",
                                 "isActive", "leaveTypeCode", "leaveTypeName",
-                                "multiLevelApprovalEnabled", "organizationId", "organizationName",
+                                "organizationId", "organizationName",
                                 "updatedAt", "weekendHolidayTreatment")),
                 new ReviewedSchema(
                         LeavePolicySimpleDto.class,

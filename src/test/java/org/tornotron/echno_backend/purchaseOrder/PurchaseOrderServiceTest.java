@@ -88,6 +88,7 @@ class PurchaseOrderServiceTest {
                 purchaseOrderItemRepository, materialRepository, indentItemRepository,
                 documentNumberAllocator, retryTemplate, statusTransitionRecorder,
                 statusTransitionRepository, statusTransitionMapper, userContextService,
+                org.mockito.Mockito.mock(PurchaseOrderEditPolicy.class),
                 PurchaseOrderAccessStubs.allowingEverything());
         // The template's own behaviour is covered by its own tests; here it just runs the work.
         lenient().when(retryTemplate.execute(anyString(), any(Predicate.class), any(Supplier.class)))

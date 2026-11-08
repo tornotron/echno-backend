@@ -91,6 +91,7 @@ class ProjectServiceAccessTest {
         service = new ProjectService(repository, organizationRepository, employeeRepository, attachmentService,
                 projectMapper, employeeMapper, eventPublisher, customerRepository, payloadValidator,
                 userContextService, statusTransitionRecorder, statusTransitionRepository, statusTransitionMapper,
+                org.mockito.Mockito.mock(org.tornotron.echno_backend.common.service.OrganizationSecurityService.class),
                 new ProjectAccess(access, currentEmployee));
         lenient().when(repository.findByIdAndOrganization_Id(MINE, ORG)).thenReturn(Optional.of(project(MINE)));
         lenient().when(repository.findByIdAndOrganization_Id(ELSEWHERE, ORG)).thenReturn(Optional.of(project(ELSEWHERE)));

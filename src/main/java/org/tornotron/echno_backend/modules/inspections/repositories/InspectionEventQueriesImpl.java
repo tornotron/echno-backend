@@ -3,17 +3,22 @@ package org.tornotron.echno_backend.modules.inspections.repositories;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.TypedQuery;
+import jakarta.persistence.criteria.CommonAbstractCriteria;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.tornotron.echno_backend.modules.inspections.domain.InspectionEvent;
+import org.tornotron.echno_backend.modules.inspections.domain.Observation;
+import org.tornotron.echno_backend.modules.inspections.events.InspectionEventSubjectType;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 class InspectionEventQueriesImpl implements InspectionEventQueries {
 
@@ -26,7 +31,7 @@ class InspectionEventQueriesImpl implements InspectionEventQueries {
 
         CriteriaQuery<InspectionEvent> query = cb.createQuery(InspectionEvent.class);
         Root<InspectionEvent> root = query.from(InspectionEvent.class);
-        query.where(predicates(cb, root, organizationId, filter))
+        query.where(predicates(cb, query, root, organizationId, filter))
                 .orderBy(cb.asc(root.get("occurredAt")), cb.asc(root.get("id")));
         TypedQuery<InspectionEvent> typed = entityManager.createQuery(query);
         if (pageable.isPaged()) {
@@ -38,13 +43,13 @@ class InspectionEventQueriesImpl implements InspectionEventQueries {
         CriteriaQuery<Long> countQuery = cb.createQuery(Long.class);
         Root<InspectionEvent> countRoot = countQuery.from(InspectionEvent.class);
         countQuery.select(cb.count(countRoot))
-                .where(predicates(cb, countRoot, organizationId, filter));
+                .where(predicates(cb, countQuery, countRoot, organizationId, filter));
         long total = entityManager.createQuery(countQuery).getSingleResult();
 
         return new PageImpl<>(content, pageable, total);
     }
 
-    private static Predicate[] predicates(CriteriaBuilder cb, Root<InspectionEvent> root,
+    private static Predicate[] predicates(CriteriaBuilder cb, CommonAbstractCriteria query, Root<InspectionEvent> root,
                                           Long organizationId, InspectionEventFilter f) {
         List<Predicate> where = new ArrayList<>();
         where.add(cb.equal(root.get("organization").get("id"), organizationId));
@@ -71,6 +76,15 @@ class InspectionEventQueriesImpl implements InspectionEventQueries {
         }
         if (f.to() != null) {
             where.add(cb.lessThanOrEqualTo(root.get("occurredAt"), f.to()));
+        }
+        if (f.hideDetections()) {
+            Subquery<UUID> detections = query.subquery(UUID.class);
+            Root<Observation> observation = detections.from(Observation.class);
+            detections.select(observation.get("id"))
+                    .where(ObservationSpecifications.isDetection(observation, detections, cb));
+            where.add(cb.not(cb.and(
+                    cb.equal(root.get("subjectType"), InspectionEventSubjectType.OBSERVATION),
+                    root.get("subjectId").in(detections))));
         }
         return where.toArray(Predicate[]::new);
     }

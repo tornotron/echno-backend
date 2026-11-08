@@ -522,6 +522,21 @@ public class SiteTransferService {
     }
 
     /**
+     * One page of the same rows, latest issue first, with the id as tie-break.
+     *
+     * @param pageNo   Zero-based page index.
+     * @param pageSize Rows per page.
+     * @return The requested page.
+     */
+    @Transactional(readOnly = true)
+    public Page<SiteTransferDto> getSiteTransfersByStatus(SiteTransferStatus status, int pageNo, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNo, pageSize,
+                Sort.by(Sort.Direction.DESC, "issueDate").and(Sort.by(Sort.Direction.DESC, "id")));
+        return siteTransferRepository.findByStatus(status, pageable)
+                .map(transfer -> siteTransferMapper.toDto(transfer));
+    }
+
+    /**
      * Lists site transfers sent from a given project.
      *
      * @param projectId The sending project to filter by.
@@ -535,6 +550,21 @@ public class SiteTransferService {
     }
 
     /**
+     * One page of the same rows, latest issue first, with the id as tie-break.
+     *
+     * @param pageNo   Zero-based page index.
+     * @param pageSize Rows per page.
+     * @return The requested page.
+     */
+    @Transactional(readOnly = true)
+    public Page<SiteTransferDto> getSiteTransfersBySendingProject(Long projectId, int pageNo, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNo, pageSize,
+                Sort.by(Sort.Direction.DESC, "issueDate").and(Sort.by(Sort.Direction.DESC, "id")));
+        return siteTransferRepository.findBySendingProjectId(projectId, pageable)
+                .map(transfer -> siteTransferMapper.toDto(transfer));
+    }
+
+    /**
      * Lists site transfers received by a given project.
      *
      * @param projectId The receiving project to filter by.
@@ -545,6 +575,21 @@ public class SiteTransferService {
         return siteTransferRepository.findByReceivingProjectId(projectId).stream()
                 .map(transfer -> siteTransferMapper.toDto(transfer))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * One page of the same rows, latest issue first, with the id as tie-break.
+     *
+     * @param pageNo   Zero-based page index.
+     * @param pageSize Rows per page.
+     * @return The requested page.
+     */
+    @Transactional(readOnly = true)
+    public Page<SiteTransferDto> getSiteTransfersByReceivingProject(Long projectId, int pageNo, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNo, pageSize,
+                Sort.by(Sort.Direction.DESC, "issueDate").and(Sort.by(Sort.Direction.DESC, "id")));
+        return siteTransferRepository.findByReceivingProjectId(projectId, pageable)
+                .map(transfer -> siteTransferMapper.toDto(transfer));
     }
 
     /**

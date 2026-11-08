@@ -36,7 +36,8 @@ class AuthRegistrationAvailabilityTest {
 
     private static final String BODY = """
             {"name": "Ravi Kumar", "userName": "ravi", "email": "ravi@example.test", "password": "Secret-123",
-             "phone": "9847012345", "gender": "M", "role": "EMPLOYEE", "dateOfBirth": "1990-01-01T00:00:00"}
+             "phone": "9847012345", "gender": "M", "role": "EMPLOYEE", "dateOfBirth": "1990-01-01T00:00:00",
+             "acceptTerms": true}
             """;
 
     @Autowired

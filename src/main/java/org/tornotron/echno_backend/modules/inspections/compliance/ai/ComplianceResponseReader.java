@@ -1,9 +1,9 @@
 package org.tornotron.echno_backend.modules.inspections.compliance.ai;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.tornotron.echno_backend.common.exception.ComplianceAiException;
+import org.tornotron.echno_backend.common.llm.ChatCompletionEnvelope;
 import org.tornotron.echno_backend.modules.inspections.compliance.domain.ComplianceRule;
 
 import java.util.ArrayList;
@@ -11,7 +11,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * Turns one chat-completions response body into the list of compliance decisions it was
@@ -24,6 +23,11 @@ import java.util.Set;
  * Spring context. The behaviour being tested (recognising an answer the token cap cut
  * short) is exactly the behaviour that is otherwise only observable by making a real call
  * with a large enough rule catalogue.
+ *
+ * <p>Reading the envelope (the message text, the stop reason, the token counts) and deciding
+ * whether the provider stopped at its cap belong to the shared {@link ChatCompletionEnvelope},
+ * which every caller of the chat-completions endpoint uses. What stays here is compliance's own
+ * reading of the text: the array of assessments and whether it covers every rule.
  *
  * <h2>The three truncation checks</h2>
  *
@@ -53,9 +57,6 @@ import java.util.Set;
 @Slf4j
 final class ComplianceResponseReader {
 
-    /** Stop reasons that mean the model was cut off at the token cap, lower-cased. */
-    private static final Set<String> TRUNCATED_STOP_REASONS = Set.of("length", "max_tokens");
-
     /** How many rule codes to name in a coverage failure before trailing off. */
     private static final int MAX_MISSING_CODES_REPORTED = 5;
 
@@ -70,9 +71,6 @@ final class ComplianceResponseReader {
         this.maxTokens = maxTokens;
     }
 
-    /** What one chat completion said, beyond the assistant text itself. */
-    private record Envelope(String text, String finishReason, Integer completionTokens) {}
-
     /**
      * Reads the decisions out of a chat-completions response body.
      *
@@ -83,7 +81,7 @@ final class ComplianceResponseReader {
      *                               not cover every candidate rule
      */
     List<ComplianceSuggestion> read(String responseJson, List<ComplianceRule> candidateRules) {
-        Envelope envelope = parseEnvelope(responseJson);
+        ChatCompletionEnvelope envelope = parseEnvelope(responseJson);
         rejectTruncatedStopReason(envelope, candidateRules.size());
         List<ComplianceSuggestion> suggestions =
                 canonicaliseRuleCodes(parseSuggestions(envelope), candidateRules);
@@ -91,39 +89,21 @@ final class ComplianceResponseReader {
         return suggestions;
     }
 
-    private Envelope parseEnvelope(String responseJson) {
-        if (responseJson == null || responseJson.isBlank()) {
-            throw new ComplianceAiException(
-                    "The compliance AI service returned an empty response body, so no compliances "
-                            + "were generated.");
-        }
-
-        JsonNode root;
+    private ChatCompletionEnvelope parseEnvelope(String responseJson) {
         try {
-            root = objectMapper.readTree(responseJson);
-        } catch (Exception e) {
-            log.warn("Compliance AI response body was not JSON: {}", e.getMessage());
+            return ChatCompletionEnvelope.parse(responseJson);
+        } catch (ChatCompletionEnvelope.MalformedEnvelopeException e) {
+            if (e.emptyBody()) {
+                throw new ComplianceAiException(
+                        "The compliance AI service returned an empty response body, so no compliances "
+                                + "were generated.");
+            }
+            Throwable cause = e.getCause() == null ? e : e.getCause();
+            log.warn("Compliance AI response body was not JSON: {}", cause.getMessage());
             throw new ComplianceAiException(
                     "The compliance AI service returned a response that is not JSON, so no "
-                            + "compliances were generated.", e);
+                            + "compliances were generated.", cause);
         }
-
-        JsonNode choice = root.path("choices").path(0);
-        JsonNode content = choice.path("message").path("content");
-
-        // Providers are not consistent about the field name: OpenAI and the DigitalOcean
-        // Gradient endpoint report finish_reason, some gateways relay stop_reason instead.
-        JsonNode finishReason = choice.path("finish_reason");
-        if (!finishReason.isTextual()) {
-            finishReason = choice.path("stop_reason");
-        }
-
-        JsonNode completionTokens = root.path("usage").path("completion_tokens");
-
-        return new Envelope(
-                content.isTextual() ? content.asText() : "",
-                finishReason.isTextual() ? finishReason.asText() : null,
-                completionTokens.isInt() ? completionTokens.asInt() : null);
     }
 
     /**
@@ -132,11 +112,11 @@ final class ComplianceResponseReader {
      * looked at why generation ended, so a cap-truncated answer was indistinguishable from
      * a complete one until Jackson choked on it and the throw was swallowed.
      */
-    private void rejectTruncatedStopReason(Envelope envelope, int ruleCount) {
-        String reason = envelope.finishReason();
-        if (reason == null || !TRUNCATED_STOP_REASONS.contains(reason.toLowerCase(Locale.ROOT))) {
+    private void rejectTruncatedStopReason(ChatCompletionEnvelope envelope, int ruleCount) {
+        if (!envelope.truncated()) {
             return;
         }
+        String reason = envelope.finishReason();
         throw new ComplianceAiException(
                 "The compliance AI response was cut short by its token limit (stop reason '" + reason
                         + "'), so the assessment of " + ruleCount + " rule(s) is incomplete and no "
@@ -158,8 +138,8 @@ final class ComplianceResponseReader {
      * text ran out inside that array, so anything after it is nested within it and cannot be
      * the answer either. That is the truncation, and it is reported as such.
      */
-    private List<ComplianceSuggestion> parseSuggestions(Envelope envelope) {
-        String responseText = envelope.text();
+    private List<ComplianceSuggestion> parseSuggestions(ChatCompletionEnvelope envelope) {
+        String responseText = envelope.content();
         if (responseText == null || responseText.isBlank()) {
             throw new ComplianceAiException(
                     "The compliance AI returned no text at all, so no compliances were generated. "
@@ -260,7 +240,7 @@ final class ComplianceResponseReader {
      */
     private void rejectIncompleteCoverage(List<ComplianceSuggestion> suggestions,
                                           List<ComplianceRule> candidateRules,
-                                          Envelope envelope) {
+                                          ChatCompletionEnvelope envelope) {
         Map<String, Integer> assessmentsByCode = new LinkedHashMap<>();
         for (ComplianceSuggestion suggestion : suggestions) {
             if (suggestion.ruleCode() != null) {
@@ -348,7 +328,7 @@ final class ComplianceResponseReader {
      * the per-rule token figure, so the ceiling can be sized from a run that actually hit
      * it rather than from a separate measurement.
      */
-    private String tokenBudgetHint(Envelope envelope) {
+    private String tokenBudgetHint(ChatCompletionEnvelope envelope) {
         StringBuilder sb = new StringBuilder("The limit (compliance.ai.max-tokens) is ")
                 .append(maxTokens)
                 .append(" tokens");

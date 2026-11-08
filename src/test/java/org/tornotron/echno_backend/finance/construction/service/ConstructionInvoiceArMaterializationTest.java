@@ -242,7 +242,7 @@ class ConstructionInvoiceArMaterializationTest {
         Customer customer = new Customer();
         customer.setId(customerId);
         customer.setCode("CUST-001");
-        customer.setName("Asset Homes Pvt Ltd");
+        customer.setName("Riverside Builders Pvt Ltd");
         customer.setActive(true);
         return customer;
     }
@@ -297,7 +297,7 @@ class ConstructionInvoiceArMaterializationTest {
     }
 
     private InvoiceDto arInvoiceDto(UUID journalEntryId, UUID reversalJournalEntryId, UUID id) {
-        return new InvoiceDto(id, "INV-2026-0011", customerId, "Asset Homes Pvt Ltd",
+        return new InvoiceDto(id, "INV-2026-0011", customerId, "Riverside Builders Pvt Ltd",
                 LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 31), InvoiceStatus.ISSUED,
                 new BigDecimal("10000"), new BigDecimal("1800"), new BigDecimal("11800"),
                 BigDecimal.ZERO, new BigDecimal("11800"), journalEntryId, reversalJournalEntryId,

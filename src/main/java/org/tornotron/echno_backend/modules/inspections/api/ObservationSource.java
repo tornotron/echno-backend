@@ -1,4 +1,4 @@
-package org.tornotron.echno_backend.modules.inspections;
+package org.tornotron.echno_backend.modules.inspections.api;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;

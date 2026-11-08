@@ -8,6 +8,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.common.service.CurrentEmployeeService;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
+import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.leave.dto.LeaveApprovalActionDto;
 import org.tornotron.echno_backend.leave.dto.LeaveRequestDto;
@@ -17,10 +18,10 @@ import org.tornotron.echno_backend.leave.mapper.LeaveRequestMapper;
 import org.tornotron.echno_backend.organization.Organization;
 
 import java.time.LocalDate;
-import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -33,14 +34,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Unit tests for {@link LeaveApprovalService#initializeApprovalChain}, covering the opt-in
- * multi-level approval toggle on the leave policy (#249). The repositories and collaborators are
- * mocked and the entity graph is built in memory.
- *
- * <p>Three shapes are exercised: a policy with the toggle enabled (the default) builds the full
- * management-line chain as before; a policy with the toggle disabled builds a single-level chain of
- * just the direct approver, and one approval then finalizes the request; an employee with no
- * resolvable approvers finalizes immediately regardless of the toggle.
+ * Unit tests for single-level leave approval (ClickUp 14zdkkvzx68): a request goes to the
+ * employee's immediate manager alone, one approval decides it, and that manager may transfer it
+ * only to a manager above them in their own reporting line. The repositories and collaborators
+ * are mocked and the entity graph is built in memory.
  */
 @ExtendWith(MockitoExtension.class)
 class LeaveApprovalServiceTest {
@@ -90,11 +87,10 @@ class LeaveApprovalServiceTest {
         return employee;
     }
 
-    private LeavePolicy policy(Boolean multiLevelEnabled) {
+    private LeavePolicy policy() {
         LeavePolicy policy = new LeavePolicy();
         policy.setId(POLICY_ID);
         policy.setOrganization(organization());
-        policy.setMultiLevelApprovalEnabled(multiLevelEnabled);
         return policy;
     }
 
@@ -110,45 +106,19 @@ class LeaveApprovalServiceTest {
     }
 
     @Test
-    void multiLevelEnabled_buildsFullManagementLineChain() {
-        Employee topManager = employee(3L, null);
-        Employee lineManager = employee(2L, topManager);
+    void aRequestGoesToTheImmediateManagerAloneHoweverLongTheLineAboveIs() {
+        Employee director = employee(4L, null);
+        Employee operationsHead = employee(3L, director);
+        Employee lineManager = employee(2L, operationsHead);
         Employee applicant = employee(1L, lineManager);
-        LeaveRequest request = request(applicant, policy(true));
+        LeaveRequest request = request(applicant, policy());
 
         service().initializeApprovalChain(request);
 
-        // Full chain: both managers in the management line become approvers.
-        assertThat(request.getMaxApprovalLevel()).isEqualTo(2);
-        assertThat(request.getCurrentApprovalLevel()).isEqualTo(1);
-        assertThat(request.getCurrentApprover()).isEqualTo(lineManager);
-        assertThat(request.getStatus()).isEqualTo(LeaveStatus.PENDING_APPROVAL);
-
-        ArgumentCaptor<LeaveApproval> captor = ArgumentCaptor.forClass(LeaveApproval.class);
-        verify(approvalRepository, times(2)).save(captor.capture());
-        assertThat(captor.getAllValues())
-                .extracting(LeaveApproval::getApprovalLevel)
-                .containsExactly(1, 2);
-        assertThat(captor.getAllValues())
-                .extracting(LeaveApproval::getApprover)
-                .containsExactly(lineManager, topManager);
-
-        verify(notificationService).sendApprovalRequiredNotification(request, lineManager);
-    }
-
-    @Test
-    void multiLevelDisabled_buildsSingleLevelChainOfDirectApprover() {
-        Employee topManager = employee(3L, null);
-        Employee lineManager = employee(2L, topManager);
-        Employee applicant = employee(1L, lineManager);
-        LeaveRequest request = request(applicant, policy(false));
-
-        service().initializeApprovalChain(request);
-
-        // Single-level: only the direct approver, even though a management line exists.
         assertThat(request.getMaxApprovalLevel()).isEqualTo(1);
         assertThat(request.getCurrentApprovalLevel()).isEqualTo(1);
         assertThat(request.getCurrentApprover()).isEqualTo(lineManager);
+        assertThat(request.getStatus()).isEqualTo(LeaveStatus.PENDING_APPROVAL);
 
         ArgumentCaptor<LeaveApproval> captor = ArgumentCaptor.forClass(LeaveApproval.class);
         verify(approvalRepository, times(1)).save(captor.capture());
@@ -159,46 +129,45 @@ class LeaveApprovalServiceTest {
     }
 
     @Test
-    void multiLevelDisabled_singleApprovalFinalizesRequest() {
+    void theImmediateManagersApprovalDecidesTheRequest() {
         Employee topManager = employee(3L, null);
         Employee lineManager = employee(2L, topManager);
         Employee applicant = employee(1L, lineManager);
-        LeaveRequest request = request(applicant, policy(false));
+        LeaveRequest request = request(applicant, policy());
 
         LeaveApprovalService service = service();
         service.initializeApprovalChain(request);
 
-        // The single-level chain is now in place; the direct approver approves.
-        LeaveApproval pending = new LeaveApproval();
-        pending.setLeaveRequest(request);
-        pending.setApprover(lineManager);
-        pending.setApprovalLevel(1);
-        pending.setAction(ApprovalAction.PENDING);
+        approveAs(service, request, lineManager, 1);
 
-        when(requestRepository.lockByIdAndOrganizationId(eq(REQUEST_ID), any()))
-                .thenReturn(Optional.of(request));
-        when(approvalRepository.findFirstByLeaveRequestIdAndApprovalLevelAndActionOrderByCreatedAtDesc(
-                eq(REQUEST_ID), eq(1), eq(ApprovalAction.PENDING)))
-                .thenReturn(Optional.of(pending));
-        lenient().when(balanceRepository.findByEmployeeIdAndLeavePolicyIdAndYear(anyLong(), anyLong(), anyInt()))
-                .thenReturn(Optional.empty());
-        when(leaveRequestMapper.toDto(request)).thenReturn(new LeaveRequestDto());
-
-        when(currentEmployeeService.requireCurrentEmployee(anyString())).thenReturn(lineManager);
-
-        service.approve(REQUEST_ID, new LeaveApprovalActionDto());
-
-        // maxApprovalLevel == 1, so the first approval finalizes rather than advancing.
         assertThat(request.getStatus()).isEqualTo(LeaveStatus.APPROVED);
         assertThat(request.getCurrentApprover()).isNull();
         verify(calendarService).createCalendarEntries(request);
+        verify(notificationService).sendLeaveDecisionNotification(request, ApprovalAction.APPROVED);
+        verify(notificationService, never()).sendApprovalRequiredNotification(request, topManager);
+    }
+
+    @Test
+    void aRequestRaisedUnderTheOldChainIsDecidedByWhoeverItWaitsOnNow() {
+        // Raised before single approval: three levels, waiting on the second.
+        Employee topManager = employee(3L, null);
+        Employee lineManager = employee(2L, topManager);
+        Employee applicant = employee(1L, lineManager);
+        LeaveRequest request = request(applicant, policy());
+        request.setMaxApprovalLevel(3);
+        request.setCurrentApprovalLevel(2);
+        request.setCurrentApprover(topManager);
+
+        approveAs(service(), request, topManager, 2);
+
+        assertThat(request.getStatus()).isEqualTo(LeaveStatus.APPROVED);
         verify(notificationService).sendLeaveDecisionNotification(request, ApprovalAction.APPROVED);
     }
 
     @Test
     void noResolvableApprovers_finalizesImmediately() {
         Employee applicant = employee(1L, null);
-        LeaveRequest request = request(applicant, policy(true));
+        LeaveRequest request = request(applicant, policy());
         lenient().when(balanceRepository.findByEmployeeIdAndLeavePolicyIdAndYear(anyLong(), anyLong(), anyInt()))
                 .thenReturn(Optional.empty());
 
@@ -212,16 +181,83 @@ class LeaveApprovalServiceTest {
     }
 
     @Test
-    void nullPolicyToggle_defaultsToMultiLevel() {
-        Employee topManager = employee(3L, null);
-        Employee lineManager = employee(2L, topManager);
+    void theManagerCanTransferTheRequestToAnyoneAboveThemInTheirLine() {
+        Employee director = employee(4L, null);
+        Employee operationsHead = employee(3L, director);
+        Employee lineManager = employee(2L, operationsHead);
         Employee applicant = employee(1L, lineManager);
-        // A legacy policy with no explicit toggle value must preserve the full-chain behaviour.
-        LeaveRequest request = request(applicant, policy(null));
+        LeaveRequest request = waitingOn(applicant, lineManager);
 
-        service().initializeApprovalChain(request);
+        transferAs(lineManager, request, director);
 
-        assertThat(request.getMaxApprovalLevel()).isEqualTo(2);
-        verify(approvalRepository, times(2)).save(any());
+        assertThat(request.getCurrentApprover()).isEqualTo(director);
+        verify(notificationService).sendDelegationNotification(request, director, lineManager.getId());
+    }
+
+    @Test
+    void aTransferToSomebodyOutsideTheLineAboveIsRefused() {
+        Employee operationsHead = employee(3L, null);
+        Employee lineManager = employee(2L, operationsHead);
+        Employee peer = employee(5L, operationsHead);
+        Employee applicant = employee(1L, lineManager);
+        LeaveRequest request = waitingOn(applicant, lineManager);
+
+        assertThatThrownBy(() -> transferAs(lineManager, request, peer))
+                .isInstanceOf(InvalidRequestException.class)
+                .hasMessageContaining("above you in your reporting line");
+        assertThatThrownBy(() -> transferAs(lineManager, request, applicant))
+                .isInstanceOf(InvalidRequestException.class);
+
+        assertThat(request.getCurrentApprover()).isEqualTo(lineManager);
+        verify(approvalRepository, never()).save(any());
+    }
+
+    private LeaveRequest waitingOn(Employee applicant, Employee approver) {
+        LeaveRequest request = request(applicant, policy());
+        request.setMaxApprovalLevel(1);
+        request.setCurrentApprovalLevel(1);
+        request.setCurrentApprover(approver);
+        return request;
+    }
+
+    private void transferAs(Employee approver, LeaveRequest request, Employee target) {
+        LeaveApproval pending = new LeaveApproval();
+        pending.setLeaveRequest(request);
+        pending.setApprover(approver);
+        pending.setApprovalLevel(1);
+        pending.setAction(ApprovalAction.PENDING);
+
+        lenient().when(requestRepository.findByIdAndOrganization_Id(eq(REQUEST_ID), any()))
+                .thenReturn(Optional.of(request));
+        lenient().when(employeeRepository.findByIdAndOrganizationId(eq(target.getId()), any()))
+                .thenReturn(Optional.of(target));
+        lenient().when(approvalRepository.findFirstByLeaveRequestIdAndApprovalLevelAndActionOrderByCreatedAtDesc(
+                eq(REQUEST_ID), eq(1), eq(ApprovalAction.PENDING)))
+                .thenReturn(Optional.of(pending));
+        lenient().when(currentEmployeeService.requireCurrentEmployee(anyString())).thenReturn(approver);
+
+        LeaveApprovalActionDto dto = new LeaveApprovalActionDto();
+        dto.setDelegateToId(target.getId());
+        service().delegate(REQUEST_ID, dto);
+    }
+
+    private void approveAs(LeaveApprovalService service, LeaveRequest request, Employee approver, int level) {
+        LeaveApproval pending = new LeaveApproval();
+        pending.setLeaveRequest(request);
+        pending.setApprover(approver);
+        pending.setApprovalLevel(level);
+        pending.setAction(ApprovalAction.PENDING);
+
+        when(requestRepository.lockByIdAndOrganizationId(eq(REQUEST_ID), any()))
+                .thenReturn(Optional.of(request));
+        when(approvalRepository.findFirstByLeaveRequestIdAndApprovalLevelAndActionOrderByCreatedAtDesc(
+                eq(REQUEST_ID), eq(level), eq(ApprovalAction.PENDING)))
+                .thenReturn(Optional.of(pending));
+        lenient().when(balanceRepository.findByEmployeeIdAndLeavePolicyIdAndYear(anyLong(), anyLong(), anyInt()))
+                .thenReturn(Optional.empty());
+        when(leaveRequestMapper.toDto(request)).thenReturn(new LeaveRequestDto());
+        when(currentEmployeeService.requireCurrentEmployee(anyString())).thenReturn(approver);
+
+        service.approve(REQUEST_ID, new LeaveApprovalActionDto());
     }
 }

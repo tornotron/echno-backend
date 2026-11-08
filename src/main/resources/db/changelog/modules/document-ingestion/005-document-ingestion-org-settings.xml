@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Per-organization settings of document ingestion: whether the text of tender files may be sent
+        to the outside AI service, which is on unless the organization's admin turns it off, and an
+        append-only record of each change with who made it and when. A missing settings row reads as on.
+
+        Design: docs/specs/2026-11-08-document-ingestion-design.md, sections 6.7 (item 4) and 7.4.
+    -->
+
+    <changeSet id="document-ingestion-005-create-org-settings" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="doc_ingest_org_settings"/></not>
+        </preConditions>
+        <createTable tableName="doc_ingest_org_settings">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_doc_ingest_org_settings" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false" unique="true" uniqueConstraintName="uq_doc_ingest_org_settings_org"/></column>
+            <column name="llm_reading_enabled" type="BOOLEAN" defaultValueBoolean="true"><constraints nullable="false"/></column>
+            <column name="monthly_budget_usd" type="DECIMAL(12,2)"/>
+            <column name="changed_by" type="BIGINT"/>
+            <column name="changed_at" type="TIMESTAMP"/>
+            <column name="created_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="updated_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="doc_ingest_org_settings" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_doc_ingest_org_settings_organization"/>
+    </changeSet>
+
+    <changeSet id="document-ingestion-005-create-setting-change" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="doc_ingest_setting_change"/></not>
+        </preConditions>
+        <createTable tableName="doc_ingest_setting_change">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_doc_ingest_setting_change" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="setting" type="VARCHAR(40)"><constraints nullable="false"/></column>
+            <column name="old_value" type="VARCHAR(100)"/>
+            <column name="new_value" type="VARCHAR(100)"><constraints nullable="false"/></column>
+            <column name="changed_by" type="BIGINT"/>
+            <column name="changed_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="doc_ingest_setting_change" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_doc_ingest_setting_change_organization"/>
+        <createIndex tableName="doc_ingest_setting_change" indexName="idx_doc_ingest_setting_change_org">
+            <column name="organization_id"/>
+            <column name="changed_at"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>

@@ -95,7 +95,7 @@ public class SubContractCreationDto {
     @Schema(description = "Id of the project this subcontract belongs to.", example = "3")
     private Long projectId;
 
-    @Schema(description = "Name of the project.", example = "Asset Homes Perumbavoor Phase 2")
+    @Schema(description = "Name of the project.", example = "Riverside Towers Phase 2")
     private String projectName;
 
     @Schema(description = "Quality rating out of 5.", example = "4.20")

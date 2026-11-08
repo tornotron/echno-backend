@@ -17,9 +17,11 @@ import org.tornotron.echno_backend.attendance.dto.RegularizationCalendarDayDto;
 import org.tornotron.echno_backend.attendance.dto.RegularizationRequestDto;
 import org.tornotron.echno_backend.attendance.service.AttendanceRegularizationService;
 import org.tornotron.echno_backend.attendance.service.RegularizationCalendarService;
-import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springdoc.core.annotations.ParameterObject;
+import org.tornotron.echno_backend.common.pagination.PageQuery;
 
 @RestController
 @RequestMapping("/api/v1/attendance-regularizations")
@@ -142,17 +144,17 @@ public class AttendanceRegularizationController {
     @PreAuthorize("@attendanceSecurity.canManageRecords()")
     @Operation(
             summary = "List pending regularization requests",
-            description = "Returns the regularization requests awaiting approval or rejection, up to a "
-                    + "fixed ceiling. The response carries X-Total-Count with the true number of pending "
-                    + "requests, and X-Result-Capped when there were more than one response can hold."
+            description = "Returns the regularization requests awaiting approval or rejection, one page "
+                    + "at a time, latest request first. totalElements is the number pending."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Pending regularization requests returned"),
             @ApiResponse(responseCode = "403", description = "Caller lacks permission to manage attendance records")
     })
-    public ResponseEntity<List<AttendanceRegularizationDto>> getPending() {
-        return UnpagedResultCap.respond(regularizationService.getPendingRegularizations(
-                0, UnpagedResultCap.MAX_ROWS));
+    public ResponseEntity<Page<AttendanceRegularizationDto>> getPending(
+            @Valid @ParameterObject PageQuery pageQuery) {
+        return ResponseEntity.ok(regularizationService.getPendingRegularizations(
+                pageQuery.getPageNo(), pageQuery.getPageSize()));
     }
 
     @GetMapping("/{id}")

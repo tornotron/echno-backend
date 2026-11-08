@@ -1,10 +1,13 @@
 package org.tornotron.echno_backend.common.service;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 import org.tornotron.echno_backend.common.dto.StoredFile;
 import org.tornotron.echno_backend.common.dto.PresignedUpload;
@@ -28,6 +31,8 @@ import org.tornotron.echno_backend.user.UserRepository;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -37,6 +42,7 @@ import java.util.UUID;
  * Service for managing attachments across different modules.
  * Combines file storage operations with attachment record management.
  */
+@Slf4j
 @Service
 public class AttachmentService {
 
@@ -173,6 +179,21 @@ public class AttachmentService {
         return toDtos(attachmentRepository.findByEntityTypeAndEntityUuidOrderByIdAsc(entityType, entityUuid));
     }
 
+    /**
+     * Retrieves attachments of the current organization by id, whatever they are filed against.
+     * Ids from another organization are left out.
+     *
+     * @param ids The attachment ids
+     * @return The attachments found, oldest first
+     */
+    @Transactional(readOnly = true)
+    public List<AttachmentDto> getAttachments(Collection<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        return toDtos(attachmentRepository.findByIdInAndOrganization_IdOrderByIdAsc(ids, TenantContext.getCurrentOrgId()));
+    }
+
     private List<AttachmentDto> toDtos(List<Attachment> attachments) {
         return attachments.stream()
                 .map(attachment -> {
@@ -266,8 +287,10 @@ public class AttachmentService {
     @Transactional
     public void deleteAttachment(Long attachmentId) {
         attachmentRepository.findById(attachmentId).ifPresent(attachment -> {
-            fileStorageService.deleteFile(attachment.getStorageKey());
+            // Row first: a foreign key that refuses the delete must do so before the file is gone.
             attachmentRepository.delete(attachment);
+            attachmentRepository.flush();
+            deleteStoredFilesAfterCommit(Collections.singletonList(attachment.getStorageKey()));
         });
     }
 
@@ -296,8 +319,9 @@ public class AttachmentService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Attachment with ID " + attachmentId + " is not filed against "
                                 + owner.entityType() + " " + owner.keyAsText()));
-        fileStorageService.deleteFile(attachment.getStorageKey());
         attachmentRepository.delete(attachment);
+        attachmentRepository.flush();
+        deleteStoredFilesAfterCommit(Collections.singletonList(attachment.getStorageKey()));
     }
 
     /**
@@ -310,14 +334,46 @@ public class AttachmentService {
     public void deleteAllAttachments(String entityType, Long entityId) {
         List<Attachment> attachments = attachmentRepository.findByEntityTypeAndEntityId(entityType, entityId);
 
-        // Delete files from storage
         List<String> keys = attachments.stream()
                 .map(Attachment::getStorageKey)
                 .toList();
-        fileStorageService.deleteFiles(keys);
 
-        // Delete attachment records
         attachmentRepository.deleteByEntityTypeAndEntityId(entityType, entityId);
+        deleteStoredFilesAfterCommit(keys);
+    }
+
+    /**
+     * Deletes stored files once the surrounding transaction has committed.
+     *
+     * <p>A stored file cannot be restored by a rollback. Deleted inside the transaction, a caller
+     * that fails after this point gets its attachment row back with no file behind it, and the
+     * image answers 404 from then on. After the commit the row is certainly gone, so the worst a
+     * failure here can leave is a file nothing points at, which is logged and harmless. It is not
+     * rethrown: the caller's work has already committed and must not be reported as failed.
+     *
+     * @param keys The storage keys to delete
+     */
+    private void deleteStoredFilesAfterCommit(List<String> keys) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            deleteStoredFiles(keys);
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                deleteStoredFiles(keys);
+            }
+        });
+    }
+
+    private void deleteStoredFiles(List<String> keys) {
+        for (String key : keys) {
+            try {
+                fileStorageService.deleteFile(key);
+            } catch (RuntimeException e) {
+                log.warn("Attachment row is deleted but its stored file {} could not be: {}", key, e.getMessage());
+            }
+        }
     }
 
     /**

@@ -45,7 +45,7 @@ public class PurchaseOrderDto {
     private Long projectId;
 
     @Schema(description = "Name of the project. Null whenever projectId is, and also on a project "
-            + "that has no name recorded.", example = "Asset Homes Perumbavoor Phase 2",
+            + "that has no name recorded.", example = "Riverside Towers Phase 2",
             nullable = true)
     private String projectName;
 

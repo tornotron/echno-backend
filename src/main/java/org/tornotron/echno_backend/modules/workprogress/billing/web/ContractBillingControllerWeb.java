@@ -33,6 +33,7 @@ import org.tornotron.echno_backend.common.pagination.PageQuery;
 import org.tornotron.echno_backend.modules.workprogress.WorkProgressModule;
 import org.tornotron.echno_backend.modules.workprogress.billing.domain.BillStatus;
 import org.tornotron.echno_backend.modules.workprogress.billing.domain.BillingModel;
+import org.tornotron.echno_backend.modules.workprogress.billing.dto.BillActivityDto;
 import org.tornotron.echno_backend.modules.workprogress.billing.dto.BillCommentRequest;
 import org.tornotron.echno_backend.modules.workprogress.billing.dto.BillDto;
 import org.tornotron.echno_backend.modules.workprogress.billing.dto.BillEventDto;
@@ -49,6 +50,7 @@ import org.tornotron.echno_backend.modules.workprogress.billing.dto.ManualAdjust
 import org.tornotron.echno_backend.modules.workprogress.billing.dto.MeasurementRequest;
 import org.tornotron.echno_backend.modules.workprogress.billing.dto.MilestoneRequirementDto;
 import org.tornotron.echno_backend.modules.workprogress.billing.dto.MilestoneRequirementRequest;
+import org.tornotron.echno_backend.modules.workprogress.billing.dto.ProjectBillingSummaryDto;
 import org.tornotron.echno_backend.modules.workprogress.billing.dto.UpdateBillRequest;
 import org.tornotron.echno_backend.modules.workprogress.billing.service.ContractBillPdfService;
 import org.tornotron.echno_backend.modules.workprogress.billing.service.ContractBillService;
@@ -78,6 +80,34 @@ public class ContractBillingControllerWeb {
     @ApiResponses(@ApiResponse(responseCode = "200", description = "Counts by stage and the certified and approved totals"))
     public BillingOverviewDto overview() {
         return billing.overview();
+    }
+
+    @GetMapping("/projects")
+    @PreAuthorize(WorkProgressModule.READ_GUARD)
+    @Operation(summary = "List projects with their contracts and bills added up, by name", description = "Search by part of the name.")
+    @ApiResponses(@ApiResponse(responseCode = "200", description = "A page of projects"))
+    public Page<ProjectBillingSummaryDto> projects(@RequestParam(required = false) String search, @Valid PageQuery page) {
+        return billing.projects(search, page.getPageNo(), page.getPageSize());
+    }
+
+    @GetMapping("/projects/{projectId}")
+    @PreAuthorize(WorkProgressModule.READ_GUARD)
+    @Operation(summary = "Get one project with its contracts and bills added up")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "The project's billing figures"),
+            @ApiResponse(responseCode = "404", description = "No such project in the current tenant")
+    })
+    public ProjectBillingSummaryDto project(@PathVariable Long projectId) {
+        return billing.project(projectId);
+    }
+
+    @GetMapping("/activity")
+    @PreAuthorize(WorkProgressModule.READ_GUARD)
+    @Operation(summary = "The latest bill events, newest first", description = "Across the organization, or for one project. At most 50.")
+    @ApiResponses(@ApiResponse(responseCode = "200", description = "The events"))
+    public List<BillActivityDto> activity(@RequestParam(required = false) Long projectId,
+                                          @RequestParam(defaultValue = "10") int limit) {
+        return billing.activity(projectId, limit);
     }
 
     @GetMapping("/contracts")

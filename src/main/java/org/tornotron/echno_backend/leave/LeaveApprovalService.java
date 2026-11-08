@@ -31,12 +31,15 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * Drives the multi-level approval workflow for leave requests and the balance moves it triggers.
+ * Drives the approval of leave requests and the balance moves it triggers.
  *
- * <p>Builds the approver chain from the employee's management line, advances a request level by
- * level on approval, and on the final approval transfers days from pending to used and posts a
- * deduction ledger entry. Rejection releases the pending hold. Approve and reject take a
- * pessimistic lock on the request so two concurrent decisions cannot both finalize and deduct twice.
+ * <p>A request has one approver: the employee's immediate manager, or the one person the policy's
+ * approver role names. That approver decides it. When they need somebody more senior to decide,
+ * they can transfer it to a manager above them in their own reporting line, who then decides it
+ * instead. There is no chain of approvals to climb. On approval the days move from pending to
+ * used and a deduction ledger entry is posted; rejection releases the pending hold. Approve and
+ * reject take a pessimistic lock on the request so two concurrent decisions cannot both finalize
+ * and deduct twice.
  */
 @Service
 @Validated
@@ -83,57 +86,51 @@ public class LeaveApprovalService {
     }
 
     /**
-     * Builds and stores the approval chain for a submitted request and notifies the first approver.
+     * Routes a submitted request to its one approver and notifies them.
      *
-     * <p>The applicable leave policy (the one the request was raised under) decides the shape of the
-     * chain. When {@code multiLevelApprovalEnabled} is true (the default, preserving today's
-     * behaviour) the full management line is used, so the request advances level by level. When an
-     * organization opts out by setting it false, only the direct approver is enrolled
-     * ({@code maxApprovalLevel = 1}), so a single approval finalizes the request.
+     * <p>The approver is the person the policy's approver role names, or, for a policy that routes
+     * to the reporting manager, the employee's immediate manager. Nobody further up the line is
+     * enrolled: one approval decides the request ({@code maxApprovalLevel = 1}). The product owner
+     * settled this on 8 Nov 2026 (ClickUp 14zdkkvzx68): leave goes to the manager one level above
+     * and no further, and that manager can hand it upward by {@link #delegate} when it needs a
+     * more senior decision. The per-policy multi-level toggle that used to switch the full chain
+     * on is gone.
      *
-     * <p>When the employee has no resolvable approvers, the request is finalized immediately
-     * instead of waiting for an approval, regardless of the toggle.
+     * <p>When the employee has no resolvable approver, the request is finalized immediately
+     * instead of waiting for an approval.
      *
      * @param request The submitted leave request to route for approval.
      */
     @Transactional
     public void initializeApprovalChain(LeaveRequest request) {
-        List<Employee> approvers = resolveRoleApprover(request);
-
-        if (approvers.isEmpty()) {
-            approvers = resolveApprovalChain(request.getEmployee());
-
-            if (approvers.isEmpty()) {
-                // Finalized before the submitting service has taken the pending hold, so there
-                // is no hold of this request's to release: releasing its figure here would eat
-                // into a hold that belongs to another pending request of the same employee.
-                finalizeApproval(request, false);
-                return;
-            }
-
-            if (!isMultiLevelApprovalEnabled(request)) {
-                // Organization opted out of multi-level approval: only the direct
-                // approver decides, so one approval finalizes the request.
-                approvers = approvers.subList(0, 1);
-            }
+        Optional<Employee> resolved = resolveRoleApprover(request);
+        if (resolved.isEmpty()) {
+            resolved = resolveApprovalChain(request.getEmployee()).stream().findFirst();
         }
 
-        request.setMaxApprovalLevel(approvers.size());
+        if (resolved.isEmpty()) {
+            // Finalized before the submitting service has taken the pending hold, so there
+            // is no hold of this request's to release: releasing its figure here would eat
+            // into a hold that belongs to another pending request of the same employee.
+            finalizeApproval(request, false);
+            return;
+        }
+
+        Employee approver = resolved.get();
+        request.setMaxApprovalLevel(1);
         request.setCurrentApprovalLevel(1);
-        request.setCurrentApprover(approvers.get(0));
+        request.setCurrentApprover(approver);
         requestRepository.save(request);
 
-        for (int i = 0; i < approvers.size(); i++) {
-            LeaveApproval approval = new LeaveApproval();
-            approval.setLeaveRequest(request);
-            approval.setOrganization(request.getOrganization());
-            approval.setApprover(approvers.get(i));
-            approval.setApprovalLevel(i + 1);
-            approval.setAction(ApprovalAction.PENDING);
-            approvalRepository.save(approval);
-        }
+        LeaveApproval approval = new LeaveApproval();
+        approval.setLeaveRequest(request);
+        approval.setOrganization(request.getOrganization());
+        approval.setApprover(approver);
+        approval.setApprovalLevel(1);
+        approval.setAction(ApprovalAction.PENDING);
+        approvalRepository.save(approval);
 
-        notificationService.sendApprovalRequiredNotification(request, approvers.get(0));
+        notificationService.sendApprovalRequiredNotification(request, approver);
     }
 
     /**
@@ -143,7 +140,7 @@ public class LeaveApprovalService {
      * <p>{@link LeaveApproverRole#REPORTING_MANAGER} answers empty so the caller walks the
      * management line as it always has. {@link LeaveApproverRole#HR_ADMIN} and
      * {@link LeaveApproverRole#SYSTEM_ADMIN} answer the lowest-id employee of the organization
-     * holding that role who is not the requester, as a chain of one. When nobody holds the role
+     * holding that role who is not the requester. When nobody holds the role
      * the answer is empty too, and the management line decides rather than the request sitting
      * with no approver at all: a policy configured for a tier the organization has not staffed
      * should still be approvable by somebody.
@@ -151,31 +148,31 @@ public class LeaveApprovalService {
      * @param request The submitted request, with its policy attached.
      * @return The one approver, or empty when the management line applies.
      */
-    private List<Employee> resolveRoleApprover(LeaveRequest request) {
+    private Optional<Employee> resolveRoleApprover(LeaveRequest request) {
         LeavePolicy policy = request.getLeavePolicy();
         if (policy == null || policy.getApproverRole() == null) {
-            return List.of();
+            return Optional.empty();
         }
         OrgRole orgRole = policy.getApproverRole().getOrgRole();
         if (orgRole == null) {
-            return List.of();
+            return Optional.empty();
         }
         Long requesterId = request.getEmployee().getId();
         return employeeRepository.findByOrganizationIdAndOrgRole(request.getOrganization().getId(), orgRole)
                 .stream()
                 .filter(candidate -> !candidate.getId().equals(requesterId))
-                .min(java.util.Comparator.comparing(Employee::getId))
-                .map(List::of)
-                .orElse(List.of());
+                .min(java.util.Comparator.comparing(Employee::getId));
     }
 
     /**
-     * Walks up the employee's management line to build the ordered list of approvers.
+     * Walks up the employee's management line, immediate manager first.
      *
-     * <p>Stops at five levels and guards against self-referencing or cyclic manager links.
+     * <p>The first entry is who a reporting-manager policy routes a request to; the whole list is
+     * who an approver may transfer a request to (see {@link #delegate}). Stops at five levels and
+     * guards against self-referencing or cyclic manager links.
      *
-     * @param employee The employee whose approval chain is being resolved.
-     * @return The approvers in order from immediate manager upward; empty if there is none.
+     * @param employee The employee whose management line is being resolved.
+     * @return The managers in order from immediate manager upward; empty if there is none.
      */
     @Transactional(readOnly = true)
     public List<Employee> resolveApprovalChain(Employee employee) {
@@ -204,30 +201,13 @@ public class LeaveApprovalService {
     }
 
     /**
-     * Resolves whether the request's leave policy opts in to multi-level approval.
+     * Records the current approver's approval and finalizes the request.
      *
-     * <p>Reads the toggle from the policy the request was raised under (already resolved and attached
-     * to the request when it was submitted, the same policy the rest of the leave flow uses). Defaults
-     * to {@code true} when no policy or no explicit value is present, so the historical full-chain
-     * behaviour is preserved.
-     *
-     * @param request The leave request being routed for approval.
-     * @return {@code true} to build the full management-line chain; {@code false} for single-level.
-     */
-    private boolean isMultiLevelApprovalEnabled(LeaveRequest request) {
-        LeavePolicy policy = request.getLeavePolicy();
-        if (policy == null || policy.getMultiLevelApprovalEnabled() == null) {
-            return true;
-        }
-        return policy.getMultiLevelApprovalEnabled();
-    }
-
-    /**
-     * Records the current approver's approval and advances or finalizes the request.
-     *
-     * <p>Takes a pessimistic lock on the request to serialize concurrent decisions. If more
-     * levels remain the next approver is notified; otherwise the request is approved, pending days
-     * are moved to used, a deduction ledger entry is posted, and calendar entries are created.
+     * <p>Takes a pessimistic lock on the request to serialize concurrent decisions. One approval
+     * decides a request: it is approved, pending days are moved to used, a deduction ledger entry
+     * is posted, and calendar entries are created. A request raised before single approval, still
+     * waiting on a higher level of its old chain, is decided by whoever it is waiting on now;
+     * changeset 135 removed the levels above that.
      *
      * <p>The approver is the signed-in caller, not an id on the payload: see
      * {@link #resolveActingApprover}.
@@ -256,11 +236,7 @@ public class LeaveApprovalService {
         approval.setActionAt(LocalDateTime.now());
         approvalRepository.save(approval);
 
-        if (request.getCurrentApprovalLevel() < request.getMaxApprovalLevel()) {
-            advanceToNextLevel(request);
-        } else {
-            finalizeApproval(request, true);
-        }
+        finalizeApproval(request, true);
 
         return leaveRequestMapper.toDto(request);
     }
@@ -305,17 +281,26 @@ public class LeaveApprovalService {
     }
 
     /**
-     * Delegates the current approval level to another employee.
+     * Transfers the request to a manager above the current approver, who then decides it.
+     *
+     * <p>This is the "transfer to anyone above his level, if and only if needed" of ClickUp
+     * 14zdkkvzx68: the immediate manager either decides the request or hands it upward. So the
+     * target has to be in the current approver's own reporting line above them (their manager,
+     * that manager's manager, and so on), and nobody else: a peer, a subordinate or the
+     * requester is refused. The endpoint keeps its {@code delegate} name and payload so existing
+     * clients keep working.
      *
      * <p>Marks the current approver's record as delegated and creates a fresh pending record for
-     * the delegate at the same level, with a back-reference to the delegating approver. The
-     * request's current approver becomes the delegate, who is notified.
+     * the target at the same level, with a back-reference to the transferring approver. The
+     * request's current approver becomes the target, who is notified.
      *
-     * @param requestId The ID of the leave request being delegated.
-     * @param dto The target delegate ID, and optional comments.
+     * @param requestId The ID of the leave request being transferred.
+     * @param dto The target employee ID, and optional comments.
      * @return The updated leave request.
-     * @throws InvalidRequestException if no delegate ID is supplied, the request is not pending approval, or the caller is not the current approver.
-     * @throws ResourceNotFoundException if the request or the delegate is not found in this organization.
+     * @throws InvalidRequestException if no target ID is supplied, the request is not pending
+     *     approval, the caller is not the current approver, or the target is not above the
+     *     current approver in their reporting line.
+     * @throws ResourceNotFoundException if the request or the target is not found in this organization.
      */
     @Transactional
     public LeaveRequestDto delegate(Long requestId, LeaveApprovalActionDto dto) {
@@ -333,6 +318,8 @@ public class LeaveApprovalService {
         Employee delegateTo = employeeRepository.findByIdAndOrganizationId(dto.getDelegateToId(),TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Delegate (employee) with ID " + dto.getDelegateToId() + " was not found in this organization"));
+
+        requireAboveCurrentApprover(request, delegateTo);
 
         LeaveApproval currentApproval = getPendingApproval(request.getId(), request.getCurrentApprovalLevel());
 
@@ -356,6 +343,25 @@ public class LeaveApprovalService {
         notificationService.sendDelegationNotification(request, delegateTo, actingApproverId);
 
         return leaveRequestMapper.toDto(request);
+    }
+
+    /**
+     * Refuses a transfer to anyone who is not above the current approver in their reporting line.
+     *
+     * @param request The request being transferred, with its current approver set.
+     * @param target The employee the request would go to.
+     * @throws InvalidRequestException if the target is not one of the current approver's managers,
+     *     or is the employee the leave belongs to.
+     */
+    private void requireAboveCurrentApprover(LeaveRequest request, Employee target) {
+        Long requesterId = request.getEmployee() != null ? request.getEmployee().getId() : null;
+        boolean aboveInLine = resolveApprovalChain(request.getCurrentApprover()).stream()
+                .anyMatch(manager -> manager.getId().equals(target.getId()));
+        if (!aboveInLine || target.getId().equals(requesterId)) {
+            throw new InvalidRequestException(
+                    "A leave request can only be transferred to a manager above you in your reporting "
+                            + "line. Employee " + target.getId() + " is not one of them.");
+        }
     }
 
     /**
@@ -518,18 +524,6 @@ public class LeaveApprovalService {
             throw new InvalidRequestException(
                     "You are not the current approver for leave request " + request.getId());
         }
-    }
-
-    private void advanceToNextLevel(LeaveRequest request) {
-        int nextLevel = request.getCurrentApprovalLevel() + 1;
-
-        LeaveApproval nextApproval = getPendingApproval(request.getId(), nextLevel);
-
-        request.setCurrentApprovalLevel(nextLevel);
-        request.setCurrentApprover(nextApproval.getApprover());
-        requestRepository.save(request);
-
-        notificationService.sendApprovalRequiredNotification(request, nextApproval.getApprover());
     }
 
     /**

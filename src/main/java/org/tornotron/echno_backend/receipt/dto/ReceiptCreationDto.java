@@ -40,7 +40,7 @@ public class ReceiptCreationDto {
     @Schema(description = "Cheque or internal reference number.", example = "CHQ-000231")
     private String referenceNumber;
 
-    @Schema(description = "Name of the person or company the amount was received from.", example = "Asset Homes Pvt Ltd")
+    @Schema(description = "Name of the person or company the amount was received from.", example = "Riverside Builders Pvt Ltd")
     @NotBlank
     private String receivedFrom;
 

@@ -96,6 +96,7 @@ public class PurchaseOrderService {
     private final StatusTransitionRecorder statusTransitionRecorder;
     private final StatusTransitionRepository statusTransitionRepository;
     private final StatusTransitionMapper statusTransitionMapper;
+    private final PurchaseOrderEditPolicy editPolicy;
     private final UserContextService userContextService;
     private final PurchaseOrderAccess purchaseOrderAccess;
 
@@ -115,6 +116,7 @@ public class PurchaseOrderService {
                                 StatusTransitionRepository statusTransitionRepository,
                                 StatusTransitionMapper statusTransitionMapper,
                                 UserContextService userContextService,
+                                PurchaseOrderEditPolicy editPolicy,
                                 PurchaseOrderAccess purchaseOrderAccess) {
         this.purchaseOrderRepository = purchaseOrderRepository;
         this.vendorRepository = vendorRepository;
@@ -132,6 +134,7 @@ public class PurchaseOrderService {
         this.statusTransitionRepository = statusTransitionRepository;
         this.statusTransitionMapper = statusTransitionMapper;
         this.userContextService = userContextService;
+        this.editPolicy = editPolicy;
         this.purchaseOrderAccess = purchaseOrderAccess;
     }
 
@@ -301,6 +304,21 @@ public class PurchaseOrderService {
     }
 
     /**
+     * One page of the same rows, newest order first, with the id as tie-break.
+     *
+     * @param pageNo   Zero-based page index.
+     * @param pageSize Rows per page.
+     * @return The requested page.
+     */
+    @Transactional(readOnly = true)
+    public Page<PurchaseOrderDto> getPurchaseOrdersByVendor(Long vendorId, int pageNo, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNo, pageSize,
+                Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id")));
+        return visiblePage(pageable, () -> purchaseOrderRepository.findByVendorId(vendorId, pageable),
+                whereEquals("vendor", vendorId));
+    }
+
+    /**
      * Lists purchase orders raised from a given indent.
      *
      * @param indentId The indent whose purchase orders to return.
@@ -319,6 +337,21 @@ public class PurchaseOrderService {
         return orders.stream()
                 .map(po -> purchaseOrderMapper.toDto(po))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * One page of the same rows, newest order first, with the id as tie-break.
+     *
+     * @param pageNo   Zero-based page index.
+     * @param pageSize Rows per page.
+     * @return The requested page.
+     */
+    @Transactional(readOnly = true)
+    public Page<PurchaseOrderDto> getPurchaseOrdersByIndent(Long indentId, int pageNo, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNo, pageSize,
+                Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id")));
+        return visiblePage(pageable, () -> purchaseOrderRepository.findByIndentId(indentId, pageable),
+                whereEquals("indent", indentId));
     }
 
     /**
@@ -343,6 +376,39 @@ public class PurchaseOrderService {
     }
 
     /**
+     * One page of the same rows, newest order first, with the id as tie-break.
+     *
+     * @param pageNo   Zero-based page index.
+     * @param pageSize Rows per page.
+     * @return The requested page.
+     */
+    @Transactional(readOnly = true)
+    public Page<PurchaseOrderDto> getPurchaseOrdersByStatus(PurchaseOrderStatus status, int pageNo, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNo, pageSize,
+                Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id")));
+        return visiblePage(pageable, () -> purchaseOrderRepository.findByStatus(status, pageable),
+                inStatus(status));
+    }
+
+    /**
+     * One page of a lookup, narrowed to the orders the caller may read. A caller who may read every
+     * order gets the lookup unchanged; anyone else gets the same condition with the narrowing in the
+     * query, so the total counts only what they may see.
+     */
+    private Page<PurchaseOrderDto> visiblePage(Pageable pageable,
+                                               java.util.function.Supplier<Page<PurchaseOrder>> unnarrowed,
+                                               Specification<PurchaseOrder> condition) {
+        AccessFilter visible = purchaseOrderAccess.filter(AccessPermission.READ);
+        if (visible.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        Page<PurchaseOrder> orders = visible.everything()
+                ? unnarrowed.get()
+                : purchaseOrderRepository.findAll(condition.and(PurchaseOrderAccess.admittedBy(visible)), pageable);
+        return orders.map(po -> purchaseOrderMapper.toDto(po));
+    }
+
+    /**
      * Applies a partial update to a purchase order header.
      *
      * <p>Only the non-null status, project, expected delivery date, and remarks are changed.
@@ -352,13 +418,19 @@ public class PurchaseOrderService {
      *
      * @param updateDto The purchase order id and the header fields to change.
      * @return The updated purchase order as a DTO.
+     * <p>A project manager may edit an order only while it is a draft, and may not change its
+     * status here; both are the approver's (see {@link PurchaseOrderEditPolicy}).
+     *
      * @throws ResourceNotFoundException if no purchase order with the given id exists in this
      *     organization, or the payload names a project that does not.
+     * @throws org.springframework.security.access.AccessDeniedException if a caller who is not a
+     *     system admin edits an order past DRAFT or changes its status.
      */
     @Transactional
     public PurchaseOrderDto updatePurchaseOrder(PurchaseOrderUpdateDto updateDto) {
         PurchaseOrder purchaseOrder = requireOrder(updateDto.getId(), AccessPermission.EDIT);
 
+        editPolicy.requireEditable(purchaseOrder);
         PurchaseOrderStatus previousStatus = purchaseOrder.getStatus();
         if (updateDto.getStatus() != null) {
             PurchaseOrderStatus status = PurchaseOrderStatus.valueOf(updateDto.getStatus());
@@ -367,6 +439,7 @@ public class PurchaseOrderService {
             if (status != previousStatus) {
                 purchaseOrderAccess.require(AccessPermission.APPROVE, PurchaseOrderAccess.facts(purchaseOrder));
             }
+            editPolicy.requireStatusChangeAllowed(purchaseOrder, status);
             purchaseOrder.setStatus(status);
         }
 

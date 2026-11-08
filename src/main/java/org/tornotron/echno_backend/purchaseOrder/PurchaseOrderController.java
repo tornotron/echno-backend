@@ -113,15 +113,18 @@ public class PurchaseOrderController {
     @GetMapping("/vendor/{vendorId}")
     @Operation(
             summary = "List purchase orders for a vendor",
-            description = "Returns every purchase order raised against the given vendor, for example every "
+            description = "Returns, one page at a time, every purchase order raised against the given vendor, for example every "
                     + "PO placed with Sri Balaji Steel Traders."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Purchase orders returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read purchase orders")
     })
-    public ResponseEntity<List<PurchaseOrderDto>> getPurchaseOrdersByVendor(@PathVariable Long vendorId) {
-        List<PurchaseOrderDto> purchaseOrders = purchaseOrderService.getPurchaseOrdersByVendor(vendorId);
+    public ResponseEntity<Page<PurchaseOrderDto>> getPurchaseOrdersByVendor(
+            @PathVariable Long vendorId,
+            @Valid @ParameterObject PageQuery pageQuery) {
+        Page<PurchaseOrderDto> purchaseOrders = purchaseOrderService.getPurchaseOrdersByVendor(
+                vendorId, pageQuery.getPageNo(), pageQuery.getPageSize());
         return ResponseEntity.ok(purchaseOrders);
     }
 
@@ -129,14 +132,17 @@ public class PurchaseOrderController {
     @GetMapping("/indent/{indentId}")
     @Operation(
             summary = "List purchase orders for an indent",
-            description = "Returns every purchase order that was raised from the given material indent."
+            description = "Returns, one page at a time, every purchase order that was raised from the given material indent."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Purchase orders returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read purchase orders")
     })
-    public ResponseEntity<List<PurchaseOrderDto>> getPurchaseOrdersByIndent(@PathVariable Long indentId) {
-        List<PurchaseOrderDto> purchaseOrders = purchaseOrderService.getPurchaseOrdersByIndent(indentId);
+    public ResponseEntity<Page<PurchaseOrderDto>> getPurchaseOrdersByIndent(
+            @PathVariable Long indentId,
+            @Valid @ParameterObject PageQuery pageQuery) {
+        Page<PurchaseOrderDto> purchaseOrders = purchaseOrderService.getPurchaseOrdersByIndent(
+                indentId, pageQuery.getPageNo(), pageQuery.getPageSize());
         return ResponseEntity.ok(purchaseOrders);
     }
 
@@ -144,7 +150,7 @@ public class PurchaseOrderController {
     @GetMapping("/status/{status}")
     @Operation(
             summary = "List purchase orders by status",
-            description = "Returns every purchase order currently in the given lifecycle status, such as "
+            description = "Returns, one page at a time, every purchase order currently in the given lifecycle status, such as "
                     + "SENT_TO_VENDOR or FULLY_RECEIVED."
     )
     @ApiResponses({
@@ -152,8 +158,11 @@ public class PurchaseOrderController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "status is not a recognised purchase order status"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read purchase orders")
     })
-    public ResponseEntity<List<PurchaseOrderDto>> getPurchaseOrdersByStatus(@PathVariable PurchaseOrderStatus status) {
-        List<PurchaseOrderDto> purchaseOrders = purchaseOrderService.getPurchaseOrdersByStatus(status);
+    public ResponseEntity<Page<PurchaseOrderDto>> getPurchaseOrdersByStatus(
+            @PathVariable PurchaseOrderStatus status,
+            @Valid @ParameterObject PageQuery pageQuery) {
+        Page<PurchaseOrderDto> purchaseOrders = purchaseOrderService.getPurchaseOrdersByStatus(
+                status, pageQuery.getPageNo(), pageQuery.getPageSize());
         return ResponseEntity.ok(purchaseOrders);
     }
 

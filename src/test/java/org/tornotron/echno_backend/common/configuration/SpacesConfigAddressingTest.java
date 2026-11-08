@@ -1,7 +1,11 @@
 package org.tornotron.echno_backend.common.configuration;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.env.YamlPropertySourceLoader;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.mock.env.MockEnvironment;
 import org.springframework.test.util.ReflectionTestUtils;
+import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3Configuration;
 import software.amazon.awssdk.services.s3.model.GetUrlRequest;
@@ -83,8 +87,59 @@ class SpacesConfigAddressingTest {
         }
     }
 
+    @Test
+    void bothClientsSignForTheConfiguredRegion() {
+        SpacesConfig config = configWith(true);
+        ReflectionTestUtils.setField(config, "region", "eu-central-1");
+        S3Configuration shared = config.objectStoreServiceConfiguration();
+
+        try (S3Client client = config.s3Client(shared);
+             S3Presigner presigner = config.s3Presigner(shared)) {
+
+            assertThat(client.serviceClientConfiguration().region()).isEqualTo(Region.of("eu-central-1"));
+            // The credential scope in the query string is what a store checks the region against.
+            assertThat(presignedUrlFor(presigner).getQuery())
+                    .contains("/eu-central-1/s3/aws4_request")
+                    .doesNotContain("us-east-1");
+        }
+    }
+
+    @Test
+    void anEnvironmentThatSetsNoRegionKeepsSigningForUsEast1() throws Exception {
+        assertThat(propertyIn(new MockEnvironment(), "digital-ocean.region")).isEqualTo("us-east-1");
+    }
+
+    @Test
+    void theRegionIsReadFromItsEnvironmentVariable() throws Exception {
+        MockEnvironment environment = new MockEnvironment()
+                .withProperty("DIGITAL_OCEAN_SPACES_REGION", "eu-central-1");
+
+        assertThat(propertyIn(environment, "digital-ocean.region")).isEqualTo("eu-central-1");
+    }
+
+    @Test
+    void anEnvironmentThatSetsNoAddressingStyleKeepsPathStyle() throws Exception {
+        assertThat(propertyIn(new MockEnvironment(), "digital-ocean.path-style-access")).isEqualTo("true");
+    }
+
+    @Test
+    void theAddressingStyleIsReadFromItsEnvironmentVariable() throws Exception {
+        MockEnvironment on = new MockEnvironment().withProperty("DIGITAL_OCEAN_SPACES_PATH_STYLE", "true");
+        MockEnvironment off = new MockEnvironment().withProperty("DIGITAL_OCEAN_SPACES_PATH_STYLE", "false");
+
+        assertThat(propertyIn(on, "digital-ocean.path-style-access")).isEqualTo("true");
+        assertThat(propertyIn(off, "digital-ocean.path-style-access")).isEqualTo("false");
+    }
+
+    private static String propertyIn(MockEnvironment environment, String property) throws Exception {
+        new YamlPropertySourceLoader().load("application", new ClassPathResource("application.yml"))
+                .forEach(environment.getPropertySources()::addLast);
+        return environment.getProperty(property);
+    }
+
     private static SpacesConfig configWith(boolean pathStyleAccess) {
         SpacesConfig config = new SpacesConfig();
+        ReflectionTestUtils.setField(config, "region", "us-east-1");
         ReflectionTestUtils.setField(config, "spaces", INTERNAL_ENDPOINT);
         ReflectionTestUtils.setField(config, "presignEndpoint", PUBLIC_ENDPOINT);
         ReflectionTestUtils.setField(config, "accessKeyId", "test-key-id");

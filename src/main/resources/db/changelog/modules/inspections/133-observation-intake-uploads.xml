@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        One row per presign call on the producer upload path: which project it is for and which
+        principal asked. Registration reads the project from here, and intake reads the principal,
+        since the attachment table has no creator column a service account could fill. A new table,
+        guarded on its own existence. Design: docs/specs/2026-10-26-cv-phase4-design.md, section 4.3.
+    -->
+
+    <changeSet id="133-01-create-observation-intake-uploads" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="inspection_observation_intake_uploads"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="inspection_observation_intake_uploads">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" primaryKeyName="pk_insp_obs_intake_uploads" nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="project_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="producer_subject" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="inspection_observation_intake_uploads" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_insp_obs_intake_upload_organization"/>
+        <addForeignKeyConstraint baseTableName="inspection_observation_intake_uploads" baseColumnNames="project_id"
+                                 referencedTableName="project" referencedColumnNames="id"
+                                 constraintName="fk_insp_obs_intake_upload_project"/>
+
+        <createIndex tableName="inspection_observation_intake_uploads" indexName="idx_insp_obs_intake_upload_org_created">
+            <column name="organization_id"/>
+            <column name="created_at"/>
+        </createIndex>
+
+        <rollback>
+            <dropTable tableName="inspection_observation_intake_uploads"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

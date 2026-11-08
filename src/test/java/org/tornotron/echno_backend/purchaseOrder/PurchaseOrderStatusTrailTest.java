@@ -83,6 +83,7 @@ class PurchaseOrderStatusTrailTest {
                 purchaseOrderItemRepository, materialRepository, indentItemRepository,
                 documentNumberAllocator, retryTemplate, statusTransitionRecorder,
                 statusTransitionRepository, statusTransitionMapper, userContextService,
+                org.mockito.Mockito.mock(PurchaseOrderEditPolicy.class),
                 PurchaseOrderAccessStubs.allowingEverything());
         lenient().when(userContextService.getCurrentUser()).thenReturn(actor);
     }

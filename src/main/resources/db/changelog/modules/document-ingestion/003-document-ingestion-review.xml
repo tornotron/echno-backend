@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Review and provenance: segments of a document, the candidate values an extractor proposes,
+        the source references that tie each value to a page, sheet or cell, and the append-only
+        provenance written when an accepted value reaches a live table. Each table is guarded on its
+        own existence.
+
+        Design: docs/specs/2026-11-08-document-ingestion-design.md, sections 6.3 and 6.5.
+    -->
+
+    <changeSet id="document-ingestion-003-create-segment" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="doc_ingest_segment"/></not>
+        </preConditions>
+        <createTable tableName="doc_ingest_segment">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_doc_ingest_segment" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="document_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="doc_class" type="VARCHAR(30)"><constraints nullable="false"/></column>
+            <column name="page_from" type="INT"/>
+            <column name="page_to" type="INT"/>
+            <column name="sheet_name" type="VARCHAR(100)"/>
+            <column name="confirmed_by" type="BIGINT"/>
+            <column name="confirmed_at" type="TIMESTAMP"/>
+            <column name="created_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="updated_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="doc_ingest_segment" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_doc_ingest_segment_organization"/>
+        <addForeignKeyConstraint baseTableName="doc_ingest_segment" baseColumnNames="document_id"
+                                 referencedTableName="doc_ingest_document" referencedColumnNames="id"
+                                 constraintName="fk_doc_ingest_segment_document"/>
+        <createIndex tableName="doc_ingest_segment" indexName="idx_doc_ingest_segment_document">
+            <column name="document_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="document-ingestion-003-create-candidate" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="doc_ingest_candidate"/></not>
+        </preConditions>
+        <createTable tableName="doc_ingest_candidate">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_doc_ingest_candidate" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="package_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="document_id" type="UUID"/>
+            <column name="segment_id" type="UUID"/>
+            <column name="kind" type="VARCHAR(40)"><constraints nullable="false"/></column>
+            <column name="natural_key" type="VARCHAR(200)"/>
+            <column name="payload" type="JSONB"><constraints nullable="false"/></column>
+            <column name="accepted_payload" type="JSONB"/>
+            <column name="flags" type="JSONB"><constraints nullable="false"/></column>
+            <column name="acknowledged_flags" type="TEXT[]"/>
+            <column name="method" type="VARCHAR(20)"><constraints nullable="false"/></column>
+            <column name="status" type="VARCHAR(20)"><constraints nullable="false"/></column>
+            <column name="supersedes_candidate_id" type="UUID"/>
+            <column name="reviewed_by" type="BIGINT"/>
+            <column name="reviewed_at" type="TIMESTAMP"/>
+            <column name="applied_target_type" type="VARCHAR(60)"/>
+            <column name="applied_target_id" type="VARCHAR(100)"/>
+            <column name="applied_by" type="BIGINT"/>
+            <column name="applied_at" type="TIMESTAMP"/>
+            <column name="apply_error" type="TEXT"/>
+            <column name="created_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="updated_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="doc_ingest_candidate" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_doc_ingest_candidate_organization"/>
+        <addForeignKeyConstraint baseTableName="doc_ingest_candidate" baseColumnNames="package_id"
+                                 referencedTableName="doc_ingest_package" referencedColumnNames="id"
+                                 constraintName="fk_doc_ingest_candidate_package"/>
+        <addForeignKeyConstraint baseTableName="doc_ingest_candidate" baseColumnNames="supersedes_candidate_id"
+                                 referencedTableName="doc_ingest_candidate" referencedColumnNames="id"
+                                 constraintName="fk_doc_ingest_candidate_supersedes"/>
+        <createIndex tableName="doc_ingest_candidate" indexName="idx_doc_ingest_candidate_package_kind">
+            <column name="package_id"/>
+            <column name="kind"/>
+            <column name="status"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="document-ingestion-003-create-source-ref" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="doc_ingest_source_ref"/></not>
+        </preConditions>
+        <createTable tableName="doc_ingest_source_ref">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_doc_ingest_source_ref" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="candidate_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="field" type="VARCHAR(100)"><constraints nullable="false"/></column>
+            <column name="document_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="document_sha256" type="VARCHAR(64)"/>
+            <column name="page" type="INT"/>
+            <column name="box" type="JSONB"/>
+            <column name="sheet" type="VARCHAR(100)"/>
+            <column name="row_number" type="INT"/>
+            <column name="cell" type="VARCHAR(20)"/>
+            <column name="paragraph" type="INT"/>
+            <column name="quote" type="TEXT"/>
+            <column name="quote_verified" type="BOOLEAN" defaultValueBoolean="false"><constraints nullable="false"/></column>
+            <column name="created_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="doc_ingest_source_ref" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_doc_ingest_source_ref_organization"/>
+        <addForeignKeyConstraint baseTableName="doc_ingest_source_ref" baseColumnNames="candidate_id"
+                                 referencedTableName="doc_ingest_candidate" referencedColumnNames="id"
+                                 constraintName="fk_doc_ingest_source_ref_candidate"/>
+        <addForeignKeyConstraint baseTableName="doc_ingest_source_ref" baseColumnNames="document_id"
+                                 referencedTableName="doc_ingest_document" referencedColumnNames="id"
+                                 constraintName="fk_doc_ingest_source_ref_document"/>
+        <createIndex tableName="doc_ingest_source_ref" indexName="idx_doc_ingest_source_ref_candidate">
+            <column name="candidate_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="document-ingestion-003-create-provenance" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="doc_ingest_provenance"/></not>
+        </preConditions>
+        <createTable tableName="doc_ingest_provenance">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_doc_ingest_provenance" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="target_type" type="VARCHAR(60)"><constraints nullable="false"/></column>
+            <column name="target_id" type="VARCHAR(100)"><constraints nullable="false"/></column>
+            <column name="target_field" type="VARCHAR(100)"><constraints nullable="false"/></column>
+            <column name="value_extracted" type="TEXT"/>
+            <column name="value_accepted" type="TEXT"/>
+            <column name="entered_by_hand" type="BOOLEAN" defaultValueBoolean="false"><constraints nullable="false"/></column>
+            <column name="candidate_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="source_ref_id" type="UUID"/>
+            <column name="accepted_by" type="BIGINT"/>
+            <column name="accepted_at" type="TIMESTAMP"/>
+            <column name="applied_by" type="BIGINT"/>
+            <column name="applied_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="doc_ingest_provenance" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_doc_ingest_provenance_organization"/>
+        <addForeignKeyConstraint baseTableName="doc_ingest_provenance" baseColumnNames="candidate_id"
+                                 referencedTableName="doc_ingest_candidate" referencedColumnNames="id"
+                                 constraintName="fk_doc_ingest_provenance_candidate"/>
+        <addForeignKeyConstraint baseTableName="doc_ingest_provenance" baseColumnNames="source_ref_id"
+                                 referencedTableName="doc_ingest_source_ref" referencedColumnNames="id"
+                                 constraintName="fk_doc_ingest_provenance_source_ref"/>
+        <createIndex tableName="doc_ingest_provenance" indexName="idx_doc_ingest_provenance_target">
+            <column name="organization_id"/>
+            <column name="target_type"/>
+            <column name="target_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

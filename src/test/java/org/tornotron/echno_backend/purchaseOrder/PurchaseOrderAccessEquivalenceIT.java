@@ -68,6 +68,10 @@ class PurchaseOrderAccessEquivalenceIT extends RoleAssignmentITSupport {
             entry("PurchaseOrderItemController.getPurchaseOrderItemsPaginated", STORES_READ),
             entry("PurchaseOrderItemController.getItemsByPurchaseOrderId", STORES_READ),
             entry("PurchaseOrderItemController.getItemsByMaterialId", STORES_READ),
+            // The paged twins development added for the mobile client, which already named the
+            // project manager (#855).
+            entry("PurchaseOrderItemController.getItemsByPurchaseOrderIdPaginated", STORES_TIER),
+            entry("PurchaseOrderItemController.getItemsByMaterialIdPaginated", STORES_TIER),
             entry("PurchaseOrderControllerWeb.getPurchaseOrderById", STORES_TIER),
             entry("PurchaseOrderControllerWeb.readStatusHistory", STORES_TIER),
             entry("PurchaseOrderControllerWeb.getAllPurchaseOrders", STORES_TIER),

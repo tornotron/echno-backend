@@ -20,6 +20,7 @@ import org.tornotron.echno_backend.modules.access.api.AccessFilter;
 import org.tornotron.echno_backend.modules.access.api.AccessPermission;
 import org.tornotron.echno_backend.modules.access.api.RecordFacts;
 import org.tornotron.echno_backend.purchaseOrder.PurchaseOrder;
+import org.tornotron.echno_backend.purchaseOrder.PurchaseOrderEditPolicy;
 import org.tornotron.echno_backend.purchaseOrder.PurchaseOrderAccess;
 import org.tornotron.echno_backend.purchaseOrder.PurchaseOrderRepository;
 import org.tornotron.echno_backend.purchaseOrder.PurchaseOrderService;
@@ -48,6 +49,7 @@ public class PurchaseOrderItemService {
     private final IndentItemRepository indentItemRepository;
     private final TenantEntityHelper tenantEntityHelper;
     private final PurchaseOrderService purchaseOrderService;
+    private final PurchaseOrderEditPolicy editPolicy;
     private final PurchaseOrderAccess purchaseOrderAccess;
 
     public PurchaseOrderItemService(PurchaseOrderItemRepository purchaseOrderItemRepository,
@@ -56,6 +58,7 @@ public class PurchaseOrderItemService {
                                     IndentItemRepository indentItemRepository,
                                     TenantEntityHelper tenantEntityHelper,
                                     PurchaseOrderService purchaseOrderService,
+                                    PurchaseOrderEditPolicy editPolicy,
                                     PurchaseOrderAccess purchaseOrderAccess) {
         this.purchaseOrderItemRepository = purchaseOrderItemRepository;
         this.purchaseOrderRepository = purchaseOrderRepository;
@@ -63,6 +66,7 @@ public class PurchaseOrderItemService {
         this.indentItemRepository = indentItemRepository;
         this.tenantEntityHelper = tenantEntityHelper;
         this.purchaseOrderService = purchaseOrderService;
+        this.editPolicy = editPolicy;
         this.purchaseOrderAccess = purchaseOrderAccess;
     }
 
@@ -75,6 +79,7 @@ public class PurchaseOrderItemService {
             throw new ResourceNotFoundException("Purchase order with ID " + creationDto.getPurchaseOrderId() + " was not found in this organization");
         }
         purchaseOrderAccess.require(AccessPermission.CREATE, order);
+        editPolicy.requireEditable(purchaseOrder);
 
         Material material = materialRepository.findByIdAndOrganization_Id(creationDto.getMaterialId(),TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Material with ID " + creationDto.getMaterialId() + " was not found in this organization"));
@@ -180,6 +185,20 @@ public class PurchaseOrderItemService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * One page of the same rows, in the order the lines were added.
+     *
+     * @param pageNo   Zero-based page index.
+     * @param pageSize Rows per page.
+     * @return The requested page.
+     */
+    @Transactional(readOnly = true)
+    public Page<PurchaseOrderItemResponseDto> getItemsByPurchaseOrderId(Long purchaseOrderId, int pageNo, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.ASC, "id"));
+        return visiblePage(pageable, () -> purchaseOrderItemRepository.findByPurchaseOrderId(purchaseOrderId, pageable),
+                whereEquals("purchaseOrder", purchaseOrderId));
+    }
+
     @Transactional(readOnly = true)
     public List<PurchaseOrderItemResponseDto> getItemsByMaterialId(Long materialId) {
         AccessFilter visible = purchaseOrderAccess.filter(AccessPermission.READ);
@@ -196,6 +215,37 @@ public class PurchaseOrderItemService {
     }
 
     /**
+     * One page of the same rows, in the order the lines were added.
+     *
+     * @param pageNo   Zero-based page index.
+     * @param pageSize Rows per page.
+     * @return The requested page.
+     */
+    @Transactional(readOnly = true)
+    public Page<PurchaseOrderItemResponseDto> getItemsByMaterialId(Long materialId, int pageNo, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.ASC, "id"));
+        return visiblePage(pageable, () -> purchaseOrderItemRepository.findByMaterialId(materialId, pageable),
+                whereEquals("material", materialId));
+    }
+
+    /**
+     * One page of a lookup, narrowed to the lines of orders the caller may read, in the query so the
+     * total counts only those.
+     */
+    private Page<PurchaseOrderItemResponseDto> visiblePage(Pageable pageable,
+                                                           java.util.function.Supplier<Page<PurchaseOrderItem>> unnarrowed,
+                                                           Specification<PurchaseOrderItem> condition) {
+        AccessFilter visible = purchaseOrderAccess.filter(AccessPermission.READ);
+        if (visible.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        Page<PurchaseOrderItem> items = visible.everything()
+                ? unnarrowed.get()
+                : purchaseOrderItemRepository.findAll(condition.and(PurchaseOrderAccess.linesAdmittedBy(visible)), pageable);
+        return items.map(this::convertToResponseDto);
+    }
+
+    /**
      * Applies a partial update to a line item, then recomputes its total and the parent order's.
      *
      * <p>The material may be changed only while nothing has been received against the line.
@@ -209,10 +259,13 @@ public class PurchaseOrderItemService {
      *     or the payload names a material that does not.
      * @throws InvalidRequestException if the material is changed on a line that has already
      *     received stock.
+     * @throws org.springframework.security.access.AccessDeniedException if a caller who is not a
+     *     system admin edits a line on an order that has left DRAFT.
      */
     @Transactional
     public PurchaseOrderItemResponseDto updatePurchaseOrderItem(PurchaseOrderItemUpdateDto updateDto) {
         PurchaseOrderItem item = requireItem(updateDto.getId(), AccessPermission.EDIT);
+        editPolicy.requireEditable(item.getPurchaseOrder());
 
         if (updateDto.getMaterialId() != null
                 && !updateDto.getMaterialId().equals(item.getMaterial().getId())) {

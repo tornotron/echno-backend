@@ -22,9 +22,8 @@ import org.tornotron.echno_backend.project.spatial.SpatialNodeController;
  * someone to a team or restructuring a site needs create (the action the permission mapping gives
  * them). A new handler on these controllers fails here until it is given its row.
  *
- * <p>{@link CategoryController} keeps its category authority guards, which nobody holds; only its
- * any-member read moved, so only that one is listed. Its other handlers are held to staying as they
- * were.
+ * <p>{@link CategoryController}, the mobile twin, carries its web twin's guards
+ * ({@code MobileWebGuardParityTest}), so all of its handlers are listed too.
  */
 class ProjectGuardsTest {
 
@@ -54,14 +53,11 @@ class ProjectGuardsTest {
             Map.entry("CategoryControllerWeb#readACategory", "read"),
             Map.entry("CategoryControllerWeb#deleteACategory", "delete"),
             Map.entry("CategoryControllerWeb#readSubcategories", "read"),
-            Map.entry("CategoryController#readSubcategories", "read"));
-
-    /** The category authority guards that stay, since converting them would grant what nobody holds. */
-    static final Map<String, String> KEPT_ON_AUTHORITIES = Map.of(
-            "createCategory", "hasAuthority('category:create') or hasAuthority('category:admin')",
-            "readAllCategories", "hasAuthority('category:read') or hasAuthority('category:admin')",
-            "readACategory", "hasAuthority('category:read') or hasAuthority('category:admin')",
-            "deleteACategory", "hasAuthority('category:delete') or hasAuthority('category:admin')");
+            Map.entry("CategoryController#readSubcategories", "read"),
+            Map.entry("CategoryController#createCategory", "create"),
+            Map.entry("CategoryController#readAllCategories", "read"),
+            Map.entry("CategoryController#readACategory", "read"),
+            Map.entry("CategoryController#deleteACategory", "delete"));
 
     @Test
     void everyHandlerNeedsTheProjectsActionItPerforms() {
@@ -73,23 +69,13 @@ class ProjectGuardsTest {
                 .isEqualTo("@access.can('projects', '" + action + "')"));
     }
 
-    @Test
-    void theCategoryAuthorityGuardsStayAsTheyWere() {
-        Map<String, String> guards = handlersOf(CategoryController.class).stream()
-                .filter(handler -> !ACTION_BY_HANDLER.containsKey(key(handler)))
-                .collect(Collectors.toMap(Method::getName, handler -> handler.getAnnotation(PreAuthorize.class).value()));
-
-        assertThat(guards).isEqualTo(KEPT_ON_AUTHORITIES);
-    }
-
-    /** The handlers on the access matrix: every one of the three controllers, and the moved category read. */
+    /** The handlers on the access matrix: every one of the four controllers. */
     static List<Method> handlers() {
         return Stream.of(
                         handlersOf(ProjectControllerWeb.class).stream(),
                         handlersOf(SpatialNodeController.class).stream(),
                         handlersOf(CategoryControllerWeb.class).stream(),
-                        handlersOf(CategoryController.class).stream()
-                                .filter(handler -> !KEPT_ON_AUTHORITIES.containsKey(handler.getName())))
+                        handlersOf(CategoryController.class).stream())
                 .flatMap(handlers -> handlers)
                 .toList();
     }

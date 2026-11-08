@@ -17,6 +17,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.test.context.transaction.AfterTransaction;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.tornotron.echno_backend.common.configuration.JpaAuditingConfig;
 import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.repository.AttachmentRepository;
@@ -72,9 +73,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * category is derived from the type when the request omits it, and the org filter
  * keeps one tenant's inspections invisible to another.
  *
- * <p>No {@code JpaAuditingConfig} import is needed: the created and updated
- * timestamps are populated by Hibernate's {@code @CreationTimestamp}/{@code
- * @UpdateTimestamp} at persist time, not by Spring Data auditing.
+ * <p>The timestamps are Hibernate's {@code @CreationTimestamp}/{@code @UpdateTimestamp}, but
+ * {@code SpatialNode} carries Spring Data's {@code AuditingEntityListener}, so the context imports
+ * {@code JpaAuditingConfig} for a handler of its own. Without it the listener is configured by
+ * whichever earlier context last enabled auditing, through the JVM-wide
+ * {@code AnnotationBeanConfigurerAspect}, and once the context cache has closed that one a persist
+ * fails with "has been closed already".
  *
  * <p>{@link ChecklistTemplateServiceIT}, {@link NcrServiceIT} and
  * {@link InspectionTaxonomyMigrationIT} declare the same annotations and the same
@@ -96,7 +100,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
         DefectAnnotationService.class, DefectPhotoAnnotationMapperImpl.class,
         UserContextService.class,
         TenantEntityHelper.class, EntryNumberGenerator.class,
-        TransactionalWorkRunner.class, TransactionRetryTemplate.class, SimpleMeterRegistry.class})
+        TransactionalWorkRunner.class, TransactionRetryTemplate.class, SimpleMeterRegistry.class,
+        JpaAuditingConfig.class})
 class InspectionServiceIT extends AbstractIntegrationTest {
 
     @Autowired

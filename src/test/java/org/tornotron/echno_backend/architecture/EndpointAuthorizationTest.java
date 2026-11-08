@@ -37,8 +37,10 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods;
  * <p>The second rule pins the guard itself, for the areas the roles matrix in the admin guide
  * ({@code docs/admin-guide/roles-and-permissions.md} in echno-docs) names and #853 aligned:
  * construction invoices, issues, storage locations, stock adjustments and the third-party
- * registers. An area that moves onto the access matrix leaves this table, and its own guard test and
- * equivalence test pin it instead ({@code AssetGuardsTest}, {@code AssetAccessEquivalenceIT}). A guard on one of those controllers must name exactly the roles the matrix gives
+ * registers, and since #855 materials. An area that moves onto the access
+ * matrix leaves this table, and its own guard test and equivalence test pin it instead
+ * ({@code AssetGuardsTest} and {@code AssetAccessEquivalenceIT}, {@code IndentGuardsTest} and
+ * {@code IndentAccessEquivalenceIT}). A guard on one of those controllers must name exactly the roles the matrix gives
  * the endpoint's row, so a loosening arrives as a failed build rather than a line in a diff.
  * A new endpoint on a pinned controller must be added to {@link #MATRIX} with its row, which
  * is the same decision the matrix asks of it.
@@ -157,7 +159,18 @@ class EndpointAuthorizationTest {
             pin("ProjectRiskController", MEMBER, "read*"),
             pin("ProjectRiskController", ADMIN_OR_PM, "createRisk", "importRisks", "updateRisk", "deleteRisk"),
             pin("ProjectRiskControllerWeb", MEMBER, "read*"),
-            pin("ProjectRiskControllerWeb", ADMIN_OR_PM, "createRisk", "importRisks", "updateRisk", "deleteRisk"));
+            pin("ProjectRiskControllerWeb", ADMIN_OR_PM, "createRisk", "importRisks", "updateRisk", "deleteRisk"),
+
+            // Materials, indents and purchase orders (#855): the stores tier reads, and project
+            // managers manage purchases, so the pair creates and edits. Deleting, removing a
+            // threshold override and every purchase order status change, approval included, stay
+            // with the administrator. Reorder thresholds are the stores tier's (#746). The mobile
+            // material and indent twins carry unsatisfiable resource:scope guards and are #1002's.
+            // The indent and purchase order controllers are on the access matrix, and
+            // IndentGuardsTest and PurchaseOrderGuardsTest pin them.
+            pin("MaterialControllerWeb", STORES_TIER, "get*", "searchMaterials", "upsertLocationThreshold"),
+            pin("MaterialControllerWeb", ADMIN_OR_PM, "createMaterial", "updateMaterial"),
+            pin("MaterialControllerWeb", SYSTEM_ADMIN, "deleteMaterial", "deleteLocationThreshold"));
 
     private static final Set<String> PINNED_CONTROLLERS = new TreeSet<>(
             MATRIX.stream().map(Pin::controller).toList());

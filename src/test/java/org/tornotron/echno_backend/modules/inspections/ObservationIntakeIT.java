@@ -1,5 +1,8 @@
 package org.tornotron.echno_backend.modules.inspections;
 
+import org.tornotron.echno_backend.modules.inspections.domain.Inspection;
+import org.tornotron.echno_backend.modules.inspections.InspectionType;
+import org.tornotron.echno_backend.modules.inspections.api.ObservationSource;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -9,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.stubbing.Answer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.aop.AopAutoConfiguration;
+import org.springframework.boot.autoconfigure.validation.ValidationAutoConfiguration;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
@@ -33,7 +37,11 @@ import org.tornotron.echno_backend.common.retry.TransactionRetryTemplate;
 import org.tornotron.echno_backend.common.retry.TransactionalWorkRunner;
 import org.tornotron.echno_backend.modules.inspections.domain.InspectionEvent;
 import org.tornotron.echno_backend.modules.inspections.domain.Observation;
-import org.tornotron.echno_backend.modules.inspections.dtos.IntakeObservationRequest;
+import org.tornotron.echno_backend.modules.inspections.api.IntakeActor;
+import org.tornotron.echno_backend.modules.inspections.api.IntakeBatchResponse;
+import org.tornotron.echno_backend.modules.inspections.api.IntakeObservationRequest;
+import org.tornotron.echno_backend.modules.inspections.dtos.ReviewBatchRequest;
+import org.tornotron.echno_backend.modules.inspections.dtos.ReviewBatchResponse;
 import org.tornotron.echno_backend.modules.inspections.dtos.ObservationDto;
 import org.tornotron.echno_backend.modules.inspections.events.InspectionEventRecorder;
 import org.tornotron.echno_backend.modules.inspections.events.InspectionEventService;
@@ -51,6 +59,8 @@ import org.tornotron.echno_backend.modules.inspections.service.DefectAnnotationS
 import org.tornotron.echno_backend.modules.inspections.service.ElementTypeService;
 import org.tornotron.echno_backend.modules.inspections.service.InspectionService;
 import org.tornotron.echno_backend.modules.inspections.service.NcrService;
+import org.tornotron.echno_backend.modules.inspections.service.ObservationBatchIntakeService;
+import org.tornotron.echno_backend.modules.inspections.service.ObservationBatchReviewService;
 import org.tornotron.echno_backend.modules.inspections.service.ObservationService;
 import org.tornotron.echno_backend.modules.inspections.service.TradeService;
 import org.tornotron.echno_backend.organization.Organization;
@@ -101,7 +111,9 @@ import static org.mockito.Mockito.times;
         TradeService.class, TradeMapperImpl.class,
         ElementTypeService.class, ElementTypeMapperImpl.class,
         NcrService.class, NcrMapperImpl.class,
-        ObservationService.class, ObservationMapperImpl.class,
+        ObservationService.class, ObservationMapperImpl.class, ObservationBatchIntakeService.class,
+        ObservationBatchReviewService.class,
+        ValidationAutoConfiguration.class,
         InspectionEventRecorder.class, InspectionEventService.class,
         DefectAnnotationService.class, DefectPhotoAnnotationMapperImpl.class,
         UserContextService.class,
@@ -119,6 +131,12 @@ class ObservationIntakeIT extends AbstractIntegrationTest {
 
     @Autowired
     private ObservationService service;
+
+    @Autowired
+    private ObservationBatchIntakeService batch;
+
+    @Autowired
+    private ObservationBatchReviewService batchReview;
 
     @Autowired
     private SpatialNodeService spatial;
@@ -202,7 +220,7 @@ class ObservationIntakeIT extends AbstractIntegrationTest {
                 ObservationSource.DRONE, "drone-7", "mission-3", "cap-9f", zone, null,
                 LocalDateTime.of(2026, 9, 12, 8, 15), "Exposed rebar", "Rebar visible at slab edge",
                 "Structural", DefectSeverity.MAJOR, "crackdet", "1.4.0", new BigDecimal("0.8125"),
-                List.of(Map.of("frame", 1200, "bbox", List.of(10, 20, 110, 90))));
+                List.of(Map.of("frame", 1200, "bbox", List.of(10, 20, 110, 90))), null);
 
         ObservationService.IntakeResult first = service.intake(req);
         assertThat(first.created()).isTrue();
@@ -228,7 +246,7 @@ class ObservationIntakeIT extends AbstractIntegrationTest {
         ObservationService.IntakeResult again = service.intake(new IntakeObservationRequest(projectId,
                 "drone-7:mission-3:42", ObservationSource.DRONE, "drone-7", "mission-3", "cap-9f", zone, null,
                 LocalDateTime.of(2026, 9, 12, 8, 16), "Exposed rebar, retry", null, null, null, null, null,
-                null, null));
+                null, null, null));
         assertThat(again.created()).isFalse();
         assertThat(again.observation().id()).isEqualTo(dto.id());
         assertThat(again.observation().title()).isEqualTo("Exposed rebar");
@@ -281,13 +299,13 @@ class ObservationIntakeIT extends AbstractIntegrationTest {
     void anAiFindingNamesTheModelAsActorAndTheHumanSourceIsRefused() {
         ObservationService.IntakeResult ai = service.intake(new IntakeObservationRequest(projectId, "cv:77",
                 ObservationSource.AI, "cctv-gate-2", null, null, null, "Gate 2", LocalDateTime.of(2026, 9, 12, 9, 0),
-                "No helmet", null, "Safety", null, "ppe-detect", "2.0", new BigDecimal("0.55"), null));
+                "No helmet", null, "Safety", null, "ppe-detect", "2.0", new BigDecimal("0.55"), null, null));
         assertThat(events(ai.observation().id(), InspectionEventType.OBSERVATION_CREATED))
                 .allSatisfy(e -> assertThat(e.getActorId()).isEqualTo("ppe-detect"));
 
         assertThatThrownBy(() -> service.intake(new IntakeObservationRequest(projectId, "h:1",
                 ObservationSource.HUMAN, "person", null, null, null, null, LocalDateTime.of(2026, 9, 12, 9, 0),
-                "Seen", null, null, null, null, null, null, null)))
+                "Seen", null, null, null, null, null, null, null, null)))
                 .isInstanceOf(InvalidRequestException.class);
     }
 
@@ -295,7 +313,7 @@ class ObservationIntakeIT extends AbstractIntegrationTest {
     void aNodeOutsideTheProjectIsRefused() {
         assertThatThrownBy(() -> service.intake(new IntakeObservationRequest(projectId, "drone-7:9",
                 ObservationSource.DRONE, "drone-7", null, null, UUID.randomUUID(), null,
-                LocalDateTime.of(2026, 9, 12, 9, 0), "Crack", null, null, null, null, null, null, null)))
+                LocalDateTime.of(2026, 9, 12, 9, 0), "Crack", null, null, null, null, null, null, null, null)))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 
@@ -303,7 +321,7 @@ class ObservationIntakeIT extends AbstractIntegrationTest {
     void theReferenceIsUniquePerOrganisationNotGlobally() {
         ObservationDto mine = service.intake(new IntakeObservationRequest(projectId, "shared-ref",
                 ObservationSource.ROBOT, "spot-1", null, null, null, null, LocalDateTime.of(2026, 9, 12, 9, 0),
-                "Mine", null, null, null, null, null, null, null)).observation();
+                "Mine", null, null, null, null, null, null, null, null)).observation();
 
         TenantContext.setCurrentOrgId(orgBId);
         // the other tenant cannot see it, and its own use of the same reference is a new row
@@ -311,11 +329,11 @@ class ObservationIntakeIT extends AbstractIntegrationTest {
         // a project of the other tenant is not theirs to post against
         assertThatThrownBy(() -> service.intake(new IntakeObservationRequest(projectId, "shared-ref",
                 ObservationSource.ROBOT, "spot-1", null, null, null, null, LocalDateTime.of(2026, 9, 12, 9, 0),
-                "Theirs", null, null, null, null, null, null, null)))
+                "Theirs", null, null, null, null, null, null, null, null)))
                 .isInstanceOf(ResourceNotFoundException.class);
         ObservationService.IntakeResult theirs = service.intake(new IntakeObservationRequest(otherProjectId,
                 "shared-ref", ObservationSource.ROBOT, "spot-1", null, null, null, null,
-                LocalDateTime.of(2026, 9, 12, 9, 0), "Theirs", null, null, null, null, null, null, null));
+                LocalDateTime.of(2026, 9, 12, 9, 0), "Theirs", null, null, null, null, null, null, null, null));
         assertThat(theirs.created()).isTrue();
         assertThat(theirs.observation().id()).isNotEqualTo(mine.id());
         assertThat(repository.existsByIdAndOrganization_Id(theirs.observation().id(), orgBId)).isTrue();
@@ -332,6 +350,147 @@ class ObservationIntakeIT extends AbstractIntegrationTest {
      *
      * @return where the winner's id lands once the race has been run
      */
+    @Test
+    void aBadItemInABatchRollsBackNothingElseAndARepeatIsAllExisting() {
+        List<IntakeObservationRequest> items = List.of(batchItem("b1", projectId), batchItem("b2", projectId),
+                batchItem("b3", 987654L), batchItem("b4", projectId), batchItem("b5", projectId));
+
+        IntakeBatchResponse first = batch.intakeAll(items, null);
+
+        assertThat(first.created()).isEqualTo(4);
+        assertThat(first.rejected()).isEqualTo(1);
+        assertThat(first.results().get(2).status()).isEqualTo(IntakeBatchResponse.Status.REJECTED);
+        assertThat(first.results().get(2).error().code()).isEqualTo("PROJECT_NOT_FOUND");
+        for (int index : List.of(0, 1, 3, 4)) {
+            UUID stored = first.results().get(index).observationId();
+            assertThat(service.findById(stored).id()).isEqualTo(stored);
+        }
+
+        IntakeBatchResponse repeat = batch.intakeAll(List.of(items.get(0), items.get(1), items.get(3), items.get(4)), null);
+
+        assertThat(repeat.existing()).isEqualTo(4);
+        assertThat(repeat.created()).isZero();
+        assertThat(repeat.results().get(0).observationId()).isEqualTo(first.results().get(0).observationId());
+    }
+
+    @Test
+    void aBatchFromAJobNamesTheJobsActor() {
+        UUID id = batch.intakeAll(List.of(batchItem("job-1", projectId)), IntakeActor.ai("ppe")).results().get(0)
+                .observationId();
+
+        InspectionEvent created = events(id, InspectionEventType.OBSERVATION_CREATED).get(0);
+        assertThat(created.getActorId()).isEqualTo("ppe");
+    }
+
+    @Test
+    void aBulkAcceptStampsTheBatchAndAnswersEachIdOnItsOwn() {
+        UUID first = taken("r1");
+        UUID second = taken("r2");
+        UUID already = taken("r3");
+        batchReview.review(new ReviewBatchRequest(ObservationReviewDecision.ACCEPT, List.of(already), null, null), true);
+        UUID unknown = UUID.randomUUID();
+
+        ReviewBatchResponse response = batchReview.review(new ReviewBatchRequest(ObservationReviewDecision.ACCEPT,
+                List.of(first, already, unknown, second), null, null), true);
+
+        assertThat(response.results()).extracting(ReviewBatchResponse.Result::status).containsExactly(
+                ReviewBatchResponse.Status.REVIEWED, ReviewBatchResponse.Status.ALREADY_REVIEWED,
+                ReviewBatchResponse.Status.NOT_FOUND, ReviewBatchResponse.Status.REVIEWED);
+        assertThat(service.findById(first).reviewStatus()).isEqualTo(ObservationReviewStatus.ACCEPTED);
+        assertThat(service.findById(second).outcomeKind()).isEqualTo(ObservationOutcomeKind.NONE);
+        inCommittedTx(() -> {
+            Observation row = entityManager.find(Observation.class, first);
+            assertThat(row.getReviewBatchId()).isEqualTo(response.batchId());
+        });
+        assertThat(events(first, InspectionEventType.OBSERVATION_REVIEWED)).singleElement()
+                .satisfies(event -> assertThat(event.getAfter()).containsEntry("batchId", response.batchId().toString()));
+    }
+
+    @Test
+    void aBulkRejectFollowsTheSameRulesPerItem() {
+        UUID id = taken("r4");
+
+        ReviewBatchResponse noNote = batchReview.review(new ReviewBatchRequest(ObservationReviewDecision.REJECT,
+                List.of(id), null, null), true);
+        assertThat(noNote.results()).singleElement().satisfies(result -> {
+            assertThat(result.status()).isEqualTo(ReviewBatchResponse.Status.REFUSED);
+            assertThat(result.message()).contains("note");
+        });
+        assertThat(service.findById(id).reviewStatus()).isEqualTo(ObservationReviewStatus.PENDING);
+
+        ReviewBatchResponse rejected = batchReview.review(new ReviewBatchRequest(ObservationReviewDecision.REJECT,
+                List.of(id), "Not on our site", ObservationRejectReason.OUT_OF_SCOPE), true);
+
+        assertThat(rejected.results().get(0).status()).isEqualTo(ReviewBatchResponse.Status.REVIEWED);
+        assertThat(service.findById(id).rejectReason()).isEqualTo(ObservationRejectReason.OUT_OF_SCOPE);
+    }
+
+    @Test
+    void aBulkDecisionCannotBeAModifyAndAnotherTenantsIdIsNotFound() {
+        assertThatThrownBy(() -> batchReview.review(new ReviewBatchRequest(ObservationReviewDecision.MODIFY,
+                List.of(UUID.randomUUID()), null, null), true))
+                .isInstanceOf(InvalidRequestException.class);
+
+        UUID theirs = taken("r5");
+        TenantContext.setCurrentOrgId(orgBId);
+        ReviewBatchResponse response = batchReview.review(new ReviewBatchRequest(ObservationReviewDecision.ACCEPT,
+                List.of(theirs), null, null), true);
+        TenantContext.setCurrentOrgId(orgAId);
+
+        assertThat(response.results().get(0).status()).isEqualTo(ReviewBatchResponse.Status.NOT_FOUND);
+        assertThat(service.findById(theirs).reviewStatus()).isEqualTo(ObservationReviewStatus.PENDING);
+    }
+
+    @Test
+    void aDetectionTheCallerMayNotSeeIsNotFoundInABatch() {
+        UUID detection = service.intake(new IntakeObservationRequest(projectId, "r6", ObservationSource.AI, "worker-1", null,
+                null, null, null, LocalDateTime.of(2026, 9, 12, 8, 16), "Helmet", null, null, null, "ppe", "0.1.0", null,
+                null, null)).observation().id();
+
+        ReviewBatchResponse response = batchReview.review(new ReviewBatchRequest(ObservationReviewDecision.ACCEPT,
+                List.of(detection), null, null), false);
+
+        assertThat(response.results().get(0).status()).isEqualTo(ReviewBatchResponse.Status.NOT_FOUND);
+        assertThat(service.findById(detection).reviewStatus()).isEqualTo(ObservationReviewStatus.PENDING);
+    }
+
+    @Test
+    void aFindingNamingAnInspectionIsFiledUnderItAndTakesItsNode() {
+        UUID inspectionId = commitInspection(projectId, zone);
+
+        ObservationDto dto = service.intake(new IntakeObservationRequest(projectId, "cv/job/0", ObservationSource.DRONE,
+                "drone-7", null, null, null, null, LocalDateTime.of(2026, 9, 12, 8, 16), "Helmet missing", null,
+                null, null, null, null, null, null, null, inspectionId)).observation();
+
+        assertThat(dto.inspectionId()).isEqualTo(inspectionId);
+        assertThat(dto.spatialPath()).hasSize(3);
+    }
+
+    @Test
+    void anInspectionOnAnotherProjectOrOrganizationIsRefused() {
+        TenantContext.clear();
+        TenantContext.setCurrentOrgId(orgBId);
+        UUID foreign = commitInspection(otherProjectId, null);
+        TenantContext.clear();
+        TenantContext.setCurrentOrgId(orgAId);
+
+        assertThatThrownBy(() -> service.intake(new IntakeObservationRequest(projectId, "cv/job/1",
+                ObservationSource.DRONE, "drone-7", null, null, null, null, LocalDateTime.of(2026, 9, 12, 8, 16),
+                "Helmet missing", null, null, null, null, null, null, null, null, foreign)))
+                .isInstanceOf(ResourceNotFoundException.class);
+        assertThat(service.findAll(projectId, null, null, null, null, null, null, PageRequest.of(0, 10))
+                .getTotalElements()).isZero();
+    }
+
+    private UUID taken(String ref) {
+        return service.intake(batchItem(ref, projectId)).observation().id();
+    }
+
+    private IntakeObservationRequest batchItem(String ref, Long project) {
+        return new IntakeObservationRequest(project, ref, ObservationSource.DRONE, "drone-7", null, null, null, null,
+                LocalDateTime.of(2026, 9, 12, 8, 16), "Exposed rebar", null, null, null, null, null, null, null, null);
+    }
+
     private AtomicReference<UUID> raceTheFirstCheck(boolean readFirst) {
         // The repository bean is a JDK proxy, so the spy answers by delegating to it rather than
         // by calling a real method; that delegate is the spy's default answer.
@@ -354,7 +513,7 @@ class ObservationIntakeIT extends AbstractIntegrationTest {
     private IntakeObservationRequest retryOf(String externalRef) {
         return new IntakeObservationRequest(projectId, externalRef, ObservationSource.DRONE, "drone-7",
                 "mission-3", "cap-9f", zone, null, LocalDateTime.of(2026, 9, 12, 8, 16), "Exposed rebar, retry",
-                null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null);
     }
 
     private void assertLoserGotTheWinnersRow(ObservationService.IntakeResult loser, UUID winner) {
@@ -416,6 +575,18 @@ class ObservationIntakeIT extends AbstractIntegrationTest {
         TransactionTemplate tt = new TransactionTemplate(txManager);
         tt.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         tt.executeWithoutResult(status -> work.run());
+    }
+
+    private UUID commitInspection(Long project, UUID node) {
+        Inspection inspection = new Inspection();
+        inspection.setOrganization(entityManager.getReference(Organization.class, TenantContext.getCurrentOrgId()));
+        inspection.setInspectionNumber("INS-" + UUID.randomUUID().toString().substring(0, 8));
+        inspection.setTitle("Level 1 safety walk");
+        inspection.setType(InspectionType.SAFETY);
+        inspection.setProjectId(project);
+        inspection.setSpatialNodeId(node);
+        inCommittedTx(() -> entityManager.persist(inspection));
+        return inspection.getId();
     }
 
     private Organization persistOrganization(String name) {

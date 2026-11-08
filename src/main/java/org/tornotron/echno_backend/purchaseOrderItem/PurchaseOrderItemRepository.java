@@ -11,6 +11,8 @@ import org.springframework.data.repository.query.Param;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 public interface PurchaseOrderItemRepository extends JpaRepository<PurchaseOrderItem, Long>, JpaSpecificationExecutor<PurchaseOrderItem> {
 
@@ -20,7 +22,11 @@ public interface PurchaseOrderItemRepository extends JpaRepository<PurchaseOrder
 
     List<PurchaseOrderItem> findByPurchaseOrderId(Long purchaseOrderId);
 
+    Page<PurchaseOrderItem> findByPurchaseOrderId(Long purchaseOrderId, Pageable pageable);
+
     List<PurchaseOrderItem> findByMaterialId(Long materialId);
+
+    Page<PurchaseOrderItem> findByMaterialId(Long materialId, Pageable pageable);
 
     @Query("SELECT SUM(poi.totalPrice) FROM PurchaseOrderItem poi WHERE poi.purchaseOrder.id = :purchaseOrderId")
     BigDecimal sumTotalPriceByPurchaseOrderId(@Param("purchaseOrderId") Long purchaseOrderId);

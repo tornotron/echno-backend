@@ -1,12 +1,16 @@
 package org.tornotron.echno_backend.auth;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -46,7 +50,22 @@ public class AuthController {
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "User registered"),
             @ApiResponse(responseCode = "404", description = "This stack's identity provider takes no self-registration"),
-            @ApiResponse(responseCode = "400", description = "A field failed validation, or the username/email is already taken")
+            @ApiResponse(responseCode = "400", description = "A field failed validation, including "
+                    + "acceptTerms not being true. errors names each field that failed."),
+            @ApiResponse(responseCode = "409", description = "The username or the email is already "
+                    + "taken. errors names the field: errors.userName or errors.email.",
+                    content = @Content(
+                            schema = @Schema(implementation = ProblemDetail.class),
+                            examples = {
+                                    @ExampleObject(name = "userName", value = """
+                                            {"title": "Duplicate Resource", "status": 409,
+                                             "detail": "The username 'site.engineer' is already taken. Please choose a different username.",
+                                             "errors": {"userName": "The username 'site.engineer' is already taken. Please choose a different username."}}"""),
+                                    @ExampleObject(name = "email", value = """
+                                            {"title": "Duplicate Resource", "status": 409,
+                                             "detail": "An account with this email already exists. Please sign in, or register with a different email.",
+                                             "errors": {"email": "An account with this email already exists. Please sign in, or register with a different email."}}""")
+                            }))
     })
     public ResponseEntity<UserDto> registerUser(@Valid @RequestBody UserRegistrationDto userRegistrationDto) {
         if (identityProvider.capabilities().selfRegistration().isEmpty()) {

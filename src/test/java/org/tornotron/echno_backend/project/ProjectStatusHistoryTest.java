@@ -95,6 +95,9 @@ class ProjectStatusHistoryTest {
     @Mock
     private StatusTransitionMapper statusTransitionMapper;
 
+    @Mock
+    private org.tornotron.echno_backend.common.service.OrganizationSecurityService orgSecurity;
+
     private ProjectService service;
     private Organization organization;
     private User actor;
@@ -107,6 +110,7 @@ class ProjectStatusHistoryTest {
                 attachmentService, projectMapper, employeeMapper, eventPublisher,
                 customerRepository, new PayloadValidator(validator), userContextService,
                 statusTransitionRecorder, statusTransitionRepository, statusTransitionMapper,
+                orgSecurity,
                 ProjectAccessStubs.allowingEverything());
 
         TenantContext.setCurrentOrgId(ORG_ID);
@@ -387,6 +391,37 @@ class ProjectStatusHistoryTest {
         dto.setProjectAddress("12 Mount Road, Mylapore, Tamil Nadu");
         dto.setProjectState("Tamil Nadu");
         return dto;
+    }
+
+    /** Marking a project completed by hand is a system admin's alone (ClickUp 14zdkkvzzwg). */
+    @Test
+    void onlyASystemAdminCanMarkAProjectCompletedByHand() {
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin")).thenReturn(false);
+        Project project = draftProject(ProjectCreationStatus.open);
+
+        assertThatThrownBy(() -> patch(project, Map.of("status", ProjectCreationStatus.completed.name())))
+                .isInstanceOf(org.springframework.security.access.AccessDeniedException.class)
+                .hasMessageContaining("Only a system admin");
+
+        ProjectCreationDto dto = validDto();
+        dto.setStatus(ProjectCreationStatus.completed);
+        assertThatThrownBy(() -> service.addProject(dto, null))
+                .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+    }
+
+    /** A system admin's early close is remembered, so a task change does not reopen it. */
+    @Test
+    void aSystemAdminsEarlyCloseIsFlaggedAsAHandCompletion() {
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin")).thenReturn(true);
+        Project project = draftProject(ProjectCreationStatus.open);
+
+        patch(project, Map.of("status", ProjectCreationStatus.completed.name()));
+
+        assertThat(project.getStatus()).isEqualTo(ProjectCreationStatus.completed);
+        assertThat(project.getCompletedManually()).isTrue();
+
+        patch(project, Map.of("status", ProjectCreationStatus.open.name()));
+        assertThat(project.getCompletedManually()).isFalse();
     }
 
     private Project savedProject() {

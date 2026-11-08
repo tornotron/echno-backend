@@ -25,7 +25,9 @@ import org.tornotron.echno_backend.common.history.StatusTransitionRepository;
 import org.tornotron.echno_backend.common.history.mapper.StatusTransitionMapper;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
+import org.springframework.security.access.AccessDeniedException;
 import org.tornotron.echno_backend.common.service.AttachmentService;
+import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.modules.inspections.api.IndianStateResolver;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
@@ -106,6 +108,7 @@ public class ProjectService {
     private final StatusTransitionRecorder statusTransitionRecorder;
     private final StatusTransitionRepository statusTransitionRepository;
     private final StatusTransitionMapper statusTransitionMapper;
+    private final OrganizationSecurityService orgSecurity;
     private final ProjectAccess projectAccess;
 
     /**
@@ -121,6 +124,8 @@ public class ProjectService {
      * @param statusTransitionRecorder Appends to the shared status trail.
      * @param statusTransitionRepository Reads a project's status trail back.
      * @param statusTransitionMapper Maps trail entries to their DTO.
+     * @param orgSecurity            Says whether the caller is a system admin, the one role that may
+     *                               mark a project completed by hand.
      * @param projectAccess          Says which projects the caller may read and change.
      */
     public ProjectService(ProjectRepository repository,
@@ -135,6 +140,7 @@ public class ProjectService {
                           StatusTransitionRecorder statusTransitionRecorder,
                           StatusTransitionRepository statusTransitionRepository,
                           StatusTransitionMapper statusTransitionMapper,
+                          OrganizationSecurityService orgSecurity,
                           ProjectAccess projectAccess) {
         this.repository = repository;
         this.organizationRepository = organizationRepository;
@@ -149,6 +155,7 @@ public class ProjectService {
         this.statusTransitionRecorder = statusTransitionRecorder;
         this.statusTransitionRepository = statusTransitionRepository;
         this.statusTransitionMapper = statusTransitionMapper;
+        this.orgSecurity = orgSecurity;
         this.projectAccess = projectAccess;
     }
 
@@ -168,6 +175,7 @@ public class ProjectService {
     public ProjectSimpleDto addProject(ProjectCreationDto projectDto,List<MultipartFile> attachments) {
             payloadValidator.requireValid(projectDto);
             requireNotApprovedOnCreate(projectDto.getStatus());
+            requireMayCompleteByHand(projectDto.getStatus(), null);
             Long orgId = TenantContext.getCurrentOrgId();
             Organization organization = organizationRepository.findById(orgId)
                     .orElseThrow(() -> new ResourceNotFoundException("Organization with ID " + orgId + " was not found"));
@@ -193,6 +201,8 @@ public class ProjectService {
             project.setStatus(projectDto.getStatus() != null
                     ? projectDto.getStatus()
                     : DEFAULT_CREATION_STATUS);
+            // A new project has no tasks, so a completed one can only be a system admin's call.
+            project.setCompletedManually(project.getStatus() == ProjectCreationStatus.completed);
             if (projectDto.getProjectType() != null && !projectDto.getProjectType().isBlank()) {
                 project.setProjectType(ProjectType.valueOf(projectDto.getProjectType()));
             }
@@ -474,6 +484,7 @@ public class ProjectService {
         });
 
         onApproval(project, previousStatus);
+        onCompletionChange(project, previousStatus);
 
         // Resolved once: both the trail entry and the stamp name the same user, and looking the
         // user up costs a query.
@@ -604,6 +615,51 @@ public class ProjectService {
         Long orgId = project.getOrganization() != null ? project.getOrganization().getId() : null;
         // The listener runs AFTER_COMMIT, so the row is durable before the AI flow reads it.
         eventPublisher.publishEvent(new ProjectApprovedEvent(this, project.getId(), orgId));
+    }
+
+    /**
+     * Applies the completion rule to a patch that moved the project into or out of
+     * {@code completed} (ClickUp 14zdkkvzzwg).
+     *
+     * <p>A project completes on its own when every task is complete ({@link ProjectCompletion}).
+     * Marking one completed by hand is a system admin's alone, and the project then remembers that
+     * it was closed by hand when its tasks were not all done, so a later task change does not
+     * reopen it. Moving a project out of {@code completed} clears that, so the task rule applies
+     * to it again.
+     *
+     * @param project        The project the patch has been applied to.
+     * @param previousStatus The status it held before the patch.
+     * @throws AccessDeniedException if a caller who is not a system admin marked it completed.
+     */
+    private void onCompletionChange(Project project, ProjectCreationStatus previousStatus) {
+        if (project.getStatus() == previousStatus) {
+            return;
+        }
+        if (project.getStatus() == ProjectCreationStatus.completed) {
+            requireMayCompleteByHand(project.getStatus(), project);
+            project.setCompletedManually(!ProjectCompletion.allComplete(project.getTasks()));
+        } else if (previousStatus == ProjectCreationStatus.completed) {
+            project.setCompletedManually(false);
+        }
+    }
+
+    /**
+     * Refuses {@code completed} as a hand-set status from anyone but a system admin.
+     *
+     * @param status  The status being set.
+     * @param project The project, or null on create.
+     * @throws AccessDeniedException if the status is {@code completed} and the caller is not a
+     *     system admin of this organization.
+     */
+    private void requireMayCompleteByHand(ProjectCreationStatus status, Project project) {
+        if (status != ProjectCreationStatus.completed
+                || orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin")) {
+            return;
+        }
+        throw new AccessDeniedException(
+                "Only a system admin can mark a project completed. A project is completed "
+                        + "automatically once every one of its tasks is complete"
+                        + (project != null ? "." : ", and a new project has no tasks yet."));
     }
 
     /**
@@ -868,6 +924,26 @@ public class ProjectService {
         return project.getEmployees().stream()
                 .map(e -> employeeMapper.toDto(e))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * One page of the employees assigned to a project, ordered by name.
+     *
+     * @param projectId The project, which must belong to the current organization.
+     * @param pageNo    Zero-based page index.
+     * @param pageSize  Rows per page.
+     * @return The page of assigned employees.
+     * @throws ResourceNotFoundException if the project is not in the current organization, or the
+     *         caller may not read it.
+     */
+    @Transactional(readOnly = true)
+    public Page<EmployeeDto> getEmployeesByProjectId(Long projectId, int pageNo, int pageSize) {
+        Long organizationId = TenantContext.getCurrentOrgId();
+        requireProject(projectId, AccessPermission.READ);
+        Pageable pageable = PageRequest.of(pageNo, pageSize,
+                Sort.by(Sort.Direction.ASC, "employeeName").and(Sort.by(Sort.Direction.ASC, "id")));
+        return employeeRepository.findByProjects_IdAndOrganization_Id(projectId, organizationId, pageable)
+                .map(e -> employeeMapper.toDto(e));
     }
 
     /** The projects whose team includes this employee, as a query condition. */

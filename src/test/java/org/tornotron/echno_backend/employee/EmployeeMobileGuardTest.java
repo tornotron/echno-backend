@@ -153,8 +153,8 @@ class EmployeeMobileGuardTest {
         // anyString() does not match a null argument.
         when(employeeService.displayAllEmployees(anyInt(), anyInt(), any(), any(), any()))
                 .thenReturn(page);
-        when(employeeService.displayEmployeesByOrganization(anyLong()))
-                .thenReturn(List.of(new EmployeeDto()));
+        when(employeeService.displayEmployeesByOrganization(anyLong(), anyInt(), anyInt()))
+                .thenReturn(page);
     }
 
     // ---- GET / : the directory listing -------------------------------------------------

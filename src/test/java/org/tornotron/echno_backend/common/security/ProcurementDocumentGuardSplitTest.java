@@ -10,7 +10,6 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.tornotron.echno_backend.goodsReceivedNote.GoodsReceivedNoteController;
 import org.tornotron.echno_backend.goodsReceivedNote.GoodsReceivedNoteControllerWeb;
-import org.tornotron.echno_backend.indent.IndentController;
 import org.tornotron.echno_backend.materialConsumption.MaterialConsumptionController;
 import org.tornotron.echno_backend.materialConsumption.MaterialConsumptionControllerWeb;
 import org.tornotron.echno_backend.siteTransfer.SiteTransferController;
@@ -47,23 +46,17 @@ class ProcurementDocumentGuardSplitTest {
      * list when its reads moved onto the access matrix, where {@code IndentGuardsTest} and
      * {@code IndentAccessEquivalenceIT} hold it to the same split. Both purchase order controllers
      * left it the same way, for {@code PurchaseOrderGuardsTest} and
-     * {@code PurchaseOrderAccessEquivalenceIT}.
+     * {@code PurchaseOrderAccessEquivalenceIT}. The mobile twins were guarded on flat
+     * {@code resource:scope} authorities nothing in the realm mints, until development aligned them
+     * with their web twins, so the remaining ones carry the same split. The mobile indent controller
+     * follows its web twin onto the matrix ({@code MobileWebGuardParityTest}).
      */
     private static final List<Class<?>> ROLE_GUARDED = List.of(
             GoodsReceivedNoteControllerWeb.class,
-            SiteTransferControllerWeb.class,
-            MaterialConsumptionControllerWeb.class);
-
-    /**
-     * The mobile twins that are guarded on flat {@code resource:scope} authorities instead. Nothing
-     * in the realm mints those, so they refuse every caller including a system admin. That is the
-     * phantom-guard defect of #684 rather than this decision, and repairing it is a separate change
-     * with its own blast radius. Pinned here so the omission reads as deliberate.
-     */
-    private static final List<Class<?>> AUTHORITY_GUARDED = List.of(
             GoodsReceivedNoteController.class,
-            IndentController.class,
+            SiteTransferControllerWeb.class,
             SiteTransferController.class,
+            MaterialConsumptionControllerWeb.class,
             MaterialConsumptionController.class);
 
     @Test
@@ -106,19 +99,6 @@ class ProcurementDocumentGuardSplitTest {
         assertThat(withoutSystemAdmin).isEmpty();
     }
 
-    @Test
-    void theAuthorityGuardedMobileTwinsWereLeftAlone() {
-        List<String> touched = new ArrayList<>();
-        for (Class<?> controller : AUTHORITY_GUARDED) {
-            for (Method method : requestMappedMethods(controller)) {
-                if (guardOf(method).contains("orgSecurity")) {
-                    touched.add(describe(controller, method));
-                }
-            }
-        }
-        assertThat(touched).isEmpty();
-    }
-
     /** Guards against the whole thing passing because reflection found nothing to look at. */
     @Test
     void theEndpointsUnderTestWereActuallyFound() {
@@ -128,8 +108,9 @@ class ProcurementDocumentGuardSplitTest {
         }
         // 57 since the site transfer picker for asset lines (GET /sendable-assets), less the eleven
         // web indent endpoints and the nineteen purchase order endpoints that moved onto the access
-        // matrix.
-        assertThat(total).isEqualTo(27);
+        // matrix, plus the 25 on the mobile twins of the other three (GRN 7, site transfer 10,
+        // material consumption 8).
+        assertThat(total).isEqualTo(52);
     }
 
     private static List<Method> requestMappedMethods(Class<?> controller) {

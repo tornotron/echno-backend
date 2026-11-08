@@ -22,6 +22,7 @@ import org.tornotron.echno_backend.common.history.mapper.StatusTransitionMapper;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.payload.PayloadValidator;
 import org.tornotron.echno_backend.common.service.AttachmentService;
+import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.employee.mapper.EmployeeMapper;
@@ -53,6 +54,7 @@ class ProjectMembershipEventTest {
                 mock(CustomerRepository.class), new PayloadValidator(validators.getValidator()),
                 mock(UserContextService.class), mock(StatusTransitionRecorder.class),
                 mock(StatusTransitionRepository.class), mock(StatusTransitionMapper.class),
+                mock(OrganizationSecurityService.class),
                 ProjectAccessStubs.allowingEverything());
         TenantContext.setCurrentOrgId(ORG);
         project = new Project();

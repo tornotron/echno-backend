@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        A project is completed by its tasks, or by hand by a system admin (ClickUp 14zdkkvzzwg).
+        completed_manually tells the two apart, so a task change reopens a project its tasks
+        completed and leaves alone one a system admin closed early.
+
+        Two changesets because CockroachDB refuses a write after a schema change in the same
+        transaction. Both are re-runnable.
+    -->
+
+    <changeSet id="137-project-completed-manually-column" author="abhijith">
+        <preConditions onFail="MARK_RAN" onError="MARK_RAN">
+            <tableExists tableName="project"/>
+            <not>
+                <columnExists tableName="project" columnName="completed_manually"/>
+            </not>
+        </preConditions>
+        <comment>
+            NOT NULL with a default, so rows written by a previous build during a rolling deploy
+            take false.
+        </comment>
+        <addColumn tableName="project">
+            <column name="completed_manually" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="137-project-completed-manually-grandfather" author="abhijith">
+        <preConditions onFail="MARK_RAN" onError="MARK_RAN">
+            <columnExists tableName="project" columnName="completed_manually"/>
+        </preConditions>
+        <comment>
+            A project already marked completed whose tasks are not all complete (or which has no
+            tasks) was completed by hand under the old rule. It stays completed and is flagged as a
+            hand completion, so nothing changes on screen and a task change does not reopen it; a
+            system admin can reopen it. A completed project whose every task is complete is left
+            unflagged, which is what the task rule would have produced. A task counts as complete
+            when its status is completed or its progress is 100, the same test the application uses.
+        </comment>
+        <sql>
+            UPDATE project SET completed_manually = true
+            WHERE status = 'completed'
+              AND completed_manually = false
+              AND (
+                  NOT EXISTS (SELECT 1 FROM task t WHERE t.project_id = project.id)
+                  OR EXISTS (
+                      SELECT 1 FROM task t
+                      WHERE t.project_id = project.id
+                        AND t.status &lt;&gt; 'completed'
+                        AND (t.progress IS NULL OR t.progress &lt; 100)
+                  )
+              );
+        </sql>
+        <rollback>
+            <comment>The column is dropped with the first changeset's rollback.</comment>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

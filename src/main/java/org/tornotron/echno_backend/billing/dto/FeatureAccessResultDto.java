@@ -63,6 +63,19 @@ public class FeatureAccessResultDto {
                 .build();
     }
 
+    /**
+     * The organization's manual trial has ended, it is on the Free plan, and the Free plan does
+     * not include the feature. Anything saved under the feature is kept, not readable until a
+     * plan that includes it is bought.
+     */
+    public static FeatureAccessResultDto trialEnded(java.time.Instant trialEnd) {
+        return FeatureAccessResultDto.builder()
+                .allowed(false)
+                .reason("Trial ended at " + trialEnd + "; feature not included in the Free plan")
+                .message("Your trial has ended. Purchase a plan to use this feature again.")
+                .build();
+    }
+
     public static FeatureAccessResultDto featureNotInPlan() {
         return FeatureAccessResultDto.builder()
                 .allowed(false)

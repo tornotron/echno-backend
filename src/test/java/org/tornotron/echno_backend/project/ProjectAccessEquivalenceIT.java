@@ -71,7 +71,12 @@ class ProjectAccessEquivalenceIT extends RoleAssignmentITSupport {
             entry("CategoryControllerWeb#readACategory", ANY_MEMBER),
             entry("CategoryControllerWeb#deleteACategory", ADMIN_OR_PM),
             entry("CategoryControllerWeb#readSubcategories", ANY_MEMBER),
-            entry("CategoryController#readSubcategories", ANY_MEMBER));
+            entry("CategoryController#readSubcategories", ANY_MEMBER),
+            // The mobile twins, which development gave the web twins' org-role guards.
+            entry("CategoryController#createCategory", ADMIN_OR_PM),
+            entry("CategoryController#readAllCategories", ANY_MEMBER),
+            entry("CategoryController#readACategory", ANY_MEMBER),
+            entry("CategoryController#deleteACategory", ADMIN_OR_PM));
 
     @Autowired
     private AccessService access;

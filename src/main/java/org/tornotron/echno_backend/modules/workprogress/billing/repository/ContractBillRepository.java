@@ -20,6 +20,7 @@ import org.springframework.stereotype.Repository;
 import org.tornotron.echno_backend.modules.workprogress.billing.domain.BillStatus;
 import org.tornotron.echno_backend.modules.workprogress.billing.domain.BillingModel;
 import org.tornotron.echno_backend.modules.workprogress.billing.domain.ContractBill;
+import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.subcontract.SubContract;
 
 @Repository
@@ -88,6 +89,48 @@ public interface ContractBillRepository extends JpaRepository<ContractBill, UUID
     @Query("SELECT b.status, COUNT(b), COALESCE(SUM(b.grossCertified), 0), COALESCE(SUM(b.netPayable), 0) "
             + "FROM ContractBill b WHERE b.organization.id = :orgId GROUP BY b.status")
     List<Object[]> statusTotals(@Param("orgId") Long orgId);
+
+    @Query("SELECT COUNT(DISTINCT b.projectId) FROM ContractBill b WHERE b.organization.id = :orgId "
+            + "AND b.status <> org.tornotron.echno_backend.modules.workprogress.billing.domain.BillStatus.CANCELLED")
+    long projectsInBilling(@Param("orgId") Long orgId);
+
+    // What the organization's approved bills were recorded at and paid, from their payables. One row.
+    @Query("SELECT COALESCE(SUM(p.amountRecorded), 0), COALESCE(SUM(p.amountPaid), 0) FROM ContractBill b, Payable p "
+            + "WHERE b.organization.id = :orgId AND p.id = b.payableId")
+    List<Object[]> payableTotals(@Param("orgId") Long orgId);
+
+    // Recorded and paid per bill, for one page or one contract's bills. Bills with no payable are absent.
+    @Query("SELECT b.id, p.amountRecorded, p.amountPaid FROM ContractBill b, Payable p "
+            + "WHERE b.organization.id = :orgId AND b.id IN :billIds AND p.id = b.payableId")
+    List<Object[]> payableFigures(@Param("orgId") Long orgId, @Param("billIds") Collection<UUID> billIds);
+
+    // One page of the organization's projects, by name, for the billing home page.
+    @Query(value = "SELECT p FROM Project p WHERE p.organization.id = :orgId ORDER BY p.projectName, p.id",
+            countQuery = "SELECT COUNT(p) FROM Project p WHERE p.organization.id = :orgId")
+    Page<Project> projects(@Param("orgId") Long orgId, Pageable pageable);
+
+    @Query(value = "SELECT p FROM Project p WHERE p.organization.id = :orgId AND LOWER(p.projectName) LIKE :pattern "
+            + "ORDER BY p.projectName, p.id",
+            countQuery = "SELECT COUNT(p) FROM Project p WHERE p.organization.id = :orgId "
+                    + "AND LOWER(p.projectName) LIKE :pattern")
+    Page<Project> projectsNamed(@Param("orgId") Long orgId, @Param("pattern") String pattern, Pageable pageable);
+
+    // Contracts per project: projectId, count, value. Bounded by the page of projects.
+    @Query("SELECT s.projectId, COUNT(s), COALESCE(SUM(s.contractValue), 0) FROM SubContract s "
+            + "WHERE s.organization.id = :orgId AND s.projectId IN :projectIds GROUP BY s.projectId")
+    List<Object[]> contractTotalsByProject(@Param("orgId") Long orgId, @Param("projectIds") Collection<Long> projectIds);
+
+    // Bills per project and status: projectId, status, count, gross certified, net, last change.
+    @Query("SELECT b.projectId, b.status, COUNT(b), COALESCE(SUM(b.grossCertified), 0), COALESCE(SUM(b.netPayable), 0), "
+            + "MAX(b.updatedAt) FROM ContractBill b WHERE b.organization.id = :orgId AND b.projectId IN :projectIds "
+            + "GROUP BY b.projectId, b.status")
+    List<Object[]> billTotalsByProject(@Param("orgId") Long orgId, @Param("projectIds") Collection<Long> projectIds);
+
+    // Payables per project: projectId, recorded, paid.
+    @Query("SELECT b.projectId, COALESCE(SUM(p.amountRecorded), 0), COALESCE(SUM(p.amountPaid), 0) "
+            + "FROM ContractBill b, Payable p WHERE b.organization.id = :orgId AND b.projectId IN :projectIds "
+            + "AND p.id = b.payableId GROUP BY b.projectId")
+    List<Object[]> payableTotalsByProject(@Param("orgId") Long orgId, @Param("projectIds") Collection<Long> projectIds);
 
     @Query(value = "SELECT s FROM SubContract s WHERE s.organization.id = :orgId ORDER BY s.createdAt DESC",
             countQuery = "SELECT COUNT(s) FROM SubContract s WHERE s.organization.id = :orgId")

@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
+import org.tornotron.echno_backend.common.configuration.JpaAuditingConfig;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.numbering.EntryNumberGenerator;
 import org.tornotron.echno_backend.modules.inspections.domain.InspectionDefect;
@@ -74,7 +75,8 @@ import static org.assertj.core.api.Assertions.assertThat;
         DefectAnnotationService.class, DefectPhotoAnnotationMapperImpl.class,
         UserContextService.class,
         TenantEntityHelper.class, EntryNumberGenerator.class,
-        TransactionalWorkRunner.class, TransactionRetryTemplate.class, SimpleMeterRegistry.class})
+        TransactionalWorkRunner.class, TransactionRetryTemplate.class, SimpleMeterRegistry.class,
+        JpaAuditingConfig.class})
 class InspectionTaxonomyMigrationIT extends AbstractIntegrationTest {
 
     private static final String CHANGELOG =

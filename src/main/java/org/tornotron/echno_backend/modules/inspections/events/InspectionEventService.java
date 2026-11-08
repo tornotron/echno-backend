@@ -37,12 +37,18 @@ public class InspectionEventService {
     /** The whole timeline of one inspection: itself, its items, defects, NCRs and reinspections. */
     @Transactional(readOnly = true)
     public Page<InspectionEventDto> inspectionTimeline(UUID inspectionId, Pageable pageable) {
+        return inspectionTimeline(inspectionId, true, pageable);
+    }
+
+    /** As above, dropping the events of a model's detections when the caller may not see those. */
+    @Transactional(readOnly = true)
+    public Page<InspectionEventDto> inspectionTimeline(UUID inspectionId, boolean includeDetections, Pageable pageable) {
         Long orgId = TenantContext.getCurrentOrgId();
         if (!inspectionRepo.existsByIdAndOrganization_Id(inspectionId, orgId)) {
             throw new ResourceNotFoundException("Inspection with ID " + inspectionId + " was not found");
         }
-        return events.search(orgId,
-                        InspectionEventFilter.forInspection(inspectionId), pageable)
+        InspectionEventFilter filter = InspectionEventFilter.forInspection(inspectionId);
+        return events.search(orgId, includeDetections ? filter : filter.hidingDetections(), pageable)
                 .map(InspectionEventService::toDto);
     }
 
@@ -71,9 +77,22 @@ public class InspectionEventService {
                                            LocalDateTime from,
                                            LocalDateTime to,
                                            Pageable pageable) {
-        return events.search(TenantContext.getCurrentOrgId(),
-                        new InspectionEventFilter(null, subjectType, null, projectId, eventType,
-                                actorId, from, to),
+        return search(projectId, subjectType, eventType, actorId, from, to, true, pageable);
+    }
+
+    /** As above, dropping the events of a model's detections when the caller may not see those. */
+    @Transactional(readOnly = true)
+    public Page<InspectionEventDto> search(Long projectId,
+                                           InspectionEventSubjectType subjectType,
+                                           String eventType,
+                                           String actorId,
+                                           LocalDateTime from,
+                                           LocalDateTime to,
+                                           boolean includeDetections,
+                                           Pageable pageable) {
+        InspectionEventFilter filter = new InspectionEventFilter(null, subjectType, null, projectId, eventType,
+                actorId, from, to);
+        return events.search(TenantContext.getCurrentOrgId(), includeDetections ? filter : filter.hidingDetections(),
                         pageable)
                 .map(InspectionEventService::toDto);
     }

@@ -317,6 +317,21 @@ public class GoodsReceivedNoteService {
     }
 
     /**
+     * One page of the same rows, latest receipt first, with the id as tie-break.
+     *
+     * @param pageNo   Zero-based page index.
+     * @param pageSize Rows per page.
+     * @return The requested page.
+     */
+    @Transactional(readOnly = true)
+    public Page<GoodsReceivedNoteDto> getGrnsByVendor(Long vendorId, int pageNo, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNo, pageSize,
+                Sort.by(Sort.Direction.DESC, "receivedOn").and(Sort.by(Sort.Direction.DESC, "id")));
+        return goodsReceivedNoteRepository.findByVendorId(vendorId, pageable)
+                .map(grn -> goodsReceivedNoteMapper.toDto(grn));
+    }
+
+    /**
      * Lists GRNs received within an inclusive date range.
      *
      * @param startDate Start of the received-on range.
@@ -328,5 +343,20 @@ public class GoodsReceivedNoteService {
         return goodsReceivedNoteRepository.findByReceivedOnBetween(startDate, endDate).stream()
                 .map(grn -> goodsReceivedNoteMapper.toDto(grn))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * One page of the same rows, latest receipt first, with the id as tie-break.
+     *
+     * @param pageNo   Zero-based page index.
+     * @param pageSize Rows per page.
+     * @return The requested page.
+     */
+    @Transactional(readOnly = true)
+    public Page<GoodsReceivedNoteDto> getGrnsByDateRange(LocalDateTime startDate, LocalDateTime endDate, int pageNo, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNo, pageSize,
+                Sort.by(Sort.Direction.DESC, "receivedOn").and(Sort.by(Sort.Direction.DESC, "id")));
+        return goodsReceivedNoteRepository.findByReceivedOnBetween(startDate, endDate, pageable)
+                .map(grn -> goodsReceivedNoteMapper.toDto(grn));
     }
 }

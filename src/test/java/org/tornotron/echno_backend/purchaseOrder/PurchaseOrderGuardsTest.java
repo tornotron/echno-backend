@@ -59,6 +59,8 @@ class PurchaseOrderGuardsTest {
             entry("PurchaseOrderItemController.getPurchaseOrderItemsPaginated", "read"),
             entry("PurchaseOrderItemController.getItemsByPurchaseOrderId", "read"),
             entry("PurchaseOrderItemController.getItemsByMaterialId", "read"),
+            entry("PurchaseOrderItemController.getItemsByPurchaseOrderIdPaginated", "read"),
+            entry("PurchaseOrderItemController.getItemsByMaterialIdPaginated", "read"),
             entry("PurchaseOrderItemController.updatePurchaseOrderItem", "edit"),
             entry("PurchaseOrderItemController.deletePurchaseOrderItem", "delete"));
 

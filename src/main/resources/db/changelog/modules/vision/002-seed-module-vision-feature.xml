@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Seeds the feature the vision module is gated on and grants it on no plan. Unlike the other
+        modules this add-on has no price yet, so nobody should hold it by default; a grant is a
+        billing data change once it has one. Design: docs/specs/2026-10-26-cv-phase4-design.md,
+        section 4.2.
+
+        Guarded on its own row, so an environment that already holds the feature keeps what it has.
+    -->
+
+    <changeSet id="vision-002-seed-feature-module-vision" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">SELECT COUNT(*) FROM feature WHERE code = 'MODULE_VISION'</sqlCheck>
+        </preConditions>
+        <insert tableName="feature">
+            <column name="code" value="MODULE_VISION"/>
+            <column name="name" value="Computer Vision Module"/>
+            <column name="description" value="Access to the computer vision module."/>
+            <column name="feature_type" value="BOOLEAN"/>
+            <column name="category" value="MODULE"/>
+            <column name="is_active" valueBoolean="true"/>
+        </insert>
+        <rollback>
+            <delete tableName="feature">
+                <where>code = 'MODULE_VISION'</where>
+            </delete>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

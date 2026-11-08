@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.billing.*;
 import org.tornotron.echno_backend.billing.components.SubscriptionCache;
+import org.tornotron.echno_backend.billing.entitlement.ManualTrial;
 import org.tornotron.echno_backend.billing.entitlement.PastDueGracePolicy;
 import org.tornotron.echno_backend.billing.dto.BillingMapper;
 import org.tornotron.echno_backend.billing.dto.FeatureAccessResultDto;
@@ -19,6 +20,7 @@ import org.tornotron.echno_backend.billing.repositories.PlanRepository;
 import org.tornotron.echno_backend.billing.repositories.SubscriptionRepository;
 import org.tornotron.echno_backend.billing.repositories.UsageRecordRepository;
 import org.tornotron.echno_backend.billing.snapshot.PlanFeatureSnapshot;
+import org.tornotron.echno_backend.billing.snapshot.PlanSnapshot;
 import org.tornotron.echno_backend.billing.snapshot.SubscriptionSnapshot;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.NoActiveSubscriptionException;
@@ -200,11 +202,12 @@ public class SubscriptionService {
         Optional<SubscriptionSnapshot> subscriptionOptional = loadActiveSubscription(organizationId);
 
         if(subscriptionOptional.isEmpty()) {
-            return noEntitlement(organizationId);
+            return afterEndedManualTrial(organizationId, featureCode)
+                    .orElseGet(() -> noEntitlement(organizationId));
         }
 
         SubscriptionSnapshot subscription = subscriptionOptional.get();
-        FeatureAccessResultDto access = checkPlanAccess(organizationId, subscription, featureCode);
+        FeatureAccessResultDto access = checkPlanAccess(organizationId, subscription.plan(), featureCode);
         if (access.isAllowed() && subscription.status() == SubscriptionStatus.PAST_DUE) {
             // Only an allowed result says so; a denial keeps its own reason (disabled, quota).
             return access.withinPastDueGrace(gracePolicy.entitledUntil(subscription), gracePolicy.graceDays());
@@ -212,8 +215,30 @@ public class SubscriptionService {
         return access;
     }
 
-    private FeatureAccessResultDto checkPlanAccess(Long organizationId, SubscriptionSnapshot subscription, String featureCode) {
-        Optional<PlanFeatureSnapshot> planFeatureOptional = subscription.feature(featureCode);
+    /**
+     * The answer for an organization whose manual trial has ended but which the expiry sweep
+     * has not yet moved to the Free plan: the Free plan's own answer, so the drop takes effect
+     * at the trial end rather than at the sweep's next pass. A feature the Free plan does not
+     * include is refused with a reason that names the ended trial; any other answer (allowed,
+     * disabled, over quota) is the Free plan's own. Empty when the organization has no such
+     * trial, or when no Free plan exists to fall back to.
+     */
+    private Optional<FeatureAccessResultDto> afterEndedManualTrial(Long organizationId, String featureCode) {
+        Optional<Subscription> endedTrial = subscriptionRepository
+                .findEndedManualTrials(organizationId, Instant.now()).stream().findFirst();
+        if (endedTrial.isEmpty()) {
+            return Optional.empty();
+        }
+        Instant trialEnd = endedTrial.get().getTrialEnd();
+        return planRepository.findByCodeWithFeatures(ManualTrial.FALLBACK_PLAN_CODE)
+                .map(BillingMapper::toPlanSnapshot)
+                .map(free -> free.feature(featureCode).isEmpty()
+                        ? FeatureAccessResultDto.trialEnded(trialEnd)
+                        : checkPlanAccess(organizationId, free, featureCode));
+    }
+
+    private FeatureAccessResultDto checkPlanAccess(Long organizationId, PlanSnapshot plan, String featureCode) {
+        Optional<PlanFeatureSnapshot> planFeatureOptional = plan == null ? Optional.empty() : plan.feature(featureCode);
 
         if(planFeatureOptional.isEmpty()) {
             return FeatureAccessResultDto.featureNotInPlan();

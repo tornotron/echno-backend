@@ -21,18 +21,36 @@ public interface IssueRepository extends JpaRepository<Issue, Long> {
 
     List<Issue> findAllByTask_IdAndOrganization_Id(Long taskId, Long organizationId);
 
-    List<Issue> findAllByTask_Project_IdAndOrganization_Id(Long projectId, Long organizationId);
+    /**
+     * Every issue of a project: the ones linked to it directly and the ones raised on one of its
+     * tasks. Both are read so a row written before {@code project_id} was filled in is not missed.
+     */
+    @Query("""
+            SELECT i FROM Issue i
+              LEFT JOIN i.project p
+              LEFT JOIN i.task t
+              LEFT JOIN t.project tp
+            WHERE i.organization.id = :organizationId
+              AND (p.id = :projectId OR tp.id = :projectId)
+            """)
+    List<Issue> findAllInProject(@Param("projectId") Long projectId,
+                                 @Param("organizationId") Long organizationId);
 
     /**
      * Paginated issue search. Every filter is optional (a null argument disables
      * that clause); the tenant orgFilter still applies. {@code search} matches
      * title, description, or the creator's name, case-insensitively.
      * {@code assigneeId} and {@code creatorId} restrict to the issues assigned to
-     * or created by that employee.
+     * or created by that employee. The project is matched on the issue's own project or its
+     * task's, through outer joins, so an issue with no task is found too.
      */
     @Query("""
-            SELECT i FROM Issue i WHERE
-              (:projectId IS NULL OR i.task.project.id = :projectId) AND
+            SELECT i FROM Issue i
+              LEFT JOIN i.project p
+              LEFT JOIN i.task t
+              LEFT JOIN t.project tp
+            WHERE
+              (:projectId IS NULL OR p.id = :projectId OR tp.id = :projectId) AND
               (:search IS NULL
                  OR LOWER(i.title) LIKE :search
                  OR LOWER(i.description) LIKE :search
@@ -57,8 +75,12 @@ public interface IssueRepository extends JpaRepository<Issue, Long> {
      * row is {@code [IssueStatus, Long]}.
      */
     @Query("""
-            SELECT i.status, COUNT(i) FROM Issue i WHERE
-              (:projectId IS NULL OR i.task.project.id = :projectId) AND
+            SELECT i.status, COUNT(i) FROM Issue i
+              LEFT JOIN i.project p
+              LEFT JOIN i.task t
+              LEFT JOIN t.project tp
+            WHERE
+              (:projectId IS NULL OR p.id = :projectId OR tp.id = :projectId) AND
               (:search IS NULL
                  OR LOWER(i.title) LIKE :search
                  OR LOWER(i.description) LIKE :search

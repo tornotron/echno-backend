@@ -16,7 +16,7 @@ public class LabourSimpleDto {
     private String labourId;
     @Schema(description = "Id of the organization the worker belongs to.", example = "1")
     private Long organizationId;
-    @Schema(description = "Name of the organization the worker belongs to.", example = "Asset Homes")
+    @Schema(description = "Name of the organization the worker belongs to.", example = "Riverside Builders")
     private String organizationName;
     @Schema(description = "Full name of the worker.", example = "Suresh Pillai")
     private String fullName;

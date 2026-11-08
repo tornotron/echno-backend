@@ -27,7 +27,7 @@ public class SiteTransferDto {
     @Schema(description = "Id of the sending project.", example = "4")
     private Long sendingProjectId;
 
-    @Schema(description = "Name of the sending project.", example = "Asset Homes - Kochi Phase 2")
+    @Schema(description = "Name of the sending project.", example = "Riverside Towers Phase 2")
     private String sendingProjectName;
 
     @Schema(description = "Id of the sending storage location, if one was specified.", example = "7")
@@ -39,7 +39,7 @@ public class SiteTransferDto {
     @Schema(description = "Id of the receiving project.", example = "9")
     private Long receivingProjectId;
 
-    @Schema(description = "Name of the receiving project.", example = "Asset Homes - Coimbatore Villas")
+    @Schema(description = "Name of the receiving project.", example = "Lakeview Residency Block A")
     private String receivingProjectName;
 
     @Schema(description = "Id of the receiving storage location, if one was specified.", example = "15")

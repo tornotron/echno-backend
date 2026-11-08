@@ -9,6 +9,7 @@ import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.stereotype.Controller;
+import org.springframework.util.ReflectionUtils;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.tornotron.echno_backend.common.pagination.PageQuery;
@@ -145,7 +146,10 @@ class OpenApiPageSizeDefaultTest {
                 .filter(javaClass -> javaClass.isMetaAnnotatedWith(Controller.class))
                 .map(JavaClass::reflect)
                 .forEach(controller -> {
-                    for (Method method : controller.getDeclaredMethods()) {
+                    // Inherited handlers too, resolved the way Spring MVC registers them: a
+                    // mobile controller that extends its web twin (#998) serves the twin's
+                    // handlers under its own class path without declaring any of them.
+                    for (Method method : ReflectionUtils.getUniqueDeclaredMethods(controller)) {
                         RequestMapping mapping = AnnotatedElementUtils
                                 .findMergedAnnotation(method, RequestMapping.class);
                         if (mapping == null) {

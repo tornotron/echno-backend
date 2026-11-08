@@ -5,6 +5,7 @@ import jakarta.validation.ValidationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -572,6 +573,28 @@ public class AttendanceService {
     }
 
     /**
+     * One page of an employee's attendance in a date range, latest day first.
+     *
+     * @param employeeId The employee whose records are read.
+     * @param startDate  First day of the range, inclusive.
+     * @param endDate    Last day of the range, inclusive.
+     * @param pageNo     Zero-based page index.
+     * @param pageSize   Rows per page.
+     * @return The page of records.
+     */
+    @Transactional(readOnly = true)
+    public Page<AttendanceResponseDto> getAttendanceByEmployee(Long employeeId,
+                                                               LocalDate startDate,
+                                                               LocalDate endDate,
+                                                               int pageNo,
+                                                               int pageSize) {
+        return attendanceRepository.findByEmployeeIdAndAttendanceDateBetween(employeeId, startDate, endDate,
+                        PageRequest.of(pageNo, pageSize,
+                                Sort.by(Sort.Direction.DESC, "attendanceDate").and(Sort.by(Sort.Direction.DESC, "id"))))
+                .map(attendance -> attendanceMapper.toResponseDto(attendance));
+    }
+
+    /**
      * Lists a project's attendance for a day, filtered by status, approval and a name search.
      *
      * <p>A blank search matches all employees; otherwise it matches employee names
@@ -602,13 +625,31 @@ public class AttendanceService {
                                                                Boolean requiresApproval,
                                                                String search,
                                                                Pageable pageable) {
+        return getAttendancePageByProject(projectId, date, status, approvalStatus, requiresApproval,
+                search, pageable).getContent();
+    }
+
+    /**
+     * The same read as {@link #getAttendanceByProject}, returned as the page itself so the caller
+     * learns the total and whether more rows follow.
+     *
+     * @return The page of attendance records.
+     */
+    @Transactional(readOnly = true)
+    public Page<AttendanceResponseDto> getAttendancePageByProject(Long projectId,
+                                                                  LocalDate date,
+                                                                  AttendanceStatus status,
+                                                                  ApprovalStatus approvalStatus,
+                                                                  Boolean requiresApproval,
+                                                                  String search,
+                                                                  Pageable pageable) {
         String searchPattern = (search == null || search.isBlank())
                 ? null
                 : "%" + search.toLowerCase(Locale.ROOT) + "%";
         return attendanceRepository
                 .findWithFilters(projectId, date, status, approvalStatus, requiresApproval,
                         searchPattern, pageable)
-                .map(attendance -> attendanceMapper.toResponseDto(attendance)).getContent();
+                .map(attendance -> attendanceMapper.toResponseDto(attendance));
     }
 
     /**

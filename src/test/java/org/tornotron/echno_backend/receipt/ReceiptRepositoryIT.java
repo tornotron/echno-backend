@@ -36,14 +36,14 @@ class ReceiptRepositoryIT extends AbstractIntegrationTest {
     @Test
     void findByIdAndOrganization_returnsTheReceipt() {
         Organization org = persistOrganization("Org A");
-        Receipt receipt = persistReceipt(org, "RCP-2027-000001", "Asset Homes Pvt Ltd", "issued");
+        Receipt receipt = persistReceipt(org, "RCP-2027-000001", "Riverside Builders Pvt Ltd", "issued");
         em.flush();
         em.clear();
 
         Optional<Receipt> found = receiptRepository.findByIdAndOrganization_Id(receipt.getId(), org.getId());
 
         assertThat(found).isPresent();
-        assertThat(found.get().getReceivedFrom()).isEqualTo("Asset Homes Pvt Ltd");
+        assertThat(found.get().getReceivedFrom()).isEqualTo("Riverside Builders Pvt Ltd");
         assertThat(found.get().getReceiptNumber()).isEqualTo("RCP-2027-000001");
         assertThat(found.get().getOrganization().getId()).isEqualTo(org.getId());
     }
