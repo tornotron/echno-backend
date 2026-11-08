@@ -57,4 +57,10 @@ public interface CandidateRepository extends JpaRepository<Candidate, UUID> {
     @Query("DELETE FROM Candidate c WHERE c.organization.id = :orgId AND c.segmentId = :segmentId "
             + "AND c.status <> org.tornotron.echno_backend.modules.documentingestion.domain.CandidateStatus.APPLIED")
     int deleteUnappliedInSegment(@Param("orgId") Long orgId, @Param("segmentId") UUID segmentId);
+
+    /** What one job proposed of one kind and nobody has decided on yet, oldest first. Bounded by the job. */
+    @Query("SELECT c FROM Candidate c WHERE c.extractJobId = :jobId AND c.kind = :kind "
+            + "AND c.status = org.tornotron.echno_backend.modules.documentingestion.domain.CandidateStatus.PROPOSED "
+            + "ORDER BY c.createdAt, c.id")
+    List<Candidate> findProposedOfJob(@Param("jobId") UUID jobId, @Param("kind") CandidateKind kind);
 }

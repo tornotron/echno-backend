@@ -22,6 +22,8 @@ import org.tornotron.echno_backend.modules.documentingestion.repository.Candidat
 import org.tornotron.echno_backend.modules.documentingestion.repository.IngestDocumentRepository;
 import org.tornotron.echno_backend.modules.documentingestion.repository.IngestPackageRepository;
 import org.tornotron.echno_backend.modules.workprogress.api.ContractBoqPort;
+import org.tornotron.echno_backend.modules.documentingestion.dto.TenderProfileDto;
+import org.tornotron.echno_backend.modules.documentingestion.repository.TenderProfileRepository;
 import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.user.UserContextService;
 
@@ -39,6 +41,7 @@ public class IngestPackageService {
     private final UserContextService userContextService;
     private final CandidateRepository candidates;
     private final ContractBoqPort contractBoq;
+    private final TenderProfileRepository profiles;
 
     @Transactional
     public PackageDto create(CreatePackageRequest req) {
@@ -66,6 +69,14 @@ public class IngestPackageService {
     public PackageDto get(UUID packageId) {
         IngestPackage p = requirePackage(packageId);
         return PackageDto.of(p, documents.countInPackage(p.getId()));
+    }
+
+    /** The package's tender profile, or 404 while no project field has been applied to it. */
+    @Transactional(readOnly = true)
+    public TenderProfileDto tenderProfile(UUID packageId) {
+        requirePackage(packageId);
+        return profiles.findByPackage(packageId).map(TenderProfileDto::of)
+                .orElseThrow(() -> new ResourceNotFoundException("No tender facts have been applied to package " + packageId));
     }
 
     /**

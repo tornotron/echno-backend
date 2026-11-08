@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        The tender profile: the accepted facts of a tender that the project table has no column for
+        (estimated value, EMD, tender fee, bid due date, bid validity, duration, client, consultant,
+        engineer, scope), one row per package, each as printed with a typed value where it reads plainly.
+
+        Design: docs/specs/2026-11-08-document-ingestion-design.md, sections 4.1 and 6.3.
+    -->
+
+    <changeSet id="document-ingestion-007-create-tender-profile" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="doc_ingest_tender_profile"/></not>
+        </preConditions>
+        <createTable tableName="doc_ingest_tender_profile">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_doc_ingest_tender_profile" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="package_id" type="UUID"><constraints nullable="false" unique="true" uniqueConstraintName="uq_doc_ingest_tender_profile_package"/></column>
+            <column name="project_id" type="BIGINT"/>
+            <column name="client" type="VARCHAR(500)"/>
+            <column name="estimated_value_text" type="VARCHAR(500)"/>
+            <column name="estimated_value" type="DECIMAL(18,2)"/>
+            <column name="emd_text" type="VARCHAR(500)"/>
+            <column name="emd_amount" type="DECIMAL(18,2)"/>
+            <column name="tender_fee_text" type="VARCHAR(500)"/>
+            <column name="tender_fee_amount" type="DECIMAL(18,2)"/>
+            <column name="bid_due_text" type="VARCHAR(500)"/>
+            <column name="bid_due_at" type="TIMESTAMP"/>
+            <column name="bid_validity_text" type="VARCHAR(500)"/>
+            <column name="bid_validity_days" type="INT"/>
+            <column name="duration_text" type="VARCHAR(500)"/>
+            <column name="consultant" type="VARCHAR(500)"/>
+            <column name="engineer" type="VARCHAR(500)"/>
+            <column name="scope" type="VARCHAR(4000)"/>
+            <column name="updated_by" type="BIGINT"/>
+            <column name="created_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="updated_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="doc_ingest_tender_profile" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_doc_ingest_tender_profile_organization"/>
+        <addForeignKeyConstraint baseTableName="doc_ingest_tender_profile" baseColumnNames="package_id"
+                                 referencedTableName="doc_ingest_package" referencedColumnNames="id"
+                                 constraintName="fk_doc_ingest_tender_profile_package"/>
+        <createIndex tableName="doc_ingest_tender_profile" indexName="idx_doc_ingest_tender_profile_org">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>
