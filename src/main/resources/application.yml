@@ -92,6 +92,10 @@ API:
 # secret injected at deploy time; when it is empty (or enabled=false) the compliance AI no-ops
 # and the application runs normally without a key.
 compliance:
+  # The endpoint settings here (base-url, api-key, model, enabled, proxy and timeouts) are
+  # shared by every caller of the common chat-completions client, not only compliance:
+  # enabled: false stops them all. max-tokens, temperature and the batch settings are
+  # compliance's own.
   ai:
     base-url: ${COMPLIANCE_AI_BASE_URL:https://inference.do-ai.run/v1}
     api-key: ${COMPLIANCE_AI_API_KEY:}
