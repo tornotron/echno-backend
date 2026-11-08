@@ -67,4 +67,9 @@ public interface CandidateRepository extends JpaRepository<Candidate, UUID> {
     /** Everything one job read of one kind, whatever its status, oldest first. Bounded by the job. */
     @Query("SELECT c FROM Candidate c WHERE c.extractJobId = :jobId AND c.kind = :kind ORDER BY c.createdAt, c.id")
     List<Candidate> findOfJob(@Param("jobId") UUID jobId, @Param("kind") CandidateKind kind);
+
+    /** A document's candidates of one kind, oldest first, bounded by the page. */
+    @Query("SELECT c FROM Candidate c WHERE c.documentId = :documentId AND c.kind = :kind ORDER BY c.createdAt, c.id")
+    List<Candidate> findForDocument(@Param("documentId") UUID documentId, @Param("kind") CandidateKind kind,
+                                    Pageable pageable);
 }
