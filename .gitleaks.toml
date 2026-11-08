@@ -7,13 +7,7 @@ description = "Documentation showing example curl invocations such as -u approve
 paths = ['''docs/finance-module-mvp-guide\.md''']
 
 [[allowlists]]
-description = "JDBC connection strings of the form host:5432/database, matched as user:pass by the generic rule."
-paths = ['''docker-compose\.yml''']
-regexTarget = "match"
-regexes = ['''keycloak-db:5432/keycloak''']
-
-[[allowlists]]
-description = "Full-context boot ITs: two redis ones (reachable and unreachable) and the management-port split. All three carry the same block of @SpringBootTest properties, which are dummy stand-ins for the deployment environment (object store, keycloak, encryption key) so the context can start; none are real credentials."
+description = "Full-context boot ITs: two redis ones (reachable and unreachable) and the management-port split. All three carry the same block of @SpringBootTest properties, which are dummy stand-ins for the deployment environment (object store, auth provider, encryption key) so the context can start; none are real credentials."
 paths = [
   '''src/test/java/org/tornotron/echno_backend/common/configuration/RedisFullContextBootIT\.java''',
   '''src/test/java/org/tornotron/echno_backend/common/configuration/RedisUnreachableBootIT\.java''',
@@ -21,5 +15,5 @@ paths = [
 ]
 
 [[allowlists]]
-description = "The local development profile (issue #828). Every value in it points at docker-compose.dev.yml and is a public dev-only literal: the 32-hex encryption key, the dev Keycloak client secret and the dev MinIO credentials exist on no deployed instance, which read theirs from the deployment vault."
+description = "The local development profile (issue #828). Every value in it points at docker-compose.dev.yml and is a public dev-only literal: the 32-hex encryption key and the dev MinIO credentials exist on no deployed instance, which read theirs from the deployment vault."
 paths = ['''src/main/resources/application-local\.yml''']

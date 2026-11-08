@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   # The suite is run as two jobs, split by class name: *IT classes boot a container
-  # (CockroachDB, Keycloak, Redis) and everything else is a slice or plain unit test.
+  # (CockroachDB, Redis) and everything else is a slice or plain unit test.
   # The OpenAPI snapshot check is a third job. One job running all three in sequence
   # took 16 to 17 minutes and twice ran into the 20-minute ceiling (#830); side by
   # side, the wall clock is the slowest of them. Each job compiles for itself, which
