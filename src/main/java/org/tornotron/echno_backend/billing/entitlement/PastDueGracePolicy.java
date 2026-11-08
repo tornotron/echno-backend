@@ -51,7 +51,8 @@ public class PastDueGracePolicy {
 
     /**
      * Whether a snapshot no longer grants access at a given instant: a past-due subscription
-     * whose window has ended, or any other whose period has.
+     * whose window has ended, a manual trial whose trial has ended (see {@link ManualTrial}),
+     * or any other whose period has.
      *
      * @param subscription The snapshot to judge.
      * @param at The instant to judge against, normally now.
@@ -60,6 +61,9 @@ public class PastDueGracePolicy {
     public boolean hasLapsed(SubscriptionSnapshot subscription, Instant at) {
         if (subscription.status() == SubscriptionStatus.PAST_DUE) {
             return !at.isBefore(entitledUntil(subscription));
+        }
+        if (ManualTrial.hasEnded(subscription, at)) {
+            return true;
         }
         return subscription.isExpired(at);
     }

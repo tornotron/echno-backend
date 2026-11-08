@@ -16,16 +16,30 @@ import java.util.Optional;
 public interface SubscriptionRepository extends JpaRepository<Subscription, Long> {
 
     /**
+     * A TRIALING row no provider backs whose trial has ended by {@code :now}. Kept in step with
+     * {@code ManualTrial.hasEnded}, which is the same test on a loaded row.
+     */
+    String ENDED_MANUAL_TRIAL =
+            "s.status = org.tornotron.echno_backend.billing.enums.SubscriptionStatus.TRIALING " +
+            "AND s.trialEnd IS NOT NULL AND s.trialEnd <= :now " +
+            "AND (s.provider = org.tornotron.echno_backend.billing.gateway.ProviderId.MANUAL " +
+            "OR s.externalSubscriptionId IS NULL)";
+
+    /**
      * The organization's subscription that grants access right now: one in an active status
      * whose current period has not ended. The period check is what stops a row that nothing
      * ever transitioned out of TRIALING from reading as live months after it lapsed.
+     *
+     * <p>A manual trial (no provider behind it) stops counting at its trial end, not its period
+     * end; see {@code ManualTrial}. The trial clause mirrors {@code ManualTrial.hasEnded}.
      */
     @Query("SELECT s FROM Subscription s " +
            "LEFT JOIN FETCH s.plan p " +
            "LEFT JOIN FETCH p.planFeatures pf " +
            "LEFT JOIN FETCH pf.feature " +
            "WHERE s.organizationId = :organizationId AND s.status IN :activeStatuses " +
-           "AND s.currentPeriodEnd > :now")
+           "AND s.currentPeriodEnd > :now " +
+           "AND NOT (" + ENDED_MANUAL_TRIAL + ")")
     Optional<Subscription> findActiveSubscription(
             @Param("organizationId") Long organizationId,
             @Param("activeStatuses") List<SubscriptionStatus> activeStatuses,
@@ -91,6 +105,23 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
     default List<Subscription> findPastDueSubscriptions(Long organizationId) {
         return findByOrganizationIdAndStatusOrderByCurrentPeriodEndDesc(organizationId, SubscriptionStatus.PAST_DUE);
     }
+
+    /**
+     * Every manual trial that has ended and is still TRIALING, across organizations, oldest
+     * trial end first; what {@code ManualTrialExpirySweep} moves to the Free plan. The cap is
+     * the page size.
+     */
+    @Query("SELECT s FROM Subscription s WHERE " + ENDED_MANUAL_TRIAL + " ORDER BY s.trialEnd ASC")
+    List<Subscription> findEndedManualTrials(@Param("now") Instant now, Pageable pageable);
+
+    /**
+     * The organization's manual trials that have ended but not yet been moved off TRIALING,
+     * newest trial end first. Between the trial end and the sweep's next pass, this is what
+     * tells the gate to answer from the Free plan.
+     */
+    @Query("SELECT s FROM Subscription s WHERE s.organizationId = :organizationId AND "
+           + ENDED_MANUAL_TRIAL + " ORDER BY s.trialEnd DESC")
+    List<Subscription> findEndedManualTrials(@Param("organizationId") Long organizationId, @Param("now") Instant now);
 
     @Query("SELECT s FROM Subscription s WHERE s.currentPeriodEnd < :now " +
            "AND s.status IN ('ACTIVE', 'TRIALING', 'PAST_DUE')")
