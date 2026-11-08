@@ -28,15 +28,15 @@ import java.util.UUID;
         name = "Journal Entries",
         description = "Double-entry journal entries posted to the ledger. Each entry carries two or more "
                 + "lines whose total debits must equal total credits. A posted entry is immutable and can "
-                + "only be undone by posting a reversing entry. All endpoints are tenant scoped and limited "
-                + "to system administrators and project managers."
+                + "only be undone by posting a reversing entry. All endpoints are tenant scoped. Reading needs "
+                + "finance read, posting needs finance create and reversing needs finance approve."
 )
 public class JournalEntryControllerWeb {
 
     private final JournalPostingService service;
 
     @PostMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('finance', 'create')")
     @Operation(
             summary = "Post a journal entry",
             description = "Posts a balanced journal entry to the ledger. The supplied lines must balance, "
@@ -46,7 +46,7 @@ public class JournalEntryControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Journal entry posted"),
             @ApiResponse(responseCode = "400", description = "Validation failed, or the entry does not balance"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not create finance records"),
             @ApiResponse(responseCode = "404", description = "A referenced account does not exist in the current tenant")
     })
     public ResponseEntity<JournalEntryDto> post(@Valid @RequestBody PostJournalRequest req) {
@@ -54,14 +54,14 @@ public class JournalEntryControllerWeb {
     }
 
     @GetMapping()
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('finance', 'read')")
     @Operation(
             summary = "Get a journal entry by id",
             description = "Returns a single journal entry, including its lines, by its unique id."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Journal entry found"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not read finance records"),
             @ApiResponse(responseCode = "404", description = "No journal entry with the given id in the current tenant")
     })
     public JournalEntryDto get(@RequestParam UUID id) {
@@ -69,7 +69,7 @@ public class JournalEntryControllerWeb {
     }
 
     @GetMapping("/all")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('finance', 'read')")
     @Operation(
             summary = "List journal entries",
             description = "Returns a page of journal entries in the current tenant. Use pageNo and pageSize "
@@ -77,7 +77,7 @@ public class JournalEntryControllerWeb {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Page of journal entries"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read finance records")
     })
     public ResponseEntity<List<JournalEntryDto>> getAll(@Valid @ParameterObject PageQuery pageQuery) {
         Page<JournalEntryDto> journalEntries = service.findAll(pageQuery.getPageNo(),pageQuery.getPageSize());
@@ -85,7 +85,7 @@ public class JournalEntryControllerWeb {
     }
 
     @PostMapping("/reverse")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('finance', 'approve')")
     @Operation(
             summary = "Reverse a journal entry",
             description = "Posts a reversing entry that negates the original entry, swapping its debits and "
@@ -95,7 +95,7 @@ public class JournalEntryControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Reversing entry posted"),
             @ApiResponse(responseCode = "400", description = "Entry cannot be reversed, for example it is already reversed"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not approve finance records"),
             @ApiResponse(responseCode = "404", description = "No journal entry with the given id in the current tenant")
     })
     public ResponseEntity<JournalEntryDto> reverse(

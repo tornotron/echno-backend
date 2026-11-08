@@ -19,15 +19,15 @@ import org.tornotron.echno_backend.finance.settings.dtos.UpdateFinanceSettingsRe
         name = "Finance Settings",
         description = "Organization-level finance configuration for the web client. Holds the approval "
                 + "threshold that decides whether a construction invoice is auto-approved on submit or "
-                + "routed for manual approval. Reading is open to project managers and system "
-                + "administrators; changing the settings is restricted to system administrators."
+                + "routed for manual approval. Reading needs finance read; changing the settings needs "
+                + "finance configure."
 )
 public class FinanceSettingsControllerWeb {
 
     private final FinanceSettingsService service;
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('finance', 'read')")
     @Operation(
             summary = "Get finance settings",
             description = "Returns the finance settings for the current tenant, creating the default row "
@@ -36,14 +36,14 @@ public class FinanceSettingsControllerWeb {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Finance settings returned"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read finance records")
     })
     public FinanceSettingsDto get() {
         return service.getSettings();
     }
 
     @PutMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@access.can('finance', 'configure')")
     @Operation(
             summary = "Update finance settings",
             description = "Sets the auto-approval threshold for the current tenant. Send a null threshold "
@@ -53,7 +53,7 @@ public class FinanceSettingsControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Finance settings updated"),
             @ApiResponse(responseCode = "400", description = "Validation failed on the request body"),
-            @ApiResponse(responseCode = "403", description = "Caller is not a system administrator in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not configure finance")
     })
     public FinanceSettingsDto update(@Valid @RequestBody UpdateFinanceSettingsRequest request) {
         return service.update(request);
