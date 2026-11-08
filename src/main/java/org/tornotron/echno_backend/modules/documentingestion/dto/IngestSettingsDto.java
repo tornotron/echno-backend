@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.modules.documentingestion.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -12,6 +13,10 @@ public record IngestSettingsDto(
         String llmReadingDisclosure,
         @Schema(description = "Who last changed it, or null while it is at its default", nullable = true) Long changedBy,
         @Schema(nullable = true) LocalDateTime changedAt,
+        @Schema(description = "The monthly AI reading limit in estimated dollars; null means the configured default", nullable = true)
+        BigDecimal monthlyBudgetUsd,
+        @Schema(description = "The monthly AI reading limit in tokens; null means the configured default", nullable = true)
+        Long monthlyBudgetTokens,
         @Schema(description = "The most recent changes, newest first") List<Change> recentChanges) {
 
     public record Change(String setting, String oldValue, String newValue, Long changedBy, LocalDateTime changedAt) {
