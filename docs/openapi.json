@@ -75563,7 +75563,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read finance records"
           },
           "404": {
             "content": {
@@ -75673,7 +75673,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change in finance"
           },
           "404": {
             "content": {
@@ -75786,7 +75786,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read finance records"
           },
           "404": {
             "content": {
@@ -75899,7 +75899,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change in finance"
           },
           "404": {
             "content": {
@@ -77916,7 +77916,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read finance records"
           },
           "404": {
             "content": {
@@ -78026,7 +78026,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change in finance"
           },
           "404": {
             "content": {
@@ -78087,7 +78087,7 @@
     },
     "/api/v1/finance/cost-categories/web/seed-defaults": {
       "post": {
-        "description": "Creates a default set of budget heads (Materials, Subcontractor, Labour, Plant and Equipment, Other) mapped to the seeded expense accounts. The operation is idempotent: a tenant that already has any cost category is left untouched. Returns the number of categories created. Restricted to system administrators.",
+        "description": "Creates a default set of budget heads (Materials, Subcontractor, Labour, Plant and Equipment, Other) mapped to the seeded expense accounts. The operation is idempotent: a tenant that already has any cost category is left untouched. Returns the number of categories created. Needs finance configure.",
         "operationId": "CostCategoryControllerWeb_seedDefaults",
         "responses": {
           "200": {
@@ -78132,7 +78132,7 @@
                 }
               }
             },
-            "description": "Caller is not a system administrator in the current tenant"
+            "description": "Caller may not configure finance"
           },
           "404": {
             "content": {
@@ -78245,7 +78245,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read finance records"
           },
           "404": {
             "content": {
@@ -78366,7 +78366,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change in finance"
           },
           "404": {
             "content": {
@@ -78479,7 +78479,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change in finance"
           },
           "404": {
             "content": {
@@ -80987,7 +80987,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read finance records"
           },
           "404": {
             "content": {
@@ -81102,7 +81102,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change in finance"
           },
           "404": {
             "content": {
@@ -81232,7 +81232,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change in finance"
           },
           "404": {
             "content": {
@@ -81345,7 +81345,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read finance records"
           },
           "404": {
             "content": {
@@ -169311,7 +169311,7 @@
       "name": "Client configuration"
     },
     {
-      "description": "The organization's own bank accounts used to receive and pay funds, each linked to a ledger account for reconciliation. Endpoints cover listing, reading, creating and deactivating accounts. All endpoints are tenant scoped and limited to system administrators and project managers.",
+      "description": "The organization's own bank accounts used to receive and pay funds, each linked to a ledger account for reconciliation. Endpoints cover listing, reading, creating and deactivating accounts. All endpoints are tenant scoped. Each needs the finance permission named for its action (read, create or edit).",
       "name": "Company Bank Accounts"
     },
     {
@@ -169339,7 +169339,7 @@
       "name": "Contract Billing (web)"
     },
     {
-      "description": "Budget heads (cost categories) that a project budget is broken down by and that construction invoice lines are tagged to. An org-level master list, optionally aligned to a ledger expense account. All endpoints are tenant scoped and limited to system administrators and project managers, apart from the default seed, which is admin only.",
+      "description": "Budget heads (cost categories) that a project budget is broken down by and that construction invoice lines are tagged to. An org-level master list, optionally aligned to a ledger expense account. All endpoints are tenant scoped. Each needs the finance permission named for its action (read, create or edit), and the default seed needs finance configure.",
       "name": "Cost Categories"
     },
     {
@@ -169635,11 +169635,11 @@
       "name": "Progress Inspections (web)"
     },
     {
-      "description": "A project's budget, expressed as one allocation per budget head (cost category). All endpoints are tenant scoped and limited to system administrators and project managers.",
+      "description": "A project's budget, expressed as one allocation per budget head (cost category). All endpoints are tenant scoped. Each needs the finance permission named for its action (read, edit or delete).",
       "name": "Project Budget"
     },
     {
-      "description": "The project cost-control view: per budget head, the amount allocated against what has been committed (approved but not fully paid) and spent (fully paid), and what remains, with over-budget heads flagged. Tenant scoped and limited to system administrators and project managers.",
+      "description": "The project cost-control view: per budget head, the amount allocated against what has been committed (approved but not fully paid) and spent (fully paid), and what remains, with over-budget heads flagged. Tenant scoped, and needs finance read.",
       "name": "Project Cost Control"
     },
     {
