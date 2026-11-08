@@ -15,7 +15,9 @@ import org.tornotron.echno_backend.modules.access.guard.EnforcedPermissions;
 /**
  * The catalog as the screen needs it: the areas in {@link AccessCatalog}, the permissions module
  * manifests declare, and for each action whether a guard enforces it. An action nothing enforces
- * is shown as not yet controlled here, with no choice to make, until its area is converted.
+ * is shown as not yet controlled here, with no choice to make, until its area is converted. An
+ * area that filters its records by scope says so, and only such an area offers a scope other than
+ * all records.
  */
 @Component
 public class AccessCatalogReader {
@@ -27,16 +29,23 @@ public class AccessCatalogReader {
     public record ActionEntry(String action, boolean enforced) {
     }
 
-    /** One area with its actions. */
-    public record AreaEntry(String id, String label, String section, List<ActionEntry> actions) {
+    /**
+     * One area with its actions.
+     *
+     * @param scopeAware whether the area filters its records by scope, so a grant on it may cover
+     *                   fewer than all records
+     */
+    public record AreaEntry(String id, String label, String section, List<ActionEntry> actions, boolean scopeAware) {
     }
 
     private final ModuleRegistry modules;
     private final EnforcedPermissions enforced;
+    private final ScopeAwareAreas scopeAware;
 
-    public AccessCatalogReader(ModuleRegistry modules, EnforcedPermissions enforced) {
+    public AccessCatalogReader(ModuleRegistry modules, EnforcedPermissions enforced, ScopeAwareAreas scopeAware) {
         this.modules = modules;
         this.enforced = enforced;
+        this.scopeAware = scopeAware;
     }
 
     /** Every area, in the catalog's order, then the modules it does not list, by id. */
@@ -58,7 +67,8 @@ public class AccessCatalogReader {
         drafts.forEach((id, draft) -> areas.add(new AreaEntry(id, draft.label(), draft.section(),
                 draft.actions().stream()
                         .map(action -> new ActionEntry(action, enforced.isEnforced(new AccessPermission(id, action))))
-                        .toList())));
+                        .toList(),
+                scopeAware.isScopeAware(id))));
         return areas;
     }
 

@@ -33,7 +33,8 @@ class AccessCatalogReaderTest {
             List.of(new AccessControlModule(), module("work-progress", List.of("work-progress:read"))),
             (org, key) -> true, new MockEnvironment());
 
-    private final AccessCatalogReader reader = new AccessCatalogReader(registry, enforced);
+    private final AccessCatalogReader reader = new AccessCatalogReader(registry, enforced,
+            new ScopeAwareAreas(List.of(() -> "assets")));
 
     private AreaEntry area(String id) {
         return reader.areas().stream().filter(area -> area.id().equals(id)).findFirst().orElseThrow();
@@ -67,6 +68,12 @@ class AccessCatalogReaderTest {
                 .filteredOn(ActionEntry::enforced)
                 .extracting(ActionEntry::action)
                 .containsExactly("read");
+    }
+
+    @Test
+    void onlyAnAreaThatRegisteredFiltersByScope() {
+        assertThat(area("assets").scopeAware()).isTrue();
+        assertThat(area("finance").scopeAware()).isFalse();
     }
 
     @Test

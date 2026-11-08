@@ -1,0 +1,13 @@
+package org.tornotron.echno_backend.modules.access.web.dto;
+
+import jakarta.validation.constraints.NotBlank;
+
+/**
+ * One permission to grant, with the records it covers.
+ *
+ * @param permission {@code <area>:<action>} from the catalog, for example {@code finance:edit}
+ * @param scope      {@code ALL}, {@code ASSIGNED_PROJECTS}, {@code RELATED} or {@code OWN}; anything
+ *                   but {@code ALL} only on an area the catalog marks scope aware
+ */
+public record AccessGrantRequest(@NotBlank String permission, @NotBlank String scope) {
+}

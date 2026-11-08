@@ -10,10 +10,12 @@ import org.tornotron.echno_backend.modules.access.api.AccessStartingRoles;
  * changes nothing and two running at once cannot double a row.
  *
  * <ul>
- *   <li>Each template becomes a role, unless the organization already has one with that slug.
+ *   <li>Each template becomes a role, unless the organization already has one with that slug or
+ *       deleted it, which {@code access_role_removed} records.
  *   <li>A role nobody has changed follows its template's grants and grantable list, in both directions,
  *       so a change to the template's cells arrives at the next boot. A role marked customized is
- *       left alone.
+ *       left alone. A grantable row that points at a role the organization made is kept, since no
+ *       template can list it.
  *   <li>Each {@code employee_org_roles} row becomes the matching assignment, with no project, because
  *       the old roles hold across the organization. Only ever adds: while the old table is the truth,
  *       the assignment writer removes the two together.
@@ -48,8 +50,10 @@ public class AccessRoleReconciler implements AccessStartingRoles {
                 SELECT gen_random_uuid(), ?, t.slug, t.name, t.subtitle, t.description, t.is_system,
                        t.is_baseline, t.legacy_org_role, t.carried_over, now(), now()
                 FROM access_role_template t
+                WHERE NOT EXISTS (SELECT 1 FROM access_role_removed x
+                                  WHERE x.organization_id = ? AND x.slug = t.slug)
                 ON CONFLICT DO NOTHING
-                """, organizationId);
+                """, organizationId, organizationId);
     }
 
     private void alignGrants(Long organizationId) {
@@ -95,6 +99,9 @@ public class AccessRoleReconciler implements AccessStartingRoles {
                                   JOIN access_role_template t ON t.slug = r.slug
                                   WHERE r.organization_id = access_role_grantable.organization_id
                                     AND NOT r.customized)
+                  AND grantable_role_id IN (SELECT target.id FROM access_role target
+                                            JOIN access_role_template tt ON tt.slug = target.slug
+                                            WHERE target.organization_id = access_role_grantable.organization_id)
                   AND NOT EXISTS (SELECT 1 FROM access_role r
                                   JOIN access_role_template t ON t.slug = r.slug
                                   JOIN access_role_template_grantable tg ON tg.template_id = t.id
