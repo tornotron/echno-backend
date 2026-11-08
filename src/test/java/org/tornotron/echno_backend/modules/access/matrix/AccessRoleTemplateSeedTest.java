@@ -29,7 +29,8 @@ class AccessRoleTemplateSeedTest {
     /** Every CSV a changeset loads into access_role_template_grant, in changeset order. */
     private static final List<String> GRANT_FILES = List.of(
             "db/data/access/role-template-grants.csv",
-            "db/data/access/role-template-grants-purchasing.csv");
+            "db/data/access/role-template-grants-purchasing.csv",
+            "db/data/access/role-template-grants-payments.csv");
 
     private static final Map<String, String> SLUG_BY_ID = new HashMap<>();
     private static final Map<String, String> LEGACY_BY_SLUG = new HashMap<>();
@@ -101,9 +102,33 @@ class AccessRoleTemplateSeedTest {
 
     @Test
     void theRolesWithNoCounterpartHoldOnlyTheBaseline() {
-        for (String slug : List.of("management-director", "procurement-manager", "finance-manager", "client-owner")) {
+        for (String slug : List.of("management-director", "procurement-manager", "client-owner")) {
             assertThat(KEYS_BY_SLUG.get(slug)).as(slug).isEmpty();
             assertThat(LEGACY_BY_SLUG.get(slug)).as(slug).isEmpty();
+        }
+        assertThat(LEGACY_BY_SLUG.get("finance-manager")).isEmpty();
+    }
+
+    @Test
+    void financeAuthorizesBillPaymentsAndTheSystemAdminDoesNot() {
+        // The product owner's decision of 8 Nov: finance, or the person controlling the project,
+        // authorizes a contractor bill payment. The second of those is a project's named authorizer,
+        // which is a record, not a grant.
+        assertThat(KEYS_BY_SLUG.get("finance-manager")).containsExactly("progress-bills:authorize-payment");
+        KEYS_BY_SLUG.forEach((slug, keys) -> {
+            if (!slug.equals("finance-manager")) {
+                assertThat(keys).as(slug).doesNotContain("progress-bills:authorize-payment");
+            }
+        });
+    }
+
+    @Test
+    void everyGrantIdIsUniqueAcrossTheFiles() throws IOException {
+        Set<String> ids = new HashSet<>();
+        for (String file : GRANT_FILES) {
+            for (String[] row : rows(file)) {
+                assertThat(ids.add(row[0])).as(file + " " + row[0]).isTrue();
+            }
         }
     }
 

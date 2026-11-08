@@ -132,7 +132,8 @@ Today's `OrgRole` set and the ticket's nine do not line up, so the starting poin
 | Site Engineer | `site-engineer` | Today's access |
 | QA/QC Engineer | `qa-engineer` | Today's access |
 | Store Keeper | `store-keeper` | Today's access |
-| Management Director, Procurement Manager, Finance Manager, Client / Owner | none | The baseline only. No access exists today to mirror, and guessing would grant access nobody approved. |
+| Management Director, Procurement Manager, Client / Owner | none | The baseline only. No access exists today to mirror, and guessing would grant access nobody approved. |
+| Finance Manager | none | The baseline, plus `progress-bills: authorize-payment`: the product owner decided on 8 Nov that finance, or the person controlling the project, authorizes a contractor bill payment, not the system admin (echno-backend #1010). |
 | HR Admin, Safety Officer, Org Manager, Observation Producer (carried over) | `hr-admin`, `safety-officer`, `org-manager`, `observation-producer` | Today's access. These exist so the backfill leaves nobody short. A new organization's screen does not offer them, and the owner's sign-off says where each one goes. |
 
 Seeded roles are not all `is_system`. Only System Admin (the administrator of one organization, held by
@@ -399,5 +400,5 @@ Still open:
   or a web address per organization like Atlassian's (3.4). WorkOS's docs show one sign-in address per
   environment and no per-organization page ([custom domains](https://workos.com/docs/custom-domains/authkit)),
   so the proposal is one address per client deployment.
-- The starting grants for Management Director, Procurement Manager, Finance Manager and Client / Owner,
-  which hold only the baseline until then (2.5), and where the four carried-over roles go.
+- The starting grants for Management Director, Procurement Manager and Client / Owner, which hold only
+  the baseline until then (2.5), the rest of Finance Manager's, and where the four carried-over roles go.

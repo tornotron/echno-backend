@@ -159,6 +159,16 @@ So bills get their own row, `progress-bills`, with the steps as permissions rath
 | `progress-bills: verify` | `BILL_VERIFY_GUARD` | System admin, PM, site engineer |
 | `progress-bills: certify` | `BILL_CERTIFY_GUARD` | System admin, PM |
 | `progress-bills: approve` | `BILL_APPROVE_GUARD` | System admin, PM |
+| `progress-bills: authorize-payment` | `BILL_PAY_AUTHORIZE_GUARD` (authorize, reject, record, sync a payment) | Finance Manager, and on each project its named payment authorizer |
+
+Paying an approved bill (`docs/specs/2026-11-08-billing-in-inspection-and-payments.md`) adds the fourth
+step. Raising a payment maps to `progress-bills: approve` (system admin, PM, as today). The second
+signature is `progress-bills: authorize-payment`, which Finance Manager holds by default and System Admin
+does not, by the product owner's decision of 8 Nov. On `development`, which has no finance role, each
+project names one employee as its payment authorizer and only that person signs. That name is a fact
+about the project, checked by the billing module beside the permission (`holds the permission on the
+project's scope, or is the project's named authorizer`), so the matrix needs no hook for it. Whoever
+raised a payment never authorizes it, by either route.
 
 The preparer-vs-approver rule ([below](#beyond-module--action)) stops one person certifying and approving the same bill. The guide lists that as a gap today.
 

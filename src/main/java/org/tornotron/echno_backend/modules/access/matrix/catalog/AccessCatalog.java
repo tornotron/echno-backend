@@ -48,7 +48,9 @@ public final class AccessCatalog {
             area("assets", "Assets & Equipment", "Projects"),
             area("compliance", "Risk & Compliance", "Projects"),
             area("progress", "Progress Tracking", "Progress"),
-            new Area("progress-bills", "Contractor Bills", "Bills", List.of("prepare", "verify", "certify")),
+            // The last step of a bill's chain, finance paying it: the second signature on a payment.
+            new Area("progress-bills", "Contractor Bills", "Bills",
+                    List.of("prepare", "verify", "certify", "authorize-payment")),
             area("inspections", "Inspections & Defects", "Inspect"),
             area("toolbox-talks", "Toolbox Talks", "Talks"),
             area("inventory", "Inventory", "Stores"),
