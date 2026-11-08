@@ -118,7 +118,9 @@ public class OrganizationController {
     // A member's own organizations come from the tenant-scoped /web listing,
     // which is filtered to their memberships.
     @GetMapping("/creator/{creatorId}")
-    @PreAuthorize("hasAuthority('organization:admin')")
+    // A platform-admin listing, and no realm role issues a platform admin, so it stays shut, now
+    // explicitly. Members list their own organizations at /user/{userId}/organizations.
+    @PreAuthorize("denyAll()")
     @Operation(
             summary = "List organizations by creator",
             description = "Returns every organization created by the given user id. Platform-admin only, "
@@ -127,7 +129,7 @@ public class OrganizationController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "List of organizations created by the given user"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the organization admin authority")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Refused to every caller: this is a platform-admin listing and no role grants it")
     })
     public ResponseEntity<List<OrganizationDto>> readAllOrganizationsByCreatorId(@PathVariable Integer creatorId) {
         return ResponseEntity.status(HttpStatus.OK).body(service.getAllOrganizationsByCreatorId(creatorId));
@@ -140,14 +142,14 @@ public class OrganizationController {
      * @return A {@link ResponseEntity} containing the organization DTO and HTTP status 200 (OK).
      */
     @GetMapping("{id}")
-    @PreAuthorize("(hasAuthority('organization:read') and @orgSecurity.isMember(#id)) or hasAuthority('organization:admin')")
+    @PreAuthorize("@orgSecurity.isMemberOrAdmin(#id)")
     @Operation(
             summary = "Get an organization by id",
             description = "Returns a single organization by its numeric id."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Organization found"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the organization read authority as a member of the organization, or the organization admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither a member of the organization nor a platform admin"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No organization with the given id")
     })
     public ResponseEntity<?> readAnOrganization(@PathVariable Long id) {
@@ -175,7 +177,10 @@ public class OrganizationController {
      * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
      */
     @PatchMapping("/batch")
-    @PreAuthorize("hasAuthority('organization:update') or hasAuthority('organization:admin')")
+    // The ids are in the body and Organization is the tenant root, so no guard expression can
+    // check each one. The single-organization update at PATCH /organization/web/{id} is the
+    // working route; this stays shut, now explicitly.
+    @PreAuthorize("denyAll()")
     @Operation(
             summary = "Batch update organizations",
             description = "Applies partial updates to several organizations in one call. Each entry names "
@@ -184,7 +189,7 @@ public class OrganizationController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Batch update applied"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "One of the update entries failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the organization update or admin authority")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Refused to every caller: use PATCH /api/v1/organization/web/{id} to update one organization")
     })
     public ResponseEntity<ApiResponse> batchUpdateOrganizations(@Valid @RequestBody List<OrganizationPatchDto> updates) {
         service.batchUpdateOrganization(updates);
@@ -198,14 +203,14 @@ public class OrganizationController {
      * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
      */
     @DeleteMapping("{id}")
-    @PreAuthorize("@orgSecurity.hasOrgRole(#id, 'system-admin') or (hasAuthority('organization:delete') and @orgSecurity.isMember(#id)) or hasAuthority('organization:admin')")
+    @PreAuthorize("@orgSecurity.hasOrgRole(#id, 'system-admin')")
     @Operation(
             summary = "Delete an organization",
             description = "Deletes the organization with the given id."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Organization deleted"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the system-admin role in the organization, the organization delete authority as a member, or the organization admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a system admin of the organization"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No organization with the given id")
     })
     public ResponseEntity<ApiResponse> deleteOrganization(@PathVariable Long id) {

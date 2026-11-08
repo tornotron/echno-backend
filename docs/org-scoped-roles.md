@@ -461,8 +461,42 @@ This reads as: "Allow if the user is a system-admin of THIS org, OR has global e
 > Resource and never calls `setScopes`, and a permission carrying no scopes yields no
 > authority. So `hasAuthority('thing:action')` is satisfied by nobody. ORed with nothing
 > else it refuses every caller; ANDed onto a working check it refuses every caller too.
-> Guard on layer 2 or layer 3 instead. Issues #641, #684, #710, #716 and #734 are the
-> repairs; #734 carries the inventory of what is still standing.
+> Guard on layer 2 or layer 3 instead. Issues #641, #684, #710, #716 and #734 were the
+> first repairs, and the mobile controllers carried the last of them until they were
+> aligned with their `/web` twins. `PhantomAuthorityCensusTest` now fails the build on any
+> new one.
+
+---
+
+## Mobile and Web Endpoints Use the Same Model
+
+Most resources have two controllers over one service: the tenant API at
+`/api/v1/<resource>` (the mobile apps, which send `X-Organization-Id`) and its twin at
+`/api/v1/<resource>/web` (the web app). Both are authorized the same way, with layer 2 and
+layer 3 checks through `@orgSecurity`. A mobile endpoint needs no Keycloak Authorization
+Services permission, and no RPT scope, because it is a mobile endpoint.
+
+The rules for a guard on either side:
+
+- **Same operation, same expression.** A mobile endpoint carries the `@PreAuthorize` text
+  of its `/web` twin, character for character. `MobileWebGuardParityTest` checks every pair
+  that shares a handler name, verb and relative path, so a guard changed on one side and not
+  the other fails the build.
+- **No twin, closest operation.** A mobile endpoint with no exact twin (for example
+  `PATCH /api/v1/project/batch`) takes the guard of the nearest equivalent operation on the
+  same service, with a one-line comment saying which.
+- **Shut is written as `denyAll()`.** An endpoint that must not be opened says so with
+  `denyAll()` and a comment giving the reason, never with an authority nobody holds. The
+  current ones are `POST /api/v1/employee` (picks its tenant from the body, removal tracked
+  in #675), `PATCH /api/v1/organization/batch` (organization ids in the body, and
+  `Organization` is the tenant root) and `GET /api/v1/organization/creator/{creatorId}` (a
+  platform-admin listing no role grants).
+- **Intentional differences are listed and tested.** A pair whose guards are meant to
+  differ goes on the exception list in `MobileWebGuardParityTest` with its reason, which is
+  the only place such a difference may live.
+- **New mobile endpoints follow the same conventions.** The tenant comes from
+  `X-Organization-Id` through `TenantFilter`, and the guard is an `@orgSecurity` check, so
+  the access matrix can later replace both sides in one move.
 
 ---
 

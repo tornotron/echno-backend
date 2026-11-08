@@ -52,7 +52,7 @@ public class MaterialController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAuthority('material:create') or hasAuthority('material:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @Operation(
             summary = "Create a material",
             description = "Creates a material with its SKU, unit and reorder thresholds. If an opening "
@@ -62,7 +62,7 @@ public class MaterialController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Material created"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation, such as a missing material name or unit"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the material create or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "A material with the given SKU already exists in this organization")
     })
     public ResponseEntity<MaterialDto> createMaterial(@Valid @RequestBody MaterialCreationDto creationDto) {
@@ -71,14 +71,14 @@ public class MaterialController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('material:read') or hasAuthority('material:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
     @Operation(
             summary = "Get a material by id",
             description = "Returns a single material with its creator and current aggregate stock value."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Material found"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the material read or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No material with the given id")
     })
     public ResponseEntity<MaterialDto> getMaterialById(@PathVariable Long id) {
@@ -87,21 +87,21 @@ public class MaterialController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAuthority('material:read') or hasAuthority('material:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
     @Operation(
             summary = "List all materials",
             description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Materials returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the material read or admin authority")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
     public ResponseEntity<List<MaterialDto>> getAllMaterials() {
         return UnpagedResultCap.respond(materialService.getAllMaterials(0, UnpagedResultCap.MAX_ROWS));
     }
 
     @GetMapping("/all")
-    @PreAuthorize("hasAuthority('material:read') or hasAuthority('material:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
     @Operation(
             summary = "List materials, paginated",
             description = "Returns a single page of materials. The pageNo and pageSize parameters "
@@ -109,7 +109,7 @@ public class MaterialController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of materials returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the material read or admin authority")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
     public ResponseEntity<Page<MaterialDto>> getAllMaterialsPaginated(
             @Valid @ParameterObject PageQuery pageQuery
@@ -119,7 +119,7 @@ public class MaterialController {
     }
 
     @GetMapping("/low-stock")
-    @PreAuthorize("hasAuthority('material:read') or hasAuthority('material:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
     @Operation(
             summary = "List materials at or below their reorder level",
             description = "Returns a page of the materials whose stock has reached the reorder level "
@@ -137,7 +137,7 @@ public class MaterialController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of low-stock materials returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A storage location was given without a project, or belongs to a different project"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the material read or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No project or storage location with the given id")
     })
     public ResponseEntity<Page<LowStockMaterialDto>> getLowStockMaterials(
@@ -149,7 +149,7 @@ public class MaterialController {
     }
 
     @GetMapping("/search")
-    @PreAuthorize("hasAuthority('material:read') or hasAuthority('material:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
     @Operation(
             summary = "Search materials by name",
             description = "Returns materials whose name matches the given search term, such as \"Cement\" "
@@ -157,7 +157,7 @@ public class MaterialController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Matching materials returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the material read or admin authority")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
     public ResponseEntity<List<MaterialDto>> searchMaterials(@RequestParam String name) {
         List<MaterialDto> materials = materialService.searchMaterialsByName(name);
@@ -165,7 +165,7 @@ public class MaterialController {
     }
 
     @GetMapping("/{id}/stock")
-    @PreAuthorize("hasAuthority('material:read') or hasAuthority('material:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
     @Operation(
             summary = "Get a material with its current stock",
             description = "Returns a material along with its current stock. When projectId and "
@@ -175,7 +175,7 @@ public class MaterialController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Material with stock returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the material read or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No material, project or storage location with the given id")
     })
     public ResponseEntity<MaterialWithStockDto> getMaterialWithStock(
@@ -194,7 +194,7 @@ public class MaterialController {
     }
 
     @PatchMapping("/{id}")
-    @PreAuthorize("hasAuthority('material:update') or hasAuthority('material:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @Operation(
             summary = "Update a material",
             description = "Applies a partial update to a material's SKU, name, unit or reorder thresholds. "
@@ -203,7 +203,7 @@ public class MaterialController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Material updated"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the material update or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No material with the given id"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "Another material already has the given SKU")
     })
@@ -216,14 +216,14 @@ public class MaterialController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('material:delete') or hasAuthority('material:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @Operation(
             summary = "Delete a material",
             description = "Deletes the material with the given id."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Material deleted"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the material delete or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No material with the given id")
     })
     public ResponseEntity<ApiResponse> deleteMaterial(@PathVariable Long id) {
@@ -232,7 +232,7 @@ public class MaterialController {
     }
 
     @GetMapping("/{materialId}/location-thresholds")
-    @PreAuthorize("hasAuthority('material:read') or hasAuthority('material:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
     @Operation(
             summary = "List a material's per-location threshold overrides",
             description = "Returns every storage-location override of the material's planning thresholds. "
@@ -240,7 +240,7 @@ public class MaterialController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Overrides returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the material read or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No material with the given id")
     })
     public ResponseEntity<List<MaterialLocationThresholdDto>> getLocationThresholds(@PathVariable Long materialId) {
@@ -248,7 +248,7 @@ public class MaterialController {
     }
 
     @PutMapping("/{materialId}/location-thresholds/{storageLocationId}")
-    @PreAuthorize("hasAuthority('material:update') or hasAuthority('material:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
     @Operation(
             summary = "Set a material's thresholds at a storage location",
             description = "Creates or replaces the material's threshold override at the given storage location. "
@@ -257,7 +257,7 @@ public class MaterialController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Override saved"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the material update or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No material or storage location with the given id")
     })
     public ResponseEntity<MaterialLocationThresholdDto> upsertLocationThreshold(
@@ -268,7 +268,7 @@ public class MaterialController {
     }
 
     @DeleteMapping("/{materialId}/location-thresholds/{storageLocationId}")
-    @PreAuthorize("hasAuthority('material:update') or hasAuthority('material:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @Operation(
             summary = "Remove a material's thresholds at a storage location",
             description = "Deletes the material's threshold override at the given storage location, so the "
@@ -276,7 +276,7 @@ public class MaterialController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "204", description = "Override removed"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the material update or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No override for the given material and storage location")
     })
     public ResponseEntity<Void> deleteLocationThreshold(

@@ -51,25 +51,21 @@ class ProcurementDocumentGuardSplitTest {
 
     private static final String PROJECT_MANAGER = "project-manager";
 
-    /** The five document controllers that carry the org-role guard, web twins and the one mobile. */
+    /**
+     * The five document controllers, web twins and mobile. The mobile ones were guarded on flat
+     * {@code resource:scope} authorities nothing in the realm mints, until they were aligned with
+     * their web twins, so they now carry the same split.
+     */
     private static final List<Class<?>> ROLE_GUARDED = List.of(
             GoodsReceivedNoteControllerWeb.class,
+            GoodsReceivedNoteController.class,
             PurchaseOrderControllerWeb.class,
             PurchaseOrderController.class,
             IndentControllerWeb.class,
-            SiteTransferControllerWeb.class,
-            MaterialConsumptionControllerWeb.class);
-
-    /**
-     * The mobile twins that are guarded on flat {@code resource:scope} authorities instead. Nothing
-     * in the realm mints those, so they refuse every caller including a system admin. That is the
-     * phantom-guard defect of #684 rather than this decision, and repairing it is a separate change
-     * with its own blast radius. Pinned here so the omission reads as deliberate.
-     */
-    private static final List<Class<?>> AUTHORITY_GUARDED = List.of(
-            GoodsReceivedNoteController.class,
             IndentController.class,
+            SiteTransferControllerWeb.class,
             SiteTransferController.class,
+            MaterialConsumptionControllerWeb.class,
             MaterialConsumptionController.class);
 
     /** The writes #855 opened to project managers, as {@code Controller.method}. */
@@ -143,19 +139,6 @@ class ProcurementDocumentGuardSplitTest {
         assertThat(withoutSystemAdmin).isEmpty();
     }
 
-    @Test
-    void theAuthorityGuardedMobileTwinsWereLeftAlone() {
-        List<String> touched = new ArrayList<>();
-        for (Class<?> controller : AUTHORITY_GUARDED) {
-            for (Method method : requestMappedMethods(controller)) {
-                if (guardOf(method).contains("orgSecurity")) {
-                    touched.add(describe(controller, method));
-                }
-            }
-        }
-        assertThat(touched).isEmpty();
-    }
-
     /** Guards against the whole thing passing because reflection found nothing to look at. */
     @Test
     void theEndpointsUnderTestWereActuallyFound() {
@@ -163,8 +146,9 @@ class ProcurementDocumentGuardSplitTest {
         for (Class<?> controller : ROLE_GUARDED) {
             total += requestMappedMethods(controller).size();
         }
-        // 57 since the site transfer picker for asset lines (GET /sendable-assets).
-        assertThat(total).isEqualTo(57);
+        // 57 on the six original controllers, plus the 34 on the four mobile twins that now
+        // carry the split (GRN 7, indent 9, site transfer 10, material consumption 8).
+        assertThat(total).isEqualTo(91);
     }
 
     private static List<Method> requestMappedMethods(Class<?> controller) {

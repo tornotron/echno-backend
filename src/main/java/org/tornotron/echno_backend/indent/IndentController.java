@@ -28,8 +28,7 @@ import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
         name = "Indents",
         description = "Material indents raised on a project, the request that a purchase order is later "
                 + "converted from. An indent carries a status and a list of requested material items. "
-                + "Access is gated by the indent authorities, with an admin authority that grants all "
-                + "operations."
+                + "Access follows the organization roles of the /web twin, endpoint for endpoint."
 )
 public class IndentController {
 
@@ -42,7 +41,7 @@ public class IndentController {
     // ==================== Indent Endpoints ====================
 
     @PostMapping
-    @PreAuthorize("hasAuthority('indent:create') or hasAuthority('indent:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @Operation(
             summary = "Create an indent",
             description = "Creates a material indent for a project, along with its requested items."
@@ -50,21 +49,21 @@ public class IndentController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Indent created"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A required field is missing or failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the indent create or admin authority")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
     public ResponseEntity<IndentDto> createIndent(@Valid @RequestBody IndentCreationDto indentCreationDto) {
         return new ResponseEntity<>(indentService.addIndent(indentCreationDto), HttpStatus.CREATED);
     }
 
     @GetMapping("/all")
-    @PreAuthorize("hasAuthority('indent:read') or hasAuthority('indent:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
     @Operation(
             summary = "List indents, paginated",
             description = "Returns a single page of indents. The pageNo and pageSize parameters control paging."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of indents returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the indent read or admin authority")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
     public ResponseEntity<List<IndentDto>> getAllIndents(
             @Valid @ParameterObject PageQuery pageQuery
@@ -73,28 +72,28 @@ public class IndentController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAuthority('indent:read') or hasAuthority('indent:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
     @Operation(
             summary = "List all indents",
             description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Indents returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the indent read or admin authority")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
     public ResponseEntity<List<IndentDto>> getAllIndents() {
         return UnpagedResultCap.respond(indentService.getAllIndents(0, UnpagedResultCap.MAX_ROWS));
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('indent:read') or hasAuthority('indent:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
     @Operation(
             summary = "Get an indent by id",
             description = "Returns a single indent, including its creator, project and requested items."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Indent found"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the indent read or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No indent with the given id")
     })
     public ResponseEntity<IndentDto> getAnIndent(@PathVariable Long id) {
@@ -102,14 +101,14 @@ public class IndentController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('indent:delete') or hasAuthority('indent:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @Operation(
             summary = "Delete an indent",
             description = "Deletes the indent with the given id, along with its items."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Indent deleted"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the indent delete or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No indent with the given id")
     })
     public ResponseEntity<ApiResponse> deleteIndent(@PathVariable Long id) {
@@ -120,14 +119,14 @@ public class IndentController {
     // ==================== IndentItem Endpoints ====================
 
     @GetMapping("/{indentId}/items")
-    @PreAuthorize("hasAuthority('indent:read') or hasAuthority('indent:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
     @Operation(
             summary = "List items on an indent",
             description = "Returns every requested item on the given indent."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Indent items returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the indent read or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No indent with the given id")
     })
     public ResponseEntity<List<IndentItemDto>> getItems(@PathVariable Long indentId) {
@@ -135,7 +134,7 @@ public class IndentController {
     }
 
     @PostMapping("/{indentId}/items")
-    @PreAuthorize("hasAuthority('indent:update') or hasAuthority('indent:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @Operation(
             summary = "Add an item to an indent",
             description = "Adds a requested material item to an existing indent."
@@ -143,7 +142,7 @@ public class IndentController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Indent item added"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A required field is missing or failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the indent update or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No indent with the given id")
     })
     public ResponseEntity<IndentItemDto> addItem(
@@ -154,7 +153,7 @@ public class IndentController {
     }
 
     @PatchMapping("/{indentId}/items/{itemId}")
-    @PreAuthorize("hasAuthority('indent:update') or hasAuthority('indent:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @Operation(
             summary = "Update an item on an indent",
             description = "Applies a partial update to a requested item's material, quantity or remarks."
@@ -162,7 +161,7 @@ public class IndentController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Indent item updated"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the indent update or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No indent or indent item with the given id")
     })
     public ResponseEntity<IndentItemDto> updateItem(
@@ -174,14 +173,14 @@ public class IndentController {
     }
 
     @DeleteMapping("/{indentId}/items/{itemId}")
-    @PreAuthorize("hasAuthority('indent:delete') or hasAuthority('indent:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @Operation(
             summary = "Delete an item from an indent",
             description = "Deletes the given item from the indent."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Indent item deleted"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the indent delete or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No indent or indent item with the given id")
     })
     public ResponseEntity<ApiResponse> deleteItem(
