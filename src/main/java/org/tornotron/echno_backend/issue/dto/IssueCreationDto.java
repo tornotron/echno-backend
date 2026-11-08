@@ -18,7 +18,21 @@ public class IssueCreationDto {
     @Size(min = 3, max = 255, message = "Title must be between 3 and 255 characters")
     private String title;
 
+    @Schema(description = "The task the issue was found on. Optional. When given, the issue takes "
+            + "the task's project, and the task's work category as its domain unless categoryId "
+            + "names another.", example = "42")
     private Long taskId;
+
+    @Schema(description = "The project the issue belongs to. An issue needs a project or a domain "
+            + "(categoryId), and a task supplies its own project, so this is required only when "
+            + "neither a task nor a domain is given. Must be the task's project when both are sent.",
+            example = "7")
+    private Long projectId;
+
+    @Schema(description = "The issue's domain: the id of the work category it concerns (for "
+            + "example Concrete Works or Masonry Works), from the same list tasks are classified "
+            + "under. An issue needs a project or a domain.", example = "3")
+    private Long categoryId;
 
     /**
      * The column is TEXT. The cap sits well above what the form offers rather than at the 500

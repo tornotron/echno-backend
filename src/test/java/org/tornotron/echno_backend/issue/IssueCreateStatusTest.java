@@ -73,7 +73,9 @@ class IssueCreateStatusTest {
         Validator validator = factory.getValidator();
         service = new IssueService(issueRepository, taskRepository, attachmentService,
                 issueMapper, employeeRepository, currentEmployeeService,
-                new PayloadValidator(validator));
+                new PayloadValidator(validator),
+                org.mockito.Mockito.mock(org.tornotron.echno_backend.project.ProjectRepository.class),
+                org.mockito.Mockito.mock(org.tornotron.echno_backend.category.CategoryRepository.class));
 
         TenantContext.setCurrentOrgId(1L);
         Organization organization = new Organization();

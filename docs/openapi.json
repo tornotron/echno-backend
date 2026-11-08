@@ -12766,6 +12766,12 @@
             "format": "int64",
             "type": "integer"
           },
+          "categoryId": {
+            "description": "The issue's domain: the id of the work category it concerns (for example Concrete Works or Masonry Works), from the same list tasks are classified under. An issue needs a project or a domain.",
+            "example": 3,
+            "format": "int64",
+            "type": "integer"
+          },
           "description": {
             "maxLength": 2000,
             "minLength": 5,
@@ -12782,6 +12788,12 @@
             "example": "medium",
             "type": "string"
           },
+          "projectId": {
+            "description": "The project the issue belongs to. An issue needs a project or a domain (categoryId), and a task supplies its own project, so this is required only when neither a task nor a domain is given. Must be the task's project when both are sent.",
+            "example": 7,
+            "format": "int64",
+            "type": "integer"
+          },
           "status": {
             "description": "State the issue starts in. Optional, and open is the only value accepted, so leaving it out is the same as sending open. Every later state change goes through PATCH /issues/{id}, which only a system-admin or project-manager may call; being able to raise an issue that is already resolved or closed would hand every member the one move that endpoint exists to withhold.",
             "enum": [
@@ -12791,6 +12803,8 @@
             "type": "string"
           },
           "taskId": {
+            "description": "The task the issue was found on. Optional. When given, the issue takes the task's project, and the task's work category as its domain unless categoryId names another.",
+            "example": 42,
             "format": "int64",
             "type": "integer"
           },
@@ -12825,6 +12839,13 @@
             },
             "type": "array"
           },
+          "categoryId": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "categoryName": {
+            "type": "string"
+          },
           "createdAt": {
             "format": "date-time",
             "type": "string"
@@ -12856,6 +12877,13 @@
               "high",
               "critical"
             ],
+            "type": "string"
+          },
+          "projectId": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "projectName": {
             "type": "string"
           },
           "status": {
@@ -12913,6 +12941,10 @@
           "assignedToName": {
             "type": "string"
           },
+          "categoryId": {
+            "format": "int64",
+            "type": "integer"
+          },
           "createdAt": {
             "format": "date-time",
             "type": "string"
@@ -12940,6 +12972,10 @@
             ],
             "type": "string"
           },
+          "projectId": {
+            "format": "int64",
+            "type": "integer"
+          },
           "status": {
             "enum": [
               "open",
@@ -12952,6 +12988,10 @@
               "closed"
             ],
             "type": "string"
+          },
+          "taskId": {
+            "format": "int64",
+            "type": "integer"
           },
           "title": {
             "type": "string"
@@ -13007,6 +13047,15 @@
               "null"
             ]
           },
+          "categoryId": {
+            "description": "Id of the work category that is the issue's domain. Send null to clear it, which is refused when it would leave the issue with neither a project nor a domain.",
+            "example": 3,
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "description": {
             "description": "Longer description of the issue.",
             "example": "Spacing measured at 220 mm against a specified 200 mm across grid C.",
@@ -13029,6 +13078,15 @@
               "null"
             ]
           },
+          "projectId": {
+            "description": "Id of the project the issue belongs to. Must be the task's project when the issue has a task. Send null to clear it, which is refused when it would leave the issue with neither a project nor a domain.",
+            "example": 7,
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "status": {
             "description": "Lifecycle status of the issue. Cannot be cleared: a null or blank value is refused with a 400 rather than applied.",
             "enum": [
@@ -13042,6 +13100,15 @@
               "closed"
             ],
             "type": "string"
+          },
+          "taskId": {
+            "description": "Id of the task the issue was found on. Send null to unlink the task; the issue then keeps its project. A new task brings its own project unless projectId is sent with it. The issue must still end up with a project or a domain.",
+            "example": 42,
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "title": {
             "description": "Short issue title.",
@@ -99384,7 +99451,7 @@
         ]
       },
       "post": {
-        "description": "Creates an issue from a multipart request. The data part carries the issue details as JSON and the optional attachments part carries supporting files. Returns the created issue as a simple view.",
+        "description": "Creates an issue from a multipart request. The data part carries the issue details as JSON and the optional attachments part carries supporting files. The task is optional, but the issue must be connected to a project or a domain (a work category); a task supplies its own project. Returns the created issue as a simple view.",
         "operationId": "IssueControllerWeb_createIssue",
         "requestBody": {
           "content": {
@@ -99429,7 +99496,7 @@
                 }
               }
             },
-            "description": "The data part is not valid issue JSON, or a field failed validation"
+            "description": "The data part is not valid issue JSON, a field failed validation, the issue names neither a task, a project nor a domain, or it names a project other than its task's"
           },
           "402": {
             "content": {
@@ -99692,7 +99759,7 @@
     },
     "/api/v1/issues/web/project/{projectId}": {
       "get": {
-        "description": "Returns every issue raised against tasks belonging to the given project.",
+        "description": "Returns every issue of the given project: the ones linked to it directly and the ones raised on its tasks.",
         "operationId": "IssueControllerWeb_readAllIssuesOfProject",
         "parameters": [
           {

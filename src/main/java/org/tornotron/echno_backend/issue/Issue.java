@@ -11,6 +11,8 @@ import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.issue.enums.IssuePriority;
 import org.tornotron.echno_backend.issue.enums.IssueStatus;
 import org.tornotron.echno_backend.issue.enums.IssueType;
+import org.tornotron.echno_backend.category.Category;
+import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.task.Task;
 import org.hibernate.annotations.Filter;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
@@ -24,7 +26,10 @@ import java.util.List;
  * An issue raised on site, such as a defect, safety concern, or query.
  *
  * <p>Carries a type, a status, an optional priority, the employee who raised it and the one it is
- * assigned to, and an optional link to a task. Comments and file attachments hang off the issue.
+ * assigned to. It is linked to what it is about: a task (optional), a project, and a domain, which
+ * is a work category such as Concrete Works or Masonry Works. A new issue needs a project or a
+ * domain, and one raised on a task takes the task's project and, unless told otherwise, the task's
+ * work category (ClickUp 14zdkkvzx60). Comments and file attachments hang off the issue.
  * Scoped to one organization by the {@code orgFilter} tenant filter.
  */
 @Entity
@@ -88,6 +93,19 @@ public class Issue implements TenantScopedEntity {
 
     @ManyToOne
     private Task task;
+
+    /** The project the issue belongs to. Set from the task when the issue is raised on one. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "project_id")
+    private Project project;
+
+    /**
+     * The issue's domain: the work category it concerns, from the same list a task is classified
+     * under. Defaults to the task's category when the issue is raised on a task.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    private Category category;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "organization_id")

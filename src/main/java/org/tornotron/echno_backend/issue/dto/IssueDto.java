@@ -28,4 +28,8 @@ public class IssueDto {
     private List<AttachmentDto> attachments;
     private Long taskId;
     private String taskName;
+    private Long projectId;
+    private String projectName;
+    private Long categoryId;
+    private String categoryName;
 }
