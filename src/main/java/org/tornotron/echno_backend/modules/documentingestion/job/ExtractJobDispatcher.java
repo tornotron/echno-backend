@@ -88,7 +88,8 @@ public class ExtractJobDispatcher {
         callPool.shutdownNow();
     }
 
-    @Scheduled(fixedDelayString = "${echno.modules.document-ingestion.llm.poll-interval-millis:5000}")
+    @Scheduled(fixedDelayString = "${echno.modules.document-ingestion.llm.poll-interval-millis:5000}",
+            initialDelayString = "${echno.modules.document-ingestion.llm.initial-delay-millis:5000}")
     @WithoutTenant("The extract queue poller belongs to no organization: it reads job ids and organizations as "
             + "scalars and pins each job's tenant before any entity is touched")
     public void poll() {

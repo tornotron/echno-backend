@@ -11,7 +11,10 @@ import org.springframework.test.context.TestPropertySource;
  */
 @TestPropertySource(properties = {
         "echno.modules.document-ingestion.enabled=true",
-        "echno.modules.document-ingestion.allowed-org-ids="
+        "echno.modules.document-ingestion.allowed-org-ids=",
+        // The extract queue's schedule stays idle here: this context is cached while other tests
+        // queue jobs in the same database, and with an empty allow-list it would close them.
+        "echno.modules.document-ingestion.llm.initial-delay-millis=86400000"
 })
 class DocumentIngestionEmptyAllowListIT extends DocumentIngestionOffByDefaultIT {
 
