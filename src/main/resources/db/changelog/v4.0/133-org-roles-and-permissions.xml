@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Organization roles with editable permissions.
+
+        org_role holds two kinds of row. A built-in row (system_role set) records one organization's
+        changes to a built-in role's default permissions; it exists only once someone has changed
+        them. A custom row (system_role null) is a role the organization made itself, and holds its
+        whole permission set.
+
+        org_role_permission is the permission list. For a custom role every row is a grant. For a
+        built-in role a row is an override of the code default: granted true adds the permission,
+        granted false takes it away.
+
+        employee_custom_role says who holds a custom role. Built-in roles stay in
+        employee_org_roles, where they always were.
+    -->
+
+    <changeSet id="133-create-org-role" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="org_role"/></not>
+        </preConditions>
+        <createTable tableName="org_role">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_org_role" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="name" type="VARCHAR(100)"><constraints nullable="false"/></column>
+            <column name="description" type="VARCHAR(500)"/>
+            <column name="system_role" type="VARCHAR(64)"/>
+            <column name="version" type="BIGINT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="created_at" type="TIMESTAMPTZ"><constraints nullable="false"/></column>
+            <column name="updated_at" type="TIMESTAMPTZ"><constraints nullable="false"/></column>
+            <column name="created_by" type="VARCHAR(100)"/>
+            <column name="updated_by" type="VARCHAR(100)"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="org_role" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_org_role_organization" onDelete="CASCADE"/>
+        <addUniqueConstraint tableName="org_role" columnNames="organization_id, name"
+                             constraintName="uq_org_role_name"/>
+        <addUniqueConstraint tableName="org_role" columnNames="organization_id, system_role"
+                             constraintName="uq_org_role_system_role"/>
+        <rollback>
+            <dropTable tableName="org_role"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="133-create-org-role-permission" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="org_role_permission"/></not>
+        </preConditions>
+        <createTable tableName="org_role_permission">
+            <column name="org_role_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="permission" type="VARCHAR(100)"><constraints nullable="false"/></column>
+            <column name="granted" type="BOOLEAN"><constraints nullable="false"/></column>
+        </createTable>
+        <addPrimaryKey tableName="org_role_permission" columnNames="org_role_id, permission"
+                       constraintName="pk_org_role_permission"/>
+        <addForeignKeyConstraint baseTableName="org_role_permission" baseColumnNames="org_role_id"
+                                 referencedTableName="org_role" referencedColumnNames="id"
+                                 constraintName="fk_org_role_permission_role" onDelete="CASCADE"/>
+        <rollback>
+            <dropTable tableName="org_role_permission"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="133-create-employee-custom-role" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="employee_custom_role"/></not>
+        </preConditions>
+        <createTable tableName="employee_custom_role">
+            <column name="employee_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="org_role_id" type="UUID"><constraints nullable="false"/></column>
+        </createTable>
+        <addPrimaryKey tableName="employee_custom_role" columnNames="employee_id, org_role_id"
+                       constraintName="pk_employee_custom_role"/>
+        <addForeignKeyConstraint baseTableName="employee_custom_role" baseColumnNames="employee_id"
+                                 referencedTableName="employee" referencedColumnNames="id"
+                                 constraintName="fk_employee_custom_role_employee" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseTableName="employee_custom_role" baseColumnNames="org_role_id"
+                                 referencedTableName="org_role" referencedColumnNames="id"
+                                 constraintName="fk_employee_custom_role_role" onDelete="CASCADE"/>
+        <createIndex tableName="employee_custom_role" indexName="idx_employee_custom_role_role">
+            <column name="org_role_id"/>
+        </createIndex>
+        <rollback>
+            <dropTable tableName="employee_custom_role"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

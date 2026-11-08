@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Permissions granted to one employee directly, without a role. Each row is a grant, added on
+        top of whatever the employee's roles grant. The employee row carries the organization, so
+        a grant only ever applies there.
+    -->
+
+    <changeSet id="134-create-employee-permission" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="employee_permission"/></not>
+        </preConditions>
+        <createTable tableName="employee_permission">
+            <column name="employee_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="permission" type="VARCHAR(100)"><constraints nullable="false"/></column>
+        </createTable>
+        <addPrimaryKey tableName="employee_permission" columnNames="employee_id, permission"
+                       constraintName="pk_employee_permission"/>
+        <addForeignKeyConstraint baseTableName="employee_permission" baseColumnNames="employee_id"
+                                 referencedTableName="employee" referencedColumnNames="id"
+                                 constraintName="fk_employee_permission_employee" onDelete="CASCADE"/>
+        <rollback>
+            <dropTable tableName="employee_permission"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

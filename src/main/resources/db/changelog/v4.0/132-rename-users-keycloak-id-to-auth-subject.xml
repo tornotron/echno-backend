@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="132-rename-users-keycloak-id-to-auth-subject" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <columnExists tableName="users_table" columnName="keycloak_id"/>
+        </preConditions>
+
+        <comment>
+            The column binding a user row to its login was named after Keycloak, and Keycloak is
+            gone. What it holds is the subject (the sub claim) the configured auth provider puts
+            on its tokens, so it is renamed for that. The values are not migrated: a subject is
+            only meaningful to the provider that issued it, so rows written under Keycloak no
+            longer match anyone and an environment moving providers starts its users afresh.
+        </comment>
+
+        <renameColumn tableName="users_table" oldColumnName="keycloak_id" newColumnName="auth_subject"
+                      columnDataType="VARCHAR(255)"/>
+        <sql>ALTER INDEX IF EXISTS uk_users_keycloak_id RENAME TO uk_users_auth_subject</sql>
+        <sql>ALTER INDEX IF EXISTS idx_users_keycloak_id RENAME TO idx_users_auth_subject</sql>
+    </changeSet>
+
+</databaseChangeLog>
