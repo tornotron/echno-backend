@@ -12,8 +12,6 @@ import org.tornotron.echno_backend.goodsReceivedNote.GoodsReceivedNoteController
 import org.tornotron.echno_backend.goodsReceivedNote.GoodsReceivedNoteControllerWeb;
 import org.tornotron.echno_backend.materialConsumption.MaterialConsumptionController;
 import org.tornotron.echno_backend.materialConsumption.MaterialConsumptionControllerWeb;
-import org.tornotron.echno_backend.purchaseOrder.PurchaseOrderController;
-import org.tornotron.echno_backend.purchaseOrder.PurchaseOrderControllerWeb;
 import org.tornotron.echno_backend.siteTransfer.SiteTransferController;
 import org.tornotron.echno_backend.siteTransfer.SiteTransferControllerWeb;
 
@@ -21,7 +19,6 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -39,40 +36,28 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p>The rule: on these controllers a GET admits {@code project-manager} beside
  * {@code system-admin}, and everything else admits {@code system-admin} alone. Reading a purchase
  * order is not raising one.
- *
- * <p>#855 made the one named exception: project managers manage purchases, so raising and editing
- * an indent or a purchase order admits them too. {@link #PURCHASING_WRITES} lists those endpoints
- * by name. Every other write here, including every purchase order status change and every
- * deletion, still admits {@code system-admin} alone.
  */
 class ProcurementDocumentGuardSplitTest {
 
     private static final String PROJECT_MANAGER = "project-manager";
 
     /**
-     * The five document controllers, web twins and mobile. The mobile ones were guarded on flat
-     * {@code resource:scope} authorities nothing in the realm mints, until they were aligned with
-     * their web twins, so they now carry the same split. The indent controllers are not here: the
-     * web one is on the access matrix, where {@code IndentGuardsTest} and
-     * {@code IndentAccessEquivalenceIT} hold it to the same split, and the mobile one carries its
-     * web twin's guards ({@code MobileWebGuardParityTest}).
+     * The document controllers that carry the org-role guard. The web indent controller left this
+     * list when its reads moved onto the access matrix, where {@code IndentGuardsTest} and
+     * {@code IndentAccessEquivalenceIT} hold it to the same split. Both purchase order controllers
+     * left it the same way, for {@code PurchaseOrderGuardsTest} and
+     * {@code PurchaseOrderAccessEquivalenceIT}. The mobile twins were guarded on flat
+     * {@code resource:scope} authorities nothing in the realm mints, until development aligned them
+     * with their web twins, so the remaining ones carry the same split. The mobile indent controller
+     * follows its web twin onto the matrix ({@code MobileWebGuardParityTest}).
      */
     private static final List<Class<?>> ROLE_GUARDED = List.of(
             GoodsReceivedNoteControllerWeb.class,
             GoodsReceivedNoteController.class,
-            PurchaseOrderControllerWeb.class,
-            PurchaseOrderController.class,
             SiteTransferControllerWeb.class,
             SiteTransferController.class,
             MaterialConsumptionControllerWeb.class,
             MaterialConsumptionController.class);
-
-    /** The writes #855 opened to project managers, as {@code Controller.method}. */
-    private static final Set<String> PURCHASING_WRITES = Set.of(
-            "PurchaseOrderControllerWeb.createPurchaseOrder",
-            "PurchaseOrderControllerWeb.updatePurchaseOrder",
-            "PurchaseOrderController.createPurchaseOrder",
-            "PurchaseOrderController.updatePurchaseOrder");
 
     @Test
     void everyDocumentReadAdmitsTheProjectManager() {
@@ -88,36 +73,16 @@ class ProcurementDocumentGuardSplitTest {
     }
 
     @Test
-    void noOtherDocumentWriteAdmitsTheProjectManager() {
+    void noDocumentWriteAdmitsTheProjectManager() {
         List<String> writesThatDo = new ArrayList<>();
         for (Class<?> controller : ROLE_GUARDED) {
             for (Method method : requestMappedMethods(controller)) {
-                if (!isRead(method) && !isPurchasingWrite(controller, method)
-                        && guardOf(method).contains(PROJECT_MANAGER)) {
+                if (!isRead(method) && guardOf(method).contains(PROJECT_MANAGER)) {
                     writesThatDo.add(describe(controller, method));
                 }
             }
         }
         assertThat(writesThatDo).isEmpty();
-    }
-
-    @Test
-    void thePurchasingWritesAdmitTheProjectManager() {
-        List<String> found = new ArrayList<>();
-        for (Class<?> controller : ROLE_GUARDED) {
-            for (Method method : requestMappedMethods(controller)) {
-                if (isPurchasingWrite(controller, method)) {
-                    assertThat(guardOf(method)).as(describe(controller, method)).contains(PROJECT_MANAGER);
-                    found.add(controller.getSimpleName() + "." + method.getName());
-                }
-            }
-        }
-        // Every name in the list is a real endpoint, so a rename cannot quietly empty it.
-        assertThat(found).containsExactlyInAnyOrderElementsOf(PURCHASING_WRITES);
-    }
-
-    private static boolean isPurchasingWrite(Class<?> controller, Method method) {
-        return !isRead(method) && PURCHASING_WRITES.contains(controller.getSimpleName() + "." + method.getName());
     }
 
     /** A guard that stopped mentioning system-admin would be a narrowing, not a widening. */
@@ -141,10 +106,11 @@ class ProcurementDocumentGuardSplitTest {
         for (Class<?> controller : ROLE_GUARDED) {
             total += requestMappedMethods(controller).size();
         }
-        // 57 on the six original controllers, plus the 34 on the four mobile twins that now
-        // carry the split (GRN 7, indent 9, site transfer 10, material consumption 8), less the
-        // eleven web and nine mobile indent endpoints, whose guards are pinned elsewhere.
-        assertThat(total).isEqualTo(71);
+        // 57 since the site transfer picker for asset lines (GET /sendable-assets), less the eleven
+        // web indent endpoints and the nineteen purchase order endpoints that moved onto the access
+        // matrix, plus the 25 on the mobile twins of the other three (GRN 7, site transfer 10,
+        // material consumption 8).
+        assertThat(total).isEqualTo(52);
     }
 
     private static List<Method> requestMappedMethods(Class<?> controller) {

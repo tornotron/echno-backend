@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.purchaseOrder;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.tornotron.echno_backend.purchaseOrder.enums.PurchaseOrderStatus;
 
 import java.util.List;
@@ -8,7 +9,7 @@ import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
-public interface PurchaseOrderRepository extends JpaRepository<PurchaseOrder, Long> {
+public interface PurchaseOrderRepository extends JpaRepository<PurchaseOrder, Long>, JpaSpecificationExecutor<PurchaseOrder> {
 
     Optional<PurchaseOrder> findByPoNumber(String poNumber);
 

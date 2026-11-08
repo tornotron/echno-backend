@@ -107,7 +107,8 @@ class PurchaseOrderUpdateFieldsTest {
                 statusTransitionRepository,
                 statusTransitionMapper,
                 userContextService,
-                editPolicy);
+                editPolicy,
+                PurchaseOrderAccessStubs.allowingEverything());
     }
 
     private PurchaseOrderItemService itemService() {
@@ -118,7 +119,8 @@ class PurchaseOrderUpdateFieldsTest {
                 indentItemRepository,
                 tenantEntityHelper,
                 purchaseOrderService,
-                editPolicy);
+                editPolicy,
+                PurchaseOrderAccessStubs.allowingEverything());
     }
 
     private Organization organization() {

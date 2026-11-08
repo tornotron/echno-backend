@@ -101,13 +101,14 @@ class PurchaseOrderProjectManagerEditTest {
                 purchaseOrderMapper, tenantEntityHelper, employeeRepository, projectRepository,
                 purchaseOrderItemRepository, materialRepository, indentItemRepository,
                 documentNumberAllocator, retryTemplate, statusTransitionRecorder,
-                statusTransitionRepository, statusTransitionMapper, userContextService, policy());
+                statusTransitionRepository, statusTransitionMapper, userContextService, policy(),
+                PurchaseOrderAccessStubs.allowingEverything());
     }
 
     private PurchaseOrderItemService itemService() {
         return new PurchaseOrderItemService(purchaseOrderItemRepository, purchaseOrderRepository,
                 materialRepository, indentItemRepository, tenantEntityHelper,
-                purchaseOrderServiceForItems, policy());
+                purchaseOrderServiceForItems, policy(), PurchaseOrderAccessStubs.allowingEverything());
     }
 
     /**

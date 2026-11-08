@@ -27,12 +27,6 @@ import org.tornotron.echno_backend.material.MaterialService;
 import org.tornotron.echno_backend.material.lowstock.LowStockService;
 import org.tornotron.echno_backend.material.summary.MaterialStockSummaryService;
 import org.tornotron.echno_backend.material.threshold.MaterialLocationThresholdService;
-import org.tornotron.echno_backend.purchaseOrder.PurchaseOrderController;
-import org.tornotron.echno_backend.purchaseOrder.PurchaseOrderControllerWeb;
-import org.tornotron.echno_backend.purchaseOrder.PurchaseOrderService;
-import org.tornotron.echno_backend.purchaseOrderItem.PurchaseOrderItemController;
-import org.tornotron.echno_backend.purchaseOrderItem.PurchaseOrderItemControllerWeb;
-import org.tornotron.echno_backend.purchaseOrderItem.PurchaseOrderItemService;
 
 import static org.mockito.Mockito.when;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
@@ -56,7 +50,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * <p>The mobile material and indent twins still carry {@code resource:scope} guards that the realm
  * cannot satisfy, for any role; aligning them with these guards is #1002, so they are not here.
  *
- * <p>One slice over seven controllers, as in {@link ProcurementDocumentReadAuthzTest}, because
+ * <p>The purchase order controllers moved onto the access matrix, where
+ * {@code PurchaseOrderAccessEquivalenceIT} holds every role to the purchase order access it had, so
+ * they are not in this slice.
+ *
+ * <p>One slice over three controllers, as in {@link ProcurementDocumentReadAuthzTest}, because
  * Spring caches a context per distinct slice. {@code @orgSecurity} is mocked with exact role
  * arguments, so what is pinned is the role list each guard asks for. The services are mocks that
  * answer null, which the controllers wrap without looking at, so a write that is let through answers
@@ -65,11 +63,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest({
         MaterialControllerWeb.class,
         IndentControllerWeb.class,
-        IndentItemControllerWeb.class,
-        PurchaseOrderControllerWeb.class,
-        PurchaseOrderController.class,
-        PurchaseOrderItemControllerWeb.class,
-        PurchaseOrderItemController.class
+        IndentItemControllerWeb.class
 })
 @Import(ProcurementProjectManagerWriteAuthzTest.TestSecurityConfig.class)
 class ProcurementProjectManagerWriteAuthzTest {
@@ -83,8 +77,6 @@ class ProcurementProjectManagerWriteAuthzTest {
     @MockitoBean private MaterialStockSummaryService stockSummaryService;
     @MockitoBean private IndentService indentService;
     @MockitoBean private IndentItemService indentItemService;
-    @MockitoBean private PurchaseOrderService purchaseOrderService;
-    @MockitoBean private PurchaseOrderItemService purchaseOrderItemService;
 
     // Named to match the @orgSecurity bean the @PreAuthorize SpEL references.
     @MockitoBean(name = "orgSecurity")
@@ -128,19 +120,8 @@ class ProcurementProjectManagerWriteAuthzTest {
             "POST  | /api/v1/indent-items/web | `{\"indentId\":31,\"materialId\":7,\"requestedQuantity\":40}`",
             "PUT   | /api/v1/indent-items/web/84 | `{\"materialId\":7,\"requestedQuantity\":45}`",
             "PUT   | /api/v1/indent-items/web/84/mark-converted?purchaseOrderNumber=PO-0042 | ``",
-            // Purchase orders and their lines, web and mobile twins.
-            "POST  | /api/v1/purchase-orders/web | `{\"vendorId\":3,\"projectId\":4,\"createdBy\":5}`",
-            "POST  | /api/v1/purchase-orders | `{\"vendorId\":3,\"projectId\":4,\"createdBy\":5}`",
-            "PATCH | /api/v1/purchase-orders/web | `{\"id\":31,\"remarks\":\"Deliver to the north gate\"}`",
-            "PATCH | /api/v1/purchase-orders | `{\"id\":31,\"remarks\":\"Deliver to the north gate\"}`",
-            "POST  | /api/v1/purchase-order-items/web | `{\"purchaseOrderId\":31,\"materialId\":7,\"orderedQuantity\":40,\"unitPrice\":385.00}`",
-            "POST  | /api/v1/purchase-order-items | `{\"purchaseOrderId\":31,\"materialId\":7,\"orderedQuantity\":40,\"unitPrice\":385.00}`",
-            "PATCH | /api/v1/purchase-order-items/web | `{\"id\":84,\"orderedQuantity\":45}`",
-            "PUT   | /api/v1/purchase-order-items | `{\"id\":84,\"orderedQuantity\":45}`",
             // The line reads the edit screens make, which the role did not have before.
-            "GET   | /api/v1/indent-items/web/indent/31 | ``",
-            "GET   | /api/v1/purchase-order-items/web/purchase-order/31 | ``",
-            "GET   | /api/v1/purchase-order-items/purchase-order/31 | ``"
+            "GET   | /api/v1/indent-items/web/indent/31 | ``"
     })
     void aProjectManagerManagesPurchases(String method, String path, String body) throws Exception {
         asProjectManager();
@@ -154,14 +135,7 @@ class ProcurementProjectManagerWriteAuthzTest {
             // Deletions stay with the administrator. The indent ones are on the access matrix, where
             // IndentAccessEquivalenceIT holds them to the administrator.
             "DELETE | /api/v1/materials/web/7",
-            "DELETE | /api/v1/materials/web/7/location-thresholds/2",
-            "DELETE | /api/v1/purchase-order-items/web/84",
-            "DELETE | /api/v1/purchase-order-items/84",
-            // So does every status change, approval included.
-            "PATCH  | /api/v1/purchase-orders/web/31/status?status=APPROVED",
-            "PATCH  | /api/v1/purchase-orders/31/status?status=APPROVED",
-            "PATCH  | /api/v1/purchase-orders/web/31/status?status=SENT_TO_VENDOR",
-            "PATCH  | /api/v1/purchase-orders/web/31/status?status=CANCELLED"
+            "DELETE | /api/v1/materials/web/7/location-thresholds/2"
     })
     void aProjectManagerStillCannot(String method, String path) throws Exception {
         asProjectManager();
@@ -172,10 +146,10 @@ class ProcurementProjectManagerWriteAuthzTest {
 
     /** Opening the writes to project managers is not opening them to every member. */
     @Test
-    void aMemberHoldingNeitherRoleStillCannotRaiseAPurchaseOrder() throws Exception {
+    void aMemberHoldingNeitherRoleStillCannotAddAMaterial() throws Exception {
         when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
 
-        mockMvc.perform(call("POST", "/api/v1/purchase-orders/web", "{\"vendorId\":3,\"projectId\":4,\"createdBy\":5}"))
+        mockMvc.perform(call("POST", "/api/v1/materials/web", "{\"materialName\":\"OPC 53 Grade Cement\",\"unit\":\"bags\",\"createdBy\":5}"))
                 .andExpect(status().isForbidden());
     }
 

@@ -28,10 +28,12 @@ import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
         name = "Purchase Orders",
         description = "Purchase orders raised against a vendor, optionally converted from an indent. A "
                 + "purchase order carries line items, a status lifecycle from draft through fully "
-                + "received or cancelled, and the totals used for payables. Raising an order and editing its "
-                + "header are open to system-admin and project-manager in the current tenant; a status "
-                + "change, approval included, stays with system-admin. Reading one is also open to "
-                + "store-keeper, which is what a goods receipt is booked against."
+                + "received or cancelled, and the totals used for payables. Each endpoint needs the "
+                + "purchase-orders permission named for its action: read, create, edit, or approve for a "
+                + "status change, whether sent to the status endpoint or on an edit. The starting roles "
+                + "give read to system-admin, project-manager and store-keeper, which is what a goods "
+                + "receipt is booked against; create and edit to system-admin and project-manager; and "
+                + "approve to system-admin alone. An order outside the caller's scope reads as not found."
 )
 public class PurchaseOrderController {
 
@@ -41,7 +43,7 @@ public class PurchaseOrderController {
         this.purchaseOrderService = purchaseOrderService;
     }
 
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('purchase-orders', 'create')")
     @PostMapping
     @Operation(
             summary = "Create a purchase order",
@@ -51,14 +53,14 @@ public class PurchaseOrderController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Purchase order created"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A required field is missing or failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to purchase orders")
     })
     public ResponseEntity<PurchaseOrderDto> createPurchaseOrder(@Valid @RequestBody PurchaseOrderCreationDto creationDto) {
         PurchaseOrderDto created = purchaseOrderService.createPurchaseOrder(creationDto);
         return new ResponseEntity<>(created, HttpStatus.CREATED);
     }
 
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
+    @PreAuthorize("@access.can('purchase-orders', 'read')")
     @GetMapping("/{id}")
     @Operation(
             summary = "Get a purchase order by id",
@@ -66,7 +68,7 @@ public class PurchaseOrderController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Purchase order found"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read purchase orders"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No purchase order with the given id")
     })
     public ResponseEntity<PurchaseOrderDto> getPurchaseOrderById(@PathVariable Long id) {
@@ -74,7 +76,7 @@ public class PurchaseOrderController {
         return ResponseEntity.ok(purchaseOrder);
     }
 
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
+    @PreAuthorize("@access.can('purchase-orders', 'read')")
     @GetMapping
     @Operation(
             summary = "List all purchase orders",
@@ -82,14 +84,14 @@ public class PurchaseOrderController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Purchase orders returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read purchase orders")
     })
     public ResponseEntity<List<PurchaseOrderDto>> getAllPurchaseOrders() {
         return UnpagedResultCap.respond(
                 purchaseOrderService.getAllPurchaseOrders(0, UnpagedResultCap.MAX_ROWS));
     }
 
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
+    @PreAuthorize("@access.can('purchase-orders', 'read')")
     @GetMapping("/all")
     @Operation(
             summary = "List purchase orders, paginated",
@@ -98,7 +100,7 @@ public class PurchaseOrderController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of purchase orders returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read purchase orders")
     })
     public ResponseEntity<Page<PurchaseOrderDto>> getAllPurchaseOrdersPaginated(
             @Valid @ParameterObject PageQuery pageQuery
@@ -107,7 +109,7 @@ public class PurchaseOrderController {
         return ResponseEntity.ok(purchaseOrders);
     }
 
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
+    @PreAuthorize("@access.can('purchase-orders', 'read')")
     @GetMapping("/vendor/{vendorId}")
     @Operation(
             summary = "List purchase orders for a vendor",
@@ -116,7 +118,7 @@ public class PurchaseOrderController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Purchase orders returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read purchase orders")
     })
     public ResponseEntity<Page<PurchaseOrderDto>> getPurchaseOrdersByVendor(
             @PathVariable Long vendorId,
@@ -126,7 +128,7 @@ public class PurchaseOrderController {
         return ResponseEntity.ok(purchaseOrders);
     }
 
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
+    @PreAuthorize("@access.can('purchase-orders', 'read')")
     @GetMapping("/indent/{indentId}")
     @Operation(
             summary = "List purchase orders for an indent",
@@ -134,7 +136,7 @@ public class PurchaseOrderController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Purchase orders returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read purchase orders")
     })
     public ResponseEntity<Page<PurchaseOrderDto>> getPurchaseOrdersByIndent(
             @PathVariable Long indentId,
@@ -144,7 +146,7 @@ public class PurchaseOrderController {
         return ResponseEntity.ok(purchaseOrders);
     }
 
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
+    @PreAuthorize("@access.can('purchase-orders', 'read')")
     @GetMapping("/status/{status}")
     @Operation(
             summary = "List purchase orders by status",
@@ -154,7 +156,7 @@ public class PurchaseOrderController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Purchase orders returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "status is not a recognised purchase order status"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read purchase orders")
     })
     public ResponseEntity<Page<PurchaseOrderDto>> getPurchaseOrdersByStatus(
             @PathVariable PurchaseOrderStatus status,
@@ -164,7 +166,7 @@ public class PurchaseOrderController {
         return ResponseEntity.ok(purchaseOrders);
     }
 
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('purchase-orders', 'edit')")
     @PatchMapping
     @Operation(
             summary = "Update a purchase order",
@@ -175,7 +177,7 @@ public class PurchaseOrderController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Purchase order updated"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to purchase orders"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No purchase order with the given id, or the payload names a project that does not exist in this organization")
     })
     public ResponseEntity<PurchaseOrderDto> updatePurchaseOrder(@Valid @RequestBody PurchaseOrderUpdateDto updateDto) {
@@ -183,7 +185,7 @@ public class PurchaseOrderController {
         return ResponseEntity.ok(updated);
     }
 
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@access.can('purchase-orders', 'approve')")
     @PatchMapping("/{id}/status")
     @Operation(
             summary = "Update a purchase order's status",
@@ -192,7 +194,7 @@ public class PurchaseOrderController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Purchase order status updated"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to purchase orders"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No purchase order with the given id"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "The requested transition is not valid from the purchase order's current status, for example cancelling an already fully received order")
     })

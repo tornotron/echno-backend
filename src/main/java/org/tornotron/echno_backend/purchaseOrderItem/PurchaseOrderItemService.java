@@ -4,6 +4,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
@@ -15,8 +16,12 @@ import org.tornotron.echno_backend.indentItem.IndentItem;
 import org.tornotron.echno_backend.indentItem.IndentItemRepository;
 import org.tornotron.echno_backend.material.Material;
 import org.tornotron.echno_backend.material.MaterialRepository;
+import org.tornotron.echno_backend.modules.access.api.AccessFilter;
+import org.tornotron.echno_backend.modules.access.api.AccessPermission;
+import org.tornotron.echno_backend.modules.access.api.RecordFacts;
 import org.tornotron.echno_backend.purchaseOrder.PurchaseOrder;
 import org.tornotron.echno_backend.purchaseOrder.PurchaseOrderEditPolicy;
+import org.tornotron.echno_backend.purchaseOrder.PurchaseOrderAccess;
 import org.tornotron.echno_backend.purchaseOrder.PurchaseOrderRepository;
 import org.tornotron.echno_backend.purchaseOrder.PurchaseOrderService;
 import org.tornotron.echno_backend.purchaseOrderItem.dto.PurchaseOrderItemCreationDto;
@@ -27,6 +32,14 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * The lines of a purchase order: adding, reading, changing and removing them, with the order's total
+ * kept in step.
+ *
+ * <p>A line takes the access facts of the order it sits on ({@link PurchaseOrderAccess}): a line of an
+ * order the caller may not read is reported missing, a change the caller may not make to that order
+ * is refused, and the listings are narrowed in their queries to the lines of visible orders.
+ */
 @Service
 public class PurchaseOrderItemService {
 
@@ -37,6 +50,7 @@ public class PurchaseOrderItemService {
     private final TenantEntityHelper tenantEntityHelper;
     private final PurchaseOrderService purchaseOrderService;
     private final PurchaseOrderEditPolicy editPolicy;
+    private final PurchaseOrderAccess purchaseOrderAccess;
 
     public PurchaseOrderItemService(PurchaseOrderItemRepository purchaseOrderItemRepository,
                                     PurchaseOrderRepository purchaseOrderRepository,
@@ -44,7 +58,8 @@ public class PurchaseOrderItemService {
                                     IndentItemRepository indentItemRepository,
                                     TenantEntityHelper tenantEntityHelper,
                                     PurchaseOrderService purchaseOrderService,
-                                    PurchaseOrderEditPolicy editPolicy) {
+                                    PurchaseOrderEditPolicy editPolicy,
+                                    PurchaseOrderAccess purchaseOrderAccess) {
         this.purchaseOrderItemRepository = purchaseOrderItemRepository;
         this.purchaseOrderRepository = purchaseOrderRepository;
         this.materialRepository = materialRepository;
@@ -52,12 +67,18 @@ public class PurchaseOrderItemService {
         this.tenantEntityHelper = tenantEntityHelper;
         this.purchaseOrderService = purchaseOrderService;
         this.editPolicy = editPolicy;
+        this.purchaseOrderAccess = purchaseOrderAccess;
     }
 
     @Transactional
     public PurchaseOrderItemResponseDto createPurchaseOrderItem(PurchaseOrderItemCreationDto creationDto) {
         PurchaseOrder purchaseOrder = purchaseOrderRepository.findByIdAndOrganization_Id(creationDto.getPurchaseOrderId(), TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Purchase order with ID " + creationDto.getPurchaseOrderId() + " was not found in this organization"));
+        RecordFacts order = PurchaseOrderAccess.facts(purchaseOrder);
+        if (!purchaseOrderAccess.allows(AccessPermission.READ, order)) {
+            throw new ResourceNotFoundException("Purchase order with ID " + creationDto.getPurchaseOrderId() + " was not found in this organization");
+        }
+        purchaseOrderAccess.require(AccessPermission.CREATE, order);
         editPolicy.requireEditable(purchaseOrder);
 
         Material material = materialRepository.findByIdAndOrganization_Id(creationDto.getMaterialId(),TenantContext.getCurrentOrgId())
@@ -98,8 +119,7 @@ public class PurchaseOrderItemService {
 
     @Transactional(readOnly = true)
     public PurchaseOrderItemResponseDto getPurchaseOrderItemById(Long id) {
-        PurchaseOrderItem item = purchaseOrderItemRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Purchase order item with ID " + id + " was not found in this organization"));
+        PurchaseOrderItem item = requireItem(id, AccessPermission.READ);
         return convertToResponseDto(item);
     }
 
@@ -115,8 +135,14 @@ public class PurchaseOrderItemService {
      */
     @Transactional(readOnly = true)
     public Page<PurchaseOrderItemResponseDto> getAllPurchaseOrderItems(Pageable pageable) {
-        return purchaseOrderItemRepository.findAll(pageable)
-                .map(this::convertToResponseDto);
+        AccessFilter visible = purchaseOrderAccess.filter(AccessPermission.READ);
+        if (visible.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        Page<PurchaseOrderItem> items = visible.everything()
+                ? purchaseOrderItemRepository.findAll(pageable)
+                : purchaseOrderItemRepository.findAll(PurchaseOrderAccess.linesAdmittedBy(visible), pageable);
+        return items.map(this::convertToResponseDto);
     }
 
     /**
@@ -146,7 +172,15 @@ public class PurchaseOrderItemService {
 
     @Transactional(readOnly = true)
     public List<PurchaseOrderItemResponseDto> getItemsByPurchaseOrderId(Long purchaseOrderId) {
-        return purchaseOrderItemRepository.findByPurchaseOrderId(purchaseOrderId).stream()
+        AccessFilter visible = purchaseOrderAccess.filter(AccessPermission.READ);
+        if (visible.isEmpty()) {
+            return List.of();
+        }
+        List<PurchaseOrderItem> items = visible.everything()
+                ? purchaseOrderItemRepository.findByPurchaseOrderId(purchaseOrderId)
+                : purchaseOrderItemRepository.findAll(
+                        whereEquals("purchaseOrder", purchaseOrderId).and(PurchaseOrderAccess.linesAdmittedBy(visible)));
+        return items.stream()
                 .map(this::convertToResponseDto)
                 .collect(Collectors.toList());
     }
@@ -161,13 +195,21 @@ public class PurchaseOrderItemService {
     @Transactional(readOnly = true)
     public Page<PurchaseOrderItemResponseDto> getItemsByPurchaseOrderId(Long purchaseOrderId, int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.ASC, "id"));
-        return purchaseOrderItemRepository.findByPurchaseOrderId(purchaseOrderId, pageable)
-                .map(this::convertToResponseDto);
+        return visiblePage(pageable, () -> purchaseOrderItemRepository.findByPurchaseOrderId(purchaseOrderId, pageable),
+                whereEquals("purchaseOrder", purchaseOrderId));
     }
 
     @Transactional(readOnly = true)
     public List<PurchaseOrderItemResponseDto> getItemsByMaterialId(Long materialId) {
-        return purchaseOrderItemRepository.findByMaterialId(materialId).stream()
+        AccessFilter visible = purchaseOrderAccess.filter(AccessPermission.READ);
+        if (visible.isEmpty()) {
+            return List.of();
+        }
+        List<PurchaseOrderItem> items = visible.everything()
+                ? purchaseOrderItemRepository.findByMaterialId(materialId)
+                : purchaseOrderItemRepository.findAll(
+                        whereEquals("material", materialId).and(PurchaseOrderAccess.linesAdmittedBy(visible)));
+        return items.stream()
                 .map(this::convertToResponseDto)
                 .collect(Collectors.toList());
     }
@@ -182,8 +224,25 @@ public class PurchaseOrderItemService {
     @Transactional(readOnly = true)
     public Page<PurchaseOrderItemResponseDto> getItemsByMaterialId(Long materialId, int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.ASC, "id"));
-        return purchaseOrderItemRepository.findByMaterialId(materialId, pageable)
-                .map(this::convertToResponseDto);
+        return visiblePage(pageable, () -> purchaseOrderItemRepository.findByMaterialId(materialId, pageable),
+                whereEquals("material", materialId));
+    }
+
+    /**
+     * One page of a lookup, narrowed to the lines of orders the caller may read, in the query so the
+     * total counts only those.
+     */
+    private Page<PurchaseOrderItemResponseDto> visiblePage(Pageable pageable,
+                                                           java.util.function.Supplier<Page<PurchaseOrderItem>> unnarrowed,
+                                                           Specification<PurchaseOrderItem> condition) {
+        AccessFilter visible = purchaseOrderAccess.filter(AccessPermission.READ);
+        if (visible.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        Page<PurchaseOrderItem> items = visible.everything()
+                ? unnarrowed.get()
+                : purchaseOrderItemRepository.findAll(condition.and(PurchaseOrderAccess.linesAdmittedBy(visible)), pageable);
+        return items.map(this::convertToResponseDto);
     }
 
     /**
@@ -205,8 +264,7 @@ public class PurchaseOrderItemService {
      */
     @Transactional
     public PurchaseOrderItemResponseDto updatePurchaseOrderItem(PurchaseOrderItemUpdateDto updateDto) {
-        PurchaseOrderItem item = purchaseOrderItemRepository.findByIdAndOrganization_Id(updateDto.getId(),TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Purchase order item with ID " + updateDto.getId() + " was not found in this organization"));
+        PurchaseOrderItem item = requireItem(updateDto.getId(), AccessPermission.EDIT);
         editPolicy.requireEditable(item.getPurchaseOrder());
 
         if (updateDto.getMaterialId() != null
@@ -249,14 +307,39 @@ public class PurchaseOrderItemService {
 
     @Transactional
     public void deletePurchaseOrderItem(Long id) {
-        PurchaseOrderItem item = purchaseOrderItemRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Purchase order item with ID " + id + " was not found in this organization"));
+        PurchaseOrderItem item = requireItem(id, AccessPermission.DELETE);
         
         Long purchaseOrderId = item.getPurchaseOrder().getId();
         purchaseOrderItemRepository.deleteByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId());
         
         // Recalculate PurchaseOrder total amount after deletion
         purchaseOrderService.recalculateTotalAmount(purchaseOrderId);
+    }
+
+    /**
+     * The line, if the caller may act this way on the order it sits on. A line of an order they may
+     * not read is reported missing; one they may read but not act on this way is refused.
+     */
+    private PurchaseOrderItem requireItem(Long id, String action) {
+        PurchaseOrderItem item = purchaseOrderItemRepository.findByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId())
+                .orElseThrow(() -> notFound(id));
+        RecordFacts order = PurchaseOrderAccess.facts(item.getPurchaseOrder());
+        if (!purchaseOrderAccess.allows(AccessPermission.READ, order)) {
+            throw notFound(id);
+        }
+        if (!AccessPermission.READ.equals(action)) {
+            purchaseOrderAccess.require(action, order);
+        }
+        return item;
+    }
+
+    private static ResourceNotFoundException notFound(Long id) {
+        return new ResourceNotFoundException("Purchase order item with ID " + id + " was not found in this organization");
+    }
+
+    /** Lines whose association of this name is the record with this id. */
+    private static Specification<PurchaseOrderItem> whereEquals(String association, Long id) {
+        return (root, query, cb) -> cb.equal(root.get(association).get("id"), id);
     }
 
     private PurchaseOrderItemResponseDto convertToResponseDto(PurchaseOrderItem item) {
