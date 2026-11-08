@@ -1,5 +1,6 @@
 package org.tornotron.echno_backend.modules.inspections;
 
+import org.tornotron.echno_backend.common.configuration.JpaAuditingConfig;
 import org.tornotron.echno_backend.modules.inspections.api.ObservationSource;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -95,7 +96,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
         DefectAnnotationService.class, DefectPhotoAnnotationMapperImpl.class,
         UserContextService.class,
         TenantEntityHelper.class, EntryNumberGenerator.class,
-        TransactionalWorkRunner.class, TransactionRetryTemplate.class, SimpleMeterRegistry.class})
+        TransactionalWorkRunner.class, TransactionRetryTemplate.class, SimpleMeterRegistry.class,
+        JpaAuditingConfig.class})
 class ObservationServiceIT extends AbstractIntegrationTest {
 
     @Autowired
