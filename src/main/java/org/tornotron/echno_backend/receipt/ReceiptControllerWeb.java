@@ -27,8 +27,9 @@ import java.util.List;
         name = "Receipts",
         description = "Money received against a project or the organization: payments, advances, security "
                 + "deposits and refunds, with the payer, tax breakdown and an optional link to a project, "
-                + "payment, invoice or customer. Read access requires tenant membership; creating, updating "
-                + "and deleting are restricted to system-admin or project-manager."
+                + "payment, invoice or customer. Receipts sit in the expenses area: each endpoint needs the "
+                + "expenses permission named for its action (read, create, edit or delete), and a receipt "
+                + "outside the caller's scope reads as not found."
 )
 public class ReceiptControllerWeb {
 
@@ -39,14 +40,14 @@ public class ReceiptControllerWeb {
     }
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('expenses', 'read')")
     @Operation(
             summary = "List all receipts",
             description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Receipts returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read receipts")
     })
     public ResponseEntity<List<ReceiptDto>> readAllReceipts() {
         return UnpagedResultCap.respond(receiptService.getPaginated(
@@ -54,7 +55,7 @@ public class ReceiptControllerWeb {
     }
 
     @GetMapping("/paginated")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('expenses', 'read')")
     @Operation(
             summary = "List receipts, paginated and filterable",
             description = "Returns a single page of receipts. Supports a free-text search over the receipt "
@@ -62,7 +63,7 @@ public class ReceiptControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of receipts returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read receipts")
     })
     public ResponseEntity<Page<ReceiptDto>> readAllReceiptsPaginated(
             @Valid @ParameterObject PageQuery pageQuery,
@@ -72,14 +73,14 @@ public class ReceiptControllerWeb {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('expenses', 'read')")
     @Operation(
             summary = "Get a receipt by id",
             description = "Returns a single receipt with its payer, tax breakdown and optional links."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Receipt found"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read receipts"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No receipt with the given id")
     })
     public ResponseEntity<ReceiptDto> readAReceipt(@PathVariable Long id) {
@@ -87,7 +88,7 @@ public class ReceiptControllerWeb {
     }
 
     @PostMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('expenses', 'create')")
     @Operation(
             summary = "Create a receipt",
             description = "Creates a receipt with its payer, tax breakdown and optional links. The receipt "
@@ -96,14 +97,14 @@ public class ReceiptControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Receipt created"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "receivedFrom or amount is missing"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to receipts")
     })
     public ResponseEntity<ReceiptDto> createReceipt(@Valid @RequestBody ReceiptCreationDto creationDto) {
         return new ResponseEntity<>(receiptService.create(creationDto), HttpStatus.CREATED);
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('expenses', 'edit')")
     @Operation(
             summary = "Update a receipt",
             description = "Replaces the receipt's editable details with the given payload. The receipt "
@@ -112,7 +113,7 @@ public class ReceiptControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Receipt updated"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "receivedFrom or amount is missing"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to receipts"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No receipt with the given id")
     })
     public ResponseEntity<ReceiptDto> updateReceipt(@PathVariable Long id,
@@ -121,14 +122,14 @@ public class ReceiptControllerWeb {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('expenses', 'delete')")
     @Operation(
             summary = "Delete a receipt",
             description = "Deletes the receipt with the given id."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Receipt deleted"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to receipts"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No receipt with the given id")
     })
     public ResponseEntity<ApiResponse> deleteReceipt(@PathVariable Long id) {

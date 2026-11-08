@@ -1,0 +1,12 @@
+id,template_id,permission_key,scope
+bca819f4-4e68-5076-ac99-4f2658886e64,2e1db9db-3d7d-59a3-90b4-d05b10e5f687,expenses:read,ALL
+ce3e7307-2399-57b0-8af1-bc6b48147af1,ed34dfe6-5468-5f6e-b6ed-ef6eefccfce2,expenses:create,ALL
+5b0efbc7-2d0f-546d-b5c3-8b7056b06f76,ed34dfe6-5468-5f6e-b6ed-ef6eefccfce2,expenses:edit,ALL
+dd28598e-5cb6-5c3f-9dd7-93269395e3f6,ed34dfe6-5468-5f6e-b6ed-ef6eefccfce2,expenses:delete,ALL
+a63ead70-f8ba-5cb2-b3f0-ce8ace03b170,ed34dfe6-5468-5f6e-b6ed-ef6eefccfce2,finance:configure,ALL
+8faaf86e-e67d-53ce-930c-fb06c3a2563d,ed34dfe6-5468-5f6e-b6ed-ef6eefccfce2,payables:read,ALL
+57b79aaf-2d1e-57e1-9e01-5da186f4b494,ed34dfe6-5468-5f6e-b6ed-ef6eefccfce2,payables:create,ALL
+413e6c3b-31c2-5e39-9aee-0b26ca29bcf1,ed34dfe6-5468-5f6e-b6ed-ef6eefccfce2,payables:edit,ALL
+7c464020-6ef3-5fd4-92e6-4bbb8c545bac,0f205e55-9cf3-5a43-8fda-c0d6c92e5bef,expenses:create,ALL
+192702d4-1000-5fac-b3ff-5271d774036e,0f205e55-9cf3-5a43-8fda-c0d6c92e5bef,expenses:edit,ALL
+e1b6339b-0b2e-535d-bc19-d60fd0de55ff,0f205e55-9cf3-5a43-8fda-c0d6c92e5bef,expenses:delete,ALL

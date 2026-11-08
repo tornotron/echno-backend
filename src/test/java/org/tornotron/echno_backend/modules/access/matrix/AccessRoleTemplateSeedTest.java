@@ -30,7 +30,15 @@ class AccessRoleTemplateSeedTest {
     private static final List<String> GRANT_FILES = List.of(
             "db/data/access/role-template-grants.csv",
             "db/data/access/role-template-grants-purchasing.csv",
-            "db/data/access/role-template-grants-payments.csv");
+            "db/data/access/role-template-grants-payments.csv",
+            "db/data/access/role-template-grants-finance-areas.csv");
+
+    /**
+     * Template grants a later changeset deleted, by template slug and key: access-011 takes the
+     * baseline's finance:read, which it held only for expenses and receipts, now an area of their own.
+     */
+    private static final Map<String, Set<String>> DELETED = Map.of(
+            BASELINE, Set.of("finance:read"));
 
     private static final Map<String, String> SLUG_BY_ID = new HashMap<>();
     private static final Map<String, String> LEGACY_BY_SLUG = new HashMap<>();
@@ -61,6 +69,7 @@ class AccessRoleTemplateSeedTest {
                 KEYS_BY_SLUG.get(SLUG_BY_ID.get(row[1])).add(row[2]);
             }
         }
+        DELETED.forEach((slug, keys) -> KEYS_BY_SLUG.get(slug).removeAll(keys));
     }
 
     private static List<String[]> rows(String resource) throws IOException {
@@ -120,6 +129,28 @@ class AccessRoleTemplateSeedTest {
                 assertThat(keys).as(slug).doesNotContain("progress-bills:authorize-payment");
             }
         });
+    }
+
+    @Test
+    void theBaselineReadsExpensesAndReceiptsAndNoOtherFinance() {
+        assertThat(KEYS_BY_SLUG.get(BASELINE)).contains("expenses:read")
+                .noneMatch(key -> key.startsWith("finance:") || key.startsWith("payables:"));
+    }
+
+    @Test
+    void onlyTheSystemAdminConfiguresFinanceAndHoldsPayables() {
+        // Finance's system-admin-only writes and the web payables were the system admin's alone before
+        // the matrix, and stay so: the project manager keeps every other finance write.
+        assertThat(KEYS_BY_SLUG.get("system-admin"))
+                .contains("finance:configure", "payables:read", "payables:create", "payables:edit");
+        KEYS_BY_SLUG.forEach((slug, keys) -> {
+            if (!slug.equals("system-admin")) {
+                assertThat(keys).as(slug).doesNotContain("finance:configure")
+                        .noneMatch(key -> key.startsWith("payables:"));
+            }
+        });
+        assertThat(KEYS_BY_SLUG.get("project-manager"))
+                .contains("finance:read", "finance:create", "finance:edit", "finance:delete", "finance:approve");
     }
 
     @Test
