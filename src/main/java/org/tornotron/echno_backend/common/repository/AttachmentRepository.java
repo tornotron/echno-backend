@@ -2,6 +2,7 @@ package org.tornotron.echno_backend.common.repository;
 
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.common.entity.AttachmentDto;
@@ -15,7 +16,7 @@ import java.util.UUID;
  * Repository for managing Attachment entities.
  */
 @Repository
-public interface AttachmentRepository extends JpaRepository<Attachment, Long> {
+public interface AttachmentRepository extends JpaRepository<Attachment, Long>, JpaSpecificationExecutor<Attachment> {
 
     List<Attachment> findByEntityTypeAndEntityId(String entityType, Long entityId);
     /**

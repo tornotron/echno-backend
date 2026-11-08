@@ -1,5 +1,8 @@
 package org.tornotron.echno_backend.common.service;
 
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -228,6 +231,28 @@ public class AttachmentService {
                 .findByEntityTypeAndOrganization_IdAndExpiresOnLessThanEqualOrderByExpiresOnAscIdAsc(
                         entityType, TenantContext.getCurrentOrgId(), cutoff,
                         org.springframework.data.domain.PageRequest.of(0, MAX_EXPIRING_DOCUMENTS))
+                .stream()
+                .map(attachmentMapper::toDto)
+                .toList();
+    }
+
+    /**
+     * The same documents, narrowed to those {@code among} admits, for a caller who may see only some of
+     * the records they are filed against. The narrowing is part of the query, so the cap counts only
+     * documents the caller may see.
+     *
+     * @param among A condition on the attachment, typically on the record it is filed against
+     */
+    @Transactional(readOnly = true)
+    public List<AttachmentDto> getExpiringDocuments(String entityType, LocalDate cutoff,
+                                                    Specification<Attachment> among) {
+        Specification<Attachment> expiring = (root, query, cb) -> cb.and(
+                cb.equal(root.get("entityType"), entityType),
+                cb.equal(root.get("organization").get("id"), TenantContext.getCurrentOrgId()),
+                cb.lessThanOrEqualTo(root.get("expiresOn"), cutoff));
+        return attachmentRepository
+                .findAll(expiring.and(among), PageRequest.of(0, MAX_EXPIRING_DOCUMENTS,
+                        Sort.by(Sort.Order.asc("expiresOn"), Sort.Order.asc("id"))))
                 .stream()
                 .map(attachmentMapper::toDto)
                 .toList();
