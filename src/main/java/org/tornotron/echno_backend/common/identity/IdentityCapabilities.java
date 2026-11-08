@@ -7,9 +7,14 @@ import java.util.Optional;
  * without it when it is absent, so a feature only one provider has never widens the port.
  */
 public record IdentityCapabilities(Optional<SelfRegistration> selfRegistration,
-                                   Optional<OrgRoleGroups> orgRoleGroups) {
+                                   Optional<OrgRoleGroups> orgRoleGroups,
+                                   Optional<SignInEmails> signInEmails) {
+
+    public IdentityCapabilities(Optional<SelfRegistration> selfRegistration, Optional<OrgRoleGroups> orgRoleGroups) {
+        this(selfRegistration, orgRoleGroups, Optional.empty());
+    }
 
     public static IdentityCapabilities none() {
-        return new IdentityCapabilities(Optional.empty(), Optional.empty());
+        return new IdentityCapabilities(Optional.empty(), Optional.empty(), Optional.empty());
     }
 }

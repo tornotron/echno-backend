@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Sign-in emails Echno sends itself when echno.mail.provider is set. One row per request the
+        identity provider made, unique on its id, so a request read twice is sent once. The link or
+        code that goes into the email is read from the provider at the moment of sending and is never
+        stored here. Empty, and unused, while the provider is none.
+    -->
+    <changeSet id="140-create-sign_in_email" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="sign_in_email"/></not>
+        </preConditions>
+        <createTable tableName="sign_in_email">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_sign_in_email" nullable="false"/></column>
+            <column name="request_id" type="VARCHAR(255)"><constraints nullable="false" unique="true" uniqueConstraintName="uq_sign_in_email_request"/></column>
+            <column name="kind" type="VARCHAR(40)"><constraints nullable="false"/></column>
+            <column name="provider_object_id" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="status" type="VARCHAR(20)"><constraints nullable="false"/></column>
+            <column name="attempts" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="next_attempt_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="last_error" type="VARCHAR(500)"/>
+            <column name="message_id" type="VARCHAR(255)"/>
+            <column name="requested_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="created_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="finished_at" type="TIMESTAMP"/>
+        </createTable>
+        <sql>CREATE INDEX idx_sign_in_email_due ON sign_in_email (next_attempt_at) WHERE status = 'PENDING'</sql>
+        <createIndex tableName="sign_in_email" indexName="idx_sign_in_email_object">
+            <column name="provider_object_id"/>
+            <column name="created_at"/>
+        </createIndex>
+    </changeSet>
+
+    <!--
+        Where reading the provider's requests got to: one row per provider. With no last request yet,
+        reading starts at started_at, which is when Echno first began sending, so nothing from before
+        then is sent.
+    -->
+    <changeSet id="140-create-sign_in_email_cursor" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="sign_in_email_cursor"/></not>
+        </preConditions>
+        <createTable tableName="sign_in_email_cursor">
+            <column name="provider" type="VARCHAR(40)"><constraints primaryKey="true" primaryKeyName="pk_sign_in_email_cursor" nullable="false"/></column>
+            <column name="last_request_id" type="VARCHAR(255)"/>
+            <column name="started_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="updated_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+        </createTable>
+    </changeSet>
+
+</databaseChangeLog>

@@ -52,7 +52,7 @@ fact drives a step, the step names it.
 | F6 | Sessions can be listed per user and revoked one by one. After a revoke, the issued access token still verifies against JWKS, since that check is local, and it lasts until `exp` (300 seconds by default). The refresh token answers `invalid_grant`, "Session has already ended", with or without the secret. The person's other sessions keep working, a new sign-in works, and the list no longer shows the revoked session. | Removal takes effect through Echno's per-request membership read, and access tokens stay short. | [Session](https://workos.com/docs/reference/authkit/session) |
 | F7 | Users are unique by email within one environment. Projects are a free grouping and each holds its own staging and production environments, with users, organizations and keys per environment. | One WorkOS project per client stack, so clients share no accounts and no settings. | [Users and organizations](https://workos.com/docs/authkit/users-organizations), [Projects](https://workos.com/docs/authkit/projects) |
 | F8 | Invitations have `state` (pending, accepted, expired, revoked), `accepted_user_id`, `accepted_at`, `revoked_at`, `expires_at`, `role_slug`, `inviter_user_id`, `token`, `accept_invitation_url`, and send, resend (pending only), revoke, accept, get, get by token and list calls (filters: organization, email). `expires_in_days` is an input only, 1 to 30, default 7. Resend keeps the same id, token and `expires_at`. Revoke then send again gives a new id and token. A second pending invitation to the same address and organization is refused. | Maps onto the port and the invitation screen with little of our own. Resend cannot renew an invitation, so a renewal is revoke then send (step 17). `token` and `accept_invitation_url` are bearer values and never reach a log (step 16). | [Invitation API](https://workos.com/docs/reference/authkit/invitation) |
-| F9 | WorkOS sends invitation, password reset and verification email itself by default, and we can turn any type off and send our own. Production mail comes from `workos-mail.com` unless a custom domain is set, and that shared domain is "best-effort and cannot be guaranteed". A custom domain needs three CNAME records. | The backend needs no mail sender for sign-in. The stack needs the custom email domain before real traffic (section 8). | [Invitations](https://workos.com/docs/authkit/invitations), [Custom emails](https://workos.com/docs/authkit/custom-emails), [Email domain](https://workos.com/docs/custom-domains/email) |
+| F9 | WorkOS sends invitation, password reset and verification email itself by default, and we can turn any type off and send our own. Production mail comes from `workos-mail.com` unless a custom domain is set, and that shared domain is "best-effort and cannot be guaranteed". A custom domain needs three CNAME records. | Decided 9 Nov: no custom email domain. WorkOS's three email types are switched off and Echno sends them itself (step 18a), so the stack needs a sender domain of its own instead (section 8). | [Invitations](https://workos.com/docs/authkit/invitations), [Custom emails](https://workos.com/docs/authkit/custom-emails), [Email domain](https://workos.com/docs/custom-domains/email) |
 | F10 | The docs say that on a corporate email domain an organization invitation can be accepted with any address on that domain, and on a consumer domain the address must match exactly. Through the password grant, a different `example.com` address was refused with `invitation_cannot_be_used_for_email`, and the invitation stayed pending. How WorkOS classes `example.com`, and what hosted AuthKit does, are both unknown. | Our rule is the exact invited address, so Echno keeps its check at linking (section 3) until a hosted test says otherwise. | [Invitations](https://workos.com/docs/authkit/invitations) |
 | F11 | Sign-up can be turned off per environment. A valid invitation code in the flow opens registration again for that person. | This is the invite-only model the owner asked for, with no code of ours. | [Invite-only signup](https://workos.com/docs/authkit/invite-only-signup), [Invitations](https://workos.com/docs/authkit/invitations) |
 | F12 | Automatic membership by email domain and SSO provisioning are on by default for organizations with verified domains, and both can be turned off. | Verify no domains, turn both off, and Echno ignores provider membership in any case. | [JIT provisioning](https://workos.com/docs/authkit/jit-provisioning) |
@@ -433,6 +433,22 @@ the point the Roles & Permissions screen is usable.
 - Tests: `InvitationAcceptanceIT` with the fake: exact match, different address, unverified, second
   organization for an existing user, concurrent first requests, expired, revoked.
 
+**Step 18a. Sign-in email from Echno.**
+
+- Builds: a mail sender port (`common/mail`) with an Amazon SES adapter, a log-only adapter for local
+  runs, and none by default (`echno.mail.provider`). The WorkOS adapter gains an optional extra,
+  `SignInEmails`, that reads `invitation.created`, `invitation.resent`, `password_reset.created` and
+  `email_verification.created` from the Events API with an `after` cursor, and reads the link or code
+  from Get Invitation, Get Password Reset or Get Email Verification only at the moment of sending, as
+  WorkOS's custom emails guide describes. `SignInEmailOutbox` keeps one row per event in
+  `sign_in_email`, moves the cursor in the same transaction, sends with retries, and marks a row
+  `FAILED` or `SKIPPED`. The invitation list shows that state. Magic Auth stays off as a sign-in method,
+  so its email never arises.
+- Tests: SES request shape and error classes, templates and escaping, the WorkOS extra against the stub,
+  and `SignInEmailOutboxIT` for repeat reads, retries, permanent refusals, expiry and that no secret is
+  stored.
+- Dark: `none` is the default, so nothing changes until a stack sets a sender.
+
 **Step 19. Close the old paths.**
 
 - Builds: Removes `projectInviteCode/*`, `/api/v1/invitation/web` and both `joinOrganization` HTTP
@@ -593,9 +609,10 @@ There is no Keycloak, no self-registration, no platform administrator and no use
    roles if missing, writes `organization_identity`, and creates an invitation for that email holding
    System Admin with a 30 day expiry. `identity_task` then creates the WorkOS organization and sends the
    invitation.
-3. **Email: WorkOS sends it.** The backend has no mail sender today and needs none here, since WorkOS
-   sends invitations, password resets and verification ([Invitations](https://workos.com/docs/authkit/invitations)).
-   The custom email domain (F9) is what makes delivery dependable.
+3. **Email: Echno sends it.** WorkOS's invitation, password reset and email verification emails are
+   switched off for the environment, and step 18a sends them through the stack's own sender domain,
+   from the `invitation.created` event WorkOS records for the invitation
+   ([Custom emails](https://workos.com/docs/authkit/custom-emails)).
 4. The person follows the link, sets a name and password on the hosted page, and is sent to web's
    callback. Accepting promptly counts as email verification
    ([Invitations](https://workos.com/docs/authkit/invitations)).
@@ -627,6 +644,10 @@ secrets marked. Everything under "Removed" stops existing in a stack with `worko
 | `ECHNO_CORS_ALLOWED_ORIGINS` | no | The web origin |
 | `ECHNO_BOOTSTRAP_ORG_NAME`, `ECHNO_BOOTSTRAP_ORG_EMAIL`, `ECHNO_BOOTSTRAP_ADMIN_EMAIL` | no, but kept with secrets because they name a person | First boot only |
 | `ECHNO_MIN_APP_VERSION_ANDROID`, `ECHNO_MIN_APP_VERSION_IOS` | no | Optional until mobile ships |
+| `ECHNO_MAIL_PROVIDER` | no | `ses` |
+| `ECHNO_MAIL_FROM` | no | The stack's sender, for example `Echno <no-reply@<sender domain>>`. Its domain is a verified SES identity. |
+| `ECHNO_MAIL_SES_REGION` | no | The region the identity is verified in. Credentials come from the instance role. |
+| `ECHNO_MAIL_REPLY_TO` | no | Optional, an address that takes replies |
 
 ### Web
 
@@ -645,14 +666,17 @@ secrets marked. Everything under "Removed" stops existing in a stack with `worko
 
 Done once per client stack, by hand or by script, and written into the deployment runbook:
 one project per client stack (F7); sign-up off (F11); automatic domain membership and SSO provisioning
-off (F12); redirect URI, sign-out URI, Initiate login URI and invitation URL set for the web host; JWT template with the
+off (F12); under **Emails, Configuration**, the invitation, password reset and email verification emails
+switched off once the backend's sender is live, with Magic Auth left off as a sign-in method (F9); redirect URI, sign-out URI, Initiate login URI and invitation URL set for the web host; JWT template with the
 `aud`; access token 5 minutes; inactivity timeout and maximum session length matching web's idle rule;
 MFA per the answer in section 10.
 
 ### DNS
 
-Three CNAME records for the custom email domain (F9). One for the custom auth domain (F16). Both verify
-within 72 hours, so do them days before go-live. `ECHNO_JWT_ACCEPTED_ISSUERS` changes when the auth
+The sender domain's SES records: three DKIM CNAMEs, a custom MAIL FROM subdomain with its MX and SPF
+records, and a DMARC record, all in the deployment repository. The SES account needs production access
+before mail reaches anyone who is not a verified address. One CNAME for the custom auth domain (F16),
+if it is ever bought. DNS verification can take up to 72 hours, so do it days before go-live. `ECHNO_JWT_ACCEPTED_ISSUERS` changes when the auth
 domain goes live.
 
 ### Network
