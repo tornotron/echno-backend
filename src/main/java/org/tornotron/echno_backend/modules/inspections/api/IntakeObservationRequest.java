@@ -50,5 +50,21 @@ public record IntakeObservationRequest(
         @Schema(description = "Where the finding is on the images it was seen in: one region per detection is "
                 + "the expected shape, up to 20. Each attachment must be this producer's own upload for the project "
                 + "or inspection or observation evidence of the project.", nullable = true)
-        @Valid @Size(max = 20) List<ObservationRegionRequest> regions
-) {}
+        @Valid @Size(max = 20) List<ObservationRegionRequest> regions,
+        @Schema(description = "The inspection the finding was made on, in the same project, when there is one. "
+                + "When spatialNodeId is not given the observation takes the inspection's node.", nullable = true)
+        UUID inspectionId
+) {
+
+    /** A finding tied to no inspection. */
+    public IntakeObservationRequest(Long projectId, String externalRef, ObservationSource source, String sourceDeviceId,
+                                    String missionRef, String captureRef, UUID spatialNodeId, String locationNote,
+                                    LocalDateTime observedAt, String title, String description, String category,
+                                    DefectSeverity suggestedSeverity, String modelName, String modelVersion,
+                                    BigDecimal confidence, List<Map<String, Object>> evidenceRefs,
+                                    List<ObservationRegionRequest> regions) {
+        this(projectId, externalRef, source, sourceDeviceId, missionRef, captureRef, spatialNodeId, locationNote,
+                observedAt, title, description, category, suggestedSeverity, modelName, modelVersion, confidence,
+                evidenceRefs, regions, null);
+    }
+}

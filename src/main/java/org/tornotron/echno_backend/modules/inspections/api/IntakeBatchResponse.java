@@ -25,7 +25,7 @@ public record IntakeBatchResponse(
 
     @Schema(description = "Why an item was refused.")
     public record Error(
-            @Schema(description = "VALIDATION, PROJECT_NOT_FOUND, ATTACHMENT_NOT_FOUND, ATTACHMENT_NOT_ALLOWED, "
+            @Schema(description = "VALIDATION, PROJECT_NOT_FOUND, INSPECTION_NOT_FOUND, ATTACHMENT_NOT_FOUND, ATTACHMENT_NOT_ALLOWED, "
                     + "INVALID_GEOMETRY, UNKNOWN_MODEL_VERSION, MODEL_NOT_ACTIVE, UNKNOWN_CLASS, SHAPE_MISMATCH, "
                     + "DUPLICATE_IN_BATCH or INTERNAL.")
             String code,

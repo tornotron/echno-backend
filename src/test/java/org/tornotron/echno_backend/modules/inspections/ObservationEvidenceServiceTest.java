@@ -16,6 +16,7 @@ import org.tornotron.echno_backend.modules.inspections.domain.ObservationRegion;
 import org.tornotron.echno_backend.modules.inspections.events.InspectionEventRecorder;
 import org.tornotron.echno_backend.modules.inspections.repositories.ObservationRepository;
 import org.tornotron.echno_backend.modules.inspections.repositories.ObservationRegionRepository;
+import org.tornotron.echno_backend.modules.inspections.service.EvidenceFileLookup;
 import org.tornotron.echno_backend.modules.inspections.service.ObservationEvidenceService;
 
 import java.util.List;
@@ -47,6 +48,8 @@ class ObservationEvidenceServiceTest {
     private InspectionEventRecorder events;
     @Mock
     private ObservationRegionRepository regionRepo;
+    @Mock
+    private EvidenceFileLookup evidenceFiles;
 
     @InjectMocks
     private ObservationEvidenceService service;

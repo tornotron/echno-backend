@@ -50,6 +50,7 @@ public class ObservationEvidenceService {
     private final AttachmentMapper attachmentMapper;
     private final InspectionEventRecorder events;
     private final ObservationRegionRepository regionRepo;
+    private final EvidenceFileLookup evidenceFiles;
 
     /**
      * The observation's own uploads, then every other image one of its regions (active or
@@ -101,6 +102,7 @@ public class ObservationEvidenceService {
                             .after(),
                     null);
         }
+        evidenceFiles.observationImagesStored(observationId, observation.getProjectId(), stored);
         log.info("Registered {} pieces of evidence against observation {}", stored.size(), observationId);
         return stored;
     }
