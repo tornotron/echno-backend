@@ -20,6 +20,12 @@ public interface CandidateRepository extends JpaRepository<Candidate, UUID> {
     @Query("SELECT c FROM Candidate c WHERE c.id = :id")
     Optional<Candidate> findByIdScoped(@Param("id") UUID id);
 
+    /** The candidate an LLM extractor proposed earlier for the same job, chunk and natural key. */
+    @Query("SELECT c FROM Candidate c WHERE c.extractJobId = :jobId AND c.chunkKey = :chunkKey "
+            + "AND c.kind = :kind AND c.naturalKey = :naturalKey")
+    Optional<Candidate> findFromChunk(@Param("jobId") UUID jobId, @Param("chunkKey") String chunkKey,
+                                      @Param("kind") CandidateKind kind, @Param("naturalKey") String naturalKey);
+
     @Query("SELECT c FROM Candidate c WHERE c.packageId = :packageId "
             + "AND (:kind IS NULL OR c.kind = :kind) AND (:status IS NULL OR c.status = :status) "
             + "AND (:segmentId IS NULL OR c.segmentId = :segmentId) "

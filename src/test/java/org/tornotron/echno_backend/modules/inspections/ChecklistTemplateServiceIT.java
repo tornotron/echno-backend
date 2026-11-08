@@ -17,6 +17,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.test.context.transaction.AfterTransaction;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.tornotron.echno_backend.common.configuration.JpaAuditingConfig;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
@@ -81,7 +82,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
         DefectAnnotationService.class, DefectPhotoAnnotationMapperImpl.class,
         UserContextService.class,
         TenantEntityHelper.class, EntryNumberGenerator.class,
-        TransactionalWorkRunner.class, TransactionRetryTemplate.class, SimpleMeterRegistry.class})
+        TransactionalWorkRunner.class, TransactionRetryTemplate.class, SimpleMeterRegistry.class,
+        JpaAuditingConfig.class})
 class ChecklistTemplateServiceIT extends AbstractIntegrationTest {
 
     @Autowired

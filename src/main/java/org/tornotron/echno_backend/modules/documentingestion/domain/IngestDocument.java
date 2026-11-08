@@ -13,13 +13,16 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.Filter;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.type.SqlTypes;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.organization.Organization;
 
@@ -88,6 +91,22 @@ public class IngestDocument implements TenantScopedEntity {
 
     @Column(name = "class_set_by")
     private Long classSetBy;
+
+    /** How the class was proposed; the class counts as confirmed once {@code classConfirmedAt} is set. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "class_method", length = 20)
+    private ClassMethod classMethod;
+
+    @Column(name = "class_reason", length = 300)
+    private String classReason;
+
+    @Column(name = "class_confirmed_at")
+    private LocalDateTime classConfirmedAt;
+
+    /** Pages that were not read for classification, such as pages not in English. */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "unread_pages", columnDefinition = "jsonb")
+    private List<UnreadPage> unreadPages;
 
     @Column(name = "revision_label", length = 100)
     private String revisionLabel;

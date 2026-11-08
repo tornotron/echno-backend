@@ -47,6 +47,9 @@ public class IngestOrgSettings implements TenantScopedEntity {
     @Column(name = "monthly_budget_usd", precision = 12, scale = 2)
     private BigDecimal monthlyBudgetUsd;
 
+    @Column(name = "monthly_budget_tokens")
+    private Long monthlyBudgetTokens;
+
     @Column(name = "changed_by")
     private Long changedBy;
 

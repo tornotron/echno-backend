@@ -431,6 +431,15 @@ echno:
     document-ingestion:
       enabled: ${ECHNO_MODULE_DOCUMENT_INGESTION_ENABLED:false}
       allowed-org-ids: ${ECHNO_MODULE_DOCUMENT_INGESTION_ALLOWED_ORG_IDS:}
+      # Reading text through the LLM (design sections 7.1 to 7.3). The endpoint, key and model are the
+      # shared compliance.ai block, and compliance.ai.enabled=false stops these calls too. Rates are US
+      # dollars per million tokens; at 0 tokens are still recorded and only the token budgets apply.
+      llm:
+        input-usd-per-million: ${ECHNO_DOC_INGEST_LLM_INPUT_USD_PER_MILLION:0.25}
+        output-usd-per-million: ${ECHNO_DOC_INGEST_LLM_OUTPUT_USD_PER_MILLION:0.87}
+        package-budget-usd: ${ECHNO_DOC_INGEST_LLM_PACKAGE_BUDGET_USD:5}
+        monthly-budget-usd: ${ECHNO_DOC_INGEST_LLM_MONTHLY_BUDGET_USD:50}
+        json-response-format: ${ECHNO_DOC_INGEST_LLM_JSON_RESPONSE_FORMAT:false}
   vision:
     # SPDX ids a model version's weights may carry to be activated.
     allowed-licences: ${ECHNO_VISION_ALLOWED_LICENCES:Apache-2.0,BSD-3-Clause,MIT}

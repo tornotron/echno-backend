@@ -9,10 +9,15 @@ import java.util.UUID;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.modules.documentingestion.DocumentIngestionStorageLayout;
+import org.tornotron.echno_backend.modules.documentingestion.api.DocumentTextReady;
+import org.tornotron.echno_backend.modules.documentingestion.extraction.llm.Extractor;
+import org.tornotron.echno_backend.modules.documentingestion.extraction.llm.ExtractorRegistry;
+import org.tornotron.echno_backend.modules.documentingestion.repository.IngestPackageRepository;
 import org.tornotron.echno_backend.modules.documentingestion.domain.DocumentFileType;
 import org.tornotron.echno_backend.modules.documentingestion.domain.DocumentStatus;
 import org.tornotron.echno_backend.modules.documentingestion.domain.IngestDocument;
@@ -28,6 +33,9 @@ import org.tornotron.echno_backend.modules.documentingestion.service.DocumentIng
  * its document with the worker's sentence. A DONE {@code PARSE} job marks the document parsed with
  * the worker's counts and where its outputs are. A DONE {@code UNPACK} job turns the ZIP's manifest
  * into one child document per member, each queued for its own parse.
+ *
+ * <p>A parsed document queues its classification on the extract queue and publishes
+ * {@link DocumentTextReady}, which nothing listens to yet.
  *
  * <p>Every write is fenced on the ingest claim the poller took, so a replica whose claim was taken
  * over cannot commit over the one that took it.
@@ -45,6 +53,10 @@ public class ParseJobIngestor {
     private final FileStorageService fileStorageService;
     private final DocumentIngestionLimits limits;
     private final ObjectMapper objectMapper;
+    private final IngestPackageRepository packages;
+    private final ExtractorRegistry extractors;
+    private final ExtractJobQueue extractQueue;
+    private final ApplicationEventPublisher events;
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     record Manifest(List<Member> members) {
@@ -69,6 +81,7 @@ public class ParseJobIngestor {
             unpack(job, doc);
         } else {
             parsed(job, doc);
+            textReady(job, doc);
         }
         job.setIngestedAt(LocalDateTime.now());
         jobs.save(job);
@@ -106,6 +119,20 @@ public class ParseJobIngestor {
         doc.setPagesFailed(job.getPagesFailed());
         doc.setStatus(DocumentStatus.PARSED);
         doc.setError(null);
+    }
+
+    /**
+     * Queues the document-level readers (classification) and says the text is ready. Classification
+     * runs on the extract queue: its deterministic part needs no LLM, so an Excel BOQ and the document
+     * list work with LLM reading off.
+     */
+    private void textReady(ParseJob job, IngestDocument doc) {
+        for (Extractor extractor : extractors.documentExtractors()) {
+            extractQueue.queue(doc.getOrganization(), doc.getPackageId(), doc.getId(), null, extractor, doc.getCreatedBy());
+        }
+        Long projectId = packages.findByIdScoped(doc.getPackageId()).map(p -> p.getProjectId()).orElse(null);
+        events.publishEvent(new DocumentTextReady(doc.getId(), job.getOrganization().getId(), projectId,
+                doc.getOutputPrefix()));
     }
 
     private void unpack(ParseJob job, IngestDocument zip) {

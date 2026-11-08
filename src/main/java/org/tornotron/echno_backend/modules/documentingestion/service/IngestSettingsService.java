@@ -1,5 +1,6 @@
 package org.tornotron.echno_backend.modules.documentingestion.service;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.data.domain.PageRequest;
@@ -65,7 +66,49 @@ public class IngestSettingsService {
                 .toList();
         return new IngestSettingsDto(row == null ? LLM_READING_DEFAULT : row.isLlmReadingEnabled(),
                 LLM_READING_DISCLOSURE, row == null ? null : row.getChangedBy(), row == null ? null : row.getChangedAt(),
-                recent);
+                row == null ? null : row.getMonthlyBudgetUsd(), row == null ? null : row.getMonthlyBudgetTokens(), recent);
+    }
+
+    /**
+     * Sets the organization's monthly AI reading limits; null goes back to the configured default. Each
+     * value that changes is recorded. Jobs paused on the budget resume on the next poll once it has room.
+     */
+    @Transactional
+    public IngestSettingsDto setMonthlyBudget(BigDecimal usd, Long tokens) {
+        Long orgId = TenantContext.getCurrentOrgId();
+        IngestOrgSettings row = settings.findForOrganization(orgId).orElseGet(() -> {
+            IngestOrgSettings fresh = new IngestOrgSettings();
+            fresh.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
+            fresh.setLlmReadingEnabled(LLM_READING_DEFAULT);
+            return fresh;
+        });
+        Long userId = userContextService.getCurrentUserId();
+        LocalDateTime now = LocalDateTime.now();
+        String oldUsd = row.getMonthlyBudgetUsd() == null ? null : row.getMonthlyBudgetUsd().toPlainString();
+        String newUsd = usd == null ? null : usd.toPlainString();
+        String oldTokens = row.getMonthlyBudgetTokens() == null ? null : row.getMonthlyBudgetTokens().toString();
+        String newTokens = tokens == null ? null : tokens.toString();
+        row.setMonthlyBudgetUsd(usd);
+        row.setMonthlyBudgetTokens(tokens);
+        settings.save(row);
+        record(row, IngestSettingChange.MONTHLY_BUDGET_USD, oldUsd, newUsd, userId, now);
+        record(row, IngestSettingChange.MONTHLY_BUDGET_TOKENS, oldTokens, newTokens, userId, now);
+        return get();
+    }
+
+    private void record(IngestOrgSettings row, String setting, String before, String after, Long userId,
+                        LocalDateTime now) {
+        if (java.util.Objects.equals(before, after)) {
+            return;
+        }
+        IngestSettingChange change = new IngestSettingChange();
+        change.setOrganization(row.getOrganization());
+        change.setSetting(setting);
+        change.setOldValue(before);
+        change.setNewValue(after == null ? "default" : after);
+        change.setChangedBy(userId);
+        change.setChangedAt(now);
+        changes.save(change);
     }
 
     /** Turns LLM reading on or off and records the change; setting the value it already has records nothing. */
