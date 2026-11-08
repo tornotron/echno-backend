@@ -16,6 +16,8 @@ import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.goodsReceivedNote.GoodsReceivedNote;
 import org.tornotron.echno_backend.goodsReceivedNote.GoodsReceivedNoteRepository;
+import org.tornotron.echno_backend.modules.access.api.AccessFilter;
+import org.tornotron.echno_backend.modules.access.api.AccessPermission;
 import org.tornotron.echno_backend.payable.dto.PayableCreationDto;
 import org.tornotron.echno_backend.payable.dto.PayableDto;
 import org.tornotron.echno_backend.payable.enums.ContractType;
@@ -42,6 +44,13 @@ import java.util.stream.Collectors;
  * payable so concurrent payments serialize their read-modify-write on the paid amount, and
  * rejects a payment that would push the paid total past the recorded amount. A reversal takes
  * the same lock.
+ *
+ * <p>Each read and write from the payables endpoints asks the access matrix about the payable itself
+ * ({@link PayableAccess}): every list is narrowed to what the caller may read, one they may not read is
+ * reported missing, a new payable is checked on where it is recorded and a payment on the payable it
+ * is recorded against. Two paths from contract billing are not asked, since each runs under that
+ * workflow's own guard: {@link #raiseForApprovedBill}, which raises the payable a bill's final approval
+ * hands to finance, and {@link #reversePayment}, which takes back a bill payment the bank returned.
  */
 @Service
 public class PayableService {
@@ -54,6 +63,7 @@ public class PayableService {
     private final TenantEntityHelper tenantEntityHelper;
     private final EmployeeRepository employeeRepository;
     private final ProjectRepository projectRepository;
+    private final PayableAccess payableAccess;
 
     public PayableService(PayableRepository payableRepository,
                           VendorRepository vendorRepository,
@@ -62,7 +72,8 @@ public class PayableService {
                           PayableMapper payableMapper,
                           TenantEntityHelper tenantEntityHelper,
                           EmployeeRepository employeeRepository,
-                          ProjectRepository projectRepository) {
+                          ProjectRepository projectRepository,
+                          PayableAccess payableAccess) {
         this.payableRepository = payableRepository;
         this.vendorRepository = vendorRepository;
         this.goodsReceivedNoteRepository = goodsReceivedNoteRepository;
@@ -71,19 +82,43 @@ public class PayableService {
         this.tenantEntityHelper = tenantEntityHelper;
         this.employeeRepository = employeeRepository;
         this.projectRepository = projectRepository;
+        this.payableAccess = payableAccess;
     }
 
     /**
-     * Creates a payable after validating its related entities within the current organization.
+     * Creates a payable after validating its related entities within the current organization, if the
+     * caller may record one with its project, creator and vendor.
      *
      * @param creationDto The payable details, including the creating employee, project, and optional vendor and GRN.
      * @return The created payable DTO.
      * @throws InvalidRequestException if the recorded amount is not positive, or the opening paid amount is negative or exceeds it.
      * @throws DuplicateResourceException if a payable with the same number already exists in the organization.
      * @throws ResourceNotFoundException if the employee, project, vendor, or goods-received note cannot be found in the organization.
+     * @throws org.springframework.security.access.AccessDeniedException if the caller may not record a payable there.
      */
     @Transactional
     public PayableDto createPayable(PayableCreationDto creationDto) {
+        Payable payable = build(creationDto);
+        // Checked on the payable as recorded, so nobody records one where they may not.
+        payableAccess.require(AccessPermission.CREATE, PayableAccess.facts(payable));
+        return payableMapper.toDto(payableRepository.save(payable));
+    }
+
+    /**
+     * Raises the payable a contract bill's final approval hands to finance. The approval's own guard
+     * has already decided the caller may do this, so the payables area is not asked: an approver who
+     * does not handle payables still hands the bill on. Validates as {@link #createPayable} does.
+     *
+     * @param creationDto The payable details, including the approving employee and the bill's project.
+     * @return The created payable DTO.
+     */
+    @Transactional
+    public PayableDto raiseForApprovedBill(PayableCreationDto creationDto) {
+        return payableMapper.toDto(payableRepository.save(build(creationDto)));
+    }
+
+    /** A new payable from the details, validated and linked within the current organization, not yet saved. */
+    private Payable build(PayableCreationDto creationDto) {
         BigDecimal amountRecorded = creationDto.getAmountRecorded();
         if (amountRecorded == null || amountRecorded.signum() <= 0) {
             throw new InvalidRequestException("Amount recorded must be greater than zero");
@@ -140,9 +175,7 @@ public class PayableService {
         payable.setCreatedBy(createdBy);
         payable.setProject(project);
         payable.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
-
-        payable = payableRepository.save(payable);
-        return payableMapper.toDto(payable);
+        return payable;
     }
 
     /**
@@ -152,7 +185,8 @@ public class PayableService {
      * @param paymentAmount The amount to add to the paid total; must be greater than zero.
      * @return The updated payable DTO.
      * @throws InvalidRequestException if the payment amount is null or not positive, or if it would overpay the recorded amount.
-     * @throws ResourceNotFoundException if no payable with the given ID exists in the organization.
+     * @throws ResourceNotFoundException if no payable with the given ID exists in the organization, or the caller may not read it.
+     * @throws org.springframework.security.access.AccessDeniedException if the caller may read the payable but not record a payment on it.
      */
     @Transactional
     public PayableDto recordPayment(Long id, BigDecimal paymentAmount) {
@@ -163,7 +197,9 @@ public class PayableService {
         // Pessimistic lock so concurrent payments against the same payable
         // serialize their read-modify-write on amountPaid (no lost updates).
         Payable payable = payableRepository.lockByIdAndOrganizationId(id, TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Payable with ID " + id + " was not found in this organization"));
+                .orElseThrow(() -> notFound(id));
+        // A payment changes only the amount paid, so the payable's facts are the same after it.
+        payableAccess.check(AccessPermission.EDIT, PayableAccess.facts(payable), () -> notFound(id));
 
         BigDecimal currentPaid = payable.getAmountPaid() != null ? payable.getAmountPaid() : BigDecimal.ZERO;
         BigDecimal newPaid = currentPaid.add(paymentAmount);
@@ -183,7 +219,8 @@ public class PayableService {
 
     /**
      * Takes back a payment recorded earlier, because the bank returned it. Holds the same pessimistic
-     * lock as {@link #recordPayment}, so the two serialize on the paid amount.
+     * lock as {@link #recordPayment}, so the two serialize on the paid amount. Called only by contract
+     * billing, under its own guard, so the payables area is not asked.
      *
      * @param id The ID of the payable.
      * @param amount The amount to take off the paid total; must be greater than zero.
@@ -212,17 +249,18 @@ public class PayableService {
      *
      * @param id The ID of the payable to retrieve.
      * @return The payable DTO.
-     * @throws ResourceNotFoundException if no payable with the given ID exists in the organization.
+     * @throws ResourceNotFoundException if no payable with the given ID exists in the organization, or the caller may not read it.
      */
     @Transactional(readOnly = true)
     public PayableDto getPayableById(Long id) {
         Payable payable = payableRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Payable with ID " + id + " was not found in this organization"));
+                .orElseThrow(() -> notFound(id));
+        payableAccess.check(AccessPermission.READ, PayableAccess.facts(payable), () -> notFound(id));
         return payableMapper.toDto(payable);
     }
 
     /**
-     * Returns a page of payables, newest first.
+     * Returns a page of the payables the caller may read, newest first.
      *
      * @param pageNo The zero-based page index.
      * @param pageSize The number of payables per page.
@@ -231,25 +269,38 @@ public class PayableService {
     @Transactional(readOnly = true)
     public Page<PayableDto> getAllPayables(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.DESC, "createdAt"));
-        return payableRepository.findAll(pageable)
-                .map(payable -> payableMapper.toDto(payable));
+        AccessFilter visible = payableAccess.filter(AccessPermission.READ);
+        if (visible.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        Page<Payable> payables = visible.everything()
+                ? payableRepository.findAll(pageable)
+                : payableRepository.findAll(PayableAccess.admittedBy(visible), pageable);
+        return payables.map(payable -> payableMapper.toDto(payable));
     }
 
     /**
-     * Returns the payables raised against a given vendor within the current organization.
+     * Returns the payables raised against a given vendor within the current organization that the caller may read.
      *
      * @param vendorId The ID of the vendor whose payables to list.
      * @return The list of payable DTOs for that vendor.
      */
     @Transactional(readOnly = true)
     public List<PayableDto> getPayablesByVendor(Long vendorId) {
-        return payableRepository.findByVendorIdAndOrganization_id(vendorId,TenantContext.getCurrentOrgId()).stream()
+        AccessFilter visible = payableAccess.filter(AccessPermission.READ);
+        if (visible.isEmpty()) {
+            return List.of();
+        }
+        List<Payable> payables = visible.everything()
+                ? payableRepository.findByVendorIdAndOrganization_id(vendorId, TenantContext.getCurrentOrgId())
+                : payableRepository.findAll(PayableAccess.admittedBy(visible).and(PayableRepository.owedTo(vendorId)));
+        return payables.stream()
                 .map(payable -> payableMapper.toDto(payable))
                 .collect(Collectors.toList());
     }
 
     /**
-     * One page of the same rows, newest first, with the id as tie-break.
+     * One page of the same rows the caller may read, newest first, with the id as tie-break.
      *
      * @param pageNo   Zero-based page index.
      * @param pageSize Rows per page.
@@ -259,24 +310,38 @@ public class PayableService {
     public Page<PayableDto> getPayablesByVendor(Long vendorId, int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize,
                 Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id")));
-        return payableRepository.findByVendorIdAndOrganization_id(vendorId,TenantContext.getCurrentOrgId(), pageable)
-                .map(payable -> payableMapper.toDto(payable));
+        AccessFilter visible = payableAccess.filter(AccessPermission.READ);
+        if (visible.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        Page<Payable> payables = visible.everything()
+                ? payableRepository.findByVendorIdAndOrganization_id(vendorId, TenantContext.getCurrentOrgId(), pageable)
+                : payableRepository.findAll(
+                        PayableAccess.admittedBy(visible).and(PayableRepository.owedTo(vendorId)), pageable);
+        return payables.map(payable -> payableMapper.toDto(payable));
     }
 
     /**
-     * Returns the payables that still have an unpaid balance.
+     * Returns the payables the caller may read that still have an unpaid balance.
      *
      * @return The list of outstanding payable DTOs.
      */
     @Transactional(readOnly = true)
     public List<PayableDto> getOutstandingPayables() {
-        return payableRepository.findOutstandingPayables().stream()
+        AccessFilter visible = payableAccess.filter(AccessPermission.READ);
+        if (visible.isEmpty()) {
+            return List.of();
+        }
+        List<Payable> payables = visible.everything()
+                ? payableRepository.findOutstandingPayables()
+                : payableRepository.findAll(PayableAccess.admittedBy(visible).and(PayableRepository.outstanding()));
+        return payables.stream()
                 .map(payable -> payableMapper.toDto(payable))
                 .collect(Collectors.toList());
     }
 
     /**
-     * One page of the same rows, newest first, with the id as tie-break.
+     * One page of the same rows the caller may read, newest first, with the id as tie-break.
      *
      * @param pageNo   Zero-based page index.
      * @param pageSize Rows per page.
@@ -286,7 +351,17 @@ public class PayableService {
     public Page<PayableDto> getOutstandingPayables(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize,
                 Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id")));
-        return payableRepository.findOutstandingPayables(pageable)
-                .map(payable -> payableMapper.toDto(payable));
+        AccessFilter visible = payableAccess.filter(AccessPermission.READ);
+        if (visible.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        Page<Payable> payables = visible.everything()
+                ? payableRepository.findOutstandingPayables(pageable)
+                : payableRepository.findAll(PayableAccess.admittedBy(visible).and(PayableRepository.outstanding()), pageable);
+        return payables.map(payable -> payableMapper.toDto(payable));
+    }
+
+    private static ResourceNotFoundException notFound(Long id) {
+        return new ResourceNotFoundException("Payable with ID " + id + " was not found in this organization");
     }
 }

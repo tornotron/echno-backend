@@ -55,6 +55,7 @@ import org.tornotron.echno_backend.modules.workprogress.billing.service.Contract
 import org.tornotron.echno_backend.modules.workprogress.billing.service.ContractBillingRecords;
 import org.tornotron.echno_backend.modules.workprogress.billing.service.ContractBillingService;
 import org.tornotron.echno_backend.organization.Organization;
+import org.tornotron.echno_backend.payable.PayableAccessStubs;
 import org.tornotron.echno_backend.payable.PayableService;
 import org.tornotron.echno_backend.payable.mapper.PayableMapperImpl;
 import org.tornotron.echno_backend.subcontract.SubContract;
@@ -77,7 +78,8 @@ import org.tornotron.echno_backend.wbs.mapper.WbsElementMapperImpl;
 @Import({BillPaymentService.class, BillPaymentStore.class, PaymentAuthorizers.class, ContractBillService.class, ContractBillingService.class,
         BillingSupport.class, ContractBillingRecords.class, PayableService.class, PayableMapperImpl.class,
         SubContractMapperImpl.class, WbsElementService.class, WbsElementMapperImpl.class, EmployeeMapperImpl.class,
-        ShiftTimingMapperImpl.class, TenantEntityHelper.class, ScheduleIntegrationSupport.FixedClocks.class})
+        ShiftTimingMapperImpl.class, TenantEntityHelper.class, ScheduleIntegrationSupport.FixedClocks.class,
+        PayableAccessStubs.AllowingEverything.class})
 class BillPaymentServiceIT extends ScheduleIntegrationSupport {
 
     private static final long CERTIFIER = 990_001L;

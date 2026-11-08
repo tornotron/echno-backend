@@ -622,7 +622,7 @@ public class ContractBillService {
             payable.setAmountRecorded(bill.getNetPayable());
             payable.setProjectId(bill.getProjectId());
             payable.setCreatedBy(employee.getId());
-            PayableDto created = payables.createPayable(payable);
+            PayableDto created = payables.raiseForApprovedBill(payable);
             bill.setPayableId(created.getId());
             note = "Handed to finance as payable " + created.getPayableNumber();
         } else {
