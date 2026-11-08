@@ -76062,7 +76062,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read finance records"
           },
           "404": {
             "content": {
@@ -76172,7 +76172,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not create finance records"
           },
           "404": {
             "content": {
@@ -76285,7 +76285,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read finance records"
           },
           "404": {
             "content": {
@@ -76406,7 +76406,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not edit finance records"
           },
           "404": {
             "content": {
@@ -76519,7 +76519,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not approve finance records"
           },
           "404": {
             "content": {
@@ -76642,7 +76642,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not edit finance records"
           },
           "404": {
             "content": {
@@ -76756,7 +76756,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read finance records"
           },
           "404": {
             "content": {
@@ -76877,7 +76877,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not create finance records"
           },
           "404": {
             "content": {
@@ -76990,7 +76990,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not edit finance records"
           },
           "404": {
             "content": {
@@ -77220,7 +77220,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read finance records"
           },
           "404": {
             "content": {
@@ -77330,7 +77330,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not create finance records"
           },
           "404": {
             "content": {
@@ -77443,7 +77443,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read finance records"
           },
           "404": {
             "content": {
@@ -77564,7 +77564,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not edit finance records"
           },
           "404": {
             "content": {
@@ -77687,7 +77687,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not edit finance records"
           },
           "404": {
             "content": {
@@ -77800,7 +77800,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not approve finance records"
           },
           "404": {
             "content": {
@@ -79221,7 +79221,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read finance records"
           },
           "404": {
             "content": {
@@ -79331,7 +79331,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not create finance records"
           },
           "404": {
             "content": {
@@ -79444,7 +79444,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read finance records"
           },
           "404": {
             "content": {
@@ -79567,7 +79567,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not edit finance records"
           },
           "404": {
             "content": {
@@ -79680,7 +79680,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not approve finance records"
           },
           "404": {
             "content": {
@@ -80405,7 +80405,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not create finance records"
           },
           "404": {
             "content": {
@@ -80518,7 +80518,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read finance records"
           },
           "404": {
             "content": {
@@ -169319,11 +169319,11 @@
       "name": "Compliance Generation"
     },
     {
-      "description": "Vendor and progress invoices raised against construction projects. Invoices move through a draft, submitted, approved and paid lifecycle, and posting an approved invoice creates the matching ledger journal entry. All endpoints are tenant scoped and limited to system administrators and project managers.",
+      "description": "Vendor and progress invoices raised against construction projects. Invoices move through a draft, submitted, approved and paid lifecycle, and posting an approved invoice creates the matching ledger journal entry. All endpoints are tenant scoped. Each endpoint needs the finance permission named for its action.",
       "name": "Construction Invoices"
     },
     {
-      "description": "Payment vouchers recording money paid out on construction projects to vendors, subcontractors, labour and employees. A voucher captures the amount, method and payee details and moves through a pending and verified lifecycle. Verification is its own action, stamped from the session, and is not part of the update payload. This increment does not post ledger journal entries. All endpoints are tenant scoped and limited to system administrators and project managers.",
+      "description": "Payment vouchers recording money paid out on construction projects to vendors, subcontractors, labour and employees. A voucher captures the amount, method and payee details and moves through a pending and verified lifecycle. Verification is its own action, stamped from the session, and is not part of the update payload. This increment does not post ledger journal entries. All endpoints are tenant scoped. Each endpoint needs the finance permission named for its action.",
       "name": "Construction Payments"
     },
     {
@@ -169343,11 +169343,11 @@
       "name": "Cost Categories"
     },
     {
-      "description": "Accounts-receivable invoices raised to customers. An invoice is created as a draft, issued to post its receivable journal entry, and can be cancelled with a reversing entry. All endpoints are tenant scoped and limited to system administrators and project managers.",
+      "description": "Accounts-receivable invoices raised to customers. An invoice is created as a draft, issued to post its receivable journal entry, and can be cancelled with a reversing entry. All endpoints are tenant scoped. Each endpoint needs the finance permission named for its action.",
       "name": "Customer Invoices"
     },
     {
-      "description": "Payments received from customers and allocated across their outstanding invoices. Recording a payment posts the receipt to the ledger and reduces the balance due on each allocated invoice. All endpoints are tenant scoped and limited to system administrators and project managers.",
+      "description": "Payments received from customers and allocated across their outstanding invoices. Recording a payment posts the receipt to the ledger and reduces the balance due on each allocated invoice. All endpoints are tenant scoped. Each endpoint needs the finance permission named for its action.",
       "name": "Customer Payments"
     },
     {
