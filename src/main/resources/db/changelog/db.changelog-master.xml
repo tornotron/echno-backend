@@ -478,6 +478,9 @@
     <!-- v4.0 - Risk register: project risks on the server instead of the browser (ClickUp 86d4609hd) -->
     <include file="db/changelog/v4.0/131-project-risk-register.xml"/>
 
+    <!-- v4.0 - Projects: completed by their tasks, or by hand by a system admin (ClickUp 14zdkkvzzwg) -->
+    <include file="db/changelog/v4.0/137-project-completion-from-tasks.xml"/>
+
     <!-- ============================================================== -->
     <!-- Modules: one directory per module under db/changelog/modules/  -->
     <!-- (#749). Files run in path order; a module's pre-move changesets -->

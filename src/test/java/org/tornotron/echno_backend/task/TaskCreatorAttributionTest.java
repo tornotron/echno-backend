@@ -82,7 +82,8 @@ class TaskCreatorAttributionTest {
         factory = Validation.buildDefaultValidatorFactory();
         service = new TaskService(taskRepository, employeeRepository, projectRepository,
                 categoryRepository, attachmentService, currentEmployeeService, taskMapper,
-                new PayloadValidator(factory.getValidator()));
+                new PayloadValidator(factory.getValidator()),
+                org.mockito.Mockito.mock(org.tornotron.echno_backend.project.ProjectCompletion.class));
         TenantContext.setCurrentOrgId(ORG_ID);
 
         Organization organization = new Organization();
