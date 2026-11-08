@@ -18,8 +18,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class JwtDecoderConfigTest {
 
     private static final String BACKEND_CLIENT = "echno-backend-client";
-    private static final String PUBLIC_ISSUER = "https://auth.echno.in/realms/echno-realm";
-    private static final String INTERNAL_ISSUER = "http://echno-keycloak:8080/realms/echno-realm";
+    private static final String PUBLIC_ISSUER = "https://auth.echno.in";
+    private static final String INTERNAL_ISSUER = "http://auth-provider:8080";
 
     private Jwt.Builder token() {
         return Jwt.withTokenValue("token")
@@ -32,7 +32,7 @@ class JwtDecoderConfigTest {
 
     @Test
     void audienceValidator_acceptsTokenWithRequiredAudience() {
-        var validator = new JwtDecoderConfig.AudienceValidator(BACKEND_CLIENT);
+        var validator = new JwtDecoderConfig.AudienceValidator(Set.of(BACKEND_CLIENT));
         Jwt jwt = token().audience(List.of(BACKEND_CLIENT, "account")).build();
 
         OAuth2TokenValidatorResult result = validator.validate(jwt);
@@ -42,7 +42,7 @@ class JwtDecoderConfigTest {
 
     @Test
     void audienceValidator_rejectsTokenMintedForAnotherClient() {
-        var validator = new JwtDecoderConfig.AudienceValidator(BACKEND_CLIENT);
+        var validator = new JwtDecoderConfig.AudienceValidator(Set.of(BACKEND_CLIENT));
         Jwt jwt = token().audience(List.of("some-other-client")).build();
 
         OAuth2TokenValidatorResult result = validator.validate(jwt);
@@ -52,7 +52,7 @@ class JwtDecoderConfigTest {
 
     @Test
     void audienceValidator_rejectsTokenWithNoAudience() {
-        var validator = new JwtDecoderConfig.AudienceValidator(BACKEND_CLIENT);
+        var validator = new JwtDecoderConfig.AudienceValidator(Set.of(BACKEND_CLIENT));
         Jwt jwt = token().claim("sub", "user").build();
 
         OAuth2TokenValidatorResult result = validator.validate(jwt);
@@ -60,10 +60,20 @@ class JwtDecoderConfigTest {
         assertTrue(result.hasErrors());
     }
 
+    @Test
+    void audienceValidator_acceptsAnyOneOfSeveralAcceptedAudiences() {
+        var validator = new JwtDecoderConfig.AudienceValidator(Set.of(BACKEND_CLIENT, "echno-mobile"));
+        Jwt jwt = token().audience(List.of("echno-mobile")).build();
+
+        OAuth2TokenValidatorResult result = validator.validate(jwt);
+
+        assertFalse(result.hasErrors());
+    }
+
     // --- Issuer -----------------------------------------------------------
 
     @Test
-    void issuerValidator_acceptsEitherRealmUrlForTheSameRealm() {
+    void issuerValidator_acceptsEitherUrlTheSameProviderPresents() {
         var validator = new JwtDecoderConfig.IssuerValidator(Set.of(PUBLIC_ISSUER, INTERNAL_ISSUER));
 
         assertFalse(validator.validate(token().issuer(PUBLIC_ISSUER).build()).hasErrors());
@@ -73,7 +83,7 @@ class JwtDecoderConfigTest {
     @Test
     void issuerValidator_rejectsForeignIssuer() {
         var validator = new JwtDecoderConfig.IssuerValidator(Set.of(PUBLIC_ISSUER));
-        Jwt jwt = token().issuer("https://evil.example.com/realms/echno-realm").build();
+        Jwt jwt = token().issuer("https://evil.example.com").build();
 
         OAuth2TokenValidatorResult result = validator.validate(jwt);
 

@@ -30,8 +30,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
-import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
-import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 
 /**
@@ -56,12 +54,6 @@ class WbsElementControllerAuthzTest {
 
     @MockitoBean
     private WbsElementService service;
-
-    @MockitoBean
-    private KeycloakAuthorizationService keycloakAuthorizationService;
-
-    @MockitoBean
-    private RPTCache rptCache;
 
     // The controllers log the created element's id and the batch size, so the mocked service
     // hands back an empty element and an empty batch rather than null.

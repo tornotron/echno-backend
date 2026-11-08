@@ -77,7 +77,7 @@ class OrganizationLookupUnderTheOrgFilterIT extends AbstractIntegrationTest {
         User user = new User();
         user.setName("Someone Employed Twice");
         user.setEmail(EMAIL);
-        user.setKeycloakId("keycloak-" + EMAIL);
+        user.setAuthSubject("keycloak-" + EMAIL);
         entityManager.persist(user);
 
         persistEmployee(orgA, user);

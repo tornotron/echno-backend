@@ -14,7 +14,6 @@ import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.mapper.AttachmentMapperImpl;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.FileStorageService;
-import org.tornotron.echno_backend.common.service.KeycloakGroupService;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 import org.tornotron.echno_backend.employee.dto.EmployeeJoinOrgDto;
 import org.tornotron.echno_backend.employee.mapper.EmployeeMapperImpl;
@@ -35,7 +34,7 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
  * a shift id from another organization is rejected; and the join path used by an
  * invite (an {@link EmployeeJoinOrgDto} carrying a shiftTimingId) assigns the shift.
  *
- * <p>Keycloak group membership and file storage are external, so they are mocked;
+ * <p>File storage is external, so it is mocked;
  * everything else runs against the real schema built by Liquibase.
  */
 @DataJpaTest
@@ -54,9 +53,6 @@ class EmployeeShiftUnificationIT extends AbstractIntegrationTest {
 
     @Autowired
     private TestEntityManager em;
-
-    @MockBean
-    private KeycloakGroupService keycloakGroupService;
 
     @MockBean
     private FileStorageService fileStorageService;
@@ -175,7 +171,7 @@ class EmployeeShiftUnificationIT extends AbstractIntegrationTest {
 
     private User persistUser(String name) {
         User user = new User();
-        user.setKeycloakId("kc-" + name);
+        user.setAuthSubject("kc-" + name);
         user.setName(name);
         user.setGender("U");
         user.setEmail(name + "@emp.test");

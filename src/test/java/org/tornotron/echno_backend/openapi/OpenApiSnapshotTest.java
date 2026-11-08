@@ -90,31 +90,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         // A throwaway 32-character value, the length the encryption service asks for, so the
         // context can build. Nothing is encrypted here.
         "ENCRYPTION_SECRET_KEY=0123456789abcdef0123456789abcdef", // gitleaks:allow
-        "KEYCLOAK_BACKEND_ADMIN_EMAIL=admin@test.local",
-        "KEYCLOAK_BACKEND_ADMIN_FIRST_NAME=Test",
-        "KEYCLOAK_BACKEND_ADMIN_LAST_NAME=Admin",
-        "KEYCLOAK_BACKEND_ADMIN_PASSWORD=pw",
-        "KEYCLOAK_BACKEND_ADMIN_USERNAME=admin",
-        "KEYCLOAK_BACKEND_CLIENT=backend",
-        "KEYCLOAK_BACKEND_REDIRECT_URI=http://localhost/*",
-        "KEYCLOAK_BACKEND_REDIRECT_URI_APIDOG=http://localhost/webjars/*",
-        "KEYCLOAK_BACKEND_SECRET=secret",
-        "KEYCLOAK_BACKEND_SERVICE_EMAIL=svc@test.local",
-        "KEYCLOAK_BACKEND_SERVICE_FIRST_NAME=Test",
-        "KEYCLOAK_BACKEND_SERVICE_LAST_NAME=Service",
-        "KEYCLOAK_BACKEND_SERVICE_PASSWORD=pw",
-        "KEYCLOAK_BACKEND_SERVICE_USERNAME=svc",
-        "KEYCLOAK_BACKEND_WEB_ORIGIN=http://localhost",
-        "KEYCLOAK_FRONTEND_CLIENT=frontend",
-        "KEYCLOAK_FRONTEND_REDIRECT_URI=http://localhost/*",
-        "KEYCLOAK_FRONTEND_WEB_ORIGIN=http://localhost",
-        "KEYCLOAK_INITIALIZER_APPLICATION_REALM=echno-realm",
-        "KEYCLOAK_INITIALIZER_CLIENT_ID=admin-cli",
-        "KEYCLOAK_INITIALIZER_MASTER_REALM=master",
-        "KEYCLOAK_INITIALIZER_PASSWORD=pw",
-        "KEYCLOAK_INITIALIZER_URL=http://localhost:0",
-        "KEYCLOAK_INITIALIZER_USERNAME=admin",
-        "SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_ISSUER_URI=http://localhost:0/realms/echno-realm"
+        "ECHNO_AUTH_JWK_SET_URI=http://localhost:0/jwks",
+        "ECHNO_CORS_ALLOWED_ORIGINS=http://localhost"
 })
 @AutoConfigureMockMvc
 class OpenApiSnapshotTest extends AbstractIntegrationTest {

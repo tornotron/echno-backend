@@ -199,7 +199,7 @@ class LeaveApprovalTrailAccessTest {
 
     @Test
     void aCallerWithNoEmployeeRecordHereIsRefusedTheTrail() {
-        // The shape a bootstrap administrator has: a Keycloak account with no employee row in
+        // The shape a bootstrap administrator has: an authenticated account with no employee row in
         // this organization. They take no part in any request, so there is nothing to show them.
         theRequestExists();
         when(currentEmployeeService.currentEmployee()).thenReturn(Optional.empty());

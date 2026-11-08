@@ -17,8 +17,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.tornotron.echno_backend.attendance.dto.AttendanceCheckInDto;
 import org.tornotron.echno_backend.attendance.dto.AttendanceClockEventDto;
 import org.tornotron.echno_backend.attendance.dto.AttendanceResponseDto;
-import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
-import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.common.payload.JsonPartBinder;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 
@@ -60,14 +58,6 @@ class TeamMarkingEndpointTest {
     // Named to match the @orgSecurity bean the @PreAuthorize SpEL references.
     @MockitoBean(name = "orgSecurity")
     private OrganizationSecurityService orgSecurity;
-
-    // Satisfies RPTExchangeFilter, a custom filter the web slice loads; unused here because
-    // .with(jwt(...)) sets the authentication directly.
-    @MockitoBean
-    private KeycloakAuthorizationService keycloakAuthorizationService;
-
-    @MockitoBean
-    private RPTCache rptCache;
 
     /**
      * The check-in and clock-event endpoints read their JSON from a form field named {@code data}

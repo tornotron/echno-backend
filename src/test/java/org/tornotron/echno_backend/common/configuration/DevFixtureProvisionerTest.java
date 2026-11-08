@@ -9,7 +9,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
-import org.tornotron.echno_backend.common.service.KeycloakGroupService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.employee.EmployeeService;
@@ -35,15 +34,15 @@ import static org.mockito.Mockito.when;
  * Plain Mockito test (no Spring context, no database) for the application half of the local-dev
  * fixture's identity.
  *
- * <p>The bug this covers is the one that made the fixture unusable: it had a Keycloak account and
- * nothing else, so the organization picker, which reads the employee table, showed it nothing, and
- * its only group membership was a parent org group, which yields ORG_MEMBER_x and passes no role
- * check. Both halves have to be written, in the fixture's own organization.
+ * <p>The bug this covers is the one that made the fixture unusable: it had an account at the auth
+ * provider and nothing else, so the organization picker, which reads the employee table, showed it
+ * nothing and no role check passed. The user row, the employee row and the role all have to be
+ * written, in the fixture's own organization.
  */
 @ExtendWith(MockitoExtension.class)
 class DevFixtureProvisionerTest {
 
-    private static final String KEYCLOAK_ID = "0e1e0b0c-dev-fixture-id";
+    private static final String AUTH_SUBJECT = "0e1e0b0c-dev-fixture-id";
     private static final String DISPLAY_NAME = "Local Dev";
     private static final String EMAIL = "local-dev@echno.local";
 
@@ -55,8 +54,6 @@ class DevFixtureProvisionerTest {
     private EmployeeRepository employeeRepository;
     @Mock
     private EmployeeService employeeService;
-    @Mock
-    private KeycloakGroupService keycloakGroupService;
     @Mock
     private OrganizationOnboardingSeeder onboardingSeeder;
 
@@ -71,7 +68,7 @@ class DevFixtureProvisionerTest {
     private static User user(Long id) {
         User user = new User();
         user.setId(id);
-        user.setKeycloakId(KEYCLOAK_ID);
+        user.setAuthSubject(AUTH_SUBJECT);
         user.setName(DISPLAY_NAME);
         user.setEmail(EMAIL);
         return user;
@@ -95,7 +92,7 @@ class DevFixtureProvisionerTest {
 
     @Test
     void provisionsBothHalvesOfTheIdentityInItsOwnOrganization() {
-        when(userRepository.findUserByKeycloakId(KEYCLOAK_ID)).thenReturn(Optional.empty());
+        when(userRepository.findUserByAuthSubject(AUTH_SUBJECT)).thenReturn(Optional.empty());
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
             User saved = invocation.getArgument(0);
             saved.setId(7L);
@@ -112,13 +109,13 @@ class DevFixtureProvisionerTest {
         when(employeeService.joinOrganization(eq(7L), eq(42L), any(EmployeeJoinOrgDto.class)))
                 .thenReturn(employeeDto(19L));
 
-        provisioner.provision(KEYCLOAK_ID, DISPLAY_NAME, EMAIL);
+        provisioner.provision(AUTH_SUBJECT, DISPLAY_NAME, EMAIL);
 
         // The user row is the link the application resolves a JWT subject by.
         ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
         verify(userRepository).save(userCaptor.capture());
         User savedUser = userCaptor.getValue();
-        assertThat(savedUser.getKeycloakId()).isEqualTo(KEYCLOAK_ID);
+        assertThat(savedUser.getAuthSubject()).isEqualTo(AUTH_SUBJECT);
         assertThat(savedUser.getEmail()).isEqualTo(EMAIL);
         // joinOrganization copies these onto NOT NULL employee columns, so they cannot be left null.
         assertThat(savedUser.getName()).isNotBlank();
@@ -126,19 +123,17 @@ class DevFixtureProvisionerTest {
         assertThat(savedUser.getPhone()).isNotBlank();
         assertThat(savedUser.getDateOfBirth()).isNotNull();
 
-        // The fixture's own organization, with the Keycloak group that has to exist before anyone
-        // joins it, and the finance defaults a usable organization needs.
+        // The fixture's own organization, and the finance defaults a usable organization needs.
         ArgumentCaptor<Organization> orgCaptor = ArgumentCaptor.forClass(Organization.class);
         verify(organizationRepository).save(orgCaptor.capture());
         assertThat(orgCaptor.getValue().getOrganizationName())
                 .isEqualTo(DevFixtureProvisioner.DEV_ORG_NAME);
-        verify(keycloakGroupService).createOrganizationGroup("42", DevFixtureProvisioner.DEV_ORG_NAME);
         verify(onboardingSeeder).seedFinanceDefaults(42L);
 
         // The employee row, written through the application's own onboarding path.
         verify(employeeService).joinOrganization(eq(7L), eq(42L), any(EmployeeJoinOrgDto.class));
 
-        // And the role subgroup, which is the half the authority checks actually read.
+        // And the role, which is what the role checks read.
         verify(employeeService).assignOrgRole(19L, OrgRole.SYSTEM_ADMIN);
     }
 
@@ -148,7 +143,7 @@ class DevFixtureProvisionerTest {
      */
     @Test
     void setsTheTenantForTheRoleAssignmentAndRestoresItAfterwards() {
-        when(userRepository.findUserByKeycloakId(KEYCLOAK_ID)).thenReturn(Optional.of(user(7L)));
+        when(userRepository.findUserByAuthSubject(AUTH_SUBJECT)).thenReturn(Optional.of(user(7L)));
         when(organizationRepository.findOrganizationByOrganizationName(DevFixtureProvisioner.DEV_ORG_NAME))
                 .thenReturn(Optional.of(organization(42L)));
         Employee employee = new Employee();
@@ -161,7 +156,7 @@ class DevFixtureProvisionerTest {
             return employeeDto(19L);
         });
 
-        provisioner.provision(KEYCLOAK_ID, DISPLAY_NAME, EMAIL);
+        provisioner.provision(AUTH_SUBJECT, DISPLAY_NAME, EMAIL);
 
         assertThat(TenantContext.getCurrentOrgId())
                 .as("the startup thread must not be left carrying a tenant")
@@ -171,7 +166,7 @@ class DevFixtureProvisionerTest {
     /** A restart must repair the fixture, not duplicate it. */
     @Test
     void isIdempotentWhenEverythingAlreadyExists() {
-        when(userRepository.findUserByKeycloakId(KEYCLOAK_ID)).thenReturn(Optional.of(user(7L)));
+        when(userRepository.findUserByAuthSubject(AUTH_SUBJECT)).thenReturn(Optional.of(user(7L)));
         when(organizationRepository.findOrganizationByOrganizationName(DevFixtureProvisioner.DEV_ORG_NAME))
                 .thenReturn(Optional.of(organization(42L)));
         Employee employee = new Employee();
@@ -179,11 +174,10 @@ class DevFixtureProvisionerTest {
         when(employeeRepository.findByUserIdAndOrganizationId(7L, 42L)).thenReturn(Optional.of(employee));
         when(employeeService.assignOrgRole(19L, OrgRole.SYSTEM_ADMIN)).thenReturn(employeeDto(19L));
 
-        provisioner.provision(KEYCLOAK_ID, DISPLAY_NAME, EMAIL);
+        provisioner.provision(AUTH_SUBJECT, DISPLAY_NAME, EMAIL);
 
         verify(userRepository, never()).save(any(User.class));
         verify(organizationRepository, never()).save(any(Organization.class));
-        verify(keycloakGroupService, never()).createOrganizationGroup(any(), any());
         verify(employeeService, never()).joinOrganization(anyLong(), anyLong(), any(EmployeeJoinOrgDto.class));
         // The role assignment and the finance defaults are themselves idempotent and are reapplied,
         // so a membership removed by hand or a seed that failed halfway comes back on the next start.
@@ -198,7 +192,7 @@ class DevFixtureProvisionerTest {
      */
     @Test
     void refusesAnOrganizationOfTheSameNameThatIsNotTheFixtures() {
-        when(userRepository.findUserByKeycloakId(KEYCLOAK_ID)).thenReturn(Optional.of(user(7L)));
+        when(userRepository.findUserByAuthSubject(AUTH_SUBJECT)).thenReturn(Optional.of(user(7L)));
         Organization somebodyElses = new Organization();
         somebodyElses.setId(3L);
         somebodyElses.setOrganizationName(DevFixtureProvisioner.DEV_ORG_NAME);
@@ -207,60 +201,36 @@ class DevFixtureProvisionerTest {
         when(organizationRepository.findOrganizationByOrganizationName(DevFixtureProvisioner.DEV_ORG_NAME))
                 .thenReturn(Optional.of(somebodyElses));
 
-        provisioner.provision(KEYCLOAK_ID, DISPLAY_NAME, EMAIL);
+        provisioner.provision(AUTH_SUBJECT, DISPLAY_NAME, EMAIL);
 
         verify(employeeService, never()).joinOrganization(anyLong(), anyLong(), any(EmployeeJoinOrgDto.class));
         verify(employeeService, never()).assignOrgRole(anyLong(), any(OrgRole.class));
         verify(onboardingSeeder, never()).seedFinanceDefaults(anyLong());
-        verify(keycloakGroupService, never()).createOrganizationGroup(any(), any());
     }
 
     /**
-     * A run that wrote the organization row and then failed before its Keycloak group existed used to
-     * be unrecoverable: the next startup found the row and skipped straight past the group. The group
-     * is ensured where it is needed, so the retry repairs it.
+     * A run that wrote the organization row and then failed before the employee row existed is
+     * repaired by the next startup rather than skipped.
      */
     @Test
-    void createsTheMissingGroupWhenTheOrganizationRowSurvivedAFailedRun() {
-        when(userRepository.findUserByKeycloakId(KEYCLOAK_ID)).thenReturn(Optional.of(user(7L)));
+    void joinsTheOrganizationWhenItsRowSurvivedAFailedRun() {
+        when(userRepository.findUserByAuthSubject(AUTH_SUBJECT)).thenReturn(Optional.of(user(7L)));
         when(organizationRepository.findOrganizationByOrganizationName(DevFixtureProvisioner.DEV_ORG_NAME))
                 .thenReturn(Optional.of(organization(42L)));
         when(employeeRepository.findByUserIdAndOrganizationId(7L, 42L)).thenReturn(Optional.empty());
         when(employeeService.joinOrganization(eq(7L), eq(42L), any(EmployeeJoinOrgDto.class)))
                 .thenReturn(employeeDto(19L));
 
-        provisioner.provision(KEYCLOAK_ID, DISPLAY_NAME, EMAIL);
+        provisioner.provision(AUTH_SUBJECT, DISPLAY_NAME, EMAIL);
 
         verify(organizationRepository, never()).save(any(Organization.class));
-        verify(keycloakGroupService).createOrganizationGroup("42", DevFixtureProvisioner.DEV_ORG_NAME);
         verify(employeeService).joinOrganization(eq(7L), eq(42L), any(EmployeeJoinOrgDto.class));
         verify(employeeService).assignOrgRole(19L, OrgRole.SYSTEM_ADMIN);
     }
 
-    /**
-     * createOrganizationGroup has no create-if-absent form and rejects a name already taken, so a
-     * rejected create is how a present group announces itself. That must not abort the fixture.
-     */
+    /** Without a subject nothing can be bound to the login, so nothing is written. */
     @Test
-    void carriesOnWhenTheGroupAlreadyExists() {
-        when(userRepository.findUserByKeycloakId(KEYCLOAK_ID)).thenReturn(Optional.of(user(7L)));
-        when(organizationRepository.findOrganizationByOrganizationName(DevFixtureProvisioner.DEV_ORG_NAME))
-                .thenReturn(Optional.of(organization(42L)));
-        when(employeeRepository.findByUserIdAndOrganizationId(7L, 42L)).thenReturn(Optional.empty());
-        when(keycloakGroupService.createOrganizationGroup("42", DevFixtureProvisioner.DEV_ORG_NAME))
-                .thenThrow(new RuntimeException("Failed to create organization group 'org-42' (status 409)"));
-        when(employeeService.joinOrganization(eq(7L), eq(42L), any(EmployeeJoinOrgDto.class)))
-                .thenReturn(employeeDto(19L));
-
-        provisioner.provision(KEYCLOAK_ID, DISPLAY_NAME, EMAIL);
-
-        verify(employeeService).joinOrganization(eq(7L), eq(42L), any(EmployeeJoinOrgDto.class));
-        verify(employeeService).assignOrgRole(19L, OrgRole.SYSTEM_ADMIN);
-    }
-
-    /** Without a Keycloak id nothing can be bound to the login, so nothing is written. */
-    @Test
-    void writesNothingWithoutAKeycloakId() {
+    void writesNothingWithoutASubject() {
         provisioner.provision(null, DISPLAY_NAME, EMAIL);
 
         verify(userRepository, never()).save(any(User.class));

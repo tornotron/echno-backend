@@ -25,13 +25,6 @@ import static org.assertj.core.api.Assertions.assertThat;
  * problem rather than the fix; anything looser would not have caught the drift this exists to
  * prevent. The document is free to say whatever it likes about a role as long as it says the role
  * is there.
- *
- * <p>It also pins the two instructions that were wrong rather than merely incomplete. The guide told
- * an operator to create role subgroups by hand in the Keycloak admin console for every existing
- * organization, which stopped being true when {@code KeycloakGroupService.ensureRoleSubgroup} began
- * creating a missing subgroup on first assignment. Following the old instruction is not harmless: it
- * is per-tenant console work that the code already does, and it invites hand-typed group names that
- * no enum vouches for.
  */
 class OrgRoleDocumentationTest {
 
@@ -51,35 +44,14 @@ class OrgRoleDocumentationTest {
 
         List<String> missing = new ArrayList<>();
         for (OrgRole role : OrgRole.values()) {
-            if (!text.contains(role.getGroupName())) {
-                missing.add(role.getGroupName());
+            if (!text.contains(role.getRoleName())) {
+                missing.add(role.getRoleName());
             }
         }
 
         assertThat(missing)
                 .as("roles in OrgRole that docs/org-scoped-roles.md never names")
                 .isEmpty();
-    }
-
-    @Test
-    void theGuideDoesNotStillAskForSubgroupsToBeCreatedByHand() throws IOException {
-        String text = guide();
-
-        assertThat(text)
-                .as("ensureRoleSubgroup creates a missing subgroup on first assignment, so the "
-                        + "guide must not send anyone to the Keycloak console to make one, nor "
-                        + "suggest recreating an organization to get it")
-                .doesNotContain("create child group")
-                .doesNotContain("add subgroups via the Keycloak admin console")
-                .doesNotContain("recreate them");
-
-        // Removing the wrong instruction is only half of it. Silence would leave a reader who has
-        // just added a role to the enum with no answer at all about existing tenants, and the
-        // answer they would reach for is the console one that was just deleted.
-        assertThat(text)
-                .as("the guide must say what does happen for an organization that predates a role")
-                .contains("ensureRoleSubgroup")
-                .contains("first assignment");
     }
 
     @Test

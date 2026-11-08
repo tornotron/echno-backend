@@ -12,8 +12,6 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.tornotron.echno_backend.attendance.service.MovementRecordService;
-import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
-import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.common.service.AttendanceSecurityService;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 
@@ -67,12 +65,6 @@ class MovementVerifierIsNotTakenFromTheRequestTest {
 
     @MockitoBean(name = "orgSecurity")
     private OrganizationSecurityService orgSecurity;
-
-    @MockitoBean
-    private KeycloakAuthorizationService keycloakAuthorizationService;
-
-    @MockitoBean
-    private RPTCache rptCache;
 
     @Test
     void aVerifyNamingSomebodyElse_isAcceptedAndTheNameNeverReachesTheService() throws Exception {

@@ -152,7 +152,7 @@ class SearchRepositoryIT extends AbstractIntegrationTest {
 
     private Employee persistEmployee(Organization org, String name) {
         User user = new User();
-        user.setKeycloakId("kc-search-" + name.toLowerCase());
+        user.setAuthSubject("kc-search-" + name.toLowerCase());
         user.setName(name);
         em.persist(user);
 

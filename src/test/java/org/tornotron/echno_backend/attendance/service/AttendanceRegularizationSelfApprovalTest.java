@@ -52,7 +52,7 @@ import static org.mockito.Mockito.when;
  * it entirely.
  *
  * <p>A member who holds a decision role in the tenant but has no employee record in it yet, which
- * is what a Keycloak group assigned before HR creates the record produces, was recorded on the
+ * is what a bootstrap administrator with no employee row in the tenant looks like, was recorded on the
  * request with no employee id. The rule compared employee ids alone and both sides were null, so
  * it returned without comparing anything: the same account could raise a request and approve it,
  * and even a break-glass approval left the corrected clock events looking like an ordinary one.

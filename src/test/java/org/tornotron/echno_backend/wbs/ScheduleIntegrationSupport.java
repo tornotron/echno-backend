@@ -136,7 +136,7 @@ public abstract class ScheduleIntegrationSupport extends AbstractIntegrationTest
             deleteForOrgs("DELETE FROM contract_milestone WHERE organization_id IN (:a,:b)");
             deleteForOrgs("DELETE FROM sub_contract WHERE organization_id IN (:a,:b)");
             deleteForOrgs("DELETE FROM employee WHERE organization_id IN (:a,:b)");
-            entityManager.createNativeQuery("DELETE FROM users_table WHERE keycloak_id LIKE :tag")
+            entityManager.createNativeQuery("DELETE FROM users_table WHERE auth_subject LIKE :tag")
                     .setParameter("tag", "schedule-it-" + runTag + "-%")
                     .executeUpdate();
             deleteForOrgs("DELETE FROM project WHERE organization_id IN (:a,:b)");
@@ -192,7 +192,7 @@ public abstract class ScheduleIntegrationSupport extends AbstractIntegrationTest
 
     private Employee persistEmployee(Organization org, String name) {
         User user = new User();
-        user.setKeycloakId("schedule-it-" + runTag + "-" + UUID.randomUUID());
+        user.setAuthSubject("schedule-it-" + runTag + "-" + UUID.randomUUID());
         user.setName(name);
         entityManager.persist(user);
 

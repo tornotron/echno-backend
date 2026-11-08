@@ -14,7 +14,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.tornotron.echno_backend.billing.services.SubscriptionService;
 import org.tornotron.echno_backend.common.service.AttachmentService;
 import org.tornotron.echno_backend.common.service.FileStorageService;
-import org.tornotron.echno_backend.common.service.KeycloakGroupService;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.employee.EmployeeService;
 import org.tornotron.echno_backend.organization.dto.OrganizationCreationDto;
@@ -48,8 +47,6 @@ class OrganizationCreationValidationTest {
     @Mock
     private FileStorageService fileStorageService;
     @Mock
-    private KeycloakGroupService keycloakGroupService;
-    @Mock
     private SubscriptionService subscriptionService;
     @Mock
     private UserContextService userContextService;
@@ -69,7 +66,7 @@ class OrganizationCreationValidationTest {
         factory = Validation.buildDefaultValidatorFactory();
         validator = factory.getValidator();
         service = new OrganizationService(repository, attachmentService, fileStorageService,
-                keycloakGroupService, subscriptionService, userContextService, employeeService,
+ subscriptionService, userContextService, employeeService,
                 organizationMapper, orgSecurity, onboardingSeeder, new PayloadValidator(validator));
     }
 

@@ -18,8 +18,6 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
-import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
-import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
@@ -65,10 +63,10 @@ class EmployeeSalaryVisibilityTest {
     private static final long COLLEAGUE = 42L;
     private static final double PAY = 65000.0;
 
-    /** The Keycloak subject on the JWT every request below is made with. */
+    /** The auth subject on the JWT every request below is made with. */
     private static final String CALLER = "kc-caller";
 
-    /** The Keycloak subject on the record being read, so the record is somebody else's. */
+    /** The auth subject on the record being read, so the record is somebody else's. */
     private static final String SOMEONE_ELSE = "kc-colleague";
 
     @Autowired
@@ -80,14 +78,6 @@ class EmployeeSalaryVisibilityTest {
     // Named to match the @orgSecurity bean the @PreAuthorize SpEL references.
     @MockitoBean(name = "orgSecurity")
     private OrganizationSecurityService orgSecurity;
-
-    // Satisfies RPTExchangeFilter, a custom filter the web slice loads; unused here because
-    // .with(jwt(...)) sets the authentication directly.
-    @MockitoBean
-    private KeycloakAuthorizationService keycloakAuthorizationService;
-
-    @MockitoBean
-    private RPTCache rptCache;
 
     @BeforeEach
     void admitEveryRead() {
@@ -181,7 +171,7 @@ class EmployeeSalaryVisibilityTest {
     @Test
     void theSubjectTheDecisionReadsIsNotPublished() throws Exception {
         mockMvc.perform(get("/api/v1/employee/web/" + COLLEAGUE).with(systemAdmin()))
-                .andExpect(jsonPath("$.userKeycloakId").doesNotHaveJsonPath());
+                .andExpect(jsonPath("$.userAuthSubject").doesNotHaveJsonPath());
     }
 
     private static EmployeeDto recordOf(String subject) {
@@ -192,7 +182,7 @@ class EmployeeSalaryVisibilityTest {
         dto.setPhoneNumber("9847012345");
         dto.setAddress("45 Anna Nagar, Chennai");
         dto.setDateOfBirth(LocalDateTime.of(1994, 3, 22, 0, 0));
-        dto.setUserKeycloakId(subject);
+        dto.setUserAuthSubject(subject);
         return dto;
     }
 

@@ -15,7 +15,6 @@ import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.mapper.AttachmentMapperImpl;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.FileStorageService;
-import org.tornotron.echno_backend.common.service.KeycloakGroupService;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 import org.tornotron.echno_backend.employee.dto.EmployeeJoinOrgDto;
 import org.tornotron.echno_backend.employee.enums.EmployeeStatus;
@@ -56,9 +55,6 @@ class EmployeeJoinManagerRequiredIT extends AbstractIntegrationTest {
 
     @Autowired
     private TestEntityManager em;
-
-    @MockBean
-    private KeycloakGroupService keycloakGroupService;
 
     @MockBean
     private FileStorageService fileStorageService;
@@ -221,7 +217,7 @@ class EmployeeJoinManagerRequiredIT extends AbstractIntegrationTest {
 
     private User persistUser(String name) {
         User user = new User();
-        user.setKeycloakId("kc-" + name);
+        user.setAuthSubject("kc-" + name);
         user.setName(name);
         user.setGender("U");
         user.setEmail(name + "@emp.test");

@@ -161,7 +161,7 @@ class LeaveRequestNumberingIT extends AbstractIntegrationTest {
         entityManager.persist(org);
 
         User user = new User();
-        user.setKeycloakId("kc-leave-numbering-" + tag);
+        user.setAuthSubject("kc-leave-numbering-" + tag);
         user.setName("leave-numbering-" + tag);
         entityManager.persist(user);
 

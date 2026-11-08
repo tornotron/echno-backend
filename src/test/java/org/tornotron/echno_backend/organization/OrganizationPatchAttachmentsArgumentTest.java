@@ -17,8 +17,6 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.multipart.MultipartFile;
-import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
-import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.payload.JsonPartBinder;
 import org.tornotron.echno_backend.common.payload.PayloadValidator;
@@ -67,12 +65,6 @@ class OrganizationPatchAttachmentsArgumentTest {
 
     @MockitoBean(name = "orgSecurity")
     private OrganizationSecurityService orgSecurity;
-
-    @MockitoBean
-    private KeycloakAuthorizationService keycloakAuthorizationService;
-
-    @MockitoBean
-    private RPTCache rptCache;
 
     @BeforeEach
     void allowTheCaller() {

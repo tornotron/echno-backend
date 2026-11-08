@@ -34,8 +34,6 @@ import org.tornotron.echno_backend.issue.Issue;
 import org.tornotron.echno_backend.issue.IssueRepository;
 import org.tornotron.echno_backend.issue.IssueService;
 import org.tornotron.echno_backend.issue.mapper.IssueMapper;
-import org.tornotron.echno_backend.common.service.KeycloakGroupService;
-import org.tornotron.echno_backend.user.KeycloakUserProvisioningService;
 import org.tornotron.echno_backend.leave.LeaveApprovalService;
 import org.tornotron.echno_backend.leave.LeaveBalanceRepository;
 import org.tornotron.echno_backend.leave.LeavePolicy;
@@ -342,7 +340,6 @@ class PartialUpdateNullBehaviourTest {
         @Mock private OrganizationRepository repository;
         @Mock private AttachmentService attachmentService;
         @Mock private FileStorageService fileStorageService;
-        @Mock private KeycloakGroupService keycloakGroupService;
         @Mock private SubscriptionService subscriptionService;
         @Mock private UserContextService userContextService;
         @Mock private EmployeeService employeeService;
@@ -373,7 +370,6 @@ class PartialUpdateNullBehaviourTest {
     class UserSurface {
 
         @Mock private UserRepository userRepository;
-        @Mock private KeycloakUserProvisioningService keycloakUserProvisioningService;
         @Mock private AttachmentService attachmentService;
         @Mock private FileStorageService fileStorageService;
         @Mock private EmployeeMapper employeeMapper;
@@ -429,7 +425,6 @@ class PartialUpdateNullBehaviourTest {
         @Mock private EmployeeRepository employeeRepository;
         @Mock private OrganizationRepository organizationRepository;
         @Mock private UserRepository userRepository;
-        @Mock private KeycloakGroupService keycloakGroupService;
         @Mock private EmployeeMapper employeeMapper;
         @Mock private EmployeeHierarchyService employeeHierarchyService;
         @Mock private ShiftTimingRepository shiftTimingRepository;

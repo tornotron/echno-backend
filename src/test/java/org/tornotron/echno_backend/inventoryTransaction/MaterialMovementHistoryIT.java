@@ -271,7 +271,7 @@ class MaterialMovementHistoryIT extends AbstractIntegrationTest {
 
     private Employee employee(Organization org, String name, String email) {
         User user = new User();
-        user.setKeycloakId("kc-" + email);
+        user.setAuthSubject("kc-" + email);
         user.setName(name);
         entityManager.persist(user);
 

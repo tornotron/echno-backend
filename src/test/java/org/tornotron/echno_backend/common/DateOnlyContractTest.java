@@ -88,7 +88,7 @@ class DateOnlyContractTest {
     @DisplayName("registration rejects a UTC dateOfBirth")
     void registrationRejectsUtcDateOfBirth() {
         String json = """
-                {"userName":"aworker","dateOfBirth":"1990-08-21T18:30:00.000Z"}""";
+                {"name":"A Worker","dateOfBirth":"1990-08-21T18:30:00.000Z"}""";
 
         assertThatThrownBy(() -> objectMapper.readValue(json, UserRegistrationDto.class))
                 .hasMessageContaining("offset");

@@ -165,7 +165,7 @@ class InspectionEventRecorderIT extends AbstractIntegrationTest {
             deleteForOrgs("DELETE FROM project WHERE organization_id IN (:a,:b)");
             deleteForOrgs("DELETE FROM employee WHERE organization_id IN (:a,:b)");
             entityManager.createNativeQuery(
-                            "DELETE FROM users_table WHERE keycloak_id IN ('kc-evt-qa','kc-evt-spare')")
+                            "DELETE FROM users_table WHERE auth_subject IN ('kc-evt-qa','kc-evt-spare')")
                     .executeUpdate();
             deleteForOrgs("DELETE FROM inspection_trades WHERE organization_id IN (:a,:b)");
             deleteForOrgs("DELETE FROM org_element_types WHERE organization_id IN (:a,:b)");
@@ -373,9 +373,9 @@ class InspectionEventRecorderIT extends AbstractIntegrationTest {
         }
     }
 
-    private void authenticateAs(String keycloakId) {
+    private void authenticateAs(String authSubject) {
         SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken(keycloakId, "n/a", AuthorityUtils.NO_AUTHORITIES));
+                new UsernamePasswordAuthenticationToken(authSubject, "n/a", AuthorityUtils.NO_AUTHORITIES));
     }
 
     private void deleteForOrgs(String sql) {
@@ -391,23 +391,23 @@ class InspectionEventRecorderIT extends AbstractIntegrationTest {
         tt.executeWithoutResult(status -> work.run());
     }
 
-    private User persistUser(String keycloakId, String name) {
+    private User persistUser(String authSubject, String name) {
         User user = new User();
-        user.setKeycloakId(keycloakId);
+        user.setAuthSubject(authSubject);
         user.setName(name);
         entityManager.persist(user);
         return user;
     }
 
-    private Employee persistEmployee(Organization org, String keycloakId, String name) {
-        User user = persistUser(keycloakId, name);
+    private Employee persistEmployee(Organization org, String authSubject, String name) {
+        User user = persistUser(authSubject, name);
         Employee employee = new Employee();
         employee.setOrganization(org);
         employee.setUser(user);
         employee.setEmployeeName(name);
         employee.setGender("U");
         employee.setPhoneNumber("0000000000");
-        employee.setEmailAddress(keycloakId + "@example.test");
+        employee.setEmailAddress(authSubject + "@example.test");
         employee.setDateOfBirth(LocalDateTime.of(1990, 1, 1, 0, 0));
         entityManager.persist(employee);
         return employee;

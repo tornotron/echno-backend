@@ -11,8 +11,6 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
-import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 
@@ -52,14 +50,6 @@ class EmployeeReadAuthzTest {
     // Named to match the @orgSecurity bean the @PreAuthorize SpEL references.
     @MockitoBean(name = "orgSecurity")
     private OrganizationSecurityService orgSecurity;
-
-    // Satisfies RPTExchangeFilter, a custom filter the web slice loads; unused here because
-    // .with(jwt(...)) sets the authentication directly.
-    @MockitoBean
-    private KeycloakAuthorizationService keycloakAuthorizationService;
-
-    @MockitoBean
-    private RPTCache rptCache;
 
     /** A plain member: no elevated role anywhere, self only on their own record. */
     private void plainMemberWhoIs(long selfId) {

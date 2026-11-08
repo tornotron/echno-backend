@@ -12,7 +12,6 @@ import org.tornotron.echno_backend.common.service.AttachmentService;
 import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.employee.EmployeeService;
-import org.tornotron.echno_backend.common.service.KeycloakGroupService;
 import org.tornotron.echno_backend.organization.dto.DatasetConsentDto;
 import org.tornotron.echno_backend.organization.mapper.OrganizationMapper;
 import org.tornotron.echno_backend.user.UserContextService;
@@ -35,7 +34,6 @@ class OrganizationServiceDatasetConsentTest {
     @Mock private OrganizationRepository repository;
     @Mock private AttachmentService attachmentService;
     @Mock private FileStorageService fileStorageService;
-    @Mock private KeycloakGroupService keycloakGroupService;
     @Mock private SubscriptionService subscriptionService;
     @Mock private UserContextService userContextService;
     @Mock private EmployeeService employeeService;
@@ -68,7 +66,7 @@ class OrganizationServiceDatasetConsentTest {
     void setDatasetConsent_refusesAnUnidentifiedCallerBeforeTouchingTheRow() {
         // No local user and no subject: nothing is read or written, and the refusal is explicit.
         when(userContextService.getCurrentUserId()).thenReturn(null);
-        when(userContextService.getCurrentKeycloakId()).thenReturn(null);
+        when(userContextService.getCurrentSubject()).thenReturn(null);
 
         assertThatThrownBy(() -> service.setDatasetConsent(7L, true))
                 .isInstanceOf(AccessDeniedException.class);

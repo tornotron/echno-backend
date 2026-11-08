@@ -14,8 +14,6 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
-import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.common.module.EchnoModule;
 import org.tornotron.echno_backend.common.module.ModuleEntitlementResolver;
 import org.tornotron.echno_backend.common.module.ModuleManifest;
@@ -50,12 +48,6 @@ class ModuleControllerWebAuthzTest {
 
     @MockitoBean(name = "orgSecurity")
     private OrganizationSecurityService orgSecurity;
-
-    @MockitoBean
-    private KeycloakAuthorizationService keycloakAuthorizationService;
-
-    @MockitoBean
-    private RPTCache rptCache;
 
     @Test
     void installed_isForbidden_forANonAdminMember() throws Exception {

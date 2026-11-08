@@ -14,8 +14,6 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
-import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.finance.construction.dtos.CreateConstructionPaymentRequest;
 import org.tornotron.echno_backend.finance.construction.dtos.UpdateConstructionPaymentRequest;
@@ -88,12 +86,6 @@ class ConstructionPaymentVerificationStampTest {
 
     @MockitoBean(name = "orgSecurity")
     private OrganizationSecurityService orgSecurity;
-
-    @MockitoBean
-    private KeycloakAuthorizationService keycloakAuthorizationService;
-
-    @MockitoBean
-    private RPTCache rptCache;
 
     @Test
     void aCreateBodyNamingAVerifier_reachesTheServiceCarryingNoVerificationStamp() throws Exception {

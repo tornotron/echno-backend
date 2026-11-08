@@ -58,7 +58,7 @@ class LeaveBalanceConcurrencyIT extends AbstractIntegrationTest {
             entityManager.persist(org);
 
             User user = new User();
-            user.setKeycloakId("kc-leave");
+            user.setAuthSubject("kc-leave");
             user.setName("leave-user");
             entityManager.persist(user);
 

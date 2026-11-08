@@ -101,19 +101,13 @@ class AuthorizationRequirementTest {
     }
 
     @Test
-    void tellsTheCallerToSignInAgainWhenAnOrgRoleIsWhatIsMissing() {
-        // The case right after creating an organization: the role exists in Keycloak but the
-        // token in hand was minted before it, so the fix is a fresh sign-in, not a new grant.
+    void doesNotTellTheCallerToSignInAgainForAMissingOrgRole() {
+        // Roles are read from the database on every request, so one granted a moment ago is
+        // already in force. Advising a fresh sign-in would send the caller after a fix that
+        // changes nothing.
         String described = AuthorizationRequirement
                 .from("@orgSecurity.hasOrgRole(#id, 'system-admin')")
                 .describe();
-
-        assertThat(described).contains("sign out and back in");
-    }
-
-    @Test
-    void doesNotOfferTheSignInHintForAPurelyGlobalPermission() {
-        String described = AuthorizationRequirement.from("hasAuthority('organization:admin')").describe();
 
         assertThat(described).doesNotContain("sign out and back in");
     }

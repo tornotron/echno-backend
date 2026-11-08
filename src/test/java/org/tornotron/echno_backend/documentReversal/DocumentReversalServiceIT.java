@@ -699,9 +699,9 @@ class DocumentReversalServiceIT extends AbstractIntegrationTest {
         return organization;
     }
 
-    private User user(String keycloakId, String name) {
+    private User user(String authSubject, String name) {
         User user = new User();
-        user.setKeycloakId(keycloakId + "-" + System.nanoTime());
+        user.setAuthSubject(authSubject + "-" + System.nanoTime());
         user.setName(name);
         em.persist(user);
         return user;

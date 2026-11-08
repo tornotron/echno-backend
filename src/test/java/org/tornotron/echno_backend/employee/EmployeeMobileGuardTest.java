@@ -15,8 +15,6 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
-import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 
@@ -56,9 +54,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *
  * <p>What this proves and what it does not: {@code @orgSecurity} is a mock, so these tests fix the
  * expression each endpoint evaluates and the roles it names. They say nothing about how
- * {@code OrganizationSecurityService} resolves a role, which
- * {@code KeycloakOrgMembershipInvariantIT} and {@code TenantIsolationIT} cover against a real
- * context.
+ * {@code OrganizationSecurityService} resolves a role, which {@code JwtAuthConverterTest} and
+ * {@code TenantIsolationIT} cover.
  */
 @WebMvcTest(EmployeeController.class)
 @Import(EmployeeMobileGuardTest.TestSecurityConfig.class)
@@ -86,14 +83,6 @@ class EmployeeMobileGuardTest {
     @MockitoBean(name = "orgSecurity")
     private OrganizationSecurityService orgSecurity;
 
-    // Satisfies RPTExchangeFilter, a custom filter the web slice loads; unused here because
-    // .with(jwt(...)) sets the authentication directly.
-    @MockitoBean
-    private KeycloakAuthorizationService keycloakAuthorizationService;
-
-    @MockitoBean
-    private RPTCache rptCache;
-
     /**
      * Every persona below stubs the exact role list each endpoint asks for, rather than answering
      * true to any list at all.
@@ -117,7 +106,7 @@ class EmployeeMobileGuardTest {
     }
 
     /**
-     * An HR admin of the organization the session is scoped to, holding no Keycloak authority.
+     * An HR admin of the organization the session is scoped to, holding no resource:scope authority.
      * Satisfies both role lists, and the self-or-admin check on any employee.
      */
     private void callerIsAnHrAdminOf(long orgId) {

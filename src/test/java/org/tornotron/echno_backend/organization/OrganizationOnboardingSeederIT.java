@@ -31,8 +31,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Exercises the per-org finance seeding a self-service onboarding runs for a new organization,
  * against a real CockroachDB: one call seeds the chart of accounts, the default cost categories and
  * the finance-settings row for the org, and a re-run adds nothing because every underlying seed is
- * idempotent. This is the seeding half of onboarding; the system-admin grant runs through Keycloak
- * and is covered separately.
+ * idempotent. This is the seeding half of onboarding; the system-admin grant is an employee
+ * role write and is covered separately.
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)

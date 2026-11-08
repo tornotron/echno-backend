@@ -123,7 +123,7 @@ class IssueRepositoryIT extends AbstractIntegrationTest {
 
     private Employee persistEmployee(Organization org, String name) {
         User user = new User();
-        user.setKeycloakId("kc-" + name.toLowerCase());
+        user.setAuthSubject("kc-" + name.toLowerCase());
         user.setName(name);
         em.persist(user);
 

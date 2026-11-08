@@ -22,8 +22,6 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
-import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
-import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.modules.__MODULE_PKG__.service.__MODULE_PASCAL__Service;
 import org.tornotron.echno_backend.modules.__MODULE_PKG__.web.__MODULE_PASCAL__Controller;
@@ -48,12 +46,6 @@ class __MODULE_PASCAL__ControllerWebAuthzTest {
 
     @MockitoBean
     private __MODULE_PASCAL__Service service;
-
-    @MockitoBean
-    private KeycloakAuthorizationService keycloakAuthorizationService;
-
-    @MockitoBean
-    private RPTCache rptCache;
 
     @Test
     void mobileList_isForbidden_forANonMember() throws Exception {

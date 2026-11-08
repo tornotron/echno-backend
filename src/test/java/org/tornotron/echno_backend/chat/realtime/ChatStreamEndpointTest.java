@@ -15,8 +15,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.tornotron.echno_backend.chat.ChatControllerWeb;
 import org.tornotron.echno_backend.chat.ChatService;
-import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
-import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 
@@ -60,14 +58,6 @@ class ChatStreamEndpointTest {
 
     @MockitoBean(name = "orgSecurity")
     private OrganizationSecurityService orgSecurity;
-
-    // Satisfies RPTExchangeFilter, which the web slice loads; unused because jwt() sets the
-    // authentication directly.
-    @MockitoBean
-    private KeycloakAuthorizationService keycloakAuthorizationService;
-
-    @MockitoBean
-    private RPTCache rptCache;
 
     @AfterEach
     void clearTenant() {

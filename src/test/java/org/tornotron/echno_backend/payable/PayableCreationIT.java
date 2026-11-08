@@ -96,7 +96,7 @@ class PayableCreationIT extends AbstractIntegrationTest {
         entityManager.persist(project);
 
         User user = new User();
-        user.setKeycloakId("kc-payable-creation-" + name);
+        user.setAuthSubject("kc-payable-creation-" + name);
         user.setName("Payable Creator " + name);
         entityManager.persist(user);
 

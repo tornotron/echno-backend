@@ -100,7 +100,7 @@ class LeavePolicyDuplicateAcrossOrganizationsIT extends AbstractIntegrationTest 
         User user = new User();
         user.setName("Admin In Both");
         user.setEmail(EMAIL);
-        user.setKeycloakId("keycloak-" + EMAIL);
+        user.setAuthSubject("keycloak-" + EMAIL);
         entityManager.persist(user);
 
         persistEmployee(source, user);

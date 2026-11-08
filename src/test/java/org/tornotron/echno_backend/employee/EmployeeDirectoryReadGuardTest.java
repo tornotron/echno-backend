@@ -11,8 +11,6 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
-import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -26,7 +24,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *
  * <p>The subordinate list asked for one of three organization-wide roles and never looked at the
  * manager it was given. Reporting lines are set on {@code Employee.manager} and have nothing to do
- * with the Keycloak-derived role set, so a site supervisor who is somebody's manager in the data
+ * with the org role set, so a site supervisor who is somebody's manager in the data
  * and holds no {@code project-manager} role was refused their own direct reports, while any holder
  * of that role could name any other manager and receive their whole team as full
  * {@code EmployeeDto}s, salary and date of birth included. The same manager-versus-role mismatch
@@ -57,14 +55,6 @@ class EmployeeDirectoryReadGuardTest {
     // Named to match the @orgSecurity bean the @PreAuthorize SpEL references.
     @MockitoBean(name = "orgSecurity")
     private OrganizationSecurityService orgSecurity;
-
-    // Satisfies RPTExchangeFilter, a custom filter the web slice loads; unused here
-    // because .with(jwt(...)) sets the authentication directly.
-    @MockitoBean
-    private KeycloakAuthorizationService keycloakAuthorizationService;
-
-    @MockitoBean
-    private RPTCache rptCache;
 
     /**
      * A line manager: people report to them in the data, and they hold none of the three roles the

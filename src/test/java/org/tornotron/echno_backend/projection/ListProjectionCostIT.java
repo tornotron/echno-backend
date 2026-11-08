@@ -731,7 +731,7 @@ class ListProjectionCostIT extends AbstractIntegrationTest {
 
     private Employee persistEmployee(Organization organization, String tag) {
         User user = new User();
-        user.setKeycloakId("kc-" + tag);
+        user.setAuthSubject("kc-" + tag);
         user.setName(tag);
         em.persist(user);
 

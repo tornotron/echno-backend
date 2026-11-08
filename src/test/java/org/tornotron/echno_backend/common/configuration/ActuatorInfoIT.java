@@ -23,8 +23,9 @@ import org.tornotron.echno_backend.support.AbstractIntegrationTest;
  * that no deployment ever loads, so nothing else would notice it going stale: a property renamed
  * in {@code application.yml} and not here would fail on the first {@code bootRun} of the next
  * newcomer. The context is booted with the profile active, over the Testcontainers database
- * (the {@code @DynamicPropertySource} outranks the profile file) and with the Keycloak
- * reconcile and the Redis provider switched off, since neither dev service exists here. What
+ * (the {@code @DynamicPropertySource} outranks the profile file) and with the dev fixture
+ * and the Redis provider switched off, since the fixture would write to the shared test
+ * database and no Redis exists here. What
  * remains is every other value the profile sets, bound and resolved.
  *
  * <p>{@code GET /actuator/info} says what revision is running and nothing more. The endpoint is
@@ -36,7 +37,7 @@ import org.tornotron.echno_backend.support.AbstractIntegrationTest;
  */
 @ActiveProfiles("local")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
-        "keycloak-initializer.initialize-on-startup=false",
+        "echno.dev-fixture.enabled=false",
         "echno.cache.provider=caffeine"
 })
 class ActuatorInfoIT extends AbstractIntegrationTest {
@@ -52,16 +53,15 @@ class ActuatorInfoIT extends AbstractIntegrationTest {
         assertThat(environment.getActiveProfiles()).contains("local");
         assertThat(environment.getProperty("echno.entitlement.mode")).isEqualTo("advisory");
         assertThat(environment.getProperty("spring.liquibase.contexts")).isEqualTo("v4");
-        assertThat(environment.getProperty("spring.security.oauth2.resourceserver.jwt.jwk-set-uri"))
-                .isEqualTo("http://localhost:8180/realms/echno-realm/protocol/openid-connect/certs");
-        assertThat(environment.getProperty("keycloak.issuer-uri"))
-                .isEqualTo("http://localhost:8180/realms/echno-realm");
-        assertThat(environment.getProperty("keycloak.client-id")).isEqualTo("echno-backend");
-        assertThat(environment.getProperty("jwt.auth.converter.resource-id")).isEqualTo("echno-backend");
+        assertThat(environment.getProperty("echno.auth.jwt.jwk-set-uri"))
+                .isEqualTo("http://localhost:8180/echno/jwks");
+        assertThat(environment.getProperty("echno.auth.jwt.issuers")).isEqualTo("http://localhost:8180/echno");
+        assertThat(environment.getProperty("echno.auth.jwt.audiences")).isEqualTo("echno-backend");
+        assertThat(environment.getProperty("echno.cors.allowed-origins")).isEqualTo("http://localhost:3000");
         assertThat(environment.getProperty("digital-ocean.uri")).isEqualTo("http://localhost:9100");
         assertThat(environment.getProperty("digital-ocean.bucket-name")).isEqualTo("echno-dev");
         assertThat(environment.getProperty("spring.data.redis.port", Integer.class)).isEqualTo(6380);
-        assertThat(environment.getProperty("keycloak.dev-client-enabled", Boolean.class)).isTrue();
+        assertThat(environment.getProperty("echno.dev-fixture.subject")).isEqualTo("local-dev");
         // Resolved, not the raw ${...} placeholder application.yml carries.
         assertThat(environment.getProperty("API.VERSION")).isEqualTo("v1");
     }

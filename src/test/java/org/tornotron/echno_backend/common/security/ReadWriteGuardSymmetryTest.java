@@ -21,8 +21,6 @@ import org.tornotron.echno_backend.asset.AssetControllerWeb;
 import org.tornotron.echno_backend.asset.AssetService;
 import org.tornotron.echno_backend.category.CategoryControllerWeb;
 import org.tornotron.echno_backend.category.CategoryService;
-import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
-import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.expense.ExpenseControllerWeb;
 import org.tornotron.echno_backend.expense.ExpenseService;
@@ -69,9 +67,9 @@ import org.tornotron.echno_backend.common.payload.PayloadValidator;
  *
  * <p>{@code TenantFilterTest.theRoleGuardCannotSucceedWhereTheMembershipGuardFails} is where that
  * claim belongs, and it is made there against the real {@code OrganizationSecurityService} inside
- * the real filter chain. The split it depended on is now prevented outright, in
- * {@code KeycloakGroupService} and {@code KeycloakInitializer}, and pinned by
- * {@code KeycloakOrgMembershipInvariantIT} against a real Keycloak.
+ * the real filter chain. The split it depended on cannot arise any more: membership and roles are
+ * minted from the same employee row by {@code MembershipAuthorityProvider}, and
+ * {@code JwtAuthConverterTest} pins that.
  *
  * <p>So that the mistake is harder to repeat here than to catch by review,
  * {@link #stubTenantGuards} refuses the impossible pair rather than stubbing it. Mocking
@@ -111,13 +109,6 @@ class ReadWriteGuardSymmetryTest {
     // Named to match the @orgSecurity bean the @PreAuthorize SpEL references.
     @MockitoBean(name = "orgSecurity")
     private OrganizationSecurityService orgSecurity;
-
-    // Satisfies RPTExchangeFilter, a custom filter the web slice loads; unused here
-    // because .with(jwt(...)) sets the authentication directly.
-    @MockitoBean private KeycloakAuthorizationService keycloakAuthorizationService;
-
-    // RPTExchangeFilter also depends on this cache; mocked for the same reason.
-    @MockitoBean private RPTCache rptCache;
 
     /** The list endpoint of each controller whose read guard was widened. */
     static Stream<String> widenedReadEndpoints() {

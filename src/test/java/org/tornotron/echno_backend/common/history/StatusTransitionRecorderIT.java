@@ -172,9 +172,9 @@ class StatusTransitionRecorderIT extends AbstractIntegrationTest {
         return org;
     }
 
-    private User persistUser(String name, String keycloakId) {
+    private User persistUser(String name, String authSubject) {
         User user = new User();
-        user.setKeycloakId(keycloakId);
+        user.setAuthSubject(authSubject);
         user.setName(name);
         em.persist(user);
         return user;

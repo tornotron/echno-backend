@@ -144,7 +144,7 @@ class ToolboxTalksServiceIT extends AbstractIntegrationTest {
                     + "(SELECT id FROM toolbox_talk WHERE organization_id IN (:a,:b))");
             deleteForOrgs("DELETE FROM toolbox_talk WHERE organization_id IN (:a,:b)");
             deleteForOrgs("DELETE FROM employee WHERE organization_id IN (:a,:b)");
-            entityManager.createNativeQuery("DELETE FROM users_table WHERE keycloak_id LIKE :tag")
+            entityManager.createNativeQuery("DELETE FROM users_table WHERE auth_subject LIKE :tag")
                     .setParameter("tag", "toolbox-talks-it-" + runTag + "-%")
                     .executeUpdate();
             deleteForOrgs("DELETE FROM project WHERE organization_id IN (:a,:b)");
@@ -281,7 +281,7 @@ class ToolboxTalksServiceIT extends AbstractIntegrationTest {
 
     private Employee persistEmployee(Organization org, String name, EmployeeStatus status) {
         User user = new User();
-        user.setKeycloakId("toolbox-talks-it-" + runTag + "-" + UUID.randomUUID());
+        user.setAuthSubject("toolbox-talks-it-" + runTag + "-" + UUID.randomUUID());
         user.setName(name);
         entityManager.persist(user);
 

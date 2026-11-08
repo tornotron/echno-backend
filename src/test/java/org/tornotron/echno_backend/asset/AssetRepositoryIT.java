@@ -335,7 +335,7 @@ class AssetRepositoryIT extends AbstractIntegrationTest {
 
     private Employee persistEmployee(Organization org, String name) {
         User user = new User();
-        user.setKeycloakId("kc-" + name.toLowerCase().replace(" ", "-") + "-" + System.nanoTime());
+        user.setAuthSubject("kc-" + name.toLowerCase().replace(" ", "-") + "-" + System.nanoTime());
         user.setName(name);
         em.persist(user);
 

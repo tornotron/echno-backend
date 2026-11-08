@@ -62,7 +62,7 @@ class LeaveApprovalConcurrencyIT extends AbstractIntegrationTest {
             entityManager.persist(org);
 
             User user = new User();
-            user.setKeycloakId("kc-approval");
+            user.setAuthSubject("kc-approval");
             user.setName("approval-user");
             entityManager.persist(user);
 

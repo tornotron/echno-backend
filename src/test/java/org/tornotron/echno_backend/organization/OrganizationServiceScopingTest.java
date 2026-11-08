@@ -5,7 +5,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.tornotron.echno_backend.common.service.KeycloakGroupService;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.billing.services.SubscriptionService;
 import org.tornotron.echno_backend.common.service.AttachmentService;
@@ -40,7 +39,6 @@ class OrganizationServiceScopingTest {
     @Mock private OrganizationRepository repository;
     @Mock private AttachmentService attachmentService;
     @Mock private FileStorageService fileStorageService;
-    @Mock private KeycloakGroupService keycloakGroupService;
     @Mock private SubscriptionService subscriptionService;
     @Mock private UserContextService userContextService;
     @Mock private EmployeeService employeeService;
@@ -77,7 +75,7 @@ class OrganizationServiceScopingTest {
 
     @Test
     void getAllOrganization_isEmptyWhenThereIsNoLocalUserRecord() {
-        // Authenticated against Keycloak but not yet provisioned locally. The old role guard
+        // Authenticated at the provider but not yet registered locally. The old role guard
         // hid this path; with the relaxed guard it is reachable and must not blow up.
         when(userContextService.getCurrentUser()).thenReturn(null);
 

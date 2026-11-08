@@ -14,8 +14,6 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
-import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -37,10 +35,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * no organization at all. They therefore answer what the caller may do and say nothing about
  * where, while the write lands wherever the path said.
  *
- * <p>That write is the consequential one. Besides the employee row it adds the user to the
- * Keycloak group for the named organization, and that group is what {@code JwtAuthConverter}
- * turns into the {@code ORG_MEMBER_} authority {@code TenantFilter} requires before it will set
- * a tenant at all. The product is the membership the rest of the tenant layer is built on,
+ * <p>That write is the consequential one. The employee row it writes is the membership:
+ * {@code MembershipAuthorityProvider} turns it into the {@code ORG_MEMBER_} authority
+ * {@code TenantFilter} requires before it will set a tenant at all. The product is the membership the rest of the tenant layer is built on,
  * rather than a credential still waiting to be redeemed.
  *
  * <p>Nothing underneath catches it, for the reason recorded in
@@ -84,14 +81,6 @@ class EmployeeMobileJoinGuardTest {
     @MockitoBean(name = "orgSecurity")
     private OrganizationSecurityService orgSecurity;
 
-    // Satisfies RPTExchangeFilter, a custom filter the web slice loads; unused here
-    // because .with(jwt(...)) sets the authentication directly.
-    @MockitoBean
-    private KeycloakAuthorizationService keycloakAuthorizationService;
-
-    @MockitoBean
-    private RPTCache rptCache;
-
     /** The pair the web twin's joinOrganization names. */
     private static final String[] JOIN_ROLES = {"system-admin", "hr-admin"};
 
@@ -118,7 +107,7 @@ class EmployeeMobileJoinGuardTest {
                 .andExpect(status().isForbidden());
 
         // The refusal has to land before the service runs. A 403 over a completed join would
-        // leave the employee row and, worse, the Keycloak group membership behind.
+        // leave the employee row, and with it the membership, behind.
         verifyNoInteractions(employeeService);
     }
 

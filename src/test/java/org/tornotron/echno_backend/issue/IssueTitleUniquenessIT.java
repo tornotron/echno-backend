@@ -83,7 +83,7 @@ class IssueTitleUniquenessIT extends AbstractIntegrationTest {
 
     private Employee persistEmployee(Organization org, String handle) {
         User user = new User();
-        user.setKeycloakId("kc-issue-title-" + handle);
+        user.setAuthSubject("kc-issue-title-" + handle);
         user.setName(handle);
         em.persist(user);
 

@@ -11,8 +11,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
-import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 
 import java.util.List;
@@ -39,7 +37,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * or {@code hasAuthority('leave:admin')}, which this realm defines no mechanism to issue, so it
  * refused everybody. The web twins asked for the system-admin or hr-admin role, which an ordinary
  * employee does not hold and which a line manager does not hold either: reporting lines come from
- * {@code Employee.manager} and are independent of the Keycloak-derived role set.
+ * {@code Employee.manager} and are independent of the org role set.
  *
  * <p>That is the gap the leave work left open. {@code LeaveApprovalService} writes a notification
  * on every routing step, so an approver was being told a request had arrived through a channel
@@ -75,14 +73,6 @@ class NotificationAndCalendarReachTest {
 
     @MockitoBean(name = "orgSecurity")
     private OrganizationSecurityService orgSecurity;
-
-    // Satisfies RPTExchangeFilter, a custom filter the web slice loads; unused here because
-    // .with(jwt(...)) sets the authentication directly.
-    @MockitoBean
-    private KeycloakAuthorizationService keycloakAuthorizationService;
-
-    @MockitoBean
-    private RPTCache rptCache;
 
     @BeforeEach
     void stubTheInboxAndTheCalendar() {

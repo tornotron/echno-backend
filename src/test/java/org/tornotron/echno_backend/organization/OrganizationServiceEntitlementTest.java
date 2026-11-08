@@ -12,7 +12,6 @@ import org.tornotron.echno_backend.common.exception.SubscriptionAccessDeniedExce
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.AttachmentService;
 import org.tornotron.echno_backend.common.service.FileStorageService;
-import org.tornotron.echno_backend.common.service.KeycloakGroupService;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.employee.EmployeeService;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
@@ -47,7 +46,6 @@ class OrganizationServiceEntitlementTest {
     @Mock private OrganizationRepository repository;
     @Mock private AttachmentService attachmentService;
     @Mock private FileStorageService fileStorageService;
-    @Mock private KeycloakGroupService keycloakGroupService;
     @Mock private SubscriptionService subscriptionService;
     @Mock private UserContextService userContextService;
     @Mock private EmployeeService employeeService;
@@ -68,7 +66,7 @@ class OrganizationServiceEntitlementTest {
 
     private OrganizationService service() {
         return new OrganizationService(repository, attachmentService, fileStorageService,
-                keycloakGroupService, subscriptionService, userContextService, employeeService,
+ subscriptionService, userContextService, employeeService,
                 organizationMapper, orgSecurity, onboardingSeeder,
                 new PayloadValidator(Validation.buildDefaultValidatorFactory().getValidator()));
     }
@@ -157,9 +155,9 @@ class OrganizationServiceEntitlementTest {
                             .contains("first organization is always free");
                 });
 
-        // Nothing was created, and no Keycloak group was left behind for an org that does not exist.
+        // Nothing was created, and nobody was joined to an org that does not exist.
         verify(repository, never()).save(any(Organization.class));
-        verifyNoInteractions(keycloakGroupService);
+        verifyNoInteractions(employeeService);
     }
 
     @Test
@@ -218,7 +216,7 @@ class OrganizationServiceEntitlementTest {
 
     @Test
     void anUnprovisionedAccountIsRefusedRatherThanFailingOnANullUser() {
-        // Authenticated against Keycloak but with no local user record yet. Reading the id off
+        // Authenticated at the provider but with no local user record yet. Reading the id off
         // null would have surfaced as a 500 with nothing in it for the caller.
         when(userContextService.getCurrentUser()).thenReturn(null);
         when(repository.existsByOrganizationEmail(any())).thenReturn(false);

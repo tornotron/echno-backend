@@ -77,7 +77,7 @@ class RequestPayloadSchemaTest {
     /**
      * The map-shaped request bodies that stay undescribed, each with the reason.
      *
-     * <p>A raw {@code Map} body is not automatically a defect. The entry here is a body whose keys
+     * <p>A raw {@code Map} body is not automatically a defect. An entry here is a body whose keys
      * are the caller's own data rather than a fixed field list, so no schema could name them
      * without being wrong. Everything else that takes a map does so to keep an absent field
      * distinguishable from one explicitly set to null, and those all publish a
@@ -86,11 +86,7 @@ class RequestPayloadSchemaTest {
      * <p>Keyed by the method's full name so an entry cannot quietly cover a method it was not
      * written for, and checked for staleness below so a fixed entry does not sit here forever.
      */
-    private static final Map<String, String> ALLOWED = Map.of(
-            "org.tornotron.echno_backend.keycloak.KeycloakManagementController"
-                    + ".addRealmRoles(java.util.Map)",
-            "the keys are the realm role names being created, which the caller chooses, so the "
-                    + "body is genuinely a map and not a fixed set of fields");
+    private static final Map<String, String> ALLOWED = Map.of();
 
     @ArchTest
     static void everyStringPayloadPartDeclaresItsSchema(JavaClasses productionClasses) {

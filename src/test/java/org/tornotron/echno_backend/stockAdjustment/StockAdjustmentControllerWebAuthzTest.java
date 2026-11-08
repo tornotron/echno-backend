@@ -13,8 +13,6 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
-import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.stockAdjustment.enums.StockAdjustmentSourceType;
 
@@ -57,15 +55,6 @@ class StockAdjustmentControllerWebAuthzTest {
 
     @MockitoBean(name = "orgSecurity")
     private OrganizationSecurityService orgSecurity;
-
-    // Satisfies RPTExchangeFilter, a custom filter the web slice loads; unused here
-    // because .with(jwt(...)) sets the authentication directly.
-    @MockitoBean
-    private KeycloakAuthorizationService keycloakAuthorizationService;
-
-    // RPTExchangeFilter also depends on this cache; mocked for the same reason.
-    @MockitoBean
-    private RPTCache rptCache;
 
     /** The three roles the roles matrix reads stock adjustments with: the stores tier. */
     private static final String[] READ_ROLES = {"system-admin", "project-manager", "store-keeper"};

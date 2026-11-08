@@ -11,7 +11,6 @@ import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.AttachmentService;
 import org.tornotron.echno_backend.common.service.FileStorageService;
-import org.tornotron.echno_backend.common.service.KeycloakGroupService;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.employee.EmployeeService;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
@@ -41,7 +40,6 @@ class OrganizationServiceOnboardingTest {
     @Mock private OrganizationRepository repository;
     @Mock private AttachmentService attachmentService;
     @Mock private FileStorageService fileStorageService;
-    @Mock private KeycloakGroupService keycloakGroupService;
     @Mock private SubscriptionService subscriptionService;
     @Mock private UserContextService userContextService;
     @Mock private EmployeeService employeeService;
@@ -60,7 +58,7 @@ class OrganizationServiceOnboardingTest {
 
     private OrganizationService service() {
         return new OrganizationService(repository, attachmentService, fileStorageService,
-                keycloakGroupService, subscriptionService, userContextService, employeeService,
+ subscriptionService, userContextService, employeeService,
                 organizationMapper, orgSecurity, onboardingSeeder,
                 new PayloadValidator(Validation.buildDefaultValidatorFactory().getValidator()));
     }
@@ -95,8 +93,7 @@ class OrganizationServiceOnboardingTest {
 
         service().addOrganization(creationDto(), null);
 
-        // The creator is granted the org's system-admin role (which adds them to the
-        // '/org-42/system-admin' Keycloak subgroup under the hood).
+        // The creator is granted the org's system-admin role, stored on their new employee row.
         verify(employeeService).assignOrgRole(CREATOR_EMPLOYEE_ID, OrgRole.SYSTEM_ADMIN);
         // The org's finance defaults are seeded for the newly created org id. Without an active
         // transaction in this unit test the seeding runs inline rather than after commit.

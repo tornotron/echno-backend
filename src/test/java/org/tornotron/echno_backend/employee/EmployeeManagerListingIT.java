@@ -112,7 +112,7 @@ class EmployeeManagerListingIT extends AbstractIntegrationTest {
 
     private void persistEmployee(Organization org, String name, Set<OrgRole> roles) {
         User user = new User();
-        user.setKeycloakId("kc-" + name.toLowerCase().replace(" ", "-"));
+        user.setAuthSubject("kc-" + name.toLowerCase().replace(" ", "-"));
         user.setName(name);
         em.persist(user);
 

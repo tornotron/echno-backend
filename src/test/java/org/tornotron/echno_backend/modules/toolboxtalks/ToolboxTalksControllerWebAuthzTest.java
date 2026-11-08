@@ -29,14 +29,12 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
-import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.modules.toolboxtalks.pdf.ToolboxTalkPdfService;
 import org.tornotron.echno_backend.modules.toolboxtalks.service.ToolboxTalksService;
 import org.tornotron.echno_backend.modules.toolboxtalks.web.ToolboxTalksController;
 import org.tornotron.echno_backend.modules.toolboxtalks.web.ToolboxTalksControllerWeb;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.pdfGeneration.RenderedReport;
-import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
 
 /**
  * The guard on every handler of both twins, at the slice: reads need membership of the tenant,
@@ -64,12 +62,6 @@ class ToolboxTalksControllerWebAuthzTest {
 
     @MockitoBean
     private ToolboxTalkPdfService pdfService;
-
-    @MockitoBean
-    private KeycloakAuthorizationService keycloakAuthorizationService;
-
-    @MockitoBean
-    private RPTCache rptCache;
 
     static Stream<Arguments> reads() {
         return twins(Stream.of(

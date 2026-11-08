@@ -21,7 +21,6 @@ import org.tornotron.echno_backend.attendance.mapper.ShiftTimingMapperImpl;
 import org.tornotron.echno_backend.common.mapper.AttachmentMapperImpl;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.FileStorageService;
-import org.tornotron.echno_backend.common.service.KeycloakGroupService;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.employee.enums.EmployeeStatus;
 import org.tornotron.echno_backend.employee.mapper.EmployeeMapperImpl;
@@ -81,16 +80,13 @@ class EmployeePatchSelfScopeIT extends AbstractIntegrationTest {
     private EntityManager em;
 
     @MockitoBean
-    private KeycloakGroupService keycloakGroupService;
-
-    @MockitoBean
     private FileStorageService fileStorageService;
 
     private Long organizationId;
     private Long subjectId;
     private Long colleagueId;
-    private String subjectKeycloakId;
-    private String adminKeycloakId;
+    private String recordSubject;
+    private String adminAuthSubject;
 
     @BeforeEach
     void seed() {
@@ -108,8 +104,8 @@ class EmployeePatchSelfScopeIT extends AbstractIntegrationTest {
 
         subjectId = subject.getId();
         colleagueId = colleague.getId();
-        subjectKeycloakId = "kc-ravi-worker";
-        adminKeycloakId = "kc-sam-personnel";
+        recordSubject = "kc-ravi-worker";
+        adminAuthSubject = "kc-sam-personnel";
 
         TenantContext.setCurrentOrgId(organizationId);
     }
@@ -288,8 +284,8 @@ class EmployeePatchSelfScopeIT extends AbstractIntegrationTest {
         authenticateAsPersonnel("hr-admin");
 
         Long ownId = em.createQuery(
-                        "select e.id from Employee e where e.user.keycloakId = :kc", Long.class)
-                .setParameter("kc", adminKeycloakId)
+                        "select e.id from Employee e where e.user.authSubject = :kc", Long.class)
+                .setParameter("kc", adminAuthSubject)
                 .getSingleResult();
 
         assertThatCode(() -> employeeService.partialUpdateAnEmployee(
@@ -304,7 +300,7 @@ class EmployeePatchSelfScopeIT extends AbstractIntegrationTest {
         // not satisfy the check for this one. Written because the field scope reads the same
         // authority format the guards do, and a check that dropped the organization id would pass
         // every other test in this class.
-        authenticate(subjectKeycloakId,
+        authenticate(recordSubject,
                 List.of(new SimpleGrantedAuthority("ORG_" + (organizationId + 1) + "_ROLE_hr-admin")));
 
         assertThatThrownBy(() -> employeeService.partialUpdateAnEmployee(
@@ -342,26 +338,26 @@ class EmployeePatchSelfScopeIT extends AbstractIntegrationTest {
 
     private void authenticateAsSelfOnly() {
         // Membership and nothing else. This is the caller the self clause on the guard exists for.
-        authenticate(subjectKeycloakId,
+        authenticate(recordSubject,
                 List.of(new SimpleGrantedAuthority("ORG_MEMBER_" + organizationId)));
     }
 
     private void authenticateAsPersonnel(String role) {
-        authenticate(adminKeycloakId, List.of(
+        authenticate(adminAuthSubject, List.of(
                 new SimpleGrantedAuthority("ORG_MEMBER_" + organizationId),
                 new SimpleGrantedAuthority("ORG_" + organizationId + "_ROLE_" + role)));
     }
 
-    private void authenticate(String keycloakId, List<GrantedAuthority> authorities) {
+    private void authenticate(String authSubject, List<GrantedAuthority> authorities) {
         Jwt jwt = Jwt.withTokenValue("token")
                 .header("alg", "none")
-                .subject(keycloakId)
-                .claim("sub", keycloakId)
+                .subject(authSubject)
+                .claim("sub", authSubject)
                 .issuedAt(Instant.now())
                 .expiresAt(Instant.now().plusSeconds(3600))
                 .build();
         SecurityContextHolder.getContext()
-                .setAuthentication(new JwtAuthenticationToken(jwt, authorities, keycloakId));
+                .setAuthentication(new JwtAuthenticationToken(jwt, authorities, authSubject));
     }
 
     private Organization persistOrganization(String name) {
@@ -374,9 +370,9 @@ class EmployeePatchSelfScopeIT extends AbstractIntegrationTest {
         return organization;
     }
 
-    private Employee persistEmployee(Organization organization, String name, String keycloakId) {
+    private Employee persistEmployee(Organization organization, String name, String authSubject) {
         User user = new User();
-        user.setKeycloakId(keycloakId);
+        user.setAuthSubject(authSubject);
         user.setName(name);
         em.persist(user);
 
