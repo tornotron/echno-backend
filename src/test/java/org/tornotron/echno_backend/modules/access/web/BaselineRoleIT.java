@@ -29,7 +29,7 @@ class BaselineRoleIT extends RoleAssignmentITSupport {
 
         writer.replaceRoleGrants(baseline, withHeld(baseline, new AccessGrantRequest("assets:edit", "ALL")));
 
-        assertThat(grantsOf(baseline)).contains("assets:edit ALL", "finance:read OWN");
+        assertThat(grantsOf(baseline)).contains("assets:edit ALL", "expenses:read ALL");
         assertThat(jdbc.queryForObject("SELECT customized FROM access_role WHERE id = ?", Boolean.class, baseline)).isTrue();
         assertThat(logActionsAboutRole(baseline)).containsExactly("role.grants-changed");
     }

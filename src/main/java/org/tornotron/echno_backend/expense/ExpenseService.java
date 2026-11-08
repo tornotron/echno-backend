@@ -14,6 +14,8 @@ import org.tornotron.echno_backend.expense.dto.ExpenseCreationDto;
 import org.tornotron.echno_backend.expense.dto.ExpenseDto;
 import org.tornotron.echno_backend.expense.dto.ExpenseUpdateDto;
 import org.tornotron.echno_backend.expense.mapper.ExpenseMapper;
+import org.tornotron.echno_backend.modules.access.api.AccessFilter;
+import org.tornotron.echno_backend.modules.access.api.AccessPermission;
 import org.tornotron.echno_backend.organization.Organization;
 
 import java.util.Locale;
@@ -22,6 +24,10 @@ import java.util.Locale;
 /**
  * CRUD + list for expenses. The expense is a flat header scoped to the current tenant;
  * its number is generated on create and never changes afterwards.
+ *
+ * <p>Each read and write asks the access matrix about the expense itself ({@link ExpenseAccess}):
+ * the list is narrowed to what the caller may read, one they may not read is reported missing, and
+ * a write is checked on the expense as it stands and on where it leaves it.
  */
 @Service
 public class ExpenseService {
@@ -32,15 +38,18 @@ public class ExpenseService {
     private final ExpenseMapper expenseMapper;
     private final TenantEntityHelper tenantEntityHelper;
     private final EntryNumberGenerator numberGenerator;
+    private final ExpenseAccess expenseAccess;
 
     public ExpenseService(ExpenseRepository expenseRepository,
                           ExpenseMapper expenseMapper,
                           TenantEntityHelper tenantEntityHelper,
-                          EntryNumberGenerator numberGenerator) {
+                          EntryNumberGenerator numberGenerator,
+                          ExpenseAccess expenseAccess) {
         this.expenseRepository = expenseRepository;
         this.expenseMapper = expenseMapper;
         this.tenantEntityHelper = tenantEntityHelper;
         this.numberGenerator = numberGenerator;
+        this.expenseAccess = expenseAccess;
     }
 
     @Transactional
@@ -54,6 +63,8 @@ public class ExpenseService {
                 creationDto.getExpenseDate(), creationDto.getPaymentMethod(), creationDto.getNotes(),
                 creationDto.getProjectId(), creationDto.getVendorId(), creationDto.getEmployeeId(),
                 creationDto.getInvoiceId(), creationDto.getPaymentId(), creationDto.getBudgetId());
+        // Checked on the expense as recorded, so nobody records one where they may not.
+        expenseAccess.require(AccessPermission.CREATE, ExpenseAccess.facts(expense));
 
         // saveAndFlush before mapping so the @CreationTimestamp and generated id are
         // populated on the returned DTO.
@@ -63,33 +74,38 @@ public class ExpenseService {
 
     @Transactional(readOnly = true)
     public ExpenseDto getById(Long id) {
-        Expense expense = expenseRepository
-                .findByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Expense with ID " + id + " was not found in this organization"));
-        return expenseMapper.toDto(expense);
+        return expenseMapper.toDto(requireExpense(id, AccessPermission.READ));
     }
 
 
     @Transactional(readOnly = true)
     public Page<ExpenseDto> getPaginated(int pageNo, int pageSize, String search, String status) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.DESC, "createdAt"));
-        return expenseRepository.search(searchPattern(search), blankToNull(status), pageable)
-                .map(expenseMapper::toDto);
+        AccessFilter visible = expenseAccess.filter(AccessPermission.READ);
+        if (visible.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        String pattern = searchPattern(search);
+        String wanted = blankToNull(status);
+        Page<Expense> expenses = visible.everything()
+                ? expenseRepository.search(pattern, wanted, pageable)
+                : expenseRepository.findAll(
+                        ExpenseAccess.admittedBy(visible).and(ExpenseRepository.matching(pattern, wanted)), pageable);
+        return expenses.map(expenseMapper::toDto);
     }
 
     @Transactional
     public ExpenseDto update(Long id, ExpenseUpdateDto updateDto) {
-        Expense expense = expenseRepository
-                .findByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Expense with ID " + id + " was not found in this organization"));
+        Expense expense = requireExpense(id, AccessPermission.EDIT);
 
         applyFields(expense, updateDto.getType(), updateDto.getCategory(), updateDto.getStatus(),
                 updateDto.getDescription(), updateDto.getAmount(), updateDto.getCurrency(),
                 updateDto.getExpenseDate(), updateDto.getPaymentMethod(), updateDto.getNotes(),
                 updateDto.getProjectId(), updateDto.getVendorId(), updateDto.getEmployeeId(),
                 updateDto.getInvoiceId(), updateDto.getPaymentId(), updateDto.getBudgetId());
+        // An edit can move the expense to another project, and must not move it out of what the
+        // caller may edit.
+        expenseAccess.require(AccessPermission.EDIT, ExpenseAccess.facts(expense));
 
         // saveAndFlush before mapping so the @UpdateTimestamp on the returned DTO reflects
         // this write.
@@ -99,11 +115,23 @@ public class ExpenseService {
 
     @Transactional
     public void delete(Long id) {
+        expenseRepository.delete(requireExpense(id, AccessPermission.DELETE));
+    }
+
+    /**
+     * The expense, if the caller may act on it this way. One they may not read is reported missing,
+     * as one in another organization is; one they may read but not act on this way is refused.
+     */
+    private Expense requireExpense(Long id, String action) {
         Expense expense = expenseRepository
                 .findByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Expense with ID " + id + " was not found in this organization"));
-        expenseRepository.delete(expense);
+                .orElseThrow(() -> notFound(id));
+        expenseAccess.check(action, ExpenseAccess.facts(expense), () -> notFound(id));
+        return expense;
+    }
+
+    private static ResourceNotFoundException notFound(Long id) {
+        return new ResourceNotFoundException("Expense with ID " + id + " was not found in this organization");
     }
 
     /**

@@ -60,7 +60,13 @@ public final class AccessCatalog {
             area("indents", "Material Requests", "Buying"),
             area("purchase-orders", "Purchase Orders", "Buying"),
             area("vendors", "Vendors", "Buying"),
-            area("finance", "Finance", "Money"),
+            // Expenses and receipts are read by every member, the rest of finance by the pair, so they
+            // are an area of their own; payables are the system admin's alone. Configure is the
+            // system admin's part of finance: the chart's import and defaults, the posting mappings
+            // and the finance settings.
+            area("expenses", "Expenses & Receipts", "Money"),
+            new Area("finance", "Finance", "Money", List.of("configure")),
+            area("payables", "Payables", "Money"),
             area("team", "Team & Attendance", "People"),
             area("leave", "Leave", "People"),
             area("leave-regularisation", "Attendance Regularisation", "People"),

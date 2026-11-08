@@ -94,6 +94,10 @@ class MobileListPagingContractTest {
     @MockitoBean(name = "attendanceSecurity")
     private AttendanceSecurityService attendanceSecurity;
 
+    // Named to match the @access bean the purchase order item guards reference.
+    @MockitoBean(name = "access")
+    private org.tornotron.echno_backend.modules.access.guard.AccessGuard access;
+
     @MockitoBean
     private KeycloakAuthorizationService keycloakAuthorizationService;
 
@@ -103,6 +107,8 @@ class MobileListPagingContractTest {
     @BeforeEach
     void everyGuardAdmits() {
         when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
+        when(access.can(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(true);
         when(orgSecurity.isCurrentTenant(anyLong())).thenReturn(true);
         when(orgSecurity.isSelfInCurrentTenant(anyLong())).thenReturn(true);
         when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(true);

@@ -20,12 +20,8 @@ import org.tornotron.echno_backend.IssueComment.IssueCommentService;
 import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
 import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
-import org.tornotron.echno_backend.expense.ExpenseControllerWeb;
-import org.tornotron.echno_backend.expense.ExpenseService;
 import org.tornotron.echno_backend.issue.IssueControllerWeb;
 import org.tornotron.echno_backend.issue.IssueService;
-import org.tornotron.echno_backend.receipt.ReceiptControllerWeb;
-import org.tornotron.echno_backend.receipt.ReceiptService;
 import org.tornotron.echno_backend.subcontract.SubContractControllerWeb;
 import org.tornotron.echno_backend.subcontract.SubContractService;
 import org.tornotron.echno_backend.task.TaskControllerWeb;
@@ -44,7 +40,7 @@ import org.tornotron.echno_backend.common.payload.JsonPartBinder;
 import org.tornotron.echno_backend.common.payload.PayloadValidator;
 
 /**
- * Locks in the read guards across the six controllers that carried the asymmetry fixed for
+ * Locks in the read guards across the four controllers that carried the asymmetry fixed for
  * projects in #399: their reads gated on tenant membership while their writes gated on the
  * system-admin or project-manager org role.
  *
@@ -53,7 +49,8 @@ import org.tornotron.echno_backend.common.payload.PayloadValidator;
  * Resources read; {@code StockAdjustmentControllerWebAuthzTest} pins that shape. Assets were the
  * eighth and work categories the seventh until they moved onto the access matrix, where
  * {@code AssetAccessEquivalenceIT} and {@code ProjectAccessEquivalenceIT} hold every role to the
- * reads it had.
+ * reads it had. Expenses and receipts left the same way, and {@code ExpenseAccessEquivalenceIT}
+ * holds them.
  *
  * <p><b>The role-without-membership case this class used to assert has been removed, because it
  * asserted an outcome for a state the real beans cannot produce.</b> It stubbed
@@ -78,13 +75,11 @@ import org.tornotron.echno_backend.common.payload.PayloadValidator;
  * expression without building JWT authorities; what was wrong was stubbing a combination the
  * bean cannot return, and that is now a test failure at the point of stubbing.
  *
- * <p>Deliberately one @WebMvcTest over all six controllers rather than six separate slices.
- * Spring caches a context per distinct slice and the test JVM is capped, so six new contexts
+ * <p>Deliberately one @WebMvcTest over all four controllers rather than four separate slices.
+ * Spring caches a context per distinct slice and the test JVM is capped, so four new contexts
  * would be a real cost; this adds exactly one.
  */
 @WebMvcTest({
-        ExpenseControllerWeb.class,
-        ReceiptControllerWeb.class,
         SubContractControllerWeb.class,
         TaskControllerWeb.class,
         IssueControllerWeb.class,
@@ -96,8 +91,6 @@ class ReadWriteGuardSymmetryTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockitoBean private ExpenseService expenseService;
-    @MockitoBean private ReceiptService receiptService;
     @MockitoBean private SubContractService subContractService;
     @MockitoBean private TaskService taskService;
     @MockitoBean private IssueService issueService;
@@ -117,8 +110,6 @@ class ReadWriteGuardSymmetryTest {
     /** The list endpoint of each controller whose read guard was widened. */
     static Stream<String> widenedReadEndpoints() {
         return Stream.of(
-                "/api/v1/expenses/web",
-                "/api/v1/receipts/web",
                 "/api/v1/sub-contracts/web",
                 "/api/v1/tasks/web",
                 "/api/v1/issues/web",
@@ -129,8 +120,6 @@ class ReadWriteGuardSymmetryTest {
     @BeforeEach
     void stubEmptyResults() {
         // The handlers that page call getContent() on the result, so these cannot be left null.
-        when(expenseService.getPaginated(anyInt(), anyInt(), any(), any())).thenReturn(Page.empty());
-        when(receiptService.getPaginated(anyInt(), anyInt(), any(), any())).thenReturn(Page.empty());
         when(subContractService.getPaginated(anyInt(), anyInt(), any(), any(), any())).thenReturn(Page.empty());
         when(issueService.getAllIssuesPaginated(anyInt(), anyInt(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(Page.empty());

@@ -62,6 +62,10 @@ class MobilePathAuthzTest {
     @MockitoBean(name = "inspectionSecurity")
     private InspectionSecurityService inspectionSecurity;
 
+    // Named to match the @access bean the expense guards reference, now on the access matrix.
+    @MockitoBean(name = "access")
+    private org.tornotron.echno_backend.modules.access.guard.AccessGuard access;
+
     @MockitoBean
     private ExpenseService expenseService;
 
@@ -81,35 +85,33 @@ class MobilePathAuthzTest {
     @MockitoBean
     private RPTCache rptCache;
 
-    private static final String[] WRITE_ROLES = {"system-admin", "project-manager"};
-
-    // ---- inherited handler, membership and role guards ----
+    // ---- inherited handler and access guards ----
 
     @Test
-    void aMemberReadsExpensesOnTheMobilePath() throws Exception {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
+    void aCallerWhoMayReadExpensesReadsThemOnTheMobilePath() throws Exception {
+        when(access.can("expenses", "read")).thenReturn(true);
 
         mockMvc.perform(get("/api/v1/expenses/5").with(jwt())).andExpect(status().isOk());
     }
 
     @Test
-    void aNonMemberIsRefusedExpensesOnTheMobilePath() throws Exception {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(false);
+    void aCallerWhoMayNotReadExpensesIsRefusedOnTheMobilePath() throws Exception {
+        when(access.can("expenses", "read")).thenReturn(false);
 
         mockMvc.perform(get("/api/v1/expenses/5").with(jwt())).andExpect(status().isForbidden());
     }
 
     @Test
-    void aMemberWithoutAWriteRoleIsRefusedADeleteOnTheMobilePath() throws Exception {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(WRITE_ROLES)).thenReturn(false);
+    void aCallerWhoMayReadButNotDeleteIsRefusedADeleteOnTheMobilePath() throws Exception {
+        when(access.can("expenses", "read")).thenReturn(true);
+        when(access.can("expenses", "delete")).thenReturn(false);
 
         mockMvc.perform(delete("/api/v1/expenses/5").with(jwt())).andExpect(status().isForbidden());
     }
 
     @Test
-    void aProjectManagerDeletesOnTheMobilePath() throws Exception {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(WRITE_ROLES)).thenReturn(true);
+    void aCallerWhoMayDeleteDeletesOnTheMobilePath() throws Exception {
+        when(access.can("expenses", "delete")).thenReturn(true);
 
         mockMvc.perform(delete("/api/v1/expenses/5").with(jwt())).andExpect(status().isOk());
     }
@@ -125,7 +127,7 @@ class MobilePathAuthzTest {
     /** Both controllers are registered side by side, so the web path is untouched by the mobile one. */
     @Test
     void theWebPathStillAnswersBesideIt() throws Exception {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
+        when(access.can("expenses", "read")).thenReturn(true);
 
         mockMvc.perform(get("/api/v1/expenses/web/5").with(jwt())).andExpect(status().isOk());
     }
