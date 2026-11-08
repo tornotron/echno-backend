@@ -339,6 +339,14 @@ echno:
     # The hourly reconciliation sweep (spec 5.4): asks the provider about provider-backed
     # subscriptions that look stale and re-queues failed inbox rows. A no-op with provider=none;
     # enabled=false removes the bean.
+    # Moves an organization whose manual trial (granted by hand, or a plan with no price) has
+    # ended onto the FREE plan, on the trial end date rather than at the end of the billing
+    # period. The gate already stops honouring the trial at its end and answers from FREE until
+    # this pass writes the move. Provider-backed trials are left to the provider.
+    trial-expiry:
+      enabled: ${ECHNO_BILLING_TRIAL_EXPIRY_ENABLED:true}
+      cron: ${ECHNO_BILLING_TRIAL_EXPIRY_CRON:0 */15 * * * *}
+      max-per-run: 500
     reconcile:
       enabled: ${ECHNO_BILLING_RECONCILE_ENABLED:true}
       cron: ${ECHNO_BILLING_RECONCILE_CRON:0 0 * * * *}
