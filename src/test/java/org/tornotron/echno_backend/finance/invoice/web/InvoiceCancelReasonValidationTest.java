@@ -13,7 +13,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
 import org.tornotron.echno_backend.common.configuration.RPTCache;
-import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
+import org.tornotron.echno_backend.modules.access.guard.AccessGuard;
 import org.tornotron.echno_backend.finance.construction.pdf.ConstructionInvoicePdfService;
 import org.tornotron.echno_backend.finance.construction.service.ConstructionInvoiceService;
 import org.tornotron.echno_backend.finance.construction.web.ConstructionInvoiceControllerWeb;
@@ -26,6 +26,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -59,8 +60,8 @@ class InvoiceCancelReasonValidationTest {
     @MockitoBean
     private ConstructionInvoicePdfService pdfService;
 
-    @MockitoBean(name = "orgSecurity")
-    private OrganizationSecurityService orgSecurity;
+    @MockitoBean(name = "access")
+    private AccessGuard access;
 
     @MockitoBean
     private KeycloakAuthorizationService keycloakAuthorizationService;
@@ -124,7 +125,7 @@ class InvoiceCancelReasonValidationTest {
     }
 
     private void allowTheCaller() {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager")).thenReturn(true);
+        when(access.can(eq("finance"), anyString())).thenReturn(true);
     }
 
     @TestConfiguration

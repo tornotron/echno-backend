@@ -14,7 +14,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
 import org.tornotron.echno_backend.common.configuration.RPTCache;
-import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
+import org.tornotron.echno_backend.modules.access.guard.AccessGuard;
 import org.tornotron.echno_backend.finance.construction.ConstructionInvoiceStatus;
 import org.tornotron.echno_backend.finance.construction.ConstructionInvoiceType;
 import org.tornotron.echno_backend.finance.construction.ConstructionPaymentStatus;
@@ -34,9 +34,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * Web-slice test for the invoice PDF download endpoint. It pins that the guard admits a
- * caller holding an elevated role for the current tenant and forbids one with neither, and
+ * caller the access matrix lets read finance records and forbids one it does not, and
  * that a served PDF carries the application/pdf content type and an attachment filename
- * derived from the invoice number. The rendering itself is stubbed; @orgSecurity is mocked.
+ * derived from the invoice number. The rendering itself is stubbed; @access is mocked.
  */
 @WebMvcTest(ConstructionInvoiceControllerWeb.class)
 @Import(ConstructionInvoicePdfAuthzTest.TestSecurityConfig.class)
@@ -51,8 +51,8 @@ class ConstructionInvoicePdfAuthzTest {
     @MockitoBean
     private ConstructionInvoicePdfService pdfService;
 
-    @MockitoBean(name = "orgSecurity")
-    private OrganizationSecurityService orgSecurity;
+    @MockitoBean(name = "access")
+    private AccessGuard access;
 
     @MockitoBean
     private KeycloakAuthorizationService keycloakAuthorizationService;
@@ -61,9 +61,9 @@ class ConstructionInvoicePdfAuthzTest {
     private RPTCache rptCache;
 
     @Test
-    void downloadPdf_isOk_andServesAnAttachment_forAnElevatedRoleHolder() throws Exception {
+    void downloadPdf_isOk_andServesAnAttachment_forACallerWhoMayReadFinance() throws Exception {
         UUID id = UUID.randomUUID();
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager")).thenReturn(true);
+        when(access.can("finance", "read")).thenReturn(true);
         when(invoiceService.findById(id)).thenReturn(stubInvoice(id));
         when(pdfService.render(any())).thenReturn("%PDF-1.4 stub".getBytes());
 
@@ -74,9 +74,9 @@ class ConstructionInvoicePdfAuthzTest {
     }
 
     @Test
-    void downloadPdf_isForbidden_forACallerWithoutAnElevatedRole() throws Exception {
+    void downloadPdf_isForbidden_forACallerWhoMayNotReadFinance() throws Exception {
         UUID id = UUID.randomUUID();
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager")).thenReturn(false);
+        when(access.can("finance", "read")).thenReturn(false);
 
         mockMvc.perform(get("/api/v1/finance/construction-invoices/web/{id}/pdf", id).with(jwt()))
                 .andExpect(status().isForbidden());

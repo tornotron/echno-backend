@@ -39,7 +39,7 @@ import java.util.UUID;
         description = "Vendor and progress invoices raised against construction projects. "
                 + "Invoices move through a draft, submitted, approved and paid lifecycle, and posting "
                 + "an approved invoice creates the matching ledger journal entry. All endpoints are "
-                + "tenant scoped and limited to system administrators and project managers."
+                + "tenant scoped. Each endpoint needs the finance permission named for its action."
 )
 public class ConstructionInvoiceControllerWeb {
 
@@ -47,7 +47,7 @@ public class ConstructionInvoiceControllerWeb {
     private final ConstructionInvoicePdfService pdfService;
 
     @PostMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('finance', 'create')")
     @Operation(
             summary = "Create a construction invoice",
             description = "Creates a draft invoice from the supplied header and line items. "
@@ -57,21 +57,21 @@ public class ConstructionInvoiceControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Invoice created and returned in draft status"),
             @ApiResponse(responseCode = "400", description = "Validation failed on the request body"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not create finance records")
     })
     public ResponseEntity<ConstructionInvoiceDto> create(@Valid @RequestBody CreateConstructionInvoiceRequest req) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.create(req));
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('finance', 'read')")
     @Operation(
             summary = "Get a construction invoice by id",
             description = "Returns a single invoice, including its computed totals and line items."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Invoice found"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not read finance records"),
             @ApiResponse(responseCode = "404", description = "No invoice with the given id in the current tenant")
     })
     public ConstructionInvoiceDto get(@PathVariable UUID id) {
@@ -79,7 +79,7 @@ public class ConstructionInvoiceControllerWeb {
     }
 
     @GetMapping("/{id}/pdf")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('finance', 'read')")
     @Operation(
             summary = "Download a construction invoice as a PDF",
             description = "Renders the invoice, with its header, billing details and line items, into a "
@@ -88,7 +88,7 @@ public class ConstructionInvoiceControllerWeb {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "PDF generated and returned as an attachment"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not read finance records"),
             @ApiResponse(responseCode = "404", description = "No invoice with the given id in the current tenant"),
             @ApiResponse(responseCode = "500", description = "PDF rendering failed")
     })
@@ -104,7 +104,7 @@ public class ConstructionInvoiceControllerWeb {
     }
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('finance', 'read')")
     @Operation(
             summary = "List construction invoices",
             description = "Returns a paged list of invoices in the current tenant. The optional project, "
@@ -113,7 +113,7 @@ public class ConstructionInvoiceControllerWeb {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Page of matching invoices"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read finance records")
     })
     public Page<ConstructionInvoiceDto> list(@RequestParam(required = false) Long projectId,
                                              @RequestParam(required = false) Long vendorId,
@@ -124,7 +124,7 @@ public class ConstructionInvoiceControllerWeb {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('finance', 'edit')")
     @Operation(
             summary = "Update a construction invoice",
             description = "Replaces the editable header and line items of a draft invoice. "
@@ -133,7 +133,7 @@ public class ConstructionInvoiceControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Invoice updated"),
             @ApiResponse(responseCode = "400", description = "Validation failed, or the invoice is not in an editable state"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not edit finance records"),
             @ApiResponse(responseCode = "404", description = "No invoice with the given id in the current tenant")
     })
     public ConstructionInvoiceDto update(@PathVariable UUID id,
@@ -142,7 +142,7 @@ public class ConstructionInvoiceControllerWeb {
     }
 
     @PostMapping("/{id}/submit")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('finance', 'edit')")
     @Operation(
             summary = "Submit a draft invoice for approval",
             description = "Transitions a draft invoice to submitted status so it can be reviewed and approved."
@@ -150,7 +150,7 @@ public class ConstructionInvoiceControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Invoice submitted"),
             @ApiResponse(responseCode = "400", description = "Invoice is not in a state that can be submitted"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not edit finance records"),
             @ApiResponse(responseCode = "404", description = "No invoice with the given id in the current tenant")
     })
     public ConstructionInvoiceDto submit(@PathVariable UUID id) {
@@ -158,7 +158,7 @@ public class ConstructionInvoiceControllerWeb {
     }
 
     @PostMapping("/{id}/approve")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('finance', 'approve')")
     @Operation(
             summary = "Approve a submitted invoice",
             description = "Approves a submitted invoice and posts the matching journal entry to the ledger. "
@@ -171,7 +171,7 @@ public class ConstructionInvoiceControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Invoice approved and posted"),
             @ApiResponse(responseCode = "400", description = "Invoice is not in a state that can be approved, or the caller submitted it and does not hold the system-admin role"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not approve finance records"),
             @ApiResponse(responseCode = "404", description = "No invoice with the given id in the current tenant")
     })
     public ConstructionInvoiceDto approve(@PathVariable UUID id) {
@@ -179,7 +179,7 @@ public class ConstructionInvoiceControllerWeb {
     }
 
     @PostMapping("/{id}/cancel")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('finance', 'edit')")
     @Operation(
             summary = "Cancel an invoice",
             description = "Cancels an invoice and records the supplied reason. If the invoice was already "
@@ -193,7 +193,7 @@ public class ConstructionInvoiceControllerWeb {
             @ApiResponse(responseCode = "400",
                     description = "The reason is blank or longer than 455 characters, or the invoice "
                             + "is already paid or otherwise cannot be cancelled"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not edit finance records"),
             @ApiResponse(responseCode = "404", description = "No invoice with the given id in the current tenant")
     })
     public ConstructionInvoiceDto cancel(
@@ -204,7 +204,7 @@ public class ConstructionInvoiceControllerWeb {
     }
 
     @PostMapping("/{id}/record-payment")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('finance', 'create')")
     @Operation(
             summary = "Record a payment against an invoice",
             description = "Applies a payment of the given amount to an approved invoice, reducing its "
@@ -213,7 +213,7 @@ public class ConstructionInvoiceControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Payment recorded and balance updated"),
             @ApiResponse(responseCode = "400", description = "Amount is invalid or exceeds the outstanding balance"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not create finance records"),
             @ApiResponse(responseCode = "404", description = "No invoice with the given id in the current tenant")
     })
     public ConstructionInvoiceDto recordPayment(@PathVariable UUID id, @RequestParam BigDecimal amount) {
