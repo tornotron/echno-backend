@@ -4,6 +4,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -18,4 +19,11 @@ public interface SourceRefRepository extends JpaRepository<SourceRef, UUID> {
 
     @Query("SELECT COUNT(s) FROM SourceRef s WHERE s.candidateId = :candidateId")
     long countForCandidate(@Param("candidateId") UUID candidateId);
+
+    /** A bulk delete skips the tenant filter, so the organization is in the statement. */
+    @Modifying
+    @Query("DELETE FROM SourceRef s WHERE s.organization.id = :orgId AND s.candidateId IN (SELECT c.id FROM Candidate c "
+            + "WHERE c.organization.id = :orgId AND c.segmentId = :segmentId "
+            + "AND c.status <> org.tornotron.echno_backend.modules.documentingestion.domain.CandidateStatus.APPLIED)")
+    int deleteForUnappliedInSegment(@Param("orgId") Long orgId, @Param("segmentId") UUID segmentId);
 }

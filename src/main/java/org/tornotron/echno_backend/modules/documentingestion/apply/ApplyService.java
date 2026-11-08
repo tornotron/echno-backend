@@ -83,6 +83,7 @@ public class ApplyService {
         guard.require(applier.targetGuard());
         retry.execute("DocumentIngestion.requirePackage", () -> packages.findByIdScoped(packageId)
                 .orElseThrow(() -> new ResourceNotFoundException("No document package " + packageId)));
+        retry.executeWithoutResult("DocumentIngestion.preflight", () -> applier.preflight(packageId));
         Long appliedBy = userContextService.getCurrentUserId();
 
         int applied = 0;

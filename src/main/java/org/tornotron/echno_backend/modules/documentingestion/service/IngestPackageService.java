@@ -10,13 +10,18 @@ import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
+import org.tornotron.echno_backend.modules.documentingestion.domain.CandidateKind;
+import org.tornotron.echno_backend.modules.documentingestion.domain.CandidateStatus;
 import org.tornotron.echno_backend.modules.documentingestion.domain.IngestPackage;
 import org.tornotron.echno_backend.modules.documentingestion.domain.PackageStage;
 import org.tornotron.echno_backend.modules.documentingestion.domain.PackageStatus;
+import org.tornotron.echno_backend.modules.documentingestion.dto.BoqTargetRequest;
 import org.tornotron.echno_backend.modules.documentingestion.dto.CreatePackageRequest;
 import org.tornotron.echno_backend.modules.documentingestion.dto.PackageDto;
+import org.tornotron.echno_backend.modules.documentingestion.repository.CandidateRepository;
 import org.tornotron.echno_backend.modules.documentingestion.repository.IngestDocumentRepository;
 import org.tornotron.echno_backend.modules.documentingestion.repository.IngestPackageRepository;
+import org.tornotron.echno_backend.modules.workprogress.api.ContractBoqPort;
 import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.user.UserContextService;
 
@@ -32,6 +37,8 @@ public class IngestPackageService {
     private final ProjectRepository projects;
     private final TenantEntityHelper tenantEntityHelper;
     private final UserContextService userContextService;
+    private final CandidateRepository candidates;
+    private final ContractBoqPort contractBoq;
 
     @Transactional
     public PackageDto create(CreatePackageRequest req) {
@@ -69,6 +76,31 @@ public class IngestPackageService {
     public PackageDto archive(UUID packageId) {
         IngestPackage p = requirePackage(packageId);
         p.setStatus(PackageStatus.ARCHIVED);
+        p.setUpdatedBy(userContextService.getCurrentUserId());
+        return PackageDto.of(packages.save(p), documents.countInPackage(p.getId()));
+    }
+
+    /**
+     * Sets the sub-contract the package's BOQ is written to, or clears it. The contract must be in the
+     * organization, and in the package's project when the package has one. Once BOQ rows are on a
+     * contract, the target cannot move, or one tender BOQ would end up split across two contracts.
+     */
+    @Transactional
+    public PackageDto setBoqTarget(UUID packageId, BoqTargetRequest req) {
+        IngestPackage p = requireOpenPackage(packageId);
+        Long target = req.subContractId();
+        if (target != null) {
+            ContractBoqPort.ContractRef contract = contractBoq.findContract(target)
+                    .orElseThrow(() -> new ResourceNotFoundException("No sub-contract " + target + " in this organization"));
+            if (p.getProjectId() != null && !p.getProjectId().equals(contract.projectId())) {
+                throw new InvalidRequestException("Sub-contract " + contract.name() + " belongs to another project");
+            }
+        }
+        boolean moving = p.getSubContractId() != null && !p.getSubContractId().equals(target);
+        if (moving && candidates.countByStatus(packageId, CandidateKind.BOQ_ITEM, CandidateStatus.APPLIED) > 0) {
+            throw new InvalidRequestException("BOQ rows of this package are already on a contract, so the target cannot change");
+        }
+        p.setSubContractId(target);
         p.setUpdatedBy(userContextService.getCurrentUserId());
         return PackageDto.of(packages.save(p), documents.countInPackage(p.getId()));
     }

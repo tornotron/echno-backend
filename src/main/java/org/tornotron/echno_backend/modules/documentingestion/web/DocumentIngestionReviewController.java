@@ -49,14 +49,14 @@ public class DocumentIngestionReviewController {
 
     @GetMapping("/packages/{packageId}/candidates")
     @PreAuthorize(DocumentIngestionModule.READ_GUARD)
-    @Operation(summary = "List a package's candidate values with their sources, filtered by kind and status")
+    @Operation(summary = "List a package's candidate values with their sources, filtered by kind, status and segment")
     public Page<CandidateDto> listCandidates(@PathVariable UUID packageId,
                                              @RequestParam(required = false) CandidateKind kind,
                                              @RequestParam(required = false) CandidateStatus status,
-                                             @RequestParam(required = false) Boolean flagged,
+                                             @RequestParam(required = false) UUID segmentId,
                                              @RequestParam(defaultValue = "0") int page,
                                              @RequestParam(defaultValue = "50") int size) {
-        return reviewService.list(packageId, kind, status, flagged, page, size);
+        return reviewService.list(packageId, kind, status, segmentId, page, size);
     }
 
     @PostMapping("/packages/{packageId}/candidates/decisions")

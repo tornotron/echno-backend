@@ -48,8 +48,8 @@ public class IngestPackage implements TenantScopedEntity {
     @Column(name = "project_id")
     private Long projectId;
 
-    @Column(name = "sub_contract_id")
-    private UUID subContractId;
+    @Column(name = "target_sub_contract_id")
+    private Long subContractId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
