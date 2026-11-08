@@ -63,4 +63,9 @@ public interface CandidateRepository extends JpaRepository<Candidate, UUID> {
             + "AND c.status = org.tornotron.echno_backend.modules.documentingestion.domain.CandidateStatus.PROPOSED "
             + "ORDER BY c.createdAt, c.id")
     List<Candidate> findProposedOfJob(@Param("jobId") UUID jobId, @Param("kind") CandidateKind kind);
+
+    /** A document's candidates of one kind, oldest first, bounded by the page. */
+    @Query("SELECT c FROM Candidate c WHERE c.documentId = :documentId AND c.kind = :kind ORDER BY c.createdAt, c.id")
+    List<Candidate> findForDocument(@Param("documentId") UUID documentId, @Param("kind") CandidateKind kind,
+                                    Pageable pageable);
 }
