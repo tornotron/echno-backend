@@ -34,8 +34,8 @@ import org.tornotron.echno_backend.employee.dto.EmployeeUpdateFieldsDto;
         name = "Employees",
         description = "Employee records within an organization, covering personal and employment details, "
                 + "reporting line, roles and status. Endpoints let a user join an organization and cover "
-                + "creating, browsing, reading, updating and deleting employees. Access is gated by the "
-                + "employee authorities, with an admin authority that grants all operations."
+                + "browsing, reading, updating and deleting employees. Access follows the organization "
+                + "roles of the /web twin, endpoint for endpoint."
 )
 public class EmployeeController {
 
@@ -136,7 +136,8 @@ public class EmployeeController {
      * @return A {@link ResponseEntity} with the created employee's DTO and HTTP status 201 (Created).
      */
     @PostMapping
-    @PreAuthorize("hasAuthority('employee:create') or hasAuthority('employee:admin')")
+    // Shut on purpose, for the reasons above; removal is tracked in #675.
+    @PreAuthorize("denyAll()")
     @Operation(
             summary = "Create an employee",
             description = "Creates an employee from the supplied personal and employment details, and "
@@ -145,7 +146,7 @@ public class EmployeeController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Employee created"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The request body failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the employee create or admin authority")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Refused to every caller: this route is closed pending removal (#675)")
     })
     public ResponseEntity<EmployeeDto> createEmployee(@Valid @RequestBody EmployeeCreationDto employeeCreationDto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(employeeService.addEmployee(employeeCreationDto));

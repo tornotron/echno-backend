@@ -41,7 +41,7 @@ public class MaterialConsumptionController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAuthority('material-consumption:create') or hasAuthority('material-consumption:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "Record a material consumption",
             description = "Records material consumed against a project, and optionally a storage "
@@ -51,7 +51,7 @@ public class MaterialConsumptionController {
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Consumption recorded"),
             @ApiResponse(responseCode = "400", description = "A field failed validation, such as a missing material id or a non-positive quantity"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the material-consumption create or admin authority"),
+            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @ApiResponse(responseCode = "404", description = "No material, employee, project, storage location or task with the given id"),
             @ApiResponse(responseCode = "409", description = "Insufficient stock at the relevant material, project or storage location for the requested quantity")
     })
@@ -62,7 +62,7 @@ public class MaterialConsumptionController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('material-consumption:read') or hasAuthority('material-consumption:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
     @Operation(
             summary = "Get a material consumption by id",
             description = "Returns a single material consumption record with its material, project, "
@@ -70,7 +70,7 @@ public class MaterialConsumptionController {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Consumption found"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the material-consumption read or admin authority"),
+            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @ApiResponse(responseCode = "404", description = "No material consumption with the given id")
     })
     public ResponseEntity<MaterialConsumptionDto> getMaterialConsumptionById(@PathVariable Long id) {
@@ -79,14 +79,14 @@ public class MaterialConsumptionController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAuthority('material-consumption:read') or hasAuthority('material-consumption:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
     @Operation(
             summary = "List all material consumptions",
             description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Consumptions returned"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the material-consumption read or admin authority")
+            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
     public ResponseEntity<List<MaterialConsumptionDto>> getAllMaterialConsumptions() {
         return UnpagedResultCap.respond(
@@ -94,7 +94,7 @@ public class MaterialConsumptionController {
     }
 
     @GetMapping("/all")
-    @PreAuthorize("hasAuthority('material-consumption:read') or hasAuthority('material-consumption:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
     @Operation(
             summary = "List material consumptions, paginated",
             description = "Returns a single page of material consumption records. The pageNo and "
@@ -102,7 +102,7 @@ public class MaterialConsumptionController {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Page of consumptions returned"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the material-consumption read or admin authority")
+            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
     public ResponseEntity<Page<MaterialConsumptionDto>> getAllMaterialConsumptionsPaginated(
             @Valid @ParameterObject PageQuery pageQuery
@@ -112,7 +112,7 @@ public class MaterialConsumptionController {
     }
 
     @GetMapping("/material/{materialId}")
-    @PreAuthorize("hasAuthority('material-consumption:read') or hasAuthority('material-consumption:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
     @Operation(
             summary = "List consumptions for a material",
             description = "Returns every consumption record for the given material, such as all draws "
@@ -120,7 +120,7 @@ public class MaterialConsumptionController {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Consumptions returned"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the material-consumption read or admin authority"),
+            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @ApiResponse(responseCode = "404", description = "No material with the given id")
     })
     public ResponseEntity<List<MaterialConsumptionDto>> getConsumptionsByMaterial(@PathVariable Long materialId) {
@@ -129,7 +129,7 @@ public class MaterialConsumptionController {
     }
 
     @GetMapping("/type/{consumptionType}")
-    @PreAuthorize("hasAuthority('material-consumption:read') or hasAuthority('material-consumption:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
     @Operation(
             summary = "List consumptions by type",
             description = "Returns every consumption record of the given consumption type, such as "
@@ -137,7 +137,7 @@ public class MaterialConsumptionController {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Consumptions returned"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the material-consumption read or admin authority")
+            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
     public ResponseEntity<List<MaterialConsumptionDto>> getConsumptionsByType(@PathVariable MaterialConsumptionType consumptionType) {
         List<MaterialConsumptionDto> consumptions = materialConsumptionService.getConsumptionsByType(consumptionType);
@@ -145,7 +145,7 @@ public class MaterialConsumptionController {
     }
 
     @GetMapping("/date-range")
-    @PreAuthorize("hasAuthority('material-consumption:read') or hasAuthority('material-consumption:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
     @Operation(
             summary = "List consumptions in a date range",
             description = "Returns every consumption record whose consumption date falls between "
@@ -154,7 +154,7 @@ public class MaterialConsumptionController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Consumptions returned"),
             @ApiResponse(responseCode = "400", description = "startDate or endDate is missing or not a valid ISO date-time"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the material-consumption read or admin authority")
+            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
     public ResponseEntity<List<MaterialConsumptionDto>> getConsumptionsByDateRange(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
@@ -165,14 +165,14 @@ public class MaterialConsumptionController {
     }
 
     @GetMapping("/task/{taskId}")
-    @PreAuthorize("hasAuthority('material-consumption:read') or hasAuthority('material-consumption:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
     @Operation(
             summary = "List consumptions for a task",
             description = "Returns every consumption record linked to the given task."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Consumptions returned"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the material-consumption read or admin authority"),
+            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @ApiResponse(responseCode = "404", description = "No task with the given id")
     })
     public ResponseEntity<List<MaterialConsumptionDto>> getConsumptionsByTask(@PathVariable Long taskId) {

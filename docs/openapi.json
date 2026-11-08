@@ -61553,7 +61553,7 @@
                 }
               }
             },
-            "description": "Caller lacks the employee create or admin authority"
+            "description": "Refused to every caller: this route is closed pending removal (#675)"
           },
           "404": {
             "content": {
@@ -72568,7 +72568,7 @@
                 }
               }
             },
-            "description": "Caller lacks the grn read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -72678,7 +72678,7 @@
                 }
               }
             },
-            "description": "Caller lacks the grn update or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -72788,7 +72788,7 @@
                 }
               }
             },
-            "description": "Caller lacks the grn create or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -72919,7 +72919,7 @@
                 }
               }
             },
-            "description": "Caller lacks the grn read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -73044,7 +73044,7 @@
                 }
               }
             },
-            "description": "Caller lacks the grn read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -73160,7 +73160,7 @@
                 }
               }
             },
-            "description": "Caller lacks the grn read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -74083,7 +74083,7 @@
                 }
               }
             },
-            "description": "Caller lacks the grn read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -75192,7 +75192,7 @@
                 }
               }
             },
-            "description": "Caller lacks the indent-item read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -75302,7 +75302,7 @@
                 }
               }
             },
-            "description": "Caller lacks the indent-item create or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -75417,7 +75417,7 @@
                 }
               }
             },
-            "description": "Caller lacks the indent-item read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -75533,7 +75533,7 @@
                 }
               }
             },
-            "description": "Caller lacks the indent-item read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -75649,7 +75649,7 @@
                 }
               }
             },
-            "description": "Caller lacks the indent-item read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -75780,7 +75780,7 @@
                 }
               }
             },
-            "description": "Caller lacks the indent-item read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -77052,7 +77052,7 @@
                 }
               }
             },
-            "description": "Caller lacks the indent-item delete or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -77163,7 +77163,7 @@
                 }
               }
             },
-            "description": "Caller lacks the indent-item read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -77284,7 +77284,7 @@
                 }
               }
             },
-            "description": "Caller lacks the indent-item update or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -77405,7 +77405,7 @@
                 }
               }
             },
-            "description": "Caller lacks the indent-item update or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -77510,7 +77510,7 @@
                 }
               }
             },
-            "description": "Caller lacks the indent read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -77620,7 +77620,7 @@
                 }
               }
             },
-            "description": "Caller lacks the indent create or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -77754,7 +77754,7 @@
                 }
               }
             },
-            "description": "Caller lacks the indent read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -79181,7 +79181,7 @@
                 }
               }
             },
-            "description": "Caller lacks the indent delete or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -79292,7 +79292,7 @@
                 }
               }
             },
-            "description": "Caller lacks the indent read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -79408,7 +79408,7 @@
                 }
               }
             },
-            "description": "Caller lacks the indent read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -79529,7 +79529,7 @@
                 }
               }
             },
-            "description": "Caller lacks the indent update or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -79651,7 +79651,7 @@
                 }
               }
             },
-            "description": "Caller lacks the indent delete or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -79781,7 +79781,7 @@
                 }
               }
             },
-            "description": "Caller lacks the indent update or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -84850,7 +84850,7 @@
                 }
               }
             },
-            "description": "Caller lacks the inventory-transaction read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -84981,7 +84981,7 @@
                 }
               }
             },
-            "description": "Caller lacks the inventory-transaction read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -85106,7 +85106,7 @@
                 }
               }
             },
-            "description": "Caller lacks the inventory-transaction read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -85222,7 +85222,7 @@
                 }
               }
             },
-            "description": "Caller lacks the inventory-transaction read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -85362,7 +85362,7 @@
                 }
               }
             },
-            "description": "Caller lacks the inventory-transaction read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -85475,7 +85475,7 @@
                 }
               }
             },
-            "description": "Caller lacks the inventory-transaction read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -85591,7 +85591,7 @@
                 }
               }
             },
-            "description": "Caller lacks the inventory-transaction read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -85707,7 +85707,7 @@
                 }
               }
             },
-            "description": "Caller lacks the inventory-transaction read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -85823,7 +85823,7 @@
                 }
               }
             },
-            "description": "Caller lacks the inventory-transaction read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -85936,7 +85936,7 @@
                 }
               }
             },
-            "description": "Caller lacks the inventory-transaction read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -86052,7 +86052,7 @@
                 }
               }
             },
-            "description": "Caller lacks the inventory-transaction read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -86187,7 +86187,7 @@
                 }
               }
             },
-            "description": "Caller lacks the inventory-transaction read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -87989,7 +87989,7 @@
                 }
               }
             },
-            "description": "Caller lacks the inventory-transaction read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -103234,7 +103234,7 @@
                 }
               }
             },
-            "description": "Caller lacks the material-consumption read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -103344,7 +103344,7 @@
                 }
               }
             },
-            "description": "Caller lacks the material-consumption create or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -103475,7 +103475,7 @@
                 }
               }
             },
-            "description": "Caller lacks the material-consumption read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -103600,7 +103600,7 @@
                 }
               }
             },
-            "description": "Caller lacks the material-consumption read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -103716,7 +103716,7 @@
                 }
               }
             },
-            "description": "Caller lacks the material-consumption read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -103832,7 +103832,7 @@
                 }
               }
             },
-            "description": "Caller lacks the material-consumption read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -103951,7 +103951,7 @@
                 }
               }
             },
-            "description": "Caller lacks the material-consumption read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -104999,7 +104999,7 @@
                 }
               }
             },
-            "description": "Caller lacks the material-consumption read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -105104,7 +105104,7 @@
                 }
               }
             },
-            "description": "Caller lacks the material read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -105214,7 +105214,7 @@
                 }
               }
             },
-            "description": "Caller lacks the material create or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -105345,7 +105345,7 @@
                 }
               }
             },
-            "description": "Caller lacks the material read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -105494,7 +105494,7 @@
                 }
               }
             },
-            "description": "Caller lacks the material read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -105609,7 +105609,7 @@
                 }
               }
             },
-            "description": "Caller lacks the material read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -107282,7 +107282,7 @@
                 }
               }
             },
-            "description": "Caller lacks the material delete or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -107393,7 +107393,7 @@
                 }
               }
             },
-            "description": "Caller lacks the material read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -107514,7 +107514,7 @@
                 }
               }
             },
-            "description": "Caller lacks the material update or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -107645,7 +107645,7 @@
                 }
               }
             },
-            "description": "Caller lacks the material read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -107761,7 +107761,7 @@
                 }
               }
             },
-            "description": "Caller lacks the material read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -107876,7 +107876,7 @@
                 }
               }
             },
-            "description": "Caller lacks the material update or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -108006,7 +108006,7 @@
                 }
               }
             },
-            "description": "Caller lacks the material update or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -112696,7 +112696,7 @@
                 }
               }
             },
-            "description": "Caller lacks the organization update or admin authority"
+            "description": "Refused to every caller: use PATCH /api/v1/organization/web/{id} to update one organization"
           },
           "404": {
             "content": {
@@ -112812,7 +112812,7 @@
                 }
               }
             },
-            "description": "Caller lacks the organization admin authority"
+            "description": "Refused to every caller: this is a platform-admin listing and no role grants it"
           },
           "404": {
             "content": {
@@ -113884,7 +113884,7 @@
                 }
               }
             },
-            "description": "Caller lacks the system-admin role in the organization, the organization delete authority as a member, or the organization admin authority"
+            "description": "Caller is not a system admin of the organization"
           },
           "404": {
             "content": {
@@ -113995,7 +113995,7 @@
                 }
               }
             },
-            "description": "Caller lacks the organization read authority as a member of the organization, or the organization admin authority"
+            "description": "Caller is neither a member of the organization nor a platform admin"
           },
           "404": {
             "content": {
@@ -114100,7 +114100,7 @@
                 }
               }
             },
-            "description": "Caller lacks the payable read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -114210,7 +114210,7 @@
                 }
               }
             },
-            "description": "Caller lacks the payable create or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -114341,7 +114341,7 @@
                 }
               }
             },
-            "description": "Caller lacks the payable read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -114446,7 +114446,7 @@
                 }
               }
             },
-            "description": "Caller lacks the payable read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -114562,7 +114562,7 @@
                 }
               }
             },
-            "description": "Caller lacks the payable read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -115478,7 +115478,7 @@
                 }
               }
             },
-            "description": "Caller lacks the payable read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -115601,7 +115601,7 @@
                 }
               }
             },
-            "description": "Caller lacks the payable update or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -117223,7 +117223,7 @@
                 }
               }
             },
-            "description": "Caller lacks the project read or admin authority"
+            "description": "Caller is not a member of the current tenant"
           },
           "404": {
             "content": {
@@ -117347,7 +117347,7 @@
                 }
               }
             },
-            "description": "Caller lacks the project create or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -117462,7 +117462,7 @@
                 }
               }
             },
-            "description": "Caller lacks the project update or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -119064,7 +119064,7 @@
                 }
               }
             },
-            "description": "Caller lacks the project delete or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -119175,7 +119175,7 @@
                 }
               }
             },
-            "description": "Caller lacks the project read or admin authority"
+            "description": "Caller is not a member of the current tenant"
           },
           "404": {
             "content": {
@@ -119289,7 +119289,7 @@
                 }
               }
             },
-            "description": "Caller lacks the project read or admin authority"
+            "description": "Caller is not a member of the current tenant"
           },
           "404": {
             "content": {
@@ -119405,7 +119405,7 @@
                 }
               }
             },
-            "description": "Caller lacks the project read or admin authority"
+            "description": "Caller is not a member of the current tenant"
           },
           "404": {
             "content": {
@@ -119527,7 +119527,7 @@
                 }
               }
             },
-            "description": "Caller lacks the project update or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -119650,7 +119650,7 @@
                 }
               }
             },
-            "description": "Caller lacks the project update or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -131377,7 +131377,7 @@
                 }
               }
             },
-            "description": "Caller lacks the site-transfer read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -131487,7 +131487,7 @@
                 }
               }
             },
-            "description": "Caller lacks the site-transfer create or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -131618,7 +131618,7 @@
                 }
               }
             },
-            "description": "Caller lacks the site-transfer read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -131734,7 +131734,7 @@
                 }
               }
             },
-            "description": "Caller lacks the site-transfer read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -131850,7 +131850,7 @@
                 }
               }
             },
-            "description": "Caller lacks the site-transfer read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -131972,7 +131972,7 @@
                 }
               }
             },
-            "description": "Caller lacks the site-transfer read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -133538,7 +133538,7 @@
                 }
               }
             },
-            "description": "Caller lacks the site-transfer read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -133661,7 +133661,7 @@
                 }
               }
             },
-            "description": "Caller lacks the site-transfer update or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -133784,7 +133784,7 @@
                 }
               }
             },
-            "description": "Caller lacks the site-transfer update or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -133913,7 +133913,7 @@
                 }
               }
             },
-            "description": "Caller lacks the site-transfer update or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -135072,7 +135072,7 @@
                 }
               }
             },
-            "description": "Caller lacks the storage-location read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -135182,7 +135182,7 @@
                 }
               }
             },
-            "description": "Caller lacks the storage-location admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -135313,7 +135313,7 @@
                 }
               }
             },
-            "description": "Caller lacks the storage-location read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -135429,7 +135429,7 @@
                 }
               }
             },
-            "description": "Caller lacks the storage-location read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -135552,7 +135552,7 @@
                 }
               }
             },
-            "description": "Caller lacks the storage-location read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -136595,7 +136595,7 @@
                 }
               }
             },
-            "description": "Caller lacks the storage-location read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -137444,7 +137444,7 @@
                 }
               }
             },
-            "description": "Caller lacks the task read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -137568,7 +137568,7 @@
                 }
               }
             },
-            "description": "Caller lacks the task create or admin authority, or has no employee record in the current tenant, so the record would name nobody"
+            "description": "Caller lacks the required role in the current tenant, or has no employee record in it, so the record would name nobody"
           },
           "404": {
             "content": {
@@ -137683,7 +137683,7 @@
                 }
               }
             },
-            "description": "Caller lacks the task update or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -138769,7 +138769,7 @@
                 }
               }
             },
-            "description": "Caller lacks the task delete or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -138880,7 +138880,7 @@
                 }
               }
             },
-            "description": "Caller lacks the task read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -143243,7 +143243,7 @@
                 }
               }
             },
-            "description": "Caller lacks the vendor read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -143353,7 +143353,7 @@
                 }
               }
             },
-            "description": "Caller lacks the vendor create or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -143484,7 +143484,7 @@
                 }
               }
             },
-            "description": "Caller lacks the vendor read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -143599,7 +143599,7 @@
                 }
               }
             },
-            "description": "Caller lacks the vendor read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -146443,7 +146443,7 @@
                 }
               }
             },
-            "description": "Caller lacks the vendor delete or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -146554,7 +146554,7 @@
                 }
               }
             },
-            "description": "Caller lacks the vendor read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -146675,7 +146675,7 @@
                 }
               }
             },
-            "description": "Caller lacks the vendor update or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -146791,7 +146791,7 @@
                 }
               }
             },
-            "description": "Caller lacks the vendor read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -146912,7 +146912,7 @@
                 }
               }
             },
-            "description": "Caller lacks the vendor update or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -147034,7 +147034,7 @@
                 }
               }
             },
-            "description": "Caller lacks the vendor delete or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -147164,7 +147164,7 @@
                 }
               }
             },
-            "description": "Caller lacks the vendor update or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -147280,7 +147280,7 @@
                 }
               }
             },
-            "description": "Caller lacks the vendor read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -147401,7 +147401,7 @@
                 }
               }
             },
-            "description": "Caller lacks the vendor update or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -147523,7 +147523,7 @@
                 }
               }
             },
-            "description": "Caller lacks the vendor delete or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -147653,7 +147653,7 @@
                 }
               }
             },
-            "description": "Caller lacks the vendor update or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -147766,7 +147766,7 @@
                 }
               }
             },
-            "description": "Caller lacks the vendor delete or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -147877,7 +147877,7 @@
                 }
               }
             },
-            "description": "Caller lacks the vendor read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -147998,7 +147998,7 @@
                 }
               }
             },
-            "description": "Caller lacks the vendor update or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -148111,7 +148111,7 @@
                 }
               }
             },
-            "description": "Caller lacks the vendor read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -148227,7 +148227,7 @@
                 }
               }
             },
-            "description": "Caller lacks the vendor read or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -148348,7 +148348,7 @@
                 }
               }
             },
-            "description": "Caller lacks the vendor update or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -148470,7 +148470,7 @@
                 }
               }
             },
-            "description": "Caller lacks the vendor delete or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -148600,7 +148600,7 @@
                 }
               }
             },
-            "description": "Caller lacks the vendor update or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -149321,7 +149321,7 @@
                 }
               }
             },
-            "description": "Caller lacks the category read or admin authority"
+            "description": "Caller is neither a member of the current tenant nor holds an elevated role in it"
           },
           "404": {
             "content": {
@@ -149431,7 +149431,7 @@
                 }
               }
             },
-            "description": "Caller lacks the category create or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -149544,7 +149544,7 @@
                 }
               }
             },
-            "description": "Caller lacks the category delete or admin authority"
+            "description": "Caller lacks the required role in the current tenant"
           },
           "404": {
             "content": {
@@ -149655,7 +149655,7 @@
                 }
               }
             },
-            "description": "Caller lacks the category read or admin authority"
+            "description": "Caller is neither a member of the current tenant nor holds an elevated role in it"
           },
           "404": {
             "content": {
@@ -149908,7 +149908,7 @@
       "name": "Billing events"
     },
     {
-      "description": "Work categories used to classify tasks, such as \"Reinforcement Steel\" or \"Aggregates\". A category carries a name, description and optional icon and image. Endpoints cover creating, listing and deleting categories. Access is gated by the category authorities, with an admin authority that grants all operations.",
+      "description": "Work categories used to classify tasks, such as \"Reinforcement Steel\" or \"Aggregates\". A category carries a name, description and optional icon and image. Endpoints cover creating, listing and deleting categories. Access follows the organization roles of the /web twin, endpoint for endpoint.",
       "name": "Categories"
     },
     {
@@ -149988,11 +149988,11 @@
       "name": "Element types"
     },
     {
-      "description": "Web-client twin of the employee endpoints. Adds joining an organization as an employee, a minimal lookup list for pickers, paginated and filtered listing, manager assignment, subordinate and manager lookups, and org-role assignment, alongside the same read, update and delete operations as the base employee API.",
+      "description": "Employee records within an organization, covering personal and employment details, reporting line, roles and status. Endpoints let a user join an organization and cover browsing, reading, updating and deleting employees. Access follows the organization roles of the /web twin, endpoint for endpoint.",
       "name": "Employees"
     },
     {
-      "description": "Employee records within an organization, covering personal and employment details, reporting line, roles and status. Endpoints let a user join an organization and cover creating, browsing, reading, updating and deleting employees. Access is gated by the employee authorities, with an admin authority that grants all operations.",
+      "description": "Web-client twin of the employee endpoints. Adds joining an organization as an employee, a minimal lookup list for pickers, paginated and filtered listing, manager assignment, subordinate and manager lookups, and org-role assignment, alongside the same read, update and delete operations as the base employee API.",
       "name": "Employees"
     },
     {
@@ -150008,7 +150008,7 @@
       "name": "Finance Settings"
     },
     {
-      "description": "Goods received notes (GRNs) record the receipt of materials from a vendor against a purchase order. Each GRN carries the vendor, project, storage location, delivery and invoice references and a list of received line items with ordered and received quantities. Creating a GRN posts the received quantities into stock. Endpoints require the matching grn create, read, update or admin authority.",
+      "description": "Goods received notes (GRNs) record the receipt of materials from a vendor against a purchase order. Each GRN carries the vendor, project, storage location, delivery and invoice references and a list of received line items with ordered and received quantities. Creating a GRN posts the received quantities into stock. Access follows the organization roles of the /web twin, endpoint for endpoint.",
       "name": "Goods Received Notes"
     },
     {
@@ -150024,7 +150024,7 @@
       "name": "Holidays (Web)"
     },
     {
-      "description": "Requested material items belonging to an indent: material, quantity requested and ordered, and whether the item has been converted into a purchase order line. Items can be looked up by indent, by material, or by conversion status. Access is gated by the indent-item authorities, with an admin authority that grants all operations.",
+      "description": "Requested material items belonging to an indent: material, quantity requested and ordered, and whether the item has been converted into a purchase order line. Items can be looked up by indent, by material, or by conversion status. Access follows the organization roles of the /web twin, endpoint for endpoint.",
       "name": "Indent Items"
     },
     {
@@ -150032,7 +150032,7 @@
       "name": "Indent Items (Web)"
     },
     {
-      "description": "Material indents raised on a project, the request that a purchase order is later converted from. An indent carries a status and a list of requested material items. Access is gated by the indent authorities, with an admin authority that grants all operations.",
+      "description": "Material indents raised on a project, the request that a purchase order is later converted from. An indent carries a status and a list of requested material items. Access follows the organization roles of the /web twin, endpoint for endpoint.",
       "name": "Indents"
     },
     {
@@ -150052,7 +150052,7 @@
       "name": "Inspections"
     },
     {
-      "description": "Read access to the inventory transaction ledger and derived stock positions. Every stock movement (goods receipt, consumption, transfer between storage locations, adjustment or opening balance) is recorded as a transaction that carries the opening, changed and closing quantity for a material. These endpoints query the ledger by material, project, task, storage location, transaction type or date range, and roll it up into current stock by location and material. All endpoints require the inventory-transaction read or admin authority.",
+      "description": "Read access to the inventory transaction ledger and derived stock positions. Every stock movement (goods receipt, consumption, transfer between storage locations, adjustment or opening balance) is recorded as a transaction that carries the opening, changed and closing quantity for a material. These endpoints query the ledger by material, project, task, storage location, transaction type or date range, and roll it up into current stock by location and material. Access follows the organization roles of the /web twin, endpoint for endpoint.",
       "name": "Inventory Transactions"
     },
     {
@@ -150200,7 +150200,7 @@
       "name": "PDF Reports"
     },
     {
-      "description": "Amounts owed to vendors, tracked from creation through to settlement. A payable carries its vendor, amount and outstanding balance, and accepts payment records that reduce that balance. Endpoints cover creating payables, recording payments, browsing and filtering by vendor, and listing outstanding items. Access is tenant scoped and gated by the payable authorities, with an admin authority that grants all operations.",
+      "description": "Amounts owed to vendors, tracked from creation through to settlement. A payable carries its vendor, amount and outstanding balance, and accepts payment records that reduce that balance. Endpoints cover creating payables, recording payments, browsing and filtering by vendor, and listing outstanding items. Access is tenant scoped and follows the organization roles of the /web twin, endpoint for endpoint.",
       "name": "Payables"
     },
     {
@@ -150244,11 +150244,11 @@
       "name": "Project site structure"
     },
     {
-      "description": "Web-client twin of the project endpoints. Adds employee membership management (add/remove/list by project or by employee) alongside the same create, read, update and delete operations as the base project API. Access is gated by tenant membership, with mutations restricted to a system admin or project manager.",
+      "description": "Construction projects and their team assignments. Endpoints cover creating a project with attachments, browsing and reading projects, batch updates, deletion, and adding or removing the employees assigned to a project. Access follows the organization roles of the /web twin, endpoint for endpoint.",
       "name": "Projects"
     },
     {
-      "description": "Construction projects and their team assignments. Endpoints cover creating a project with attachments, browsing and reading projects, batch updates, deletion, and adding or removing the employees assigned to a project. Access is gated by the project authorities, with an admin authority that grants all operations.",
+      "description": "Web-client twin of the project endpoints. Adds employee membership management (add/remove/list by project or by employee) alongside the same create, read, update and delete operations as the base project API. Access is gated by tenant membership, with mutations restricted to a system admin or project manager.",
       "name": "Projects"
     },
     {
@@ -150288,7 +150288,7 @@
       "name": "Shift Timings (Web)"
     },
     {
-      "description": "Movement of materials between two projects, and optionally between specific storage locations within them. A site transfer records the sending person, the items and quantities being moved, and its own status as it progresses. Creating a transfer checks that the sending location holds enough stock before the items are recorded. Access is gated by the site-transfer authorities, with an admin authority that grants all operations.",
+      "description": "Movement of materials between two projects, and optionally between specific storage locations within them. A site transfer records the sending person, the items and quantities being moved, and its own status as it progresses. Creating a transfer checks that the sending location holds enough stock before the items are recorded. Access follows the organization roles of the /web twin, endpoint for endpoint.",
       "name": "Site Transfers"
     },
     {
@@ -150300,7 +150300,7 @@
       "name": "Stock Adjustments (Web)"
     },
     {
-      "description": "Physical places where inventory is held, such as a site store, a central warehouse or a godown. A location carries a name, type, optional project link and coordinates. Endpoints cover creating a location and listing or looking one up by id, project or type. Access is gated by the storage-location authorities, with an admin authority that grants all operations.",
+      "description": "Physical places where inventory is held, such as a site store, a central warehouse or a godown. A location carries a name, type, optional project link and coordinates. Endpoints cover creating a location and listing or looking one up by id, project or type. Access follows the organization roles of the /web twin, endpoint for endpoint.",
       "name": "Storage Locations"
     },
     {
@@ -150316,7 +150316,7 @@
       "name": "Tasks"
     },
     {
-      "description": "Work items tracked against a project. A task carries a title, schedule, assignees, category, tags, progress and status. Endpoints cover creating a task with attachments, browsing and reading tasks, batch updates and deletion. Access is gated by the task authorities, with an admin authority that grants all operations.",
+      "description": "Work items tracked against a project. A task carries a title, schedule, assignees, category, tags, progress and status. Endpoints cover creating a task with attachments, browsing and reading tasks, batch updates and deletion. Access follows the organization roles of the /web twin, endpoint for endpoint.",
       "name": "Tasks"
     },
     {
@@ -150336,7 +150336,7 @@
       "name": "Users"
     },
     {
-      "description": "Suppliers that materials are purchased from, along with their contacts, tax identifiers, bank accounts and payment terms. A vendor carries a name and the nested records used for procurement and payables. Endpoints cover creating, browsing, searching, updating and deleting vendors and their sub-records, and reading a vendor summary. Access is tenant scoped and gated by the vendor authorities, with an admin authority that grants all operations.",
+      "description": "Suppliers that materials are purchased from, along with their contacts, tax identifiers, bank accounts and payment terms. A vendor carries a name and the nested records used for procurement and payables. Endpoints cover creating, browsing, searching, updating and deleting vendors and their sub-records, and reading a vendor summary. Access is tenant scoped and follows the organization roles of the /web twin, endpoint for endpoint.",
       "name": "Vendors"
     },
     {
