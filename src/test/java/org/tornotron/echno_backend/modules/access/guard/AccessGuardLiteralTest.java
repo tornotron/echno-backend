@@ -18,6 +18,7 @@ import org.tornotron.echno_backend.common.module.EchnoModule;
 import org.tornotron.echno_backend.common.module.ModuleRegistry;
 import org.tornotron.echno_backend.modules.access.api.AccessPermission;
 import org.tornotron.echno_backend.modules.access.matrix.catalog.AccessCatalogReader;
+import org.tornotron.echno_backend.modules.access.matrix.catalog.ScopeAwareAreas;
 
 /**
  * Every {@code @access.can} in the application parses and names a permission the catalog or a
@@ -58,7 +59,8 @@ class AccessGuardLiteralTest {
     }
 
     private static List<String> problems(List<Class<?>> classes) {
-        AccessCatalogReader catalog = new AccessCatalogReader(realModules(), new EnforcedPermissions(null));
+        AccessCatalogReader catalog = new AccessCatalogReader(realModules(), new EnforcedPermissions(null),
+                new ScopeAwareAreas(List.of()));
         List<String> problems = new ArrayList<>();
         for (Class<?> type : classes) {
             for (String expression : EnforcedPermissions.expressionsOn(type)) {

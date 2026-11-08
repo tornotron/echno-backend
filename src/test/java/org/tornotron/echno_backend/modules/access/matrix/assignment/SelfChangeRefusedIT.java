@@ -3,12 +3,19 @@ package org.tornotron.echno_backend.modules.access.matrix.assignment;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.access.AccessDeniedException;
 import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.employee.Employee;
+import org.tornotron.echno_backend.modules.access.web.dto.AccessGrantRequest;
+import org.tornotron.echno_backend.modules.access.web.dto.AccessUserRoleRequest;
 
-/** Design note 2.6, rule 4, on the old employee endpoints' path as much as the new one. */
+/**
+ * Design note 2.6, rule 4, on every write path: the old employee endpoints' path, the assignment
+ * service, and each Roles &amp; Permissions write that could change what the caller holds.
+ */
 class SelfChangeRefusedIT extends RoleAssignmentITSupport {
 
     @Test
@@ -61,5 +68,39 @@ class SelfChangeRefusedIT extends RoleAssignmentITSupport {
 
         assertThat(legacyRowsOf(creator)).containsExactly("SYSTEM_ADMIN");
         assertThat(assignmentsOf(creator)).containsExactly("system-admin");
+    }
+
+    @Test
+    void nobodyReplacesTheirOwnRolesThroughTheScreen() {
+        Employee admin = administrator("self-screen");
+        UUID finance = roleId("finance-manager");
+
+        assertThatThrownBy(() -> writer.replaceUserRoles(admin.getId(), List.of(
+                new AccessUserRoleRequest(roleId("system-admin"), null), new AccessUserRoleRequest(finance, null))))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("their own roles");
+        assertThatThrownBy(() -> writer.replaceUserRoles(admin.getId(), List.of()))
+                .isInstanceOf(AccessDeniedException.class);
+        assertThat(assignmentsOf(admin)).containsExactly("system-admin");
+        assertThat(logActionsAbout(admin)).containsExactly("role.assigned");
+    }
+
+    @Test
+    void nobodyChangesTheGrantsOrGrantableRolesOfARoleTheyHold() {
+        Employee admin = administrator("self-role");
+        UUID lead = writer.createRole("Lead", null, null).id();
+        UUID clerk = writer.createRole("Clerk", null, null).id();
+        assignments.assignAsSystem(admin.getId(), lead, null);
+        flush();
+
+        assertThatThrownBy(() -> writer.replaceRoleGrants(lead,
+                List.of(new AccessGrantRequest("finance:read", "ALL"))))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("own grants");
+        assertThatThrownBy(() -> writer.replaceGrantableRoles(lead, List.of(clerk)))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("own grants");
+        assertThat(grantsOf(lead)).isEmpty();
+        assertThat(logActionsAboutRole(lead)).containsExactly("role.created");
     }
 }

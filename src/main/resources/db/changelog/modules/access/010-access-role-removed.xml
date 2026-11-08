@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        The starting roles an organization deleted. The reconciler copies every template role an
+        organization does not have, on every boot and before every assignment change, so without
+        this a deleted starting role would come back. One row per organization and slug; the
+        organization's deletion takes its rows with it.
+    -->
+
+    <changeSet id="access-010-create-access_role_removed" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="access_role_removed"/></not>
+        </preConditions>
+        <createTable tableName="access_role_removed">
+            <column name="organization_id" type="BIGINT"><constraints primaryKey="true" primaryKeyName="pk_access_role_removed" nullable="false"/></column>
+            <column name="slug" type="VARCHAR(80)"><constraints primaryKey="true" primaryKeyName="pk_access_role_removed" nullable="false"/></column>
+            <column name="removed_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="removed_by" type="BIGINT"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="access_role_removed" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_access_role_removed_organization" onDelete="CASCADE"/>
+    </changeSet>
+
+</databaseChangeLog>
