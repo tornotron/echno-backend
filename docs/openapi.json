@@ -9565,7 +9565,7 @@
         "description": "Why an item was refused.",
         "properties": {
           "code": {
-            "description": "VALIDATION, PROJECT_NOT_FOUND, ATTACHMENT_NOT_FOUND, ATTACHMENT_NOT_ALLOWED, INVALID_GEOMETRY, UNKNOWN_MODEL_VERSION, MODEL_NOT_ACTIVE, UNKNOWN_CLASS, SHAPE_MISMATCH, DUPLICATE_IN_BATCH or INTERNAL.",
+            "description": "VALIDATION, PROJECT_NOT_FOUND, INSPECTION_NOT_FOUND, ATTACHMENT_NOT_FOUND, ATTACHMENT_NOT_ALLOWED, INVALID_GEOMETRY, UNKNOWN_MODEL_VERSION, MODEL_NOT_ACTIVE, UNKNOWN_CLASS, SHAPE_MISMATCH, DUPLICATE_IN_BATCH or INTERNAL.",
             "type": "string"
           },
           "field": {
@@ -11692,6 +11692,14 @@
             "maxLength": 200,
             "minLength": 1,
             "type": "string"
+          },
+          "inspectionId": {
+            "description": "The inspection the finding was made on, in the same project, when there is one. When spatialNodeId is not given the observation takes the inspection's node.",
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "locationNote": {
             "maxLength": 300,
@@ -22704,6 +22712,83 @@
         ],
         "type": "object"
       },
+      "QueueVisionRunRequest": {
+        "description": "Runs models on evidence images now. Name exactly one of inspectionId, observationId and attachmentIds.",
+        "properties": {
+          "attachmentIds": {
+            "description": "These inspection or observation evidence images, up to 200.",
+            "items": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "maxItems": 200,
+            "minItems": 0,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "inspectionId": {
+            "description": "Every evidence image of this inspection.",
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "modelKeys": {
+            "description": "The model families to run. When absent, the organization's settings decide.",
+            "items": {
+              "maxLength": 50,
+              "minLength": 0,
+              "type": "string"
+            },
+            "maxItems": 20,
+            "minItems": 0,
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "observationId": {
+            "description": "Every evidence image of this observation.",
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "rerun": {
+            "description": "Run a version again on an image it already ran on.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "QueueVisionRunResult": {
+        "description": "What a run request queued.",
+        "properties": {
+          "queued": {
+            "description": "Jobs queued, one per image and model version.",
+            "format": "int32",
+            "type": "integer"
+          },
+          "skippedDuplicate": {
+            "description": "Image and version pairs skipped because a job is pending, or already ran without rerun.",
+            "format": "int32",
+            "type": "integer"
+          },
+          "skippedNotImage": {
+            "description": "Files skipped because the worker cannot read them (only JPEG, PNG and WebP) or they sit on a record with no project.",
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "RaiseBillPaymentRequest": {
         "description": "Raises a payment on an approved bill, for the second signature.",
         "properties": {
@@ -28730,6 +28815,30 @@
         },
         "type": "object"
       },
+      "UpdateVisionSettingsRequest": {
+        "description": "Replaces the organization's computer vision settings.",
+        "properties": {
+          "autoInfer": {
+            "type": "boolean"
+          },
+          "modelKeys": {
+            "description": "Registered model family keys, up to 20. Empty means every family with an ACTIVE version.",
+            "items": {
+              "maxLength": 50,
+              "minLength": 0,
+              "type": "string"
+            },
+            "maxItems": 20,
+            "minItems": 0,
+            "type": "array"
+          }
+        },
+        "required": [
+          "autoInfer",
+          "modelKeys"
+        ],
+        "type": "object"
+      },
       "UploadRequest": {
         "properties": {
           "contentType": {
@@ -29621,6 +29730,37 @@
             "maxLength": 2000,
             "minLength": 0,
             "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "VisionSettingsDto": {
+        "description": "An organization's computer vision settings. With no settings saved, auto-inference is off.",
+        "properties": {
+          "autoInfer": {
+            "description": "Run the models on every new inspection or observation evidence image.",
+            "type": "boolean"
+          },
+          "modelKeys": {
+            "description": "The model families to run, by key. Empty means every family with an ACTIVE version.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "updatedById": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
           }
         },
         "type": "object"
@@ -149246,6 +149386,330 @@
         ]
       }
     },
+    "/api/v1/vision/web/runs": {
+      "post": {
+        "description": "Queues one job per image and model version, up to 200 images. A pair with a pending job is skipped, and so is one that already ran unless rerun is true.",
+        "operationId": "VisionWebController_queueRun",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QueueVisionRunRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueVisionRunResult"
+                }
+              }
+            },
+            "description": "Jobs queued"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No source or more than one, too many images, or no active model version to run"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "The organization is not entitled to the module, in enforce mode"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The inspection, observation or an attachment is not evidence of this organization"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Run models on evidence images",
+        "tags": [
+          "Vision runs"
+        ]
+      }
+    },
+    "/api/v1/vision/web/settings": {
+      "get": {
+        "description": "Whether new evidence images are run automatically, and which model families.",
+        "operationId": "VisionWebController_getSettings",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/VisionSettingsDto"
+                }
+              }
+            },
+            "description": "Settings returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "The organization is not entitled to the module, in enforce mode"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Read the vision settings",
+        "tags": [
+          "Vision runs"
+        ]
+      },
+      "put": {
+        "description": "For the organization's system-admin.",
+        "operationId": "VisionWebController_updateSettings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateVisionSettingsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/VisionSettingsDto"
+                }
+              }
+            },
+            "description": "Settings saved"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "A model key names no registered family"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "The organization is not entitled to the module, in enforce mode"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller is not the organization's system-admin"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Replace the vision settings",
+        "tags": [
+          "Vision runs"
+        ]
+      }
+    },
     "/api/v1/workCategories": {
       "get": {
         "description": "Returns a single page of work categories. The pageNo and pageSize parameters control paging; only the page content is returned, without paging metadata.",
@@ -150350,6 +150814,10 @@
     {
       "description": "The computer vision model registry: model families and their versions. A platform-wide catalogue, read here by an organization entitled to the module.",
       "name": "Vision models"
+    },
+    {
+      "description": "An organization's computer vision settings, and running its models on inspection and observation evidence images. Detections come back as pending observations.",
+      "name": "Vision runs"
     },
     {
       "description": "Work breakdown structure elements for a project, arranged as a tree of phases and activities such as Foundation Works or RCC Column Casting - Block A. Endpoints cover creating a single element or a batch, reading the tree or a flat list, updating and deleting an element, moving an element under a different parent, and recalculating rolled-up cost and progress. Any member of the tenant reads; the system-admin and project-manager roles change the schedule.",

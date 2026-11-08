@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        An organization's vision settings and the inference job table the vision worker polls.
+        Plain new tables, each guarded on its own existence and touching nothing that exists, so
+        they run on every boot whether the module is on or off. The job columns are the worker
+        contract in docs/specs/2026-11-08-vision-inference-job-contract.md; renaming one breaks
+        the worker. Design: docs/specs/2026-10-26-cv-phase4-design.md, section 4.6.
+    -->
+
+    <changeSet id="vision-003-create-cv-org-settings" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="cv_org_settings"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="cv_org_settings">
+            <column name="organization_id" type="BIGINT">
+                <constraints primaryKey="true" primaryKeyName="pk_cv_org_settings" nullable="false"
+                             foreignKeyName="fk_cv_org_settings_organization"
+                             referencedTableName="organization" referencedColumnNames="id"/>
+            </column>
+            <column name="auto_infer" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="model_keys" type="JSONB">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_by_id" type="BIGINT"/>
+            <column name="created_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <rollback>
+            <dropTable tableName="cv_org_settings"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="vision-003-create-cv-inference-jobs" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="cv_inference_jobs"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="cv_inference_jobs">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" primaryKeyName="pk_cv_inference_jobs" nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="fk_cv_jobs_organization"
+                             referencedTableName="organization" referencedColumnNames="id"/>
+            </column>
+            <column name="project_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="attachment_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="inspection_id" type="UUID"/>
+            <column name="observation_id" type="UUID"/>
+            <column name="source_key" type="VARCHAR(500)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="content_type" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="model_version_id" type="UUID">
+                <constraints nullable="false" foreignKeyName="fk_cv_jobs_model_version"
+                             referencedTableName="cv_model_versions" referencedColumnNames="id"/>
+            </column>
+            <column name="model_key" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="model_version" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="weights_uri" type="VARCHAR(500)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="weights_sha256" type="VARCHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="input_size" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="classes" type="JSONB">
+                <constraints nullable="false"/>
+            </column>
+            <column name="output_key" type="VARCHAR(500)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="job_trigger" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="requested_by_id" type="BIGINT"/>
+            <column name="status" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="worker_id" type="VARCHAR(100)"/>
+            <column name="attempt" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="max_attempts" type="INT" defaultValueNumeric="3">
+                <constraints nullable="false"/>
+            </column>
+            <column name="lease_expires_at" type="TIMESTAMP"/>
+            <column name="detection_count" type="INT"/>
+            <column name="inference_ms" type="INT"/>
+            <column name="worker_version" type="VARCHAR(50)"/>
+            <column name="error" type="TEXT"/>
+            <column name="queued_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="started_at" type="TIMESTAMP"/>
+            <column name="finished_at" type="TIMESTAMP"/>
+            <column name="ingested_at" type="TIMESTAMP"/>
+            <column name="observation_count" type="INT"/>
+            <column name="ingest_error" type="TEXT"/>
+            <column name="created_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex tableName="cv_inference_jobs" indexName="idx_cv_jobs_status_queued">
+            <column name="status"/>
+            <column name="queued_at"/>
+        </createIndex>
+        <createIndex tableName="cv_inference_jobs" indexName="idx_cv_jobs_attachment_version">
+            <column name="attachment_id"/>
+            <column name="model_version_id"/>
+        </createIndex>
+        <createIndex tableName="cv_inference_jobs" indexName="idx_cv_jobs_organization">
+            <column name="organization_id"/>
+        </createIndex>
+
+        <!-- One pending job per image and model version: a second trigger while one waits is skipped. -->
+        <sql>
+            CREATE UNIQUE INDEX uq_cv_jobs_one_pending ON cv_inference_jobs (attachment_id, model_version_id)
+                WHERE status IN ('QUEUED', 'RUNNING')
+        </sql>
+
+        <rollback>
+            <dropTable tableName="cv_inference_jobs"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

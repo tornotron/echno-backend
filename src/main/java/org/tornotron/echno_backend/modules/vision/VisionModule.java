@@ -7,7 +7,7 @@ import org.tornotron.echno_backend.common.module.ModuleManifest;
 
 /**
  * The manifest of the computer vision module: the model registry, the class taxonomy and, later,
- * the inference jobs. Regions live in {@code inspections}, since a person can draw one without any
+ * the inference jobs and an organization's settings. Regions live in {@code inspections}, since a person can draw one without any
  * model; this module depends on {@code inspections} and never the other way round.
  *
  * <p>The module is dark until an operator turns it on. A feature key alone would not do that: in
@@ -33,6 +33,11 @@ public class VisionModule implements EchnoModule {
     // reviewer outside the client's staff holds. One string, so the two handlers cannot drift.
     public static final String READ_GUARD = "@orgSecurity.hasAnyOrgRoleForCurrentTenant("
             + "'system-admin','project-manager','qa-engineer','safety-officer','detection-reviewer')";
+    // Asking for a run reveals nothing by itself: the findings it produces are read under
+    // READ_GUARD and the detection visibility rule. The same roles, so whoever reviews can re-run.
+    public static final String RUN_GUARD = READ_GUARD;
+    // An organization's own settings: its admin decides whether every new photo is run.
+    public static final String SETTINGS_MANAGE_GUARD = "@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')";
     // The registry is global, so writing it is a platform job. An organization's system-admin is
     // whoever created that organization, and must not choose what every organization runs.
     public static final String MODELS_MANAGE_GUARD = "hasRole('platform-admin')";
