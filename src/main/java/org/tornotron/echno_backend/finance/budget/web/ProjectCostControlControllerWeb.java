@@ -20,14 +20,14 @@ import org.tornotron.echno_backend.finance.budget.service.ProjectCostControlServ
         name = "Project Cost Control",
         description = "The project cost-control view: per budget head, the amount allocated against what has "
                 + "been committed (approved but not fully paid) and spent (fully paid), and what remains, with "
-                + "over-budget heads flagged. Tenant scoped and limited to system administrators and project managers."
+                + "over-budget heads flagged. Tenant scoped, and needs finance read."
 )
 public class ProjectCostControlControllerWeb {
 
     private final ProjectCostControlService service;
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('finance', 'read')")
     @Operation(
             summary = "Get the cost-control view for a project",
             description = "Returns the per-budget-head roll-up of allocated, committed, spent and remaining "
@@ -37,7 +37,7 @@ public class ProjectCostControlControllerWeb {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Cost-control view for the project"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not read finance records"),
             @ApiResponse(responseCode = "404", description = "No project with the given id in the current tenant")
     })
     public ProjectCostControlDto get(@PathVariable Long projectId) {

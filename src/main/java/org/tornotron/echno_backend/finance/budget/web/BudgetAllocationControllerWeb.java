@@ -22,21 +22,22 @@ import java.util.UUID;
 @Tag(
         name = "Project Budget",
         description = "A project's budget, expressed as one allocation per budget head (cost category). "
-                + "All endpoints are tenant scoped and limited to system administrators and project managers."
+                + "All endpoints are tenant scoped. Each needs the finance permission named for its action (read, "
+                + "edit or delete)."
 )
 public class BudgetAllocationControllerWeb {
 
     private final BudgetAllocationService service;
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('finance', 'read')")
     @Operation(
             summary = "List a project's budget allocations",
             description = "Returns the set of budget-head allocations that make up the project's budget."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "List of budget allocations"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not read finance records"),
             @ApiResponse(responseCode = "404", description = "No project with the given id in the current tenant")
     })
     public List<BudgetAllocationDto> list(@PathVariable Long projectId) {
@@ -44,7 +45,7 @@ public class BudgetAllocationControllerWeb {
     }
 
     @PutMapping("/{costCategoryId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('finance', 'edit')")
     @Operation(
             summary = "Set the allocation for a budget head",
             description = "Sets the amount allocated to a cost category on the project. Creates the "
@@ -54,7 +55,7 @@ public class BudgetAllocationControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Allocation created or updated"),
             @ApiResponse(responseCode = "400", description = "Validation failed on the request body"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change in finance"),
             @ApiResponse(responseCode = "404", description = "No such project or cost category in the current tenant")
     })
     public BudgetAllocationDto upsert(@PathVariable Long projectId,
@@ -64,7 +65,7 @@ public class BudgetAllocationControllerWeb {
     }
 
     @DeleteMapping("/{costCategoryId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('finance', 'delete')")
     @Operation(
             summary = "Remove a budget-head allocation",
             description = "Deletes the allocation for a cost category on the project, taking that head out "
@@ -72,7 +73,7 @@ public class BudgetAllocationControllerWeb {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Allocation deleted"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change in finance"),
             @ApiResponse(responseCode = "404", description = "No such project, or no allocation for the category, in the current tenant")
     })
     public ResponseEntity<Void> delete(@PathVariable Long projectId, @PathVariable UUID costCategoryId) {
