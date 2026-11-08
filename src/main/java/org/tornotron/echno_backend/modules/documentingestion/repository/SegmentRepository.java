@@ -16,6 +16,10 @@ public interface SegmentRepository extends JpaRepository<Segment, UUID> {
     @Query("SELECT s FROM Segment s WHERE s.id = :id")
     Optional<Segment> findByIdScoped(@Param("id") UUID id);
 
+    /** Segments by id, through the tenant filter (a find by id would skip it). */
+    @Query("SELECT s FROM Segment s WHERE s.id IN :ids")
+    List<Segment> findByIdsScoped(@Param("ids") Collection<UUID> ids);
+
     /** A document's page segments, in page order; sheet segments belong to the BOQ flow. Bounded by the page count. */
     @Query("SELECT s FROM Segment s WHERE s.documentId = :documentId AND s.sheetName IS NULL "
             + "ORDER BY s.pageFrom, s.createdAt")
