@@ -5,8 +5,8 @@ import org.tornotron.echno_backend.common.enums.OrgRole;
 /**
  * Which tier decides a request raised under a policy.
  *
- * <p>{@link #REPORTING_MANAGER} is the management line the approval flow has always walked, level
- * by level when the policy's multi-level toggle is on and the direct manager alone when it is off.
+ * <p>{@link #REPORTING_MANAGER} routes the request to the employee's immediate manager, who decides
+ * it alone or transfers it to a manager above them (ClickUp 14zdkkvzx68).
  * {@link #HR_ADMIN} and {@link #SYSTEM_ADMIN} route the request in a single level to an employee
  * holding that organization role, the same {@code hr-admin} and {@code system-admin} roles the leave
  * endpoints are already gated on.

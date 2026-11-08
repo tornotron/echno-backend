@@ -216,6 +216,7 @@ class LeaveApproverAttributionTest {
                 .thenReturn(Optional.of(request));
         Employee delegate = new Employee();
         delegate.setId(9L);
+        approver.setManager(delegate);
         when(employeeRepository.findByIdAndOrganizationId(eq(9L), any()))
                 .thenReturn(Optional.of(delegate));
 

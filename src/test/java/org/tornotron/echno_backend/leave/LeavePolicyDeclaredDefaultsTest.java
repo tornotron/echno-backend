@@ -98,7 +98,6 @@ class LeavePolicyDeclaredDefaultsTest {
         assertThat(written.getAllowHalfDay()).isTrue();
         assertThat(written.getIsPaid()).isTrue();
         assertThat(written.getDisplayOrder()).isZero();
-        assertThat(written.getMultiLevelApprovalEnabled()).isTrue();
         assertThat(written.getAccrualMethod()).isEqualTo(AccrualMethod.MONTHLY);
         assertThat(written.getWeekendHolidayTreatment()).isEqualTo(WeekendHolidayTreatment.CHARGE_ALL_DAYS);
         assertThat(written.getApproverRole()).isEqualTo(LeaveApproverRole.REPORTING_MANAGER);
@@ -121,7 +120,6 @@ class LeavePolicyDeclaredDefaultsTest {
         source.setAllowHalfDay(null);
         source.setIsPaid(null);
         source.setDisplayOrder(null);
-        source.setMultiLevelApprovalEnabled(null);
 
         Organization target = new Organization();
         target.setId(OTHER_TENANT);
@@ -151,7 +149,6 @@ class LeavePolicyDeclaredDefaultsTest {
         dto.setMinDaysPerRequest(1.0);
         dto.setAdvanceNoticeDays(7);
         dto.setDisplayOrder(3);
-        dto.setMultiLevelApprovalEnabled(false);
 
         service.createPolicy(dto);
 
@@ -161,7 +158,6 @@ class LeavePolicyDeclaredDefaultsTest {
         assertThat(written.getMinDaysPerRequest()).isEqualTo(1.0);
         assertThat(written.getAdvanceNoticeDays()).isEqualTo(7);
         assertThat(written.getDisplayOrder()).isEqualTo(3);
-        assertThat(written.getMultiLevelApprovalEnabled()).isFalse();
     }
 
     /**
@@ -181,7 +177,6 @@ class LeavePolicyDeclaredDefaultsTest {
         dto.setAllowHalfDay(null);
         dto.setIsPaid(null);
         dto.setDisplayOrder(null);
-        dto.setMultiLevelApprovalEnabled(null);
         dto.setAccrualMethod(null);
         dto.setWeekendHolidayTreatment(null);
         dto.setApproverRole(null);

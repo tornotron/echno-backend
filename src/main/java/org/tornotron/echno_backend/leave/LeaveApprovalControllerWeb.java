@@ -50,8 +50,8 @@ public class LeaveApprovalControllerWeb {
     @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "Approve a leave request",
-            description = "Records an approval for the given request at its current approval level and "
-                    + "advances the workflow. The approval is recorded against the signed-in caller, who "
+            description = "Records an approval for the given request and approves it: a request has one "
+                    + "approver, and their approval decides it. The approval is recorded against the signed-in caller, who "
                     + "must be the request's current approver. Returns the request with its updated status "
                     + "and approval trail."
     )
@@ -91,14 +91,16 @@ public class LeaveApprovalControllerWeb {
     @PostMapping("/delegate")
     @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
-            summary = "Delegate a pending approval",
-            description = "Reassigns the current approval step for the given request to the delegate named "
-                    + "in the payload, recording who handed it over. Only the request's current approver "
-                    + "may delegate it. Returns the request with its updated approver and approval trail."
+            summary = "Transfer a pending approval to a more senior manager",
+            description = "Hands the request to the employee named in the payload, who then decides it, "
+                    + "recording who handed it over. Only the request's current approver may transfer it, "
+                    + "and only to a manager above them in their own reporting line (their manager, that "
+                    + "manager's manager, and so on). Returns the request with its updated approver and "
+                    + "approval trail."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Approval delegated"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The approval action payload failed validation, no delegate was given, or the caller is not the request's current approver"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The approval action payload failed validation, no target was given, the caller is not the request's current approver, or the target is not above them in their reporting line"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant, or has no employee record in it, so the handover would name nobody"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No leave request with the given id, or no such delegate in this organization")
     })
