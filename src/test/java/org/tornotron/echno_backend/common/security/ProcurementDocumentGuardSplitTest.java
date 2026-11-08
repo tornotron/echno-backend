@@ -13,8 +13,6 @@ import org.tornotron.echno_backend.goodsReceivedNote.GoodsReceivedNoteController
 import org.tornotron.echno_backend.indent.IndentController;
 import org.tornotron.echno_backend.materialConsumption.MaterialConsumptionController;
 import org.tornotron.echno_backend.materialConsumption.MaterialConsumptionControllerWeb;
-import org.tornotron.echno_backend.purchaseOrder.PurchaseOrderController;
-import org.tornotron.echno_backend.purchaseOrder.PurchaseOrderControllerWeb;
 import org.tornotron.echno_backend.siteTransfer.SiteTransferController;
 import org.tornotron.echno_backend.siteTransfer.SiteTransferControllerWeb;
 
@@ -45,14 +43,14 @@ class ProcurementDocumentGuardSplitTest {
     private static final String PROJECT_MANAGER = "project-manager";
 
     /**
-     * The document controllers that carry the org-role guard, web twins and the one mobile. The web
-     * indent controller left this list when its reads moved onto the access matrix, where
-     * {@code IndentGuardsTest} and {@code IndentAccessEquivalenceIT} hold it to the same split.
+     * The document controllers that carry the org-role guard. The web indent controller left this
+     * list when its reads moved onto the access matrix, where {@code IndentGuardsTest} and
+     * {@code IndentAccessEquivalenceIT} hold it to the same split. Both purchase order controllers
+     * left it the same way, for {@code PurchaseOrderGuardsTest} and
+     * {@code PurchaseOrderAccessEquivalenceIT}.
      */
     private static final List<Class<?>> ROLE_GUARDED = List.of(
             GoodsReceivedNoteControllerWeb.class,
-            PurchaseOrderControllerWeb.class,
-            PurchaseOrderController.class,
             SiteTransferControllerWeb.class,
             MaterialConsumptionControllerWeb.class);
 
@@ -129,8 +127,9 @@ class ProcurementDocumentGuardSplitTest {
             total += requestMappedMethods(controller).size();
         }
         // 57 since the site transfer picker for asset lines (GET /sendable-assets), less the eleven
-        // web indent endpoints that moved onto the access matrix.
-        assertThat(total).isEqualTo(46);
+        // web indent endpoints and the nineteen purchase order endpoints that moved onto the access
+        // matrix.
+        assertThat(total).isEqualTo(27);
     }
 
     private static List<Method> requestMappedMethods(Class<?> controller) {

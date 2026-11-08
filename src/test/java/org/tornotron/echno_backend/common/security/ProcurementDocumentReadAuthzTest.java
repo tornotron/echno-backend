@@ -19,9 +19,6 @@ import org.tornotron.echno_backend.goodsReceivedNote.GoodsReceivedNoteController
 import org.tornotron.echno_backend.goodsReceivedNote.GoodsReceivedNoteService;
 import org.tornotron.echno_backend.materialConsumption.MaterialConsumptionControllerWeb;
 import org.tornotron.echno_backend.materialConsumption.MaterialConsumptionService;
-import org.tornotron.echno_backend.purchaseOrder.PurchaseOrderController;
-import org.tornotron.echno_backend.purchaseOrder.PurchaseOrderControllerWeb;
-import org.tornotron.echno_backend.purchaseOrder.PurchaseOrderService;
 import org.tornotron.echno_backend.siteTransfer.SiteTransferControllerWeb;
 import org.tornotron.echno_backend.siteTransfer.SiteTransferService;
 import org.tornotron.echno_backend.siteTransfer.dto.SiteTransferDto;
@@ -35,7 +32,6 @@ import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -63,17 +59,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * out. Those stay where they were.
  *
  * <p>The web indent controller has left this slice: its reads moved onto the access matrix, and
- * {@code IndentAccessEquivalenceIT} holds every role to the indent reads it had.
+ * {@code IndentAccessEquivalenceIT} holds every role to the indent reads it had. The purchase order
+ * controllers left it the same way, for {@code PurchaseOrderAccessEquivalenceIT}.
  *
- * <p>One slice over five controllers rather than five slices, following
+ * <p>One slice over three controllers rather than three slices, following
  * {@link ReadWriteGuardSymmetryTest}: Spring caches a context per distinct slice and the test JVM
  * is capped. {@code @orgSecurity} is mocked, and the stubs use exact role arguments, so what is
  * pinned is the role list each guard actually asks for.
  */
 @WebMvcTest({
         GoodsReceivedNoteControllerWeb.class,
-        PurchaseOrderControllerWeb.class,
-        PurchaseOrderController.class,
         SiteTransferControllerWeb.class,
         MaterialConsumptionControllerWeb.class
 })
@@ -85,9 +80,6 @@ class ProcurementDocumentReadAuthzTest {
 
     @MockitoBean
     private GoodsReceivedNoteService goodsReceivedNoteService;
-
-    @MockitoBean
-    private PurchaseOrderService purchaseOrderService;
 
     @MockitoBean
     private SiteTransferService siteTransferService;
@@ -127,29 +119,6 @@ class ProcurementDocumentReadAuthzTest {
         when(goodsReceivedNoteService.getAllGrns(anyInt(), anyInt())).thenReturn(Page.empty());
 
         mockMvc.perform(get("/api/v1/grns/web").with(jwt()))
-                .andExpect(status().isOk());
-    }
-
-    @Test
-    void aProjectManagerReadsPurchaseOrders() throws Exception {
-        aProjectManager();
-        when(purchaseOrderService.getAllPurchaseOrders(anyInt(), anyInt())).thenReturn(Page.empty());
-
-        mockMvc.perform(get("/api/v1/purchase-orders/web").with(jwt()))
-                .andExpect(status().isOk());
-    }
-
-    /**
-     * The mobile twin of the purchase order reads is on the same org-role guard as the web one, so
-     * it moves with it. The other four mobile controllers are on flat {@code resource:scope}
-     * authorities that nothing mints, refuse every caller, and are a separate repair.
-     */
-    @Test
-    void aProjectManagerReadsPurchaseOrdersOnTheMobileTwin() throws Exception {
-        aProjectManager();
-        when(purchaseOrderService.getAllPurchaseOrders(anyInt(), anyInt())).thenReturn(Page.empty());
-
-        mockMvc.perform(get("/api/v1/purchase-orders").with(jwt()))
                 .andExpect(status().isOk());
     }
 
@@ -197,16 +166,6 @@ class ProcurementDocumentReadAuthzTest {
                 .andExpect(status().isOk());
     }
 
-    @Test
-    void aProjectManagerReadsAPurchaseOrderStatusTrail() throws Exception {
-        aProjectManager();
-        when(purchaseOrderService.getStatusHistory(anyLong(), anyInt(), anyInt()))
-                .thenReturn(Page.empty());
-
-        mockMvc.perform(get("/api/v1/purchase-orders/web/31/status-history").with(jwt()))
-                .andExpect(status().isOk());
-    }
-
     /**
      * The by-project listings take the project from the caller and no guard reads it, so they are
      * as wide as the unfiltered listing rather than narrower. That is why they move together with
@@ -233,15 +192,6 @@ class ProcurementDocumentReadAuthzTest {
      * by reading the annotation itself.
      */
     @Test
-    void aProjectManagerCannotMoveAPurchaseOrdersStatus() throws Exception {
-        aProjectManager();
-
-        mockMvc.perform(patch("/api/v1/purchase-orders/web/31/status").with(jwt()).with(csrf())
-                        .param("status", "APPROVED"))
-                .andExpect(status().isForbidden());
-    }
-
-    @Test
     void aProjectManagerCannotReceiveASiteTransfer() throws Exception {
         aProjectManager();
 
@@ -262,12 +212,6 @@ class ProcurementDocumentReadAuthzTest {
     }
 
     // ---- and a caller holding neither role still reads nothing ----
-
-    @Test
-    void aCallerWithNoElevatedRoleStillReadsNoPurchaseOrders() throws Exception {
-        mockMvc.perform(get("/api/v1/purchase-orders/web").with(jwt()))
-                .andExpect(status().isForbidden());
-    }
 
     @Test
     void aCallerWithNoElevatedRoleStillReadsNoSiteTransfers() throws Exception {

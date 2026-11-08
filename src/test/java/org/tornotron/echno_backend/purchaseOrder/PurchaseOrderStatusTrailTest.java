@@ -82,7 +82,8 @@ class PurchaseOrderStatusTrailTest {
                 purchaseOrderMapper, tenantEntityHelper, employeeRepository, projectRepository,
                 purchaseOrderItemRepository, materialRepository, indentItemRepository,
                 documentNumberAllocator, retryTemplate, statusTransitionRecorder,
-                statusTransitionRepository, statusTransitionMapper, userContextService);
+                statusTransitionRepository, statusTransitionMapper, userContextService,
+                PurchaseOrderAccessStubs.allowingEverything());
         lenient().when(userContextService.getCurrentUser()).thenReturn(actor);
     }
 

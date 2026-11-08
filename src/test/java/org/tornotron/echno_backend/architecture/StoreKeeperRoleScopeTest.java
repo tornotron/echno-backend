@@ -136,33 +136,11 @@ class StoreKeeperRoleScopeTest {
             "InventoryTransactionControllerWeb.getTransactionsByTask GET /task/{taskId}",
             "InventoryTransactionControllerWeb.getTaskMaterialUsageSummary GET /project/{projectId}/task-summary",
 
-            // What was ordered, so a delivery can be checked against it. Read only: placing and
-            // changing the order is procurement's, and the receiving end must not be able to alter
-            // the figures it is being measured against. Both twins carry the org-role guard, so
-            // both get the read.
-            "PurchaseOrderControllerWeb.getPurchaseOrderById GET /{id}",
-            "PurchaseOrderControllerWeb.readStatusHistory GET /{id}/status-history",
-            "PurchaseOrderControllerWeb.getAllPurchaseOrders GET",
-            "PurchaseOrderControllerWeb.getAllPurchaseOrdersPaginated GET /all",
-            "PurchaseOrderControllerWeb.getPurchaseOrdersByVendor GET /vendor/{vendorId}",
-            "PurchaseOrderControllerWeb.getPurchaseOrdersByIndent GET /indent/{indentId}",
-            "PurchaseOrderControllerWeb.getPurchaseOrdersByStatus GET /status/{status}",
-            "PurchaseOrderController.getPurchaseOrderById GET /{id}",
-            "PurchaseOrderController.getAllPurchaseOrders GET",
-            "PurchaseOrderController.getAllPurchaseOrdersPaginated GET /all",
-            "PurchaseOrderController.getPurchaseOrdersByVendor GET /vendor/{vendorId}",
-            "PurchaseOrderController.getPurchaseOrdersByIndent GET /indent/{indentId}",
-            "PurchaseOrderController.getPurchaseOrdersByStatus GET /status/{status}",
-            "PurchaseOrderItemControllerWeb.getPurchaseOrderItemById GET /{id}",
-            "PurchaseOrderItemControllerWeb.getAllPurchaseOrderItems GET",
-            "PurchaseOrderItemControllerWeb.getPurchaseOrderItemsPaginated GET /paginated",
-            "PurchaseOrderItemControllerWeb.getItemsByPurchaseOrderId GET /purchase-order/{purchaseOrderId}",
-            "PurchaseOrderItemControllerWeb.getItemsByMaterialId GET /material/{materialId}",
-            "PurchaseOrderItemController.getPurchaseOrderItemById GET /{id}",
-            "PurchaseOrderItemController.getAllPurchaseOrderItems GET",
-            "PurchaseOrderItemController.getPurchaseOrderItemsPaginated GET /paginated",
-            "PurchaseOrderItemController.getItemsByPurchaseOrderId GET /purchase-order/{purchaseOrderId}",
-            "PurchaseOrderItemController.getItemsByMaterialId GET /material/{materialId}",
+            // What was ordered, so a delivery can be checked against it, is read on the access
+            // matrix now: PurchaseOrderAccessEquivalenceIT holds the role to the order and line
+            // reads it had, and to none of the writes. Placing and changing the order is
+            // procurement's, and the receiving end must not be able to alter the figures it is
+            // being measured against.
 
             // What has been requisitioned, so the store knows what a delivery answers and what is
             // still outstanding. Raising a requisition is not on this list. The indent reads on
