@@ -64,12 +64,16 @@ class ProjectApprovalStateTest {
     @Mock
     private StatusTransitionRecorder statusTransitionRecorder;
 
+    @Mock
+    private ProjectAccess projectAccess;
+
     @InjectMocks
     private ProjectService service;
 
     @BeforeEach
     void setTenant() {
         TenantContext.setCurrentOrgId(ORG_ID);
+        ProjectAccessStubs.allowEverything(projectAccess);
     }
 
     @AfterEach

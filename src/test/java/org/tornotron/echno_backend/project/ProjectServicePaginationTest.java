@@ -1,5 +1,6 @@
 package org.tornotron.echno_backend.project;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -37,8 +38,16 @@ class ProjectServicePaginationTest {
     @Mock
     private ProjectMapper projectMapper;
 
+    @Mock
+    private ProjectAccess projectAccess;
+
     @InjectMocks
     private ProjectService service;
+
+    @BeforeEach
+    void allowEverything() {
+        ProjectAccessStubs.allowEverything(projectAccess);
+    }
 
     private Pageable capturePageable() {
         ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);

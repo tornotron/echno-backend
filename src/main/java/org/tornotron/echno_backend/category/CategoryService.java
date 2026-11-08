@@ -15,7 +15,10 @@ import org.tornotron.echno_backend.common.exception.DatabaseOperationException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
+import org.tornotron.echno_backend.modules.access.api.AccessPermission;
+import org.tornotron.echno_backend.modules.access.api.RecordFacts;
 import org.tornotron.echno_backend.organization.Organization;
+import org.tornotron.echno_backend.project.ProjectAccess;
 
 import java.util.List;
 
@@ -23,6 +26,10 @@ import java.util.List;
 /**
  * Service class for managing categories.
  * Handles business logic related to category creation, retrieval, and deletion.
+ *
+ * <p>Work categories sit in the projects area of the access matrix. A category belongs to its
+ * organization and to no project, so every category has the same facts and a caller reaches either
+ * all of them or none: only a grant covering every record of the organization reaches one.
  */
 @Service
 public class CategoryService {
@@ -31,19 +38,23 @@ public class CategoryService {
     private final TenantEntityHelper tenantEntityHelper;
     private final CategoryMapper categoryMapper;
     private final WorkSubcategoryRepository workSubcategoryRepository;
+    private final ProjectAccess projectAccess;
 
     /**
      * Constructs a CategoryService with the given CategoryRepository.
      *
      * @param categoryRepository The repository for category data access.
      * @param tenantEntityHelper The helper for resolving the current organization.
+     * @param projectAccess      Says whether the caller may read and change the organization's categories.
      */
     public CategoryService(CategoryRepository categoryRepository, TenantEntityHelper tenantEntityHelper,
-                           CategoryMapper categoryMapper, WorkSubcategoryRepository workSubcategoryRepository) {
+                           CategoryMapper categoryMapper, WorkSubcategoryRepository workSubcategoryRepository,
+                           ProjectAccess projectAccess) {
         this.categoryRepository = categoryRepository;
         this.tenantEntityHelper = tenantEntityHelper;
         this.categoryMapper = categoryMapper;
         this.workSubcategoryRepository = workSubcategoryRepository;
+        this.projectAccess = projectAccess;
     }
 
     /**
@@ -55,6 +66,7 @@ public class CategoryService {
     @Transactional
     public CategorySimpleDto addCategory(CategoryCreationDto categoryCreationDto) {
         Organization organization = tenantEntityHelper.resolveCurrentOrganization();
+        projectAccess.require(AccessPermission.CREATE, ProjectAccess.organizationLevel(organization.getId()));
         String normalized = CategoryNormalizer.normalize(categoryCreationDto.getName());
         if(categoryRepository.existsByNormalizedNameAndOrganization_Id(normalized, organization.getId())) {
             throw new IllegalArgumentException("Category with name " + normalized + " already exists.");
@@ -79,6 +91,11 @@ public class CategoryService {
     @Transactional(readOnly = true)
     public Page<CategoryDto> getAllCategories(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.ASC, "id"));
+        // Every category has the same facts, so the caller's filter admits all of them or none, and
+        // asking about one category answers for the list.
+        if (!projectAccess.allows(AccessPermission.READ, ProjectAccess.organizationLevel(TenantContext.getCurrentOrgId()))) {
+            return Page.empty(pageable);
+        }
         return categoryRepository.findAll(pageable)
                 .map(categoryMapper::toDto);
     }
@@ -92,15 +109,10 @@ public class CategoryService {
      */
     @Transactional(readOnly = true)
     public CategoryDto getACategory(Long id) {
-        CategoryDto categoryDto = categoryRepository.findByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId())
-                .map(categoryMapper::toDto)
-                .orElse(null);
-
-        if(categoryDto == null) {
-            throw new ResourceNotFoundException("Category not found with id: " + id);
-        } else {
-            return categoryDto;
-        }
+        Category category = categoryRepository.findByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId())
+                .orElseThrow(() -> categoryNotFound(id));
+        requireCategory(id, AccessPermission.READ);
+        return categoryMapper.toDto(category);
     }
 
     /**
@@ -112,8 +124,9 @@ public class CategoryService {
     @Transactional
     public void deleteACategory(Long id) {
         if(!categoryRepository.existsByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())) {
-            throw new ResourceNotFoundException("Category not found with id: " + id);
+            throw categoryNotFound(id);
         }
+        requireCategory(id, AccessPermission.DELETE);
         categoryRepository.deleteById(id);
     }
 
@@ -128,12 +141,26 @@ public class CategoryService {
     public List<WorkSubcategoryDto> getSubcategories(Long categoryId) {
         Long organizationId = TenantContext.getCurrentOrgId();
         if (!categoryRepository.existsByIdAndOrganization_Id(categoryId, organizationId)) {
-            throw new ResourceNotFoundException("Category not found with id: " + categoryId);
+            throw categoryNotFound(categoryId);
         }
+        requireCategory(categoryId, AccessPermission.READ);
         return workSubcategoryRepository
                 .findByCategory_IdAndOrganization_IdOrderBySortOrderAscIdAsc(categoryId, organizationId)
                 .stream()
                 .map(WorkSubcategoryDto::from)
                 .toList();
+    }
+
+    /**
+     * Refuses unless the caller may act this way on one of the organization's categories, which exists:
+     * one they may not read reads as missing, and one they may read but not act on is refused.
+     */
+    private void requireCategory(Long id, String action) {
+        RecordFacts facts = ProjectAccess.organizationLevel(TenantContext.getCurrentOrgId());
+        projectAccess.requireOn(action, facts, () -> categoryNotFound(id));
+    }
+
+    private static ResourceNotFoundException categoryNotFound(Long id) {
+        return new ResourceNotFoundException("Category not found with id: " + id);
     }
 }

@@ -84,7 +84,8 @@ class ProjectDescriptionTest {
         service = new ProjectService(repository, organizationRepository, employeeRepository,
                 attachmentService, projectMapper, employeeMapper, eventPublisher,
                 customerRepository, new PayloadValidator(validator), userContextService,
-                statusTransitionRecorder, statusTransitionRepository, statusTransitionMapper);
+                statusTransitionRecorder, statusTransitionRepository, statusTransitionMapper,
+                ProjectAccessStubs.allowingEverything());
 
         TenantContext.setCurrentOrgId(1L);
         Organization organization = new Organization();
