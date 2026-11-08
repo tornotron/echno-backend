@@ -59,9 +59,8 @@ import java.util.Optional;
  * notification is sent and no latch is written, so the first crossing still reaches whoever is
  * eventually assigned rather than having been silently spent on nobody.
  *
- * <p>Org roles are read from the {@code Employee} row, where Keycloak's groups are mirrored, and
- * not from Keycloak. The admin client can list a user's groups but has no reverse lookup from a
- * subgroup to its members, so "who holds this role" is a question only the database can answer.
+ * <p>Org roles are read from the {@code Employee} row, which is where they live and what the
+ * authorization layer reads too, so "who holds this role" is one query.
  *
  * <h2>Project scope, not organization and not location</h2>
  *

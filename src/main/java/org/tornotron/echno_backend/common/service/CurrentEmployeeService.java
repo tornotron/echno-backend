@@ -39,8 +39,8 @@ public class CurrentEmployeeService {
      * user row or that user has no employee record in this organization.
      *
      * <p>Both are ordinary states rather than faults. {@code UserContextService} resolves the JWT
-     * subject against {@code users_table.keycloak_id}, and an account created straight in the
-     * Keycloak console has no such row; an account that does have one may still hold no employee
+     * subject against {@code users_table.auth_subject}, and an account that has signed in at the
+     * auth provider but not yet registered has no such row; an account that does have one may still hold no employee
      * record in this organization, which is the shape a bootstrap administrator has.
      */
     public Optional<Employee> currentEmployee() {

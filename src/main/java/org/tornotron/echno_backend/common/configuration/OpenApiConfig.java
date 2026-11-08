@@ -13,7 +13,7 @@ import org.springframework.context.annotation.Configuration;
 /**
  * Central OpenAPI document metadata and the bearer-token security scheme.
  * <p>
- * The API is protected by JWT access tokens issued by Keycloak. Declaring the
+ * The API is protected by JWT access tokens issued by the auth provider. Declaring the
  * scheme here lets the Swagger UI "Authorize" dialog attach a bearer token to
  * requests, and applies it as the default requirement for every operation.
  */
@@ -30,7 +30,7 @@ public class OpenApiConfig {
                         .description("REST API for the Echno construction management platform. "
                                 + "It covers employees, projects, tasks, attendance, inventory and goods "
                                 + "receipts, issue tracking, PDF reporting, and a double-entry construction "
-                                + "finance ledger. All endpoints are tenant scoped and require a Keycloak "
+                                + "finance ledger. All endpoints are tenant scoped and require a "
                                 + "bearer token unless documented otherwise.")
                         .version("v1")
                         .contact(new Contact().name("Echno").url("https://echno.xyz").email("info@echno.xyz"))
@@ -39,7 +39,7 @@ public class OpenApiConfig {
                         .type(SecurityScheme.Type.HTTP)
                         .scheme("bearer")
                         .bearerFormat("JWT")
-                        .description("Keycloak-issued JWT access token. Paste the raw token (without the "
+                        .description("JWT access token from the auth provider. Paste the raw token (without the "
                                 + "\"Bearer\" prefix) into the Authorize dialog.")))
                 .addSecurityItem(new SecurityRequirement().addList(BEARER_SCHEME));
     }

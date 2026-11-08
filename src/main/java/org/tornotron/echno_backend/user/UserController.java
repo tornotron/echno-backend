@@ -33,7 +33,7 @@ import org.tornotron.echno_backend.user.dto.UserUpdateFieldsDto;
 @Validated
 @Tag(
         name = "Users",
-        description = "The platform account behind an employee, keyed to a Keycloak identity. Endpoints "
+        description = "The platform account behind an employee, keyed to the auth provider's subject. Endpoints "
                 + "cover reading the caller's own profile, listing users and their organizations, "
                 + "batch and partial updates, and deletion. Most operations are restricted to a "
                 + "system or HR admin, except reads of one's own record."

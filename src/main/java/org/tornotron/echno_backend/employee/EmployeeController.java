@@ -128,7 +128,7 @@ public class EmployeeController {
      * </ul>
      *
      * <p>An administrator adding somebody who has never signed in is a real gap, and the answer to
-     * it is a designed route that says what it does about the Keycloak user, not this one. The
+     * it is a designed route that says what it does about their account at the auth provider, not this one. The
      * route that works today is {@link #joinOrganization}, reached by an invite code redeemed at
      * {@code POST /api/v1/invitation/web/validate/userId/{userId}}.
      *
@@ -347,8 +347,8 @@ public class EmployeeController {
     /**
      * Deletes an employee by their ID.
      *
-     * <p>Removing a person from the organization, which also takes their Keycloak group
-     * membership away and so ends their access. That is administration rather than anything a
+     * <p>Removing a person from the organization, which also takes their membership away, since
+     * the employee row is the membership, and so ends their access. That is administration rather than anything a
      * manager does day to day, and the web twin already reserves it to {@code system-admin} and
      * {@code hr-admin}. There is deliberately no self clause: nobody deletes their own
      * membership from the phone.
@@ -365,8 +365,8 @@ public class EmployeeController {
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     @Operation(
             summary = "Delete an employee",
-            description = "Deletes the employee with the given id from the caller's organization, and "
-                    + "removes their membership of it in Keycloak."
+            description = "Deletes the employee with the given id from the caller's organization, which "
+                    + "ends their membership of it."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Employee deleted"),

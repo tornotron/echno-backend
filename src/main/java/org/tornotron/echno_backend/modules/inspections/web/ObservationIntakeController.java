@@ -21,7 +21,7 @@ import org.tornotron.echno_backend.modules.inspections.service.ObservationServic
 
 /**
  * The one door for machine producers. A separate controller from the web one so its
- * authorization and, later, its rate limit can differ: the caller is a Keycloak
+ * authorization and, later, its rate limit can differ: the caller is a
  * client-credentials service account per fleet or integration, a member of the organisation
  * with the {@code observation-producer} role, and it sends the tenant header like any client.
  */

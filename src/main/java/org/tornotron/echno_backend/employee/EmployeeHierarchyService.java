@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
  * in the chain), and reading subordinates and managers.
  *
  * Extracted from {@link EmployeeService}, which keeps employee CRUD, join, and
- * role/Keycloak concerns and delegates the hierarchy operations here.
+ * role concerns and delegates the hierarchy operations here.
  * {@link #validateManager} is public because {@link EmployeeService}'s patch
  * path validates a manager change through it.
  */
@@ -117,7 +117,7 @@ public class EmployeeHierarchyService {
      * {@link OrgRole#getManagerRoles()}.
      *
      * <p>The role is what decides this, because the role is what the authorization layer
-     * already reads. It comes from the Keycloak group on the caller's token, so a manager
+     * already reads. Both are minted from the roles stored on the employee, so a manager
      * list built from roles is the same set of people the {@code @PreAuthorize} checks let
      * through.
      */

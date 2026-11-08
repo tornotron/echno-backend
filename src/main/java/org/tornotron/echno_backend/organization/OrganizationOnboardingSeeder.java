@@ -18,8 +18,8 @@ import org.tornotron.echno_backend.leave.LeavePolicyDefaultsSeeder;
  * <p>Every step is idempotent (each underlying seeder skips an org that already has the data) and
  * independently guarded: a failure in one seed is logged and the remaining seeds still run, so a
  * seed problem leaves the organization usable and back-fillable rather than half-provisioned. None
- * of these seeds is critical to the organization existing; the critical work (creating the org, its
- * Keycloak group, and making the creator its system-admin) is done in the creating transaction, and
+ * of these seeds is critical to the organization existing; the critical work (creating the org, joining
+ * the creator to it, and making them its system-admin) is done in the creating transaction, and
  * this seeding is deliberately run after that transaction commits so a seed failure can never roll
  * the new organization back.
  *

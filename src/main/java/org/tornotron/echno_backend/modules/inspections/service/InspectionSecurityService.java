@@ -136,10 +136,10 @@ public class InspectionSecurityService {
     /**
      * Post a machine observation. {@code echno.security.inspection.observation-intake-roles},
      * default {@code system-admin,observation-producer}. The producer role is the org-scoped
-     * role a fleet's or integration's Keycloak service account is placed in, exactly as a
-     * person is placed in {@code qa-engineer}: the service-account user joins the organisation
-     * group and the role subgroup, its client-credentials token carries them in {@code groups},
-     * and the JWT converter turns them into the same authorities. No second identity path.
+     * role a fleet's or integration's service account holds, exactly as a
+     * person holds {@code qa-engineer}: the service account's token subject is bound to a user
+     * row with an employee record in the organisation holding the role, and the same authority
+     * providers mint the same authorities from it. No second identity path.
      */
     public boolean canIntakeObservations() {
         return orgSecurity.hasAnyOrgRoleForCurrentTenant(observationIntakeRoles);

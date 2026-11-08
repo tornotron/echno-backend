@@ -12,7 +12,7 @@ import java.util.Set;
  * Resolves user ids to the names shown against them on a document.
  *
  * <p>Its own service rather than a method on {@link UserService} because the two answer different
- * questions. {@code UserService} manages accounts: it provisions Keycloak identities, stores
+ * questions. {@code UserService} manages accounts: it registers accounts, stores
  * attachments and enforces who may read whom. This reads three columns so a screen can print a
  * name, and every service that maps a document with an approval stamp needs it, so it is kept
  * small and free of everything those callers would otherwise drag in.

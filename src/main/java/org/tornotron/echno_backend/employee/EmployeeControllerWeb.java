@@ -50,7 +50,7 @@ import java.util.Set;
  * as a real path would, and echno-core published a client method against it on that evidence. A
  * block of commented-out mappings is a suggestion the compiler cannot check and a client reader
  * cannot distinguish from a plan, which is how it misled. If a direct create is wanted, it needs a
- * design that says what it does about the Keycloak user rather than an uncommenting.
+ * design that says what it does about the person's account at the auth provider rather than an uncommenting.
  */
 public class EmployeeControllerWeb {
 

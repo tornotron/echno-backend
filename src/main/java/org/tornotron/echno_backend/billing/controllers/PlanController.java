@@ -29,18 +29,11 @@ import java.util.List;
  * every tenant, and letting it edit plans would let any customer rewrite what every other customer
  * is sold.
  *
- * <p>All of these used to ask for {@code hasAuthority('billing:admin')}. {@code JwtAuthConverter}
- * mints a bare {@code resource:scope} authority in exactly one place, from the {@code authorization}
- * claim of an RPT, so that string needed a Keycloak Authorization Services resource named
- * {@code billing} carrying an {@code admin} scope. The multi-tenancy audit of 2026-08-18 checked
- * the live realm for the identical case of {@code organization:admin} and found zero authorization
- * scopes realm-wide, one scopeless {@code Default Resource} and one scopeless
- * {@code Default Permission}. A scopeless permission yields no {@code resource:scope} authority, so
- * {@code billing:admin} was issued to nobody and could not be issued to anybody. It is now a
- * Keycloak client role, delivered through {@code resource_access} as {@code ROLE_platform-admin},
- * which is the grant mechanism this realm actually has. Until the realm carries that role these
- * endpoints still refuse, but they refuse deliberately and the grant is a realm change rather than
- * an impossibility. See #641.
+ * <p>All of these used to ask for {@code hasAuthority('billing:admin')}, an authority nothing ever
+ * issued, so they refused everybody (#641). They now ask for {@code ROLE_platform-admin}, which
+ * {@code PlatformAdminAuthorityProvider} grants to the subjects a deployment lists in
+ * {@code echno.auth.platform-admin-subjects}. Until a deployment lists someone these endpoints
+ * still refuse, but they refuse deliberately and the grant is a configuration change.
  */
 @RestController
 @RequestMapping("/api/v1/billing/plans/web")
