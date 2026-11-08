@@ -29865,7 +29865,7 @@
                 }
               }
             },
-            "description": "Caller is neither a member of the current tenant nor holds an elevated role in it"
+            "description": "Caller may not read assets"
           },
           "404": {
             "content": {
@@ -29975,7 +29975,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to assets"
           },
           "404": {
             "content": {
@@ -30092,7 +30092,7 @@
                 }
               }
             },
-            "description": "Caller is neither a member of the current tenant nor holds an elevated role in it"
+            "description": "Caller may not read assets"
           },
           "404": {
             "content": {
@@ -30223,7 +30223,7 @@
                 }
               }
             },
-            "description": "Caller is neither a member of the current tenant nor holds an elevated role in it"
+            "description": "Caller may not read assets"
           },
           "404": {
             "content": {
@@ -30336,7 +30336,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to assets"
           },
           "404": {
             "content": {
@@ -30447,7 +30447,7 @@
                 }
               }
             },
-            "description": "Caller is neither a member of the current tenant nor holds an elevated role in it"
+            "description": "Caller may not read assets"
           },
           "404": {
             "content": {
@@ -30568,7 +30568,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to assets"
           },
           "404": {
             "content": {
@@ -30684,7 +30684,7 @@
                 }
               }
             },
-            "description": "Caller is neither a member of the current tenant nor holds an elevated role in it"
+            "description": "Caller may not read assets"
           },
           "404": {
             "content": {
@@ -30824,7 +30824,7 @@
                 }
               }
             },
-            "description": "Caller is neither a member of the current tenant nor holds an elevated role in it"
+            "description": "Caller may not read assets"
           },
           "404": {
             "content": {
@@ -30945,7 +30945,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to assets"
           },
           "404": {
             "content": {
@@ -31061,7 +31061,7 @@
                 }
               }
             },
-            "description": "Caller is neither a member of the current tenant nor holds an elevated role in it"
+            "description": "Caller may not read assets"
           },
           "404": {
             "content": {
@@ -144102,7 +144102,7 @@
       "name": "Access Administration (Web)"
     },
     {
-      "description": "Fixed assets in the organization's asset register: excavators, cranes, vehicles and similar equipment tracked with purchase, condition, maintenance and insurance detail. Endpoints cover listing, paginated listing, lookup by id, creation, update and deletion, plus the append-only movement ledger that records where each asset has been and the documents filed against it. All scoped to the caller's current tenant organization.",
+      "description": "Fixed assets in the organization's asset register: excavators, cranes, vehicles and similar equipment tracked with purchase, condition, maintenance and insurance detail. Endpoints cover listing, paginated listing, lookup by id, creation, update and deletion, plus the append-only movement ledger that records where each asset has been and the documents filed against it. All scoped to the caller's current tenant organization, and to the assets the caller's roles let them see: each endpoint needs the assets permission named for its action (read, create, edit or delete), and an asset outside the caller's scope reads as not found.",
       "name": "Assets"
     },
     {
