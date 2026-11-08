@@ -161,7 +161,7 @@ class ReportIndentBadgeRenderTest {
         Page<TaskDto> taskPage = page(List.of(task(1L, "Slab shuttering, block C", 0.0)));
         Page<IndentDto> indentPage = page(List.of(indent(status)));
         when(taskService.getAllTasks(0, UnpagedResultCap.MAX_ROWS)).thenReturn(taskPage);
-        when(indentService.getAllIndents(0, UnpagedResultCap.MAX_ROWS)).thenReturn(indentPage);
+        when(indentService.getAllIndentsForReport(0, UnpagedResultCap.MAX_ROWS)).thenReturn(indentPage);
         when(pdfReportService.statusCount())
                 .thenReturn(Map.of("COMPLETED", 2L, "IN_PROGRESS", 5L, "NOT_STARTED", 1L));
     }

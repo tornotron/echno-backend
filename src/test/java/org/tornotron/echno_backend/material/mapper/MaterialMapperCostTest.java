@@ -33,6 +33,7 @@ import org.tornotron.echno_backend.indentItem.IndentItemService;
 import org.tornotron.echno_backend.indentItem.dto.IndentItemDto;
 import org.tornotron.echno_backend.indentItem.mapper.IndentItemMapper;
 import org.tornotron.echno_backend.indentItem.mapper.IndentItemMapperImpl;
+import org.tornotron.echno_backend.indent.IndentAccessStubs;
 import org.tornotron.echno_backend.indent.IndentRepository;
 import org.tornotron.echno_backend.inventoryTransaction.CurrentStockRepository;
 import org.tornotron.echno_backend.inventoryTransaction.InventoryService;
@@ -112,7 +113,7 @@ class MaterialMapperCostTest {
         indentItemRepository = mock(IndentItemRepository.class);
         indentItemService = new IndentItemService(indentItemRepository, mock(IndentRepository.class),
                 mock(MaterialRepository.class), mock(TenantEntityHelper.class), indentItemMapper,
-                inventoryService);
+                inventoryService, IndentAccessStubs.allowingEverything());
     }
 
     @AfterEach

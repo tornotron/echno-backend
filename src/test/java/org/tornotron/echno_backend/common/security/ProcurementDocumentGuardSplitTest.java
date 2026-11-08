@@ -11,7 +11,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.tornotron.echno_backend.goodsReceivedNote.GoodsReceivedNoteController;
 import org.tornotron.echno_backend.goodsReceivedNote.GoodsReceivedNoteControllerWeb;
 import org.tornotron.echno_backend.indent.IndentController;
-import org.tornotron.echno_backend.indent.IndentControllerWeb;
 import org.tornotron.echno_backend.materialConsumption.MaterialConsumptionController;
 import org.tornotron.echno_backend.materialConsumption.MaterialConsumptionControllerWeb;
 import org.tornotron.echno_backend.purchaseOrder.PurchaseOrderController;
@@ -45,12 +44,15 @@ class ProcurementDocumentGuardSplitTest {
 
     private static final String PROJECT_MANAGER = "project-manager";
 
-    /** The five document controllers that carry the org-role guard, web twins and the one mobile. */
+    /**
+     * The document controllers that carry the org-role guard, web twins and the one mobile. The web
+     * indent controller left this list when its reads moved onto the access matrix, where
+     * {@code IndentGuardsTest} and {@code IndentAccessEquivalenceIT} hold it to the same split.
+     */
     private static final List<Class<?>> ROLE_GUARDED = List.of(
             GoodsReceivedNoteControllerWeb.class,
             PurchaseOrderControllerWeb.class,
             PurchaseOrderController.class,
-            IndentControllerWeb.class,
             SiteTransferControllerWeb.class,
             MaterialConsumptionControllerWeb.class);
 
@@ -126,8 +128,9 @@ class ProcurementDocumentGuardSplitTest {
         for (Class<?> controller : ROLE_GUARDED) {
             total += requestMappedMethods(controller).size();
         }
-        // 57 since the site transfer picker for asset lines (GET /sendable-assets).
-        assertThat(total).isEqualTo(57);
+        // 57 since the site transfer picker for asset lines (GET /sendable-assets), less the eleven
+        // web indent endpoints that moved onto the access matrix.
+        assertThat(total).isEqualTo(46);
     }
 
     private static List<Method> requestMappedMethods(Class<?> controller) {

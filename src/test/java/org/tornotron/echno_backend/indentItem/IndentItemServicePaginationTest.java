@@ -1,16 +1,19 @@
 package org.tornotron.echno_backend.indentItem;
 
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
+import org.tornotron.echno_backend.indent.IndentAccessStubs;
 import org.tornotron.echno_backend.indent.IndentRepository;
 import org.tornotron.echno_backend.indentItem.mapper.IndentItemMapper;
 import org.tornotron.echno_backend.inventoryTransaction.InventoryService;
@@ -50,8 +53,19 @@ class IndentItemServicePaginationTest {
     @Mock
     private InventoryService inventoryService;
 
-    @InjectMocks
     private IndentItemService service;
+
+    @BeforeEach
+    void setUp() {
+        TenantContext.setCurrentOrgId(100L);
+        service = new IndentItemService(indentItemRepository, indentRepository, materialRepository,
+                tenantEntityHelper, indentItemMapper, inventoryService, IndentAccessStubs.allowingEverything());
+    }
+
+    @AfterEach
+    void tearDown() {
+        TenantContext.clear();
+    }
 
     private Pageable capturePageable() {
         ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);

@@ -17,8 +17,6 @@ import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.goodsReceivedNote.GoodsReceivedNoteControllerWeb;
 import org.tornotron.echno_backend.goodsReceivedNote.GoodsReceivedNoteService;
-import org.tornotron.echno_backend.indent.IndentControllerWeb;
-import org.tornotron.echno_backend.indent.IndentService;
 import org.tornotron.echno_backend.materialConsumption.MaterialConsumptionControllerWeb;
 import org.tornotron.echno_backend.materialConsumption.MaterialConsumptionService;
 import org.tornotron.echno_backend.purchaseOrder.PurchaseOrderController;
@@ -36,7 +34,6 @@ import static org.mockito.Mockito.when;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -65,7 +62,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * raising one, receiving a transfer posts stock into a project, and cancelling one takes it back
  * out. Those stay where they were.
  *
- * <p>One slice over six controllers rather than six slices, following
+ * <p>The web indent controller has left this slice: its reads moved onto the access matrix, and
+ * {@code IndentAccessEquivalenceIT} holds every role to the indent reads it had.
+ *
+ * <p>One slice over five controllers rather than five slices, following
  * {@link ReadWriteGuardSymmetryTest}: Spring caches a context per distinct slice and the test JVM
  * is capped. {@code @orgSecurity} is mocked, and the stubs use exact role arguments, so what is
  * pinned is the role list each guard actually asks for.
@@ -74,7 +74,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         GoodsReceivedNoteControllerWeb.class,
         PurchaseOrderControllerWeb.class,
         PurchaseOrderController.class,
-        IndentControllerWeb.class,
         SiteTransferControllerWeb.class,
         MaterialConsumptionControllerWeb.class
 })
@@ -89,9 +88,6 @@ class ProcurementDocumentReadAuthzTest {
 
     @MockitoBean
     private PurchaseOrderService purchaseOrderService;
-
-    @MockitoBean
-    private IndentService indentService;
 
     @MockitoBean
     private SiteTransferService siteTransferService;
@@ -154,25 +150,6 @@ class ProcurementDocumentReadAuthzTest {
         when(purchaseOrderService.getAllPurchaseOrders(anyInt(), anyInt())).thenReturn(Page.empty());
 
         mockMvc.perform(get("/api/v1/purchase-orders").with(jwt()))
-                .andExpect(status().isOk());
-    }
-
-    @Test
-    void aProjectManagerReadsIndents() throws Exception {
-        aProjectManager();
-        when(indentService.getAllIndents(anyInt(), anyInt())).thenReturn(Page.empty());
-
-        mockMvc.perform(get("/api/v1/indents/web").with(jwt()))
-                .andExpect(status().isOk());
-    }
-
-    /** The summary listing is the same rows without their lines, so it moves with the listing. */
-    @Test
-    void aProjectManagerReadsTheIndentSummaryListing() throws Exception {
-        aProjectManager();
-        when(indentService.getAllIndentsSummary(anyInt(), anyInt())).thenReturn(Page.empty());
-
-        mockMvc.perform(get("/api/v1/indents/web/summary").with(jwt()))
                 .andExpect(status().isOk());
     }
 
@@ -261,14 +238,6 @@ class ProcurementDocumentReadAuthzTest {
 
         mockMvc.perform(patch("/api/v1/purchase-orders/web/31/status").with(jwt()).with(csrf())
                         .param("status", "APPROVED"))
-                .andExpect(status().isForbidden());
-    }
-
-    @Test
-    void aProjectManagerCannotDeleteAnIndent() throws Exception {
-        aProjectManager();
-
-        mockMvc.perform(delete("/api/v1/indents/web/31").with(jwt()).with(csrf()))
                 .andExpect(status().isForbidden());
     }
 
