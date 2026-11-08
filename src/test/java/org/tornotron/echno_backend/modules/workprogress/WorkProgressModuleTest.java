@@ -54,11 +54,12 @@ class WorkProgressModuleTest {
     }
 
     @Test
-    void theOfficeRaisesAPaymentAndOnlyTheSystemAdminAuthorizesIt() {
-        assertThat(WorkProgressModule.BILL_PAY_REQUEST_GUARD)
-                .isEqualTo("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')");
-        assertThat(WorkProgressModule.BILL_PAY_AUTHORIZE_GUARD)
-                .isEqualTo("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')");
+    void theOfficeRaisesAPaymentAndTheProjectsAuthorizerSignsIt() {
+        String office = "@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')";
+        assertThat(WorkProgressModule.BILL_PAY_REQUEST_GUARD).isEqualTo(office);
+        assertThat(WorkProgressModule.PAYMENT_AUTHORIZER_SETUP_GUARD).isEqualTo(office);
+        // No role signs: the authority is the project's named authorizer, checked in PaymentAuthorizers.
+        assertThat(WorkProgressModule.BILL_PAY_AUTHORIZE_GUARD).isEqualTo(WorkProgressModule.READ_GUARD);
     }
 
     @Test

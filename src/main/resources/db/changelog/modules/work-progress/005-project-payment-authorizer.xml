@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Who authorizes a bill payment (docs/specs/2026-11-08-billing-in-inspection-and-payments.md,
+        section 7): one named employee per project, every change to that kept with who made it, and on
+        each payment the capacity its authorization was given in. Purely additive: no existing row
+        changes, and a payment authorized before this keeps a null capacity.
+    -->
+
+    <changeSet id="work-progress-005-create-project_payment_authorizer" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="project_payment_authorizer"/></not>
+        </preConditions>
+        <createTable tableName="project_payment_authorizer">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_project_payment_authorizer" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="project_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="employee_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="set_by" type="BIGINT"/>
+            <column name="set_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="created_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="updated_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="version" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="project_payment_authorizer" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_payment_authorizer_organization"/>
+        <addForeignKeyConstraint baseTableName="project_payment_authorizer" baseColumnNames="project_id"
+                                 referencedTableName="project" referencedColumnNames="id"
+                                 constraintName="fk_payment_authorizer_project" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseTableName="project_payment_authorizer" baseColumnNames="employee_id"
+                                 referencedTableName="employee" referencedColumnNames="id"
+                                 constraintName="fk_payment_authorizer_employee" onDelete="CASCADE"/>
+        <addUniqueConstraint tableName="project_payment_authorizer" columnNames="organization_id, project_id"
+                             constraintName="uq_payment_authorizer_org_project"/>
+        <rollback>
+            <dropTable tableName="project_payment_authorizer"/>
+        </rollback>
+    </changeSet>
+
+    <!-- Append-only. Names are copied in so the history still reads after an employee record goes. -->
+    <changeSet id="work-progress-005-create-project_payment_authorizer_change" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="project_payment_authorizer_change"/></not>
+        </preConditions>
+        <createTable tableName="project_payment_authorizer_change">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_project_payment_authorizer_change" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="project_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="previous_employee_id" type="BIGINT"/>
+            <column name="previous_employee_name" type="VARCHAR(255)"/>
+            <column name="employee_id" type="BIGINT"/>
+            <column name="employee_name" type="VARCHAR(255)"/>
+            <column name="changed_by" type="BIGINT"/>
+            <column name="changed_by_name" type="VARCHAR(255)"/>
+            <column name="changed_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="project_payment_authorizer_change" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_payment_authorizer_change_organization"/>
+        <addForeignKeyConstraint baseTableName="project_payment_authorizer_change" baseColumnNames="project_id"
+                                 referencedTableName="project" referencedColumnNames="id"
+                                 constraintName="fk_payment_authorizer_change_project" onDelete="CASCADE"/>
+        <createIndex tableName="project_payment_authorizer_change" indexName="idx_payment_authorizer_change_org_project">
+            <column name="organization_id"/>
+            <column name="project_id"/>
+            <column name="changed_at"/>
+        </createIndex>
+        <rollback>
+            <dropTable tableName="project_payment_authorizer_change"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="work-progress-005-add-contract_bill_payment-authorized_as" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="contract_bill_payment" columnName="authorized_as"/></not>
+        </preConditions>
+        <addColumn tableName="contract_bill_payment">
+            <column name="authorized_as" type="VARCHAR(30)"/>
+        </addColumn>
+        <rollback>
+            <dropColumn tableName="contract_bill_payment" columnName="authorized_as"/>
+        </rollback>
+    </changeSet>
+</databaseChangeLog>

@@ -110,8 +110,17 @@ public class ContractBillPayment implements TenantScopedEntity {
     @Column(name = "authorized_at")
     private LocalDateTime authorizedAt;
 
+    /**
+     * True only on a payment authorized before the second signature had to come from someone else,
+     * when a system admin could sign their own request. Always false now.
+     */
     @Column(name = "self_authorized", nullable = false)
     private boolean selfAuthorized;
+
+    /** The capacity the authorization was given in; null on a payment authorized before it was kept. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "authorized_as", length = 30)
+    private BillPaymentAuthority authorizedAs;
 
     @Column(name = "settled_at")
     private LocalDateTime settledAt;

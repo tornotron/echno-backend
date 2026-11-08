@@ -5,6 +5,8 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import org.tornotron.echno_backend.modules.workprogress.billing.payment.BillPaymentAuthority;
+import org.tornotron.echno_backend.modules.workprogress.billing.payment.BillPaymentAuthorizeBlock;
 import org.tornotron.echno_backend.modules.workprogress.billing.payment.BillPaymentProvider;
 import org.tornotron.echno_backend.modules.workprogress.billing.payment.BillPaymentStatus;
 
@@ -43,8 +45,14 @@ public record BillPaymentDto(
         String authorizedByName,
         @Schema(nullable = true)
         LocalDateTime authorizedAt,
-        @Schema(description = "True when the same system admin raised and authorized it.")
+        @Schema(description = "True on a payment from before the rule that someone other than the requester authorizes, when a system admin raised and authorized it.")
         boolean selfAuthorized,
+        @Schema(description = "The capacity it was authorized in. Null until authorized, and on a payment authorized before this was kept.", nullable = true)
+        BillPaymentAuthority authorizedAs,
         @Schema(nullable = true)
-        LocalDateTime settledAt
+        LocalDateTime settledAt,
+        @Schema(description = "Whether the reader may authorize this payment now.")
+        boolean readerMayAuthorize,
+        @Schema(description = "On a requested payment the reader may not authorize, why not.", nullable = true)
+        BillPaymentAuthorizeBlock authorizeBlock
 ) {}

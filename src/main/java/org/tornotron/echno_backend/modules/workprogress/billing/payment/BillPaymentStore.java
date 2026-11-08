@@ -17,6 +17,7 @@ import org.tornotron.echno_backend.modules.workprogress.billing.domain.BillPayme
 import org.tornotron.echno_backend.modules.workprogress.billing.domain.BillStatus;
 import org.tornotron.echno_backend.modules.workprogress.billing.domain.ContractBill;
 import org.tornotron.echno_backend.modules.workprogress.billing.domain.ContractBillEvent;
+import org.tornotron.echno_backend.modules.workprogress.billing.payment.authorizer.PaymentAuthorizers;
 import org.tornotron.echno_backend.modules.workprogress.billing.payment.dto.BillPaymentDto;
 import org.tornotron.echno_backend.modules.workprogress.billing.payment.dto.BillPaymentsDto;
 import org.tornotron.echno_backend.modules.workprogress.billing.payment.dto.RaiseBillPaymentRequest;
@@ -42,6 +43,9 @@ import org.tornotron.echno_backend.subcontract.SubContract;
  * <p>The payable is the record of what was paid. Raising and authorizing check against it under its row
  * lock, which is also what keeps a bill to one payment in flight; settling and reversing go through
  * {@link PayableService}, the same way Finance records a payment.
+ *
+ * <p>Every step after raising belongs to the project's payment authorizer ({@link PaymentAuthorizers}),
+ * checked under the payment's lock, and the authorizer never signs a payment they raised.
  */
 @Slf4j
 @Component
@@ -56,12 +60,13 @@ public class BillPaymentStore {
     private final PayableService payables;
     private final BillPaymentGateways gateways;
     private final BillingSupport support;
+    private final PaymentAuthorizers authorizers;
     private final Clock clock;
 
     public BillPaymentStore(ContractBillPaymentRepository payments, ContractBillRepository bills,
                             ContractBillEventRepository events, PayableRepository payableRepository,
                             PayableService payables, BillPaymentGateways gateways, BillingSupport support,
-                            @WorkProgressClock Clock clock) {
+                            PaymentAuthorizers authorizers, @WorkProgressClock Clock clock) {
         this.payments = payments;
         this.bills = bills;
         this.events = events;
@@ -69,24 +74,42 @@ public class BillPaymentStore {
         this.payables = payables;
         this.gateways = gateways;
         this.support = support;
+        this.authorizers = authorizers;
         this.clock = clock;
     }
 
     // ---------------------------------------------------------------- reads
 
+    /** A bill's payments as the reader sees them: what they may do to each, and why not. */
     @Transactional(readOnly = true)
-    public BillPaymentsDto view(UUID billId) {
+    public BillPaymentsDto view(UUID billId, Long reader) {
         Long orgId = TenantContext.getCurrentOrgId();
         ContractBill bill = requireBill(billId, orgId);
         SubContract contract = support.requireContract(bill.getSubContractId(), orgId);
         Payable payable = bill.getPayableId() == null ? null
                 : payableRepository.findByIdAndOrganization_Id(bill.getPayableId(), orgId).orElse(null);
-        List<BillPaymentDto> rows = payments.findForBill(orgId, billId).stream().map(p -> toDto(p, orgId)).toList();
+        PaymentAuthorizers.Holder holder = authorizers.holderOf(orgId, bill.getProjectId()).orElse(null);
+        List<BillPaymentDto> rows = payments.findForBill(orgId, billId).stream()
+                .map(p -> toDto(p, orgId, holder, reader)).toList();
         return new BillPaymentsDto(bill.getId(), bill.getBillNumber(), gateways.providerFor(orgId),
                 bill.getPayableId(), payable == null ? null : payable.getAmountRecorded(),
                 payable == null ? null : paid(payable), payable == null ? null : payable.getAmountDue(),
                 paymentState(bill, payable), rows.stream().anyMatch(row -> row.status().isInFlight()),
-                hasBeneficiary(contract), rows);
+                hasBeneficiary(contract), bill.getProjectId(), holder == null ? null : holder.employeeId(),
+                holder == null ? null : holder.name(), holder != null && holder.active(),
+                holder != null && holder.is(reader), rows);
+    }
+
+    /**
+     * Refuses anyone but the project's payment authorizer, for a step taken outside a transaction.
+     *
+     * @throws org.springframework.security.access.AccessDeniedException if the user does not hold it
+     */
+    @Transactional(readOnly = true)
+    public void requireAuthority(UUID paymentId, Long actor) {
+        Long orgId = TenantContext.getCurrentOrgId();
+        ContractBillPayment payment = require(paymentId);
+        authorizers.require(orgId, requireBill(payment.getBillId(), orgId).getProjectId(), actor);
     }
 
     /** What a payment is and where it stands, for deciding what to do next outside a transaction. */
@@ -174,10 +197,14 @@ public class BillPaymentStore {
     }
 
     /**
-     * Gives a requested payment its second signature. A system admin who raised it may authorize it
-     * themselves, and that is recorded as such.
+     * Gives a requested payment its second signature, which only the project's payment authorizer can
+     * give, and never on a payment they raised. When they are the project's only authorizer, such a
+     * payment waits until someone who manages the project names another.
      *
-     * @throws InvalidRequestException if it is not waiting for a signature or is now more than is due
+     * @throws org.springframework.security.access.AccessDeniedException if the user is not the project's
+     *         payment authorizer
+     * @throws InvalidRequestException if they raised it, it is not waiting for a signature, or it is now
+     *         more than is due
      */
     @Transactional
     public void authorize(UUID paymentId, Long authorizer) {
@@ -192,26 +219,34 @@ public class BillPaymentStore {
                     + "authorization has to say who gave it");
         }
         ContractBill bill = requireBill(payment.getBillId(), orgId);
+        authorizers.require(orgId, bill.getProjectId(), authorizer);
+        if (authorizer.equals(payment.getRequestedBy())) {
+            throw new InvalidRequestException("You raised this payment, so the second signature has to come from "
+                    + "someone else. A system admin or a project manager can name another payment authorizer for "
+                    + "the project; until then it waits.");
+        }
         // Finance may have recorded a payment since this was raised.
         requireWithinDue(bill, lockPayable(bill, orgId), payment.getAmount());
-        boolean self = authorizer.equals(payment.getRequestedBy());
         payment.setStatus(BillPaymentStatus.AUTHORIZED);
         payment.setAuthorizedBy(authorizer);
         payment.setAuthorizedAt(now());
-        payment.setSelfAuthorized(self);
+        payment.setSelfAuthorized(false);
+        payment.setAuthorizedAs(BillPaymentAuthority.PROJECT_AUTHORIZER);
         payments.save(payment);
-        record(bill, BillEventType.PAYMENT_AUTHORIZED, label(payment) + " of " + rupees(payment.getAmount()) + " authorized"
-                + (self ? " by the system admin who raised it" : ""), authorizer);
+        record(bill, BillEventType.PAYMENT_AUTHORIZED, label(payment) + " of " + rupees(payment.getAmount())
+                + " authorized by the project's payment authorizer", authorizer);
     }
 
     /**
-     * Declines a payment before any money moved. A payment a provider has acknowledged cannot be
+     * Declines a payment before any money moved, which is the project's payment authorizer's to do,
+     * including on a payment they raised themselves. A payment a provider has acknowledged cannot be
      * rejected, since only the provider can end it now.
      */
     @Transactional
     public void reject(UUID paymentId, String reason, Long actor) {
         Long orgId = TenantContext.getCurrentOrgId();
         ContractBillPayment payment = lock(paymentId, orgId);
+        authorizers.require(orgId, requireBill(payment.getBillId(), orgId).getProjectId(), actor);
         boolean waiting = payment.getStatus() == BillPaymentStatus.REQUESTED;
         boolean unsent = payment.getStatus() == BillPaymentStatus.AUTHORIZED && payment.getProviderRef() == null;
         if (!waiting && !unsent) {
@@ -224,11 +259,12 @@ public class BillPaymentStore {
                 label(payment) + " of " + rupees(payment.getAmount()) + " rejected: " + reason.trim(), actor);
     }
 
-    /** Says an authorized manual payment was made from the bank, which settles it. */
+    /** Says an authorized manual payment was made from the bank, which settles it. The authorizer's to do. */
     @Transactional
     public void recordManual(UUID paymentId, RecordBillPaymentRequest req, Long actor) {
         Long orgId = TenantContext.getCurrentOrgId();
         ContractBillPayment payment = lock(paymentId, orgId);
+        authorizers.require(orgId, requireBill(payment.getBillId(), orgId).getProjectId(), actor);
         if (payment.getProvider() != BillPaymentProvider.MANUAL) {
             throw new InvalidRequestException("This payment is carried by " + payment.getProvider()
                     + ", which reports the outcome itself");
@@ -457,11 +493,30 @@ public class BillPaymentStore {
         events.save(event);
     }
 
-    private BillPaymentDto toDto(ContractBillPayment p, Long orgId) {
+    private BillPaymentDto toDto(ContractBillPayment p, Long orgId, PaymentAuthorizers.Holder holder, Long reader) {
+        BillPaymentAuthorizeBlock block = authorizeBlock(p, holder, reader);
         return new BillPaymentDto(p.getId(), p.getBillId(), p.getAmount(), p.getAppliedAmount(), p.getStatus(),
                 p.getProvider(), p.getProvider() == BillPaymentProvider.FAKE, p.getBankReference(), p.getPaidOn(),
                 p.getBeneficiaryName(), p.getBeneficiaryIfsc(), p.getBeneficiaryAccountLast4(), p.getNote(),
                 p.getFailureReason(), p.getLastError(), support.nameOf(p.getRequestedBy(), orgId), p.getRequestedAt(),
-                support.nameOf(p.getAuthorizedBy(), orgId), p.getAuthorizedAt(), p.isSelfAuthorized(), p.getSettledAt());
+                support.nameOf(p.getAuthorizedBy(), orgId), p.getAuthorizedAt(), p.isSelfAuthorized(),
+                p.getAuthorizedAs(), p.getSettledAt(), p.getStatus() == BillPaymentStatus.REQUESTED && block == null,
+                block);
+    }
+
+    /** Why the reader cannot authorize a requested payment, the same rules {@link #authorize} applies. */
+    static BillPaymentAuthorizeBlock authorizeBlock(ContractBillPayment p, PaymentAuthorizers.Holder holder, Long reader) {
+        if (p.getStatus() != BillPaymentStatus.REQUESTED) {
+            return null;
+        }
+        if (holder == null || !holder.active()) {
+            return BillPaymentAuthorizeBlock.NO_AUTHORIZER;
+        }
+        if (holder.is(reader)) {
+            return reader.equals(p.getRequestedBy()) ? BillPaymentAuthorizeBlock.OWN_REQUEST : null;
+        }
+        return holder.is(p.getRequestedBy())
+                ? BillPaymentAuthorizeBlock.RAISED_BY_THE_AUTHORIZER
+                : BillPaymentAuthorizeBlock.NOT_THE_AUTHORIZER;
     }
 }
