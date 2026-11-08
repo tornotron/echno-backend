@@ -183,6 +183,43 @@ class ManualTrialEndIT extends AbstractIntegrationTest {
                 .orElseThrow().getStatus())).isEqualTo(SubscriptionStatus.TRIALING);
     }
 
+    private static final List<String> PREMIUM_MODULES =
+            List.of("MODULE_INSPECTIONS", "MODULE_BIM", "MODULE_WORK_PROGRESS");
+
+    /**
+     * ClickUp 14zdkkvzx5e: Inspections, BIM and Work Progress are premium. An organization whose
+     * manual trial ends lands on the seeded Free plan, which keeps Toolbox Talks and no longer
+     * grants the three. Nothing is deleted: the gate refuses them, and echno.entitlement.mode
+     * decides whether that is a 402 or a log line.
+     */
+    @Test
+    void anOrganizationDroppingToFree_losesTheThreePremiumModules_andKeepsToolboxTalks() {
+        // The migrated catalogue: FREE has Toolbox Talks only, the paid plans keep all four.
+        for (String code : List.of("STARTER", "PRO", "ENTERPRISE")) {
+            assertThat(planModuleCodes(code)).as(code).contains("MODULE_TOOLBOX_TALKS").containsAll(PREMIUM_MODULES);
+        }
+        assertThat(planModuleCodes(ManualTrial.FALLBACK_PLAN_CODE)).containsExactly("MODULE_TOOLBOX_TALKS");
+
+        sweep.runPass(Instant.now());
+
+        subscriptionCache.evictAll();
+        assertThat(subscriptionService.checkFeatureAccess(ENDED_ORG, "MODULE_TOOLBOX_TALKS").isAllowed()).isTrue();
+        for (String module : PREMIUM_MODULES) {
+            FeatureAccessResultDto access = subscriptionService.checkFeatureAccess(ENDED_ORG, module);
+            assertThat(access.isAllowed()).as(module).isFalse();
+            assertThat(access.getReason()).as(module).isEqualTo("Feature not included in current plan");
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<String> planModuleCodes(String planCode) {
+        return inCommittedTx(() -> (List<String>) entityManager.createNativeQuery(
+                "SELECT f.code FROM plan_feature pf JOIN plan p ON p.id = pf.plan_id "
+                + "JOIN feature f ON f.id = pf.feature_id "
+                + "WHERE p.code = :code AND pf.enabled AND f.code LIKE 'MODULE\\_%' ORDER BY f.code")
+                .setParameter("code", planCode).getResultList());
+    }
+
     private void inCommittedTx(Runnable work) {
         inCommittedTx((Supplier<Void>) () -> {
             work.run();
