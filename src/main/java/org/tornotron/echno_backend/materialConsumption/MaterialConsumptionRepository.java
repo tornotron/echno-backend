@@ -6,6 +6,8 @@ import org.tornotron.echno_backend.materialConsumption.enums.MaterialConsumption
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 public interface MaterialConsumptionRepository extends JpaRepository<MaterialConsumption, Long> {
 
@@ -13,11 +15,19 @@ public interface MaterialConsumptionRepository extends JpaRepository<MaterialCon
 
     List<MaterialConsumption> findByMaterialId(Long materialId);
 
+    Page<MaterialConsumption> findByMaterialId(Long materialId, Pageable pageable);
+
     List<MaterialConsumption> findByConsumptionType(MaterialConsumptionType consumptionType);
 
+    Page<MaterialConsumption> findByConsumptionType(MaterialConsumptionType consumptionType, Pageable pageable);
+
     List<MaterialConsumption> findByConsumptionDateBetween(LocalDateTime startDate, LocalDateTime endDate);
+
+    Page<MaterialConsumption> findByConsumptionDateBetween(LocalDateTime startDate, LocalDateTime endDate, Pageable pageable);
 
     List<MaterialConsumption> findByCreatedById(Long userId);
 
     List<MaterialConsumption> findByTaskId(Long taskId);
+
+    Page<MaterialConsumption> findByTaskId(Long taskId, Pageable pageable);
 }

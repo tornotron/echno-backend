@@ -151,6 +151,46 @@ public class PurchaseOrderItemController {
         return ResponseEntity.ok(items);
     }
 
+    // The two filtered lists above keep their arrays because echno-core reads them. These are their
+    // paged twins for the mobile client, under the same guards.
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
+    @GetMapping("/purchase-order/{purchaseOrderId}/paginated")
+    @Operation(
+            summary = "List items for a purchase order, paginated",
+            description = "Returns one page of the line items belonging to the given purchase order, in the "
+                    + "order they were added, with the paging metadata included."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of purchase order items returned"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "pageNo or pageSize is out of range"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+    })
+    public ResponseEntity<Page<PurchaseOrderItemResponseDto>> getItemsByPurchaseOrderIdPaginated(
+            @PathVariable Long purchaseOrderId,
+            @Valid @ParameterObject PageQuery pageQuery) {
+        return ResponseEntity.ok(purchaseOrderItemService.getItemsByPurchaseOrderId(
+                purchaseOrderId, pageQuery.getPageNo(), pageQuery.getPageSize()));
+    }
+
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
+    @GetMapping("/material/{materialId}/paginated")
+    @Operation(
+            summary = "List items for a material, paginated",
+            description = "Returns one page of the purchase order line items that order the given material, "
+                    + "across all purchase orders, oldest line first, with the paging metadata included."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of purchase order items returned"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "pageNo or pageSize is out of range"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+    })
+    public ResponseEntity<Page<PurchaseOrderItemResponseDto>> getItemsByMaterialIdPaginated(
+            @PathVariable Long materialId,
+            @Valid @ParameterObject PageQuery pageQuery) {
+        return ResponseEntity.ok(purchaseOrderItemService.getItemsByMaterialId(
+                materialId, pageQuery.getPageNo(), pageQuery.getPageSize()));
+    }
+
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @PutMapping
     @Operation(

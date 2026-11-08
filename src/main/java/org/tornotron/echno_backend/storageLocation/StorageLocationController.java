@@ -119,8 +119,11 @@ public class StorageLocationController {
             @ApiResponse(responseCode = "200", description = "Storage locations returned"),
             @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public ResponseEntity<List<StorageLocationDto>> getStorageLocationsByProject(@PathVariable Long projectId) {
-        List<StorageLocationDto> storageLocations = storageLocationService.getStorageLocationsByProject(projectId);
+    public ResponseEntity<Page<StorageLocationDto>> getStorageLocationsByProject(
+            @PathVariable Long projectId,
+            @Valid @ParameterObject PageQuery pageQuery) {
+        Page<StorageLocationDto> storageLocations = storageLocationService.getStorageLocationsByProject(
+                projectId, pageQuery.getPageNo(), pageQuery.getPageSize());
         return ResponseEntity.ok(storageLocations);
     }
 
@@ -136,9 +139,11 @@ public class StorageLocationController {
             @ApiResponse(responseCode = "400", description = "locationType is not a recognized storage location type"),
             @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public ResponseEntity<List<StorageLocationDto>> getStorageLocationsByType(
-            @PathVariable StorageLocationType locationType) {
-        List<StorageLocationDto> storageLocations = storageLocationService.getStorageLocationsByType(locationType);
+    public ResponseEntity<Page<StorageLocationDto>> getStorageLocationsByType(
+            @PathVariable StorageLocationType locationType,
+            @Valid @ParameterObject PageQuery pageQuery) {
+        Page<StorageLocationDto> storageLocations = storageLocationService.getStorageLocationsByType(
+                locationType, pageQuery.getPageNo(), pageQuery.getPageSize());
         return ResponseEntity.ok(storageLocations);
     }
 }

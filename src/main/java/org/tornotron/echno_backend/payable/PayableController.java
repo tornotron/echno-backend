@@ -131,8 +131,11 @@ public class PayableController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Payables returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public ResponseEntity<List<PayableDto>> getPayablesByVendor(@PathVariable Long vendorId) {
-        List<PayableDto> payables = payableService.getPayablesByVendor(vendorId);
+    public ResponseEntity<Page<PayableDto>> getPayablesByVendor(
+            @PathVariable Long vendorId,
+            @Valid @ParameterObject PageQuery pageQuery) {
+        Page<PayableDto> payables = payableService.getPayablesByVendor(
+                vendorId, pageQuery.getPageNo(), pageQuery.getPageSize());
         return ResponseEntity.ok(payables);
     }
 
@@ -146,8 +149,9 @@ public class PayableController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Outstanding payables returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public ResponseEntity<List<PayableDto>> getOutstandingPayables() {
-        List<PayableDto> payables = payableService.getOutstandingPayables();
+    public ResponseEntity<Page<PayableDto>> getOutstandingPayables(@Valid @ParameterObject PageQuery pageQuery) {
+        Page<PayableDto> payables = payableService.getOutstandingPayables(
+                pageQuery.getPageNo(), pageQuery.getPageSize());
         return ResponseEntity.ok(payables);
     }
 }

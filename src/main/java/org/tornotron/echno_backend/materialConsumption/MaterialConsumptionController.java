@@ -115,7 +115,7 @@ public class MaterialConsumptionController {
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
     @Operation(
             summary = "List consumptions for a material",
-            description = "Returns every consumption record for the given material, such as all draws "
+            description = "Returns, one page at a time, every consumption record for the given material, such as all draws "
                     + "of TMT Bar 12mm across every project."
     )
     @ApiResponses({
@@ -123,8 +123,11 @@ public class MaterialConsumptionController {
             @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @ApiResponse(responseCode = "404", description = "No material with the given id")
     })
-    public ResponseEntity<List<MaterialConsumptionDto>> getConsumptionsByMaterial(@PathVariable Long materialId) {
-        List<MaterialConsumptionDto> consumptions = materialConsumptionService.getConsumptionsByMaterial(materialId);
+    public ResponseEntity<Page<MaterialConsumptionDto>> getConsumptionsByMaterial(
+            @PathVariable Long materialId,
+            @Valid @ParameterObject PageQuery pageQuery) {
+        Page<MaterialConsumptionDto> consumptions = materialConsumptionService.getConsumptionsByMaterial(
+                materialId, pageQuery.getPageNo(), pageQuery.getPageSize());
         return ResponseEntity.ok(consumptions);
     }
 
@@ -132,15 +135,18 @@ public class MaterialConsumptionController {
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
     @Operation(
             summary = "List consumptions by type",
-            description = "Returns every consumption record of the given consumption type, such as "
+            description = "Returns, one page at a time, every consumption record of the given consumption type, such as "
                     + "wastage or normal usage."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Consumptions returned"),
             @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public ResponseEntity<List<MaterialConsumptionDto>> getConsumptionsByType(@PathVariable MaterialConsumptionType consumptionType) {
-        List<MaterialConsumptionDto> consumptions = materialConsumptionService.getConsumptionsByType(consumptionType);
+    public ResponseEntity<Page<MaterialConsumptionDto>> getConsumptionsByType(
+            @PathVariable MaterialConsumptionType consumptionType,
+            @Valid @ParameterObject PageQuery pageQuery) {
+        Page<MaterialConsumptionDto> consumptions = materialConsumptionService.getConsumptionsByType(
+                consumptionType, pageQuery.getPageNo(), pageQuery.getPageSize());
         return ResponseEntity.ok(consumptions);
     }
 
@@ -148,7 +154,7 @@ public class MaterialConsumptionController {
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
     @Operation(
             summary = "List consumptions in a date range",
-            description = "Returns every consumption record whose consumption date falls between "
+            description = "Returns, one page at a time, every consumption record whose consumption date falls between "
                     + "startDate and endDate, inclusive."
     )
     @ApiResponses({
@@ -156,11 +162,12 @@ public class MaterialConsumptionController {
             @ApiResponse(responseCode = "400", description = "startDate or endDate is missing or not a valid ISO date-time"),
             @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public ResponseEntity<List<MaterialConsumptionDto>> getConsumptionsByDateRange(
+    public ResponseEntity<Page<MaterialConsumptionDto>> getConsumptionsByDateRange(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate
-    ) {
-        List<MaterialConsumptionDto> consumptions = materialConsumptionService.getConsumptionsByDateRange(startDate, endDate);
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate,
+            @Valid @ParameterObject PageQuery pageQuery) {
+        Page<MaterialConsumptionDto> consumptions = materialConsumptionService.getConsumptionsByDateRange(
+                startDate, endDate, pageQuery.getPageNo(), pageQuery.getPageSize());
         return ResponseEntity.ok(consumptions);
     }
 
@@ -168,15 +175,18 @@ public class MaterialConsumptionController {
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
     @Operation(
             summary = "List consumptions for a task",
-            description = "Returns every consumption record linked to the given task."
+            description = "Returns, one page at a time, every consumption record linked to the given task."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Consumptions returned"),
             @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @ApiResponse(responseCode = "404", description = "No task with the given id")
     })
-    public ResponseEntity<List<MaterialConsumptionDto>> getConsumptionsByTask(@PathVariable Long taskId) {
-        List<MaterialConsumptionDto> consumptions = materialConsumptionService.getConsumptionsByTask(taskId);
+    public ResponseEntity<Page<MaterialConsumptionDto>> getConsumptionsByTask(
+            @PathVariable Long taskId,
+            @Valid @ParameterObject PageQuery pageQuery) {
+        Page<MaterialConsumptionDto> consumptions = materialConsumptionService.getConsumptionsByTask(
+                taskId, pageQuery.getPageNo(), pageQuery.getPageSize());
         return ResponseEntity.ok(consumptions);
     }
 }

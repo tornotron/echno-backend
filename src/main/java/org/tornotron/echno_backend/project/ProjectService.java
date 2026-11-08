@@ -866,4 +866,25 @@ public class ProjectService {
                 .map(e -> employeeMapper.toDto(e))
                 .collect(Collectors.toList());
     }
+
+    /**
+     * One page of the employees assigned to a project, ordered by name.
+     *
+     * @param projectId The project, which must belong to the current organization.
+     * @param pageNo    Zero-based page index.
+     * @param pageSize  Rows per page.
+     * @return The page of assigned employees.
+     * @throws ResourceNotFoundException if the project is not in the current organization.
+     */
+    @Transactional(readOnly = true)
+    public Page<EmployeeDto> getEmployeesByProjectId(Long projectId, int pageNo, int pageSize) {
+        Long organizationId = TenantContext.getCurrentOrgId();
+        if (repository.findByIdAndOrganization_Id(projectId, organizationId).isEmpty()) {
+            throw new ResourceNotFoundException("Project with ID " + projectId + " was not found in this organization");
+        }
+        Pageable pageable = PageRequest.of(pageNo, pageSize,
+                Sort.by(Sort.Direction.ASC, "employeeName").and(Sort.by(Sort.Direction.ASC, "id")));
+        return employeeRepository.findByProjects_IdAndOrganization_Id(projectId, organizationId, pageable)
+                .map(e -> employeeMapper.toDto(e));
+    }
 }

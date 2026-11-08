@@ -18,6 +18,8 @@ public interface InventoryTransactionRepository extends JpaRepository<InventoryT
 
     List<InventoryTransaction> findByMaterialId(Long materialId);
 
+    Page<InventoryTransaction> findByMaterialId(Long materialId, Pageable pageable);
+
     /**
      * A material's movement history as a page, oldest movement first so the caller reads it
      * as a forward-running timeline. The id is a stable tie-break when two movements share a
@@ -45,6 +47,8 @@ public interface InventoryTransactionRepository extends JpaRepository<InventoryT
 
     List<InventoryTransaction> findByTransactionType(InventoryTransactionType transactionType);
 
+    Page<InventoryTransaction> findByTransactionType(InventoryTransactionType transactionType, Pageable pageable);
+
     /**
      * Every row a document wrote, in the order it wrote them. A document's rows all carry its
      * number as the reference, which is what lets a reversal be derived from the ledger rather
@@ -55,7 +59,11 @@ public interface InventoryTransactionRepository extends JpaRepository<InventoryT
 
     List<InventoryTransaction> findByTransactionDateBetween(LocalDateTime startDate, LocalDateTime endDate);
 
+    Page<InventoryTransaction> findByTransactionDateBetween(LocalDateTime startDate, LocalDateTime endDate, Pageable pageable);
+
     List<InventoryTransaction> findByProjectId(Long projectId);
+
+    Page<InventoryTransaction> findByProjectId(Long projectId, Pageable pageable);
 
     @Query("SELECT COALESCE(SUM(it.quantityChanged), 0.0) FROM InventoryTransaction it " +
            "WHERE it.material.id = :materialId AND it.project.id = :projectId")
@@ -69,9 +77,13 @@ public interface InventoryTransactionRepository extends JpaRepository<InventoryT
 
     List<InventoryTransaction> findByStorageLocationId(Long storageLocationId);
 
+    Page<InventoryTransaction> findByStorageLocationId(Long storageLocationId, Pageable pageable);
+
     List<InventoryTransaction> findByStorageLocationIdAndMaterialIdAndProjectId(Long storageLocationId, Long materialId,Long projectId);
 
     List<InventoryTransaction> findByTaskId(Long taskId);
+
+    Page<InventoryTransaction> findByTaskId(Long taskId, Pageable pageable);
 
     List<InventoryTransaction> findByProjectIdAndTaskIsNotNull(Long projectId);
 

@@ -18349,6 +18349,52 @@
         },
         "type": "object"
       },
+      "PageAttendanceResponseDto": {
+        "properties": {
+          "content": {
+            "items": {
+              "$ref": "#/components/schemas/AttendanceResponseDto"
+            },
+            "type": "array"
+          },
+          "empty": {
+            "type": "boolean"
+          },
+          "first": {
+            "type": "boolean"
+          },
+          "last": {
+            "type": "boolean"
+          },
+          "number": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "numberOfElements": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "pageable": {
+            "$ref": "#/components/schemas/PageableObject"
+          },
+          "size": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "sort": {
+            "$ref": "#/components/schemas/SortObject"
+          },
+          "totalElements": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "totalPages": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "PageBillSummaryDto": {
         "properties": {
           "content": {
@@ -18446,6 +18492,52 @@
           "content": {
             "items": {
               "$ref": "#/components/schemas/CandidateDto"
+            },
+            "type": "array"
+          },
+          "empty": {
+            "type": "boolean"
+          },
+          "first": {
+            "type": "boolean"
+          },
+          "last": {
+            "type": "boolean"
+          },
+          "number": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "numberOfElements": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "pageable": {
+            "$ref": "#/components/schemas/PageableObject"
+          },
+          "size": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "sort": {
+            "$ref": "#/components/schemas/SortObject"
+          },
+          "totalElements": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "totalPages": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "PageCategoryDto": {
+        "properties": {
+          "content": {
+            "items": {
+              "$ref": "#/components/schemas/CategoryDto"
             },
             "type": "array"
           },
@@ -18993,6 +19085,52 @@
         },
         "type": "object"
       },
+      "PageIndentDto": {
+        "properties": {
+          "content": {
+            "items": {
+              "$ref": "#/components/schemas/IndentDto"
+            },
+            "type": "array"
+          },
+          "empty": {
+            "type": "boolean"
+          },
+          "first": {
+            "type": "boolean"
+          },
+          "last": {
+            "type": "boolean"
+          },
+          "number": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "numberOfElements": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "pageable": {
+            "$ref": "#/components/schemas/PageableObject"
+          },
+          "size": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "sort": {
+            "$ref": "#/components/schemas/SortObject"
+          },
+          "totalElements": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "totalPages": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "PageIndentItemDto": {
         "properties": {
           "content": {
@@ -19228,6 +19366,52 @@
           "content": {
             "items": {
               "$ref": "#/components/schemas/InvoiceDto"
+            },
+            "type": "array"
+          },
+          "empty": {
+            "type": "boolean"
+          },
+          "first": {
+            "type": "boolean"
+          },
+          "last": {
+            "type": "boolean"
+          },
+          "number": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "numberOfElements": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "pageable": {
+            "$ref": "#/components/schemas/PageableObject"
+          },
+          "size": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "sort": {
+            "$ref": "#/components/schemas/SortObject"
+          },
+          "totalElements": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "totalPages": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "PageIssueCommentDto": {
+        "properties": {
+          "content": {
+            "items": {
+              "$ref": "#/components/schemas/IssueCommentDto"
             },
             "type": "array"
           },
@@ -20378,6 +20562,52 @@
           "content": {
             "items": {
               "$ref": "#/components/schemas/ToolboxTalkDto"
+            },
+            "type": "array"
+          },
+          "empty": {
+            "type": "boolean"
+          },
+          "first": {
+            "type": "boolean"
+          },
+          "last": {
+            "type": "boolean"
+          },
+          "number": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "numberOfElements": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "pageable": {
+            "$ref": "#/components/schemas/PageableObject"
+          },
+          "size": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "sort": {
+            "$ref": "#/components/schemas/SortObject"
+          },
+          "totalElements": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "totalPages": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "PageUserDto": {
+        "properties": {
+          "content": {
+            "items": {
+              "$ref": "#/components/schemas/UserDto"
             },
             "type": "array"
           },
@@ -35128,17 +35358,43 @@
     },
     "/api/v1/attendance-regularizations/pending": {
       "get": {
-        "description": "Returns the regularization requests awaiting approval or rejection, up to a fixed ceiling. The response carries X-Total-Count with the true number of pending requests, and X-Result-Capped when there were more than one response can hold.",
+        "description": "Returns the regularization requests awaiting approval or rejection, one page at a time, latest request first. totalElements is the number pending.",
         "operationId": "AttendanceRegularizationController_getPending",
+        "parameters": [
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
               "*/*": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/AttendanceRegularizationDto"
-                  },
-                  "type": "array"
+                  "$ref": "#/components/schemas/PageAttendanceRegularizationDto"
                 }
               }
             },
@@ -38122,7 +38378,7 @@
     },
     "/api/v1/attendance/employee/{employeeId}": {
       "get": {
-        "description": "Returns the attendance records for one employee between startDate and endDate, inclusive.",
+        "description": "Returns the attendance records for one employee between startDate and endDate, inclusive, one page at a time, latest day first.",
         "operationId": "AttendanceController_getByEmployee",
         "parameters": [
           {
@@ -38151,6 +38407,33 @@
               "format": "date",
               "type": "string"
             }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -38158,10 +38441,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/AttendanceResponseDto"
-                  },
-                  "type": "array"
+                  "$ref": "#/components/schemas/PageAttendanceResponseDto"
                 }
               }
             },
@@ -38387,17 +38667,43 @@
     },
     "/api/v1/attendance/pending-approvals": {
       "get": {
-        "description": "Returns the attendance days held for a geofence decision that the signed-in caller may decide: the days that name them as approver, and, for a holder of the attendance record-management roles, every other held day in the tenant, which is how the days no approver could be resolved for are reached. A caller's own days are never in it, because nobody approves their own absence from site whatever roles they hold. Newest day first, up to a fixed ceiling; the response carries X-Total-Count with the true number waiting, and X-Result-Capped when there were more than one response can hold.",
+        "description": "Returns the attendance days held for a geofence decision that the signed-in caller may decide: the days that name them as approver, and, for a holder of the attendance record-management roles, every other held day in the tenant, which is how the days no approver could be resolved for are reached. A caller's own days are never in it, because nobody approves their own absence from site whatever roles they hold. Newest day first, one page at a time; totalElements is the number waiting.",
         "operationId": "AttendanceController_getPendingApprovals",
+        "parameters": [
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
               "*/*": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/AttendanceResponseDto"
-                  },
-                  "type": "array"
+                  "$ref": "#/components/schemas/PageAttendanceResponseDto"
                 }
               }
             },
@@ -38669,22 +38975,29 @@
             }
           },
           {
+            "description": "Zero-based page index.",
             "in": "query",
-            "name": "page",
+            "name": "pageNo",
             "required": false,
             "schema": {
               "default": 0,
+              "description": "Zero-based page index.",
               "format": "int32",
+              "minimum": 0,
               "type": "integer"
             }
           },
           {
+            "description": "Rows per page.",
             "in": "query",
-            "name": "size",
+            "name": "pageSize",
             "required": false,
             "schema": {
               "default": 20,
+              "description": "Rows per page.",
               "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
               "type": "integer"
             }
           }
@@ -38694,10 +39007,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/AttendanceResponseDto"
-                  },
-                  "type": "array"
+                  "$ref": "#/components/schemas/PageAttendanceResponseDto"
                 }
               }
             },
@@ -65479,17 +65789,43 @@
     },
     "/api/v1/employee": {
       "get": {
-        "description": "Returns at most 500 rows of the caller's own organization. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result.",
+        "description": "Returns one page of the caller's own organization's employees, ordered by name.",
         "operationId": "EmployeeController_readAllEmployees",
+        "parameters": [
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
               "*/*": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/EmployeeDto"
-                  },
-                  "type": "array"
+                  "$ref": "#/components/schemas/PageEmployeeDto"
                 }
               }
             },
@@ -65941,7 +66277,7 @@
     },
     "/api/v1/employee/organization/{id}": {
       "get": {
-        "description": "Returns the employees belonging to the given organization, which must be the organization the caller's session is scoped to.",
+        "description": "Returns the employees belonging to the given organization, which must be the organization the caller's session is scoped to, one page at a time, ordered by name.",
         "operationId": "EmployeeController_readEmployeesByOrganizationId",
         "parameters": [
           {
@@ -65952,6 +66288,33 @@
               "format": "int64",
               "type": "integer"
             }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -65959,10 +66322,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/EmployeeDto"
-                  },
-                  "type": "array"
+                  "$ref": "#/components/schemas/PageEmployeeDto"
                 }
               }
             },
@@ -77787,6 +78147,33 @@
               "format": "date-time",
               "type": "string"
             }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -77794,10 +78181,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/GoodsReceivedNoteDto"
-                  },
-                  "type": "array"
+                  "$ref": "#/components/schemas/PageGoodsReceivedNoteDto"
                 }
               }
             },
@@ -77892,7 +78276,7 @@
     },
     "/api/v1/grns/vendor/{vendorId}": {
       "get": {
-        "description": "Returns every GRN recorded against the given vendor.",
+        "description": "Returns, one page at a time, every GRN recorded against the given vendor.",
         "operationId": "GoodsReceivedNoteController_getGrnsByVendor",
         "parameters": [
           {
@@ -77903,6 +78287,33 @@
               "format": "int64",
               "type": "integer"
             }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -77910,10 +78321,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/GoodsReceivedNoteDto"
-                  },
-                  "type": "array"
+                  "$ref": "#/components/schemas/PageGoodsReceivedNoteDto"
                 }
               }
             },
@@ -80150,7 +80558,7 @@
     },
     "/api/v1/indent-items/conversion-status": {
       "get": {
-        "description": "Returns every indent item whose converted-to-purchase-order flag matches the given value.",
+        "description": "Returns, one page at a time, every indent item whose converted-to-purchase-order flag matches the given value.",
         "operationId": "IndentItemController_getIndentItemsByConversionStatus",
         "parameters": [
           {
@@ -80160,6 +80568,33 @@
             "schema": {
               "type": "boolean"
             }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -80167,10 +80602,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/IndentItemDto"
-                  },
-                  "type": "array"
+                  "$ref": "#/components/schemas/PageIndentItemDto"
                 }
               }
             },
@@ -80265,7 +80697,7 @@
     },
     "/api/v1/indent-items/indent/{indentId}": {
       "get": {
-        "description": "Returns every item belonging to the given indent.",
+        "description": "Returns, one page at a time, every item belonging to the given indent.",
         "operationId": "IndentItemController_getIndentItemsByIndentId",
         "parameters": [
           {
@@ -80276,6 +80708,33 @@
               "format": "int64",
               "type": "integer"
             }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -80283,10 +80742,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/IndentItemDto"
-                  },
-                  "type": "array"
+                  "$ref": "#/components/schemas/PageIndentItemDto"
                 }
               }
             },
@@ -80381,7 +80837,7 @@
     },
     "/api/v1/indent-items/material/{materialId}": {
       "get": {
-        "description": "Returns every indent item that requests the given material, across all indents.",
+        "description": "Returns, one page at a time, every indent item that requests the given material, across all indents.",
         "operationId": "IndentItemController_getIndentItemsByMaterialId",
         "parameters": [
           {
@@ -80392,6 +80848,33 @@
               "format": "int64",
               "type": "integer"
             }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -80399,10 +80882,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/IndentItemDto"
-                  },
-                  "type": "array"
+                  "$ref": "#/components/schemas/PageIndentItemDto"
                 }
               }
             },
@@ -82504,10 +82984,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/IndentDto"
-                  },
-                  "type": "array"
+                  "$ref": "#/components/schemas/PageIndentDto"
                 }
               }
             },
@@ -93126,6 +93603,33 @@
               "format": "date-time",
               "type": "string"
             }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -93133,10 +93637,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/InventoryTransactionDto"
-                  },
-                  "type": "array"
+                  "$ref": "#/components/schemas/PageInventoryTransactionDto"
                 }
               }
             },
@@ -93231,7 +93732,7 @@
     },
     "/api/v1/inventory-transactions/material/{materialId}": {
       "get": {
-        "description": "Returns every stock movement recorded for the given material across all projects and storage locations.",
+        "description": "Returns, one page at a time, every stock movement recorded for the given material across all projects and storage locations.",
         "operationId": "InventoryTransactionController_getTransactionsByMaterial",
         "parameters": [
           {
@@ -93242,6 +93743,33 @@
               "format": "int64",
               "type": "integer"
             }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -93249,10 +93777,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/InventoryTransactionDto"
-                  },
-                  "type": "array"
+                  "$ref": "#/components/schemas/PageInventoryTransactionDto"
                 }
               }
             },
@@ -93600,7 +94125,7 @@
     },
     "/api/v1/inventory-transactions/project/{projectId}": {
       "get": {
-        "description": "Returns every inventory transaction booked against the given project.",
+        "description": "Returns, one page at a time, every inventory transaction booked against the given project.",
         "operationId": "InventoryTransactionController_getTransactionsByProject",
         "parameters": [
           {
@@ -93611,6 +94136,33 @@
               "format": "int64",
               "type": "integer"
             }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -93618,10 +94170,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/InventoryTransactionDto"
-                  },
-                  "type": "array"
+                  "$ref": "#/components/schemas/PageInventoryTransactionDto"
                 }
               }
             },
@@ -93832,7 +94381,7 @@
     },
     "/api/v1/inventory-transactions/storage-location/{storageLocationId}": {
       "get": {
-        "description": "Returns every stock movement recorded at the given storage location.",
+        "description": "Returns, one page at a time, every stock movement recorded at the given storage location.",
         "operationId": "InventoryTransactionController_getTransactionsByStorageLocation",
         "parameters": [
           {
@@ -93843,6 +94392,33 @@
               "format": "int64",
               "type": "integer"
             }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -93850,10 +94426,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/InventoryTransactionDto"
-                  },
-                  "type": "array"
+                  "$ref": "#/components/schemas/PageInventoryTransactionDto"
                 }
               }
             },
@@ -94072,6 +94645,33 @@
               "format": "int64",
               "type": "integer"
             }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -94079,10 +94679,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/InventoryTransactionDto"
-                  },
-                  "type": "array"
+                  "$ref": "#/components/schemas/PageInventoryTransactionDto"
                 }
               }
             },
@@ -94207,6 +94804,33 @@
               ],
               "type": "string"
             }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -94214,10 +94838,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/InventoryTransactionDto"
-                  },
-                  "type": "array"
+                  "$ref": "#/components/schemas/PageInventoryTransactionDto"
                 }
               }
             },
@@ -96771,10 +97392,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/IssueCommentDto"
-                  },
-                  "type": "array"
+                  "$ref": "#/components/schemas/PageIssueCommentDto"
                 }
               }
             },
@@ -109012,7 +109630,7 @@
     },
     "/api/v1/leave-requests/employeeId/{employeeId}": {
       "get": {
-        "description": "Returns a page of leave requests raised by the employee, across all statuses.",
+        "description": "Returns a page of leave requests raised by the employee, across all statuses, newest first.",
         "operationId": "LeaveRequestController_getEmployeeRequests",
         "parameters": [
           {
@@ -109025,11 +109643,30 @@
             }
           },
           {
+            "description": "Zero-based page index.",
             "in": "query",
-            "name": "pageable",
-            "required": true,
+            "name": "pageNo",
+            "required": false,
             "schema": {
-              "$ref": "#/components/schemas/Pageable"
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
             }
           }
         ],
@@ -109133,7 +109770,7 @@
     },
     "/api/v1/leave-requests/employeeId/{employeeId}/status/{status}": {
       "get": {
-        "description": "Returns the employee's leave requests filtered to the given status, for example PENDING_APPROVAL or APPROVED.",
+        "description": "Returns the employee's leave requests filtered to the given status, for example PENDING_APPROVAL or APPROVED, one page at a time, newest first.",
         "operationId": "LeaveRequestController_getEmployeeRequestsByStatus",
         "parameters": [
           {
@@ -109160,6 +109797,33 @@
               ],
               "type": "string"
             }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -109167,10 +109831,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/LeaveRequestDto"
-                  },
-                  "type": "array"
+                  "$ref": "#/components/schemas/PageLeaveRequestDto"
                 }
               }
             },
@@ -109265,7 +109926,7 @@
     },
     "/api/v1/leave-requests/organizationId/{organizationId}": {
       "get": {
-        "description": "Returns every leave request raised within the given organization, which has to be the caller's own. Identical to the /web twin beside it, which takes the organization from the session instead.",
+        "description": "Returns a page of the leave requests raised within the given organization, newest first. The organization has to be the caller's own. Identical to the /web twin beside it, which takes the organization from the session instead.",
         "operationId": "LeaveRequestController_getOrganizationRequests",
         "parameters": [
           {
@@ -109276,6 +109937,33 @@
               "format": "int64",
               "type": "integer"
             }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -109283,10 +109971,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/LeaveRequestDto"
-                  },
-                  "type": "array"
+                  "$ref": "#/components/schemas/PageLeaveRequestDto"
                 }
               }
             },
@@ -109381,17 +110066,43 @@
     },
     "/api/v1/leave-requests/pending-approvals": {
       "get": {
-        "description": "Returns the leave requests currently awaiting a decision from the signed-in caller. The approver used to be a query parameter under a guard that only asked for a role, so an administrator could read a colleague's queue while the managers an approval chain is actually built from could not read their own; a caller that still sends approverId is served their own queue, because a query parameter no handler declares is ignored.",
+        "description": "Returns the leave requests currently awaiting a decision from the signed-in caller. The approver used to be a query parameter under a guard that only asked for a role, so an administrator could read a colleague's queue while the managers an approval chain is actually built from could not read their own; a caller that still sends approverId is served their own queue, because a query parameter no handler declares is ignored. One page at a time, newest first.",
         "operationId": "LeaveRequestController_getPendingApprovals",
+        "parameters": [
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
               "*/*": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/LeaveRequestDto"
-                  },
-                  "type": "array"
+                  "$ref": "#/components/schemas/PageLeaveRequestDto"
                 }
               }
             },
@@ -112189,7 +112900,7 @@
     },
     "/api/v1/material-consumptions/date-range": {
       "get": {
-        "description": "Returns every consumption record whose consumption date falls between startDate and endDate, inclusive.",
+        "description": "Returns, one page at a time, every consumption record whose consumption date falls between startDate and endDate, inclusive.",
         "operationId": "MaterialConsumptionController_getConsumptionsByDateRange",
         "parameters": [
           {
@@ -112209,6 +112920,33 @@
               "format": "date-time",
               "type": "string"
             }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -112216,10 +112954,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/MaterialConsumptionDto"
-                  },
-                  "type": "array"
+                  "$ref": "#/components/schemas/PageMaterialConsumptionDto"
                 }
               }
             },
@@ -112314,7 +113049,7 @@
     },
     "/api/v1/material-consumptions/material/{materialId}": {
       "get": {
-        "description": "Returns every consumption record for the given material, such as all draws of TMT Bar 12mm across every project.",
+        "description": "Returns, one page at a time, every consumption record for the given material, such as all draws of TMT Bar 12mm across every project.",
         "operationId": "MaterialConsumptionController_getConsumptionsByMaterial",
         "parameters": [
           {
@@ -112325,6 +113060,33 @@
               "format": "int64",
               "type": "integer"
             }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -112332,10 +113094,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/MaterialConsumptionDto"
-                  },
-                  "type": "array"
+                  "$ref": "#/components/schemas/PageMaterialConsumptionDto"
                 }
               }
             },
@@ -112430,7 +113189,7 @@
     },
     "/api/v1/material-consumptions/task/{taskId}": {
       "get": {
-        "description": "Returns every consumption record linked to the given task.",
+        "description": "Returns, one page at a time, every consumption record linked to the given task.",
         "operationId": "MaterialConsumptionController_getConsumptionsByTask",
         "parameters": [
           {
@@ -112441,6 +113200,33 @@
               "format": "int64",
               "type": "integer"
             }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -112448,10 +113234,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/MaterialConsumptionDto"
-                  },
-                  "type": "array"
+                  "$ref": "#/components/schemas/PageMaterialConsumptionDto"
                 }
               }
             },
@@ -112546,7 +113329,7 @@
     },
     "/api/v1/material-consumptions/type/{consumptionType}": {
       "get": {
-        "description": "Returns every consumption record of the given consumption type, such as wastage or normal usage.",
+        "description": "Returns, one page at a time, every consumption record of the given consumption type, such as wastage or normal usage.",
         "operationId": "MaterialConsumptionController_getConsumptionsByType",
         "parameters": [
           {
@@ -112560,6 +113343,33 @@
               ],
               "type": "string"
             }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -112567,10 +113377,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/MaterialConsumptionDto"
-                  },
-                  "type": "array"
+                  "$ref": "#/components/schemas/PageMaterialConsumptionDto"
                 }
               }
             },
@@ -114218,6 +115025,33 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -114225,10 +115059,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/MaterialDto"
-                  },
-                  "type": "array"
+                  "$ref": "#/components/schemas/PageMaterialDto"
                 }
               }
             },
@@ -121392,11 +122223,30 @@
         "operationId": "NotificationController_getNotifications",
         "parameters": [
           {
+            "description": "Zero-based page index.",
             "in": "query",
-            "name": "pageable",
-            "required": true,
+            "name": "pageNo",
+            "required": false,
             "schema": {
-              "$ref": "#/components/schemas/Pageable"
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
             }
           }
         ],
@@ -121606,17 +122456,43 @@
     },
     "/api/v1/notifications/unread": {
       "get": {
-        "description": "Returns every notification addressed to the signed-in caller that has not yet been marked read.",
+        "description": "Returns the notifications addressed to the signed-in caller that have not yet been marked read, one page at a time, newest first.",
         "operationId": "NotificationController_getUnreadNotifications",
+        "parameters": [
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
               "*/*": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/NotificationDto"
-                  },
-                  "type": "array"
+                  "$ref": "#/components/schemas/PageNotificationDto"
                 }
               }
             },
@@ -124821,15 +125697,41 @@
       "get": {
         "description": "Returns the payables that still have an outstanding balance.",
         "operationId": "PayableController_getOutstandingPayables",
+        "parameters": [
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
               "*/*": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/PayableDto"
-                  },
-                  "type": "array"
+                  "$ref": "#/components/schemas/PagePayableDto"
                 }
               }
             },
@@ -124935,6 +125837,33 @@
               "format": "int64",
               "type": "integer"
             }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -124942,10 +125871,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/PayableDto"
-                  },
-                  "type": "array"
+                  "$ref": "#/components/schemas/PagePayableDto"
                 }
               }
             },
@@ -127603,10 +128529,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/ProjectDto"
-                  },
-                  "type": "array"
+                  "$ref": "#/components/schemas/PageProjectDto"
                 }
               }
             },
@@ -129767,7 +130690,7 @@
     },
     "/api/v1/project/{projectId}/employees": {
       "get": {
-        "description": "Returns the employees currently assigned to the given project.",
+        "description": "Returns the employees currently assigned to the given project, one page at a time, ordered by name.",
         "operationId": "ProjectController_getEmployeesByProjectId",
         "parameters": [
           {
@@ -129778,6 +130701,33 @@
               "format": "int64",
               "type": "integer"
             }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -129785,10 +130735,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/EmployeeDto"
-                  },
-                  "type": "array"
+                  "$ref": "#/components/schemas/PageEmployeeDto"
                 }
               }
             },
@@ -136178,6 +137125,146 @@
         ]
       }
     },
+    "/api/v1/purchase-order-items/material/{materialId}/paginated": {
+      "get": {
+        "description": "Returns one page of the purchase order line items that order the given material, across all purchase orders, oldest line first, with the paging metadata included.",
+        "operationId": "PurchaseOrderItemController_getItemsByMaterialIdPaginated",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "materialId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagePurchaseOrderItemResponseDto"
+                }
+              }
+            },
+            "description": "Page of purchase order items returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "pageNo or pageSize is out of range"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List items for a material, paginated",
+        "tags": [
+          "Purchase Order Items"
+        ]
+      }
+    },
     "/api/v1/purchase-order-items/paginated": {
       "get": {
         "description": "Returns a single page of purchase order items with the paging metadata included. pageSize is clamped to 500.",
@@ -136420,6 +137507,146 @@
           }
         },
         "summary": "List items for a purchase order",
+        "tags": [
+          "Purchase Order Items"
+        ]
+      }
+    },
+    "/api/v1/purchase-order-items/purchase-order/{purchaseOrderId}/paginated": {
+      "get": {
+        "description": "Returns one page of the line items belonging to the given purchase order, in the order they were added, with the paging metadata included.",
+        "operationId": "PurchaseOrderItemController_getItemsByPurchaseOrderIdPaginated",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "purchaseOrderId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagePurchaseOrderItemResponseDto"
+                }
+              }
+            },
+            "description": "Page of purchase order items returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "pageNo or pageSize is out of range"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks the required role in the current tenant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List items for a purchase order, paginated",
         "tags": [
           "Purchase Order Items"
         ]
@@ -138019,7 +139246,7 @@
     },
     "/api/v1/purchase-orders/indent/{indentId}": {
       "get": {
-        "description": "Returns every purchase order that was raised from the given material indent.",
+        "description": "Returns, one page at a time, every purchase order that was raised from the given material indent.",
         "operationId": "PurchaseOrderController_getPurchaseOrdersByIndent",
         "parameters": [
           {
@@ -138030,6 +139257,33 @@
               "format": "int64",
               "type": "integer"
             }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -138037,10 +139291,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/PurchaseOrderDto"
-                  },
-                  "type": "array"
+                  "$ref": "#/components/schemas/PagePurchaseOrderDto"
                 }
               }
             },
@@ -138135,7 +139386,7 @@
     },
     "/api/v1/purchase-orders/status/{status}": {
       "get": {
-        "description": "Returns every purchase order currently in the given lifecycle status, such as SENT_TO_VENDOR or FULLY_RECEIVED.",
+        "description": "Returns, one page at a time, every purchase order currently in the given lifecycle status, such as SENT_TO_VENDOR or FULLY_RECEIVED.",
         "operationId": "PurchaseOrderController_getPurchaseOrdersByStatus",
         "parameters": [
           {
@@ -138154,6 +139405,33 @@
               ],
               "type": "string"
             }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -138161,10 +139439,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/PurchaseOrderDto"
-                  },
-                  "type": "array"
+                  "$ref": "#/components/schemas/PagePurchaseOrderDto"
                 }
               }
             },
@@ -138259,7 +139534,7 @@
     },
     "/api/v1/purchase-orders/vendor/{vendorId}": {
       "get": {
-        "description": "Returns every purchase order raised against the given vendor, for example every PO placed with Sri Balaji Steel Traders.",
+        "description": "Returns, one page at a time, every purchase order raised against the given vendor, for example every PO placed with Sri Balaji Steel Traders.",
         "operationId": "PurchaseOrderController_getPurchaseOrdersByVendor",
         "parameters": [
           {
@@ -138270,6 +139545,33 @@
               "format": "int64",
               "type": "integer"
             }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -138277,10 +139579,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/PurchaseOrderDto"
-                  },
-                  "type": "array"
+                  "$ref": "#/components/schemas/PagePurchaseOrderDto"
                 }
               }
             },
@@ -142927,7 +144226,7 @@
     },
     "/api/v1/site-transfers/receiving-project/{projectId}": {
       "get": {
-        "description": "Returns every site transfer whose receiving project is the given project id.",
+        "description": "Returns, one page at a time, every site transfer whose receiving project is the given project id.",
         "operationId": "SiteTransferController_getSiteTransfersByReceivingProject",
         "parameters": [
           {
@@ -142938,6 +144237,33 @@
               "format": "int64",
               "type": "integer"
             }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -142945,10 +144271,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/SiteTransferDto"
-                  },
-                  "type": "array"
+                  "$ref": "#/components/schemas/PageSiteTransferDto"
                 }
               }
             },
@@ -143043,7 +144366,7 @@
     },
     "/api/v1/site-transfers/sending-project/{projectId}": {
       "get": {
-        "description": "Returns every site transfer whose sending project is the given project id.",
+        "description": "Returns, one page at a time, every site transfer whose sending project is the given project id.",
         "operationId": "SiteTransferController_getSiteTransfersBySendingProject",
         "parameters": [
           {
@@ -143054,6 +144377,33 @@
               "format": "int64",
               "type": "integer"
             }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -143061,10 +144411,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/SiteTransferDto"
-                  },
-                  "type": "array"
+                  "$ref": "#/components/schemas/PageSiteTransferDto"
                 }
               }
             },
@@ -143159,7 +144506,7 @@
     },
     "/api/v1/site-transfers/status/{status}": {
       "get": {
-        "description": "Returns every site transfer currently in the given status, for example PENDING, IN_TRANSIT or COMPLETED.",
+        "description": "Returns, one page at a time, every site transfer currently in the given status, for example PENDING, IN_TRANSIT or COMPLETED.",
         "operationId": "SiteTransferController_getSiteTransfersByStatus",
         "parameters": [
           {
@@ -143176,6 +144523,33 @@
               ],
               "type": "string"
             }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -143183,10 +144557,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/SiteTransferDto"
-                  },
-                  "type": "array"
+                  "$ref": "#/components/schemas/PageSiteTransferDto"
                 }
               }
             },
@@ -147687,6 +149058,33 @@
               "format": "int64",
               "type": "integer"
             }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -147694,10 +149092,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/StorageLocationDto"
-                  },
-                  "type": "array"
+                  "$ref": "#/components/schemas/PageStorageLocationDto"
                 }
               }
             },
@@ -147810,6 +149205,33 @@
               ],
               "type": "string"
             }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -147817,10 +149239,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/StorageLocationDto"
-                  },
-                  "type": "array"
+                  "$ref": "#/components/schemas/PageStorageLocationDto"
                 }
               }
             },
@@ -150424,10 +151843,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/TaskDto"
-                  },
-                  "type": "array"
+                  "$ref": "#/components/schemas/PageTaskDto"
                 }
               }
             },
@@ -154812,10 +156228,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/UserDto"
-                  },
-                  "type": "array"
+                  "$ref": "#/components/schemas/PageUserDto"
                 }
               }
             },
@@ -156572,6 +157985,33 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -156579,10 +158019,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/VendorDto"
-                  },
-                  "type": "array"
+                  "$ref": "#/components/schemas/PageVendorDto"
                 }
               }
             },
@@ -162625,10 +164062,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/CategoryDto"
-                  },
-                  "type": "array"
+                  "$ref": "#/components/schemas/PageCategoryDto"
                 }
               }
             },

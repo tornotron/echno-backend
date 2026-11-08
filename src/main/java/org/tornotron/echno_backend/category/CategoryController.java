@@ -93,10 +93,10 @@ public class CategoryController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of categories returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither a member of the current tenant nor holds an elevated role in it")
     })
-    public ResponseEntity<List<CategoryDto>> readAllCategories(@Valid @ParameterObject PageQuery pageQuery) {
+    public ResponseEntity<Page<CategoryDto>> readAllCategories(@Valid @ParameterObject PageQuery pageQuery) {
         Page<CategoryDto> categories = categoryService.getAllCategories(pageQuery.getPageNo(), pageQuery.getPageSize());
         logger.info("All Categories Retrieved Successfully");
-        return new ResponseEntity<>(categories.getContent(), HttpStatus.OK);
+        return new ResponseEntity<>(categories, HttpStatus.OK);
 
     }
 

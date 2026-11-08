@@ -64,9 +64,10 @@ public class IssueCommentController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of comments returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant")
     })
-    public ResponseEntity<List<IssueCommentDto>> readAllIssueComments(@Valid @ParameterObject PageQuery pageQuery) {
-        Page<IssueCommentDto> issueComments = issueCommentService.getAllIssueComments(pageQuery.getPageNo(),pageQuery.getPageSize());
-        return ResponseEntity.status(HttpStatus.OK).body(issueComments.getContent());
+    public ResponseEntity<Page<IssueCommentDto>> readAllIssueComments(@Valid @ParameterObject PageQuery pageQuery) {
+        Page<IssueCommentDto> issueComments = issueCommentService.getAllIssueComments(
+                pageQuery.getPageNo(),pageQuery.getPageSize());
+        return ResponseEntity.status(HttpStatus.OK).body(issueComments);
     }
 
     @DeleteMapping("{id}")

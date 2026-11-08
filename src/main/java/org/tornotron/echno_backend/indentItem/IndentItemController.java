@@ -116,14 +116,17 @@ public class IndentItemController {
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
     @Operation(
             summary = "List items for an indent",
-            description = "Returns every item belonging to the given indent."
+            description = "Returns, one page at a time, every item belonging to the given indent."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Indent items returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public ResponseEntity<List<IndentItemDto>> getIndentItemsByIndentId(@PathVariable Long indentId) {
-        List<IndentItemDto> indentItems = indentItemService.getIndentItemsByIndentId(indentId);
+    public ResponseEntity<Page<IndentItemDto>> getIndentItemsByIndentId(
+            @PathVariable Long indentId,
+            @Valid @ParameterObject PageQuery pageQuery) {
+        Page<IndentItemDto> indentItems = indentItemService.getIndentItemsByIndentId(
+                indentId, pageQuery.getPageNo(), pageQuery.getPageSize());
         return ResponseEntity.ok(indentItems);
     }
 
@@ -131,14 +134,17 @@ public class IndentItemController {
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
     @Operation(
             summary = "List items for a material",
-            description = "Returns every indent item that requests the given material, across all indents."
+            description = "Returns, one page at a time, every indent item that requests the given material, across all indents."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Indent items returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public ResponseEntity<List<IndentItemDto>> getIndentItemsByMaterialId(@PathVariable Long materialId) {
-        List<IndentItemDto> indentItems = indentItemService.getIndentItemsByMaterialId(materialId);
+    public ResponseEntity<Page<IndentItemDto>> getIndentItemsByMaterialId(
+            @PathVariable Long materialId,
+            @Valid @ParameterObject PageQuery pageQuery) {
+        Page<IndentItemDto> indentItems = indentItemService.getIndentItemsByMaterialId(
+                materialId, pageQuery.getPageNo(), pageQuery.getPageSize());
         return ResponseEntity.ok(indentItems);
     }
 
@@ -146,17 +152,18 @@ public class IndentItemController {
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
     @Operation(
             summary = "List items by conversion status",
-            description = "Returns every indent item whose converted-to-purchase-order flag matches the "
+            description = "Returns, one page at a time, every indent item whose converted-to-purchase-order flag matches the "
                     + "given value."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Indent items returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public ResponseEntity<List<IndentItemDto>> getIndentItemsByConversionStatus(
-            @RequestParam Boolean converted
-    ) {
-        List<IndentItemDto> indentItems = indentItemService.getIndentItemsByConversionStatus(converted);
+    public ResponseEntity<Page<IndentItemDto>> getIndentItemsByConversionStatus(
+            @RequestParam Boolean converted,
+            @Valid @ParameterObject PageQuery pageQuery) {
+        Page<IndentItemDto> indentItems = indentItemService.getIndentItemsByConversionStatus(
+                converted, pageQuery.getPageNo(), pageQuery.getPageSize());
         return ResponseEntity.ok(indentItems);
     }
 

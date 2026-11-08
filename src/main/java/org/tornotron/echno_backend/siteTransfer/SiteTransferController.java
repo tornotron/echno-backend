@@ -116,15 +116,18 @@ public class SiteTransferController {
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
     @Operation(
             summary = "List site transfers by status",
-            description = "Returns every site transfer currently in the given status, for example PENDING, "
+            description = "Returns, one page at a time, every site transfer currently in the given status, for example PENDING, "
                     + "IN_TRANSIT or COMPLETED."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Site transfers returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public ResponseEntity<List<SiteTransferDto>> getSiteTransfersByStatus(@PathVariable SiteTransferStatus status) {
-        List<SiteTransferDto> transfers = siteTransferService.getSiteTransfersByStatus(status);
+    public ResponseEntity<Page<SiteTransferDto>> getSiteTransfersByStatus(
+            @PathVariable SiteTransferStatus status,
+            @Valid @ParameterObject PageQuery pageQuery) {
+        Page<SiteTransferDto> transfers = siteTransferService.getSiteTransfersByStatus(
+                status, pageQuery.getPageNo(), pageQuery.getPageSize());
         return ResponseEntity.ok(transfers);
     }
 
@@ -132,14 +135,17 @@ public class SiteTransferController {
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
     @Operation(
             summary = "List site transfers sent from a project",
-            description = "Returns every site transfer whose sending project is the given project id."
+            description = "Returns, one page at a time, every site transfer whose sending project is the given project id."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Site transfers returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public ResponseEntity<List<SiteTransferDto>> getSiteTransfersBySendingProject(@PathVariable Long projectId) {
-        List<SiteTransferDto> transfers = siteTransferService.getSiteTransfersBySendingProject(projectId);
+    public ResponseEntity<Page<SiteTransferDto>> getSiteTransfersBySendingProject(
+            @PathVariable Long projectId,
+            @Valid @ParameterObject PageQuery pageQuery) {
+        Page<SiteTransferDto> transfers = siteTransferService.getSiteTransfersBySendingProject(
+                projectId, pageQuery.getPageNo(), pageQuery.getPageSize());
         return ResponseEntity.ok(transfers);
     }
 
@@ -147,14 +153,17 @@ public class SiteTransferController {
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
     @Operation(
             summary = "List site transfers received by a project",
-            description = "Returns every site transfer whose receiving project is the given project id."
+            description = "Returns, one page at a time, every site transfer whose receiving project is the given project id."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Site transfers returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public ResponseEntity<List<SiteTransferDto>> getSiteTransfersByReceivingProject(@PathVariable Long projectId) {
-        List<SiteTransferDto> transfers = siteTransferService.getSiteTransfersByReceivingProject(projectId);
+    public ResponseEntity<Page<SiteTransferDto>> getSiteTransfersByReceivingProject(
+            @PathVariable Long projectId,
+            @Valid @ParameterObject PageQuery pageQuery) {
+        Page<SiteTransferDto> transfers = siteTransferService.getSiteTransfersByReceivingProject(
+                projectId, pageQuery.getPageNo(), pageQuery.getPageSize());
         return ResponseEntity.ok(transfers);
     }
 

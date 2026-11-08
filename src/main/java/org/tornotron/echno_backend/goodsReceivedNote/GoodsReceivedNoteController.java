@@ -116,14 +116,17 @@ public class GoodsReceivedNoteController {
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
     @Operation(
             summary = "List goods received notes for a vendor",
-            description = "Returns every GRN recorded against the given vendor."
+            description = "Returns, one page at a time, every GRN recorded against the given vendor."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "List of GRNs for the vendor"),
             @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public ResponseEntity<List<GoodsReceivedNoteDto>> getGrnsByVendor(@PathVariable Long vendorId) {
-        List<GoodsReceivedNoteDto> grns = goodsReceivedNoteService.getGrnsByVendor(vendorId);
+    public ResponseEntity<Page<GoodsReceivedNoteDto>> getGrnsByVendor(
+            @PathVariable Long vendorId,
+            @Valid @ParameterObject PageQuery pageQuery) {
+        Page<GoodsReceivedNoteDto> grns = goodsReceivedNoteService.getGrnsByVendor(
+                vendorId, pageQuery.getPageNo(), pageQuery.getPageSize());
         return ResponseEntity.ok(grns);
     }
 
@@ -158,11 +161,12 @@ public class GoodsReceivedNoteController {
             @ApiResponse(responseCode = "400", description = "startDate or endDate is missing or not a valid ISO date-time"),
             @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public ResponseEntity<List<GoodsReceivedNoteDto>> getGrnsByDateRange(
+    public ResponseEntity<Page<GoodsReceivedNoteDto>> getGrnsByDateRange(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate
-    ) {
-        List<GoodsReceivedNoteDto> grns = goodsReceivedNoteService.getGrnsByDateRange(startDate, endDate);
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate,
+            @Valid @ParameterObject PageQuery pageQuery) {
+        Page<GoodsReceivedNoteDto> grns = goodsReceivedNoteService.getGrnsByDateRange(
+                startDate, endDate, pageQuery.getPageNo(), pageQuery.getPageSize());
         return ResponseEntity.ok(grns);
     }
 }

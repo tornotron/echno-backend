@@ -6,12 +6,16 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 public interface MaterialRepository extends JpaRepository<Material, Long> {
 
     Optional<Material> findBySku(String sku);
 
     List<Material> findByMaterialNameContainingIgnoreCase(String materialName);
+
+    Page<Material> findByMaterialNameContainingIgnoreCase(String materialName, Pageable pageable);
 
     Optional<Material> findByIdAndOrganization_Id(Long id, Long organizationId);
 

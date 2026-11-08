@@ -163,6 +163,10 @@ class StoreKeeperRoleScopeTest {
             "PurchaseOrderItemController.getPurchaseOrderItemsPaginated GET /paginated",
             "PurchaseOrderItemController.getItemsByPurchaseOrderId GET /purchase-order/{purchaseOrderId}",
             "PurchaseOrderItemController.getItemsByMaterialId GET /material/{materialId}",
+            // The paged twins of the two lists above for the mobile client (#999), same rows and
+            // same guard, so the role reaches nothing it did not already read.
+            "PurchaseOrderItemController.getItemsByPurchaseOrderIdPaginated GET /purchase-order/{purchaseOrderId}/paginated",
+            "PurchaseOrderItemController.getItemsByMaterialIdPaginated GET /material/{materialId}/paginated",
 
             // What has been requisitioned, so the store knows what a delivery answers and what is
             // still outstanding. Raising a requisition is not on this list. Both getAllIndents

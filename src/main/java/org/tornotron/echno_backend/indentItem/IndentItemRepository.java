@@ -7,6 +7,8 @@ import org.springframework.data.repository.query.Param;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 public interface IndentItemRepository extends JpaRepository<IndentItem, Long> {
 
@@ -14,9 +16,15 @@ public interface IndentItemRepository extends JpaRepository<IndentItem, Long> {
 
     List<IndentItem> findByIndentId(Long indentId);
 
+    Page<IndentItem> findByIndentId(Long indentId, Pageable pageable);
+
     List<IndentItem> findByMaterialId(Long materialId);
 
+    Page<IndentItem> findByMaterialId(Long materialId, Pageable pageable);
+
     List<IndentItem> findByConvertedToPurchaseOrder(Boolean converted);
+
+    Page<IndentItem> findByConvertedToPurchaseOrder(Boolean converted, Pageable pageable);
 
     boolean existsByIdAndOrganization_Id(Long id, Long organizationId);
 

@@ -23,6 +23,7 @@ import org.tornotron.echno_backend.material.MaterialRepository;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import org.springframework.data.domain.PageImpl;
 
 @Service
 public class IndentItemService {
@@ -122,14 +123,59 @@ public class IndentItemService {
         return toDtos(indentItemRepository.findByIndentId(indentId));
     }
 
+    /**
+     * One page of the same rows, in the order the lines were added.
+     *
+     * @param pageNo   Zero-based page index.
+     * @param pageSize Rows per page.
+     * @return The requested page.
+     */
+    @Transactional(readOnly = true)
+    public Page<IndentItemDto> getIndentItemsByIndentId(Long indentId, int pageNo, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNo, pageSize,
+                Sort.by(Sort.Direction.ASC, "id"));
+        Page<IndentItem> rows = indentItemRepository.findByIndentId(indentId, pageable);
+        return new PageImpl<>(toDtos(rows.getContent()), rows.getPageable(), rows.getTotalElements());
+    }
+
     @Transactional(readOnly = true)
     public List<IndentItemDto> getIndentItemsByMaterialId(Long materialId) {
         return toDtos(indentItemRepository.findByMaterialId(materialId));
     }
 
+    /**
+     * One page of the same rows, in the order the lines were added.
+     *
+     * @param pageNo   Zero-based page index.
+     * @param pageSize Rows per page.
+     * @return The requested page.
+     */
+    @Transactional(readOnly = true)
+    public Page<IndentItemDto> getIndentItemsByMaterialId(Long materialId, int pageNo, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNo, pageSize,
+                Sort.by(Sort.Direction.ASC, "id"));
+        Page<IndentItem> rows = indentItemRepository.findByMaterialId(materialId, pageable);
+        return new PageImpl<>(toDtos(rows.getContent()), rows.getPageable(), rows.getTotalElements());
+    }
+
     @Transactional(readOnly = true)
     public List<IndentItemDto> getIndentItemsByConversionStatus(Boolean converted) {
         return toDtos(indentItemRepository.findByConvertedToPurchaseOrder(converted));
+    }
+
+    /**
+     * One page of the same rows, in the order the lines were added.
+     *
+     * @param pageNo   Zero-based page index.
+     * @param pageSize Rows per page.
+     * @return The requested page.
+     */
+    @Transactional(readOnly = true)
+    public Page<IndentItemDto> getIndentItemsByConversionStatus(Boolean converted, int pageNo, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNo, pageSize,
+                Sort.by(Sort.Direction.ASC, "id"));
+        Page<IndentItem> rows = indentItemRepository.findByConvertedToPurchaseOrder(converted, pageable);
+        return new PageImpl<>(toDtos(rows.getContent()), rows.getPageable(), rows.getTotalElements());
     }
 
     @Transactional

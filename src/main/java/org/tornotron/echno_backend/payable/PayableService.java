@@ -249,6 +249,21 @@ public class PayableService {
     }
 
     /**
+     * One page of the same rows, newest first, with the id as tie-break.
+     *
+     * @param pageNo   Zero-based page index.
+     * @param pageSize Rows per page.
+     * @return The requested page.
+     */
+    @Transactional(readOnly = true)
+    public Page<PayableDto> getPayablesByVendor(Long vendorId, int pageNo, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNo, pageSize,
+                Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id")));
+        return payableRepository.findByVendorIdAndOrganization_id(vendorId,TenantContext.getCurrentOrgId(), pageable)
+                .map(payable -> payableMapper.toDto(payable));
+    }
+
+    /**
      * Returns the payables that still have an unpaid balance.
      *
      * @return The list of outstanding payable DTOs.
@@ -258,5 +273,20 @@ public class PayableService {
         return payableRepository.findOutstandingPayables().stream()
                 .map(payable -> payableMapper.toDto(payable))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * One page of the same rows, newest first, with the id as tie-break.
+     *
+     * @param pageNo   Zero-based page index.
+     * @param pageSize Rows per page.
+     * @return The requested page.
+     */
+    @Transactional(readOnly = true)
+    public Page<PayableDto> getOutstandingPayables(int pageNo, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNo, pageSize,
+                Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id")));
+        return payableRepository.findOutstandingPayables(pageable)
+                .map(payable -> payableMapper.toDto(payable));
     }
 }

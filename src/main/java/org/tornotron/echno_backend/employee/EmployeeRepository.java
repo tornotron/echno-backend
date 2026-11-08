@@ -67,6 +67,12 @@ public interface EmployeeRepository extends JpaRepository<Employee,Long> {
      */
     List<Employee> findEmployeesByOrganization_Id(Long organizationId);
 
+    /** One page of an organization's employees. */
+    Page<Employee> findEmployeesByOrganization_Id(Long organizationId, Pageable pageable);
+
+    /** One page of the employees assigned to a project in the given organization. */
+    Page<Employee> findByProjects_IdAndOrganization_Id(Long projectId, Long organizationId, Pageable pageable);
+
     @Query("SELECT e FROM Employee e WHERE e.id = :id AND e.organization.id = :orgId")
     Optional<Employee> findByIdAndOrganizationId(@Param("id") Long id, @Param("orgId") Long orgId);
 

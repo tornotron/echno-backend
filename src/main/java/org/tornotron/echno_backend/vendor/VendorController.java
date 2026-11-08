@@ -115,8 +115,11 @@ public class VendorController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Matching vendors returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public ResponseEntity<List<VendorDto>> searchVendors(@RequestParam String name) {
-        List<VendorDto> vendors = vendorService.searchVendorsByName(name);
+    public ResponseEntity<Page<VendorDto>> searchVendors(
+            @RequestParam String name,
+            @Valid @ParameterObject PageQuery pageQuery) {
+        Page<VendorDto> vendors = vendorService.searchVendorsByName(
+                name, pageQuery.getPageNo(), pageQuery.getPageSize());
         return ResponseEntity.ok(vendors);
     }
 

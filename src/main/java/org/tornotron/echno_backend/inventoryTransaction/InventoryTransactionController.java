@@ -102,15 +102,18 @@ public class InventoryTransactionController {
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
     @Operation(
             summary = "List transactions for a material",
-            description = "Returns every stock movement recorded for the given material across all "
+            description = "Returns, one page at a time, every stock movement recorded for the given material across all "
                     + "projects and storage locations."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "List of transactions for the material"),
             @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public ResponseEntity<List<InventoryTransactionDto>> getTransactionsByMaterial(@PathVariable Long materialId) {
-        List<InventoryTransactionDto> transactions = inventoryTransactionService.getTransactionsByMaterial(materialId);
+    public ResponseEntity<Page<InventoryTransactionDto>> getTransactionsByMaterial(
+            @PathVariable Long materialId,
+            @Valid @ParameterObject PageQuery pageQuery) {
+        Page<InventoryTransactionDto> transactions = inventoryTransactionService.getTransactionsByMaterial(
+                materialId, pageQuery.getPageNo(), pageQuery.getPageSize());
         return ResponseEntity.ok(transactions);
     }
 
@@ -140,14 +143,17 @@ public class InventoryTransactionController {
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
     @Operation(
             summary = "List transactions for a project",
-            description = "Returns every inventory transaction booked against the given project."
+            description = "Returns, one page at a time, every inventory transaction booked against the given project."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "List of transactions for the project"),
             @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public ResponseEntity<List<InventoryTransactionDto>> getTransactionsByProject(@PathVariable Long projectId) {
-        List<InventoryTransactionDto> transactions = inventoryTransactionService.getTransactionsByProject(projectId);
+    public ResponseEntity<Page<InventoryTransactionDto>> getTransactionsByProject(
+            @PathVariable Long projectId,
+            @Valid @ParameterObject PageQuery pageQuery) {
+        Page<InventoryTransactionDto> transactions = inventoryTransactionService.getTransactionsByProject(
+                projectId, pageQuery.getPageNo(), pageQuery.getPageSize());
         return ResponseEntity.ok(transactions);
     }
 
@@ -163,8 +169,11 @@ public class InventoryTransactionController {
             @ApiResponse(responseCode = "400", description = "The path value is not a recognised transaction type"),
             @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public ResponseEntity<List<InventoryTransactionDto>> getTransactionsByType(@PathVariable InventoryTransactionType transactionType) {
-        List<InventoryTransactionDto> transactions = inventoryTransactionService.getTransactionsByType(transactionType);
+    public ResponseEntity<Page<InventoryTransactionDto>> getTransactionsByType(
+            @PathVariable InventoryTransactionType transactionType,
+            @Valid @ParameterObject PageQuery pageQuery) {
+        Page<InventoryTransactionDto> transactions = inventoryTransactionService.getTransactionsByType(
+                transactionType, pageQuery.getPageNo(), pageQuery.getPageSize());
         return ResponseEntity.ok(transactions);
     }
 
@@ -180,11 +189,12 @@ public class InventoryTransactionController {
             @ApiResponse(responseCode = "400", description = "startDate or endDate is missing or not a valid ISO date-time"),
             @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public ResponseEntity<List<InventoryTransactionDto>> getTransactionsByDateRange(
+    public ResponseEntity<Page<InventoryTransactionDto>> getTransactionsByDateRange(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate
-    ) {
-        List<InventoryTransactionDto> transactions = inventoryTransactionService.getTransactionsByDateRange(startDate, endDate);
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate,
+            @Valid @ParameterObject PageQuery pageQuery) {
+        Page<InventoryTransactionDto> transactions = inventoryTransactionService.getTransactionsByDateRange(
+                startDate, endDate, pageQuery.getPageNo(), pageQuery.getPageSize());
         return ResponseEntity.ok(transactions);
     }
 
@@ -192,15 +202,17 @@ public class InventoryTransactionController {
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
     @Operation(
             summary = "List transactions for a storage location",
-            description = "Returns every stock movement recorded at the given storage location."
+            description = "Returns, one page at a time, every stock movement recorded at the given storage location."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "List of transactions for the storage location"),
             @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public ResponseEntity<List<InventoryTransactionDto>> getTransactionsByStorageLocation(
-            @PathVariable Long storageLocationId) {
-        List<InventoryTransactionDto> transactions = inventoryTransactionService.getTransactionsByStorageLocation(storageLocationId);
+    public ResponseEntity<Page<InventoryTransactionDto>> getTransactionsByStorageLocation(
+            @PathVariable Long storageLocationId,
+            @Valid @ParameterObject PageQuery pageQuery) {
+        Page<InventoryTransactionDto> transactions = inventoryTransactionService.getTransactionsByStorageLocation(
+                storageLocationId, pageQuery.getPageNo(), pageQuery.getPageSize());
         return ResponseEntity.ok(transactions);
     }
 
@@ -251,8 +263,11 @@ public class InventoryTransactionController {
             @ApiResponse(responseCode = "200", description = "List of transactions for the task"),
             @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public ResponseEntity<List<InventoryTransactionDto>> getTransactionsByTask(@PathVariable Long taskId) {
-        List<InventoryTransactionDto> transactions = inventoryTransactionService.getTransactionsByTask(taskId);
+    public ResponseEntity<Page<InventoryTransactionDto>> getTransactionsByTask(
+            @PathVariable Long taskId,
+            @Valid @ParameterObject PageQuery pageQuery) {
+        Page<InventoryTransactionDto> transactions = inventoryTransactionService.getTransactionsByTask(
+                taskId, pageQuery.getPageNo(), pageQuery.getPageSize());
         return ResponseEntity.ok(transactions);
     }
 
