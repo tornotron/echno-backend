@@ -6036,6 +6036,22 @@
         },
         "type": "object"
       },
+      "ConflictChoiceRequest": {
+        "description": "A person's choice on a change whose target was edited by hand since the value was applied. APPLY_CHANGE writes the change over the record on the next apply; KEEP_RECORD rejects the change and keeps the record as it is.",
+        "properties": {
+          "choice": {
+            "enum": [
+              "APPLY_CHANGE",
+              "KEEP_RECORD"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "choice"
+        ],
+        "type": "object"
+      },
       "ConstructionInvoiceDto": {
         "description": "A construction invoice with its computed totals, lifecycle status and line items.",
         "properties": {
@@ -25643,6 +25659,51 @@
         },
         "required": [
           "decision"
+        ],
+        "type": "object"
+      },
+      "RevisionDiffDto": {
+        "description": "What comparing a revised BOQ with the file it replaces proposed: one change per changed field, plus items added and removed, each a CHANGE candidate to review.",
+        "properties": {
+          "changesProposed": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "itemsAdded": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "itemsCompared": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "itemsRemoved": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "RevisionRequest": {
+        "description": "Marks a document as a revision of an earlier document of the same package, such as a revised BOQ issued with a corrigendum.",
+        "properties": {
+          "revisionLabel": {
+            "description": "The revision as printed, such as \"R1\" or \"Corrigendum 2\"",
+            "maxLength": 100,
+            "minLength": 0,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "supersedesDocumentId": {
+            "description": "The earlier document this one replaces",
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "supersedesDocumentId"
         ],
         "type": "object"
       },
@@ -62996,6 +63057,129 @@
         ]
       }
     },
+    "/api/v1/document-ingestion/candidates/{candidateId}/conflict": {
+      "post": {
+        "description": "A change is not applied over a record edited by hand since the value was applied; the apply step names the three values instead. APPLY_CHANGE writes the change on the next apply; KEEP_RECORD rejects it and keeps the record.",
+        "operationId": "DocumentIngestionRevisionController_chooseOnConflict",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "candidateId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConflictChoiceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandidateDto"
+                }
+              }
+            },
+            "description": "The change, accepted again or rejected"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The candidate is not a change that failed to apply"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such candidate in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Choose on a change whose target was edited by hand",
+        "tags": [
+          "Document Ingestion"
+        ]
+      }
+    },
     "/api/v1/document-ingestion/documents/{documentId}": {
       "get": {
         "operationId": "DocumentIngestionPackageController_getDocument",
@@ -63813,6 +63997,242 @@
           }
         },
         "summary": "Read a document again after its reading failed",
+        "tags": [
+          "Document Ingestion"
+        ]
+      }
+    },
+    "/api/v1/document-ingestion/documents/{documentId}/revision": {
+      "put": {
+        "description": "Records that this file replaces an earlier file of the same package, such as a revised BOQ issued with a corrigendum. A chain that would loop is refused.",
+        "operationId": "DocumentIngestionRevisionController_markRevision",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "documentId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevisionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentDto"
+                }
+              }
+            },
+            "description": "The document, with the file it replaces"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The earlier file is in another package, is this file, or would make a loop"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such document in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Mark a document as a revision of an earlier one",
+        "tags": [
+          "Document Ingestion"
+        ]
+      }
+    },
+    "/api/v1/document-ingestion/documents/{documentId}/revision-diff": {
+      "post": {
+        "description": "Compares the BOQ rows read from this file with those of the file it replaces, by item code, with no AI service. Each changed description, unit, quantity or rate becomes a CHANGE candidate citing the revised cell, with the quantity variance and money impact worked out; an item in only one of the two files is a change flagged as added or removed. Run again, it adds nothing.",
+        "operationId": "DocumentIngestionRevisionController_diff",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "documentId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevisionDiffDto"
+                }
+              }
+            },
+            "description": "What the comparison proposed"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The file is not marked as a revision, or its BOQ has not been read"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such document in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Compare a revised BOQ with the file it replaces",
         "tags": [
           "Document Ingestion"
         ]

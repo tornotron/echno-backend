@@ -57,4 +57,16 @@ public interface CandidateRepository extends JpaRepository<Candidate, UUID> {
     @Query("DELETE FROM Candidate c WHERE c.organization.id = :orgId AND c.segmentId = :segmentId "
             + "AND c.status <> org.tornotron.echno_backend.modules.documentingestion.domain.CandidateStatus.APPLIED")
     int deleteUnappliedInSegment(@Param("orgId") Long orgId, @Param("segmentId") UUID segmentId);
+
+    /** The changes one job proposed that nobody has decided on yet, oldest first. Bounded by the job. */
+    @Query("SELECT c FROM Candidate c WHERE c.extractJobId = :jobId "
+            + "AND c.kind = org.tornotron.echno_backend.modules.documentingestion.domain.CandidateKind.CHANGE "
+            + "AND c.status = org.tornotron.echno_backend.modules.documentingestion.domain.CandidateStatus.PROPOSED "
+            + "ORDER BY c.createdAt, c.id")
+    List<Candidate> findProposedChangesOfJob(@Param("jobId") UUID jobId);
+
+    /** A document's candidates of one kind, oldest first, bounded by the page. */
+    @Query("SELECT c FROM Candidate c WHERE c.documentId = :documentId AND c.kind = :kind ORDER BY c.createdAt, c.id")
+    List<Candidate> findForDocument(@Param("documentId") UUID documentId, @Param("kind") CandidateKind kind,
+                                    Pageable pageable);
 }
