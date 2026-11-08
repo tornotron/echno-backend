@@ -1,7 +1,6 @@
 package org.tornotron.echno_backend.common.configuration;
 
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
@@ -12,92 +11,80 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtTimestampValidator;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.tornotron.echno_backend.auth.AuthProperties;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
- * Builds the resource-server {@link JwtDecoder} so it does more than the default
- * signature + expiry check. Spring's auto-configured decoder (built from
- * {@code jwk-set-uri} alone) accepts any token the realm signed, regardless of who
- * it was minted for; this adds:
+ * Builds the resource-server {@link JwtDecoder} from {@code echno.auth.jwt}, so any provider that
+ * signs JWTs and publishes its keys can be used by configuration alone.
+ *
+ * <p>The signature is checked against the published key set and the expiry against the clock.
+ * Two further checks are configured per deployment:
  *
  * <ul>
- *   <li><b>Audience</b> - the token's {@code aud} must contain the backend client id.
- *       Every request's token is first exchanged for an RPT scoped to exactly this
- *       client (see {@link RPTExchangeFilter}), so legitimate tokens always match while
- *       a token minted for a different client in the same realm is rejected.</li>
- *   <li><b>Issuer</b> - optional. When {@code echno.security.jwt.accepted-issuers} is
- *       set, the {@code iss} claim must be one of the listed values. Keycloak stamps the
- *       realm's canonical (frontend) issuer, which can differ from the internal URL the
- *       backend dials, so the property takes a list.</li>
+ *   <li><b>Issuer</b> - the {@code iss} claim must be one of {@code issuers}. A list, because a
+ *       provider can stamp a canonical issuer that differs from the address the backend dials.</li>
+ *   <li><b>Audience</b> - the {@code aud} claim must contain one of {@code audiences}, which is
+ *       what refuses a token the same provider minted for a different application.</li>
  * </ul>
+ *
+ * <p>Either may be left empty where the provider does not set the claim, which is logged as a
+ * warning rather than refused, because the key set already limits tokens to that provider.
  */
 @Configuration
 @Slf4j
 public class JwtDecoderConfig {
 
-    @Value("${spring.security.oauth2.resourceserver.jwt.jwk-set-uri}")
-    private String jwkSetUri;
-
-    @Value("${jwt.auth.converter.resource-id}")
-    private String resourceId;
-
-    @Value("${echno.security.jwt.require-audience:true}")
-    private boolean requireAudience;
-
-    @Value("${echno.security.jwt.accepted-issuers:}")
-    private List<String> acceptedIssuers;
-
     @Bean
-    public JwtDecoder jwtDecoder() {
-        NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
+    public JwtDecoder jwtDecoder(AuthProperties properties) {
+        AuthProperties.Jwt jwt = properties.jwt();
+        if (jwt.jwkSetUri() == null || jwt.jwkSetUri().isBlank()) {
+            throw new IllegalStateException("echno.auth.jwt.jwk-set-uri is not set; the backend cannot verify any token");
+        }
+        NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSetUri(jwt.jwkSetUri()).build();
 
         List<OAuth2TokenValidator<Jwt>> validators = new ArrayList<>();
         validators.add(new JwtTimestampValidator());
 
-        if (requireAudience) {
-            validators.add(new AudienceValidator(resourceId));
-            log.info("JWT audience validation enabled (required audience: {})", resourceId);
+        if (!jwt.audiences().isEmpty()) {
+            validators.add(new AudienceValidator(Set.copyOf(jwt.audiences())));
+            log.info("JWT audience validation enabled (accepted audiences: {})", jwt.audiences());
         } else {
-            log.warn("JWT audience validation is DISABLED");
+            log.warn("JWT audience validation is DISABLED (echno.auth.jwt.audiences is empty)");
         }
 
-        Set<String> issuers = acceptedIssuers == null ? Set.of()
-                : acceptedIssuers.stream()
-                        .filter(s -> s != null && !s.isBlank())
-                        .map(String::trim)
-                        .collect(Collectors.toSet());
-        if (!issuers.isEmpty()) {
-            validators.add(new IssuerValidator(issuers));
-            log.info("JWT issuer validation enabled (accepted issuers: {})", issuers);
+        if (!jwt.issuers().isEmpty()) {
+            validators.add(new IssuerValidator(Set.copyOf(jwt.issuers())));
+            log.info("JWT issuer validation enabled (accepted issuers: {})", jwt.issuers());
         } else {
-            log.warn("JWT issuer validation is DISABLED (echno.security.jwt.accepted-issuers is empty)");
+            log.warn("JWT issuer validation is DISABLED (echno.auth.jwt.issuers is empty)");
         }
 
         decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(validators));
         return decoder;
     }
 
-    /** Fails a token whose {@code aud} claim does not contain the required audience. */
+    /** Fails a token whose {@code aud} claim contains none of the accepted audiences. */
     static class AudienceValidator implements OAuth2TokenValidator<Jwt> {
 
-        private final String requiredAudience;
+        private final Set<String> acceptedAudiences;
 
-        AudienceValidator(String requiredAudience) {
-            this.requiredAudience = requiredAudience;
+        AudienceValidator(Set<String> acceptedAudiences) {
+            this.acceptedAudiences = acceptedAudiences;
         }
 
         @Override
         public OAuth2TokenValidatorResult validate(Jwt token) {
-            if (token.getAudience() != null && token.getAudience().contains(requiredAudience)) {
+            List<String> audience = token.getAudience();
+            if (audience != null && audience.stream().anyMatch(acceptedAudiences::contains)) {
                 return OAuth2TokenValidatorResult.success();
             }
             return OAuth2TokenValidatorResult.failure(new OAuth2Error(
                     "invalid_token",
-                    "The required audience '" + requiredAudience + "' is missing",
+                    "The token is not issued for this application",
                     null));
         }
     }

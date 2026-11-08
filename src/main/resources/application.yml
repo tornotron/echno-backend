@@ -1,9 +1,3 @@
-jwt:
-  auth:
-    converter:
-      resource-id: ${KEYCLOAK_BACKEND_CLIENT}
-      principle-attribute: preferred_username
-
 digital-ocean:
   uri: ${DIGITAL_OCEAN_SPACES_URI}
   presign-endpoint: ${OBJECT_STORE_PUBLIC_ENDPOINT:${DIGITAL_OCEAN_SPACES_URI}}
@@ -188,16 +182,6 @@ finance:
     default-revenue-code: "4100"   # Construction Revenue (postable leaf)
 
 
-keycloak-initializer:
-  initialize-on-startup: true
-  master-realm: ${KEYCLOAK_INITIALIZER_MASTER_REALM}
-  application-realm: ${KEYCLOAK_INITIALIZER_APPLICATION_REALM}
-  client-id: ${KEYCLOAK_INITIALIZER_CLIENT_ID}
-  username: ${KEYCLOAK_INITIALIZER_USERNAME}
-  password: ${KEYCLOAK_INITIALIZER_PASSWORD}
-  url: ${KEYCLOAK_INITIALIZER_URL}
-
-
 # The bucket4j starter's own filter machinery, kept out. There is no filter block here and one
 # should not be added: a path-matched filter runs before authentication, so the only key it has
 # is a network address, and at this origin an address is not a client. The console reaches the
@@ -217,54 +201,6 @@ keycloak-initializer:
 # holds all of the above, including that default. See issue #706.
 bucket4j:
   enabled: false
-
-
-keycloak:
-  issuer-uri: ${SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_ISSUER_URI}
-  frontend:
-    client-id: ${KEYCLOAK_FRONTEND_CLIENT}
-    redirect-uri: ${KEYCLOAK_FRONTEND_REDIRECT_URI}
-    web-origin: ${KEYCLOAK_FRONTEND_WEB_ORIGIN},${KEYCLOAK_FRONTEND_WEB_ORIGIN_LOCALHOST:}
-  client-id: ${KEYCLOAK_BACKEND_CLIENT}
-  redirect-uri: ${KEYCLOAK_BACKEND_REDIRECT_URI},${KEYCLOAK_BACKEND_REDIRECT_URI_APIDOG}
-  web-origin: ${KEYCLOAK_BACKEND_WEB_ORIGIN}
-  secret: ${KEYCLOAK_BACKEND_SECRET}
-  # Whether the realm's self-service registration page is enabled. Reconciled onto the realm on
-  # every deploy. Default false keeps dedicated/per-client instances closed (an admin creates the
-  # org); the public shared instance sets KEYCLOAK_REGISTRATION_ALLOWED=true so a signed-up user
-  # can create their own org.
-  registration-allowed: ${KEYCLOAK_REGISTRATION_ALLOWED:false}
-  # Local-development convenience fixture (issue #451): the public 'echno-web-local' client (localhost
-  # redirect), the 'echno-local-dev' login, and the development organization that login is an employee
-  # of, reconciled into the realm so they survive a realm rebuild. Default false keeps them OUT of
-  # every real instance (a localhost redirect must never exist in a production realm); a staging deploy
-  # sets KEYCLOAK_DEV_CLIENT_ENABLED=true to enable them.
-  dev-client-enabled: ${KEYCLOAK_DEV_CLIENT_ENABLED:false}
-  dev-user:
-    # Password for the dev account when the dev client is enabled. Public dev credential only, never a
-    # real one; override per environment via KEYCLOAK_DEV_USER_PASSWORD.
-    password: ${KEYCLOAK_DEV_USER_PASSWORD:echno-dev}
-  # Realm-scoped initializer client (H-3). Steady-state startup reconcile authenticates as this
-  # confidential service account (realm-admin on the application realm only) instead of the master
-  # credential. The master credential (keycloak-initializer.*) is now used only to bootstrap a fresh
-  # or not-yet-migrated environment: create the realm and provision this client + its secret.
-  initializer:
-    service-client-id: ${KEYCLOAK_INITIALIZER_SERVICE_CLIENT_ID:echno-initializer}
-    service-client-secret: ${KEYCLOAK_INITIALIZER_CLIENT_SECRET:}
-  admin:
-    userName: ${KEYCLOAK_BACKEND_ADMIN_USERNAME}
-    email: ${KEYCLOAK_BACKEND_ADMIN_EMAIL}
-    password: ${KEYCLOAK_BACKEND_ADMIN_PASSWORD}
-    firstName: ${KEYCLOAK_BACKEND_ADMIN_FIRST_NAME}
-    lastName: ${KEYCLOAK_BACKEND_ADMIN_LAST_NAME}
-  service:
-    userName: ${KEYCLOAK_BACKEND_SERVICE_USERNAME}
-    email: ${KEYCLOAK_BACKEND_SERVICE_EMAIL}
-    password: ${KEYCLOAK_BACKEND_SERVICE_PASSWORD}
-    firstName: ${KEYCLOAK_BACKEND_SERVICE_FIRST_NAME}
-    lastName: ${KEYCLOAK_BACKEND_SERVICE_LAST_NAME}
-  config:
-    output-path: src/main/resources/config
 
 
 echno:
@@ -334,16 +270,46 @@ echno:
     # their own compliance.sweep.enabled / compliance.job.enabled switches.
     inspections:
       enabled: ${ECHNO_MODULE_INSPECTIONS_ENABLED:true}
-  security:
+  # The auth provider. The backend is a plain OAuth2 resource server: it
+  # accepts a JWT the configured key set signed, takes the caller's identity from it, and takes
+  # everything about what that caller may do from its own database (MembershipAuthorityProvider),
+  # so changing provider is a change of these values only.
+  #
+  # WorkOS AuthKit, for reference:
+  #   jwk-set-uri  https://api.workos.com/sso/jwks/<WORKOS_CLIENT_ID>
+  #   issuers      https://api.workos.com   (or your custom auth domain, if one is configured)
+  #   audiences    leave empty: WorkOS access tokens carry no aud claim
+  #   email        the access token has none by default. Add one with a JWT template in the
+  #                WorkOS dashboard (Authentication > Sessions), e.g. {"email": {{ user.email }}};
+  #                POST /auth/register refuses a token without it.
+  auth:
     jwt:
-      # Reject any access token whose audience does not include the backend client
-      # (the RPT is minted for exactly this client, so legitimate tokens always match).
-      require-audience: ${ECHNO_JWT_REQUIRE_AUDIENCE:true}
-      # Comma-separated list of issuers the token's `iss` claim must match. Empty
-      # disables the check. Keycloak stamps the realm's canonical (frontend) issuer,
-      # which can differ from the internal URL the backend dials, so list every URL
-      # the same realm may present.
-      accepted-issuers: ${ECHNO_JWT_ACCEPTED_ISSUERS:}
+      jwk-set-uri: ${ECHNO_AUTH_JWK_SET_URI}
+      # Comma-separated iss values accepted. Empty accepts any issuer the key set signs for,
+      # and is logged as a warning.
+      issuers: ${ECHNO_AUTH_ISSUERS:}
+      # Comma-separated aud values, any one of which is enough. Empty skips the check, and is
+      # logged as a warning. Set it wherever the provider stamps an audience, since it is what
+      # refuses a token the same provider minted for another application.
+      audiences: ${ECHNO_AUTH_AUDIENCES:}
+    # Claim names on the access token. The subject is always the standard sub claim.
+    claims:
+      email: ${ECHNO_AUTH_CLAIM_EMAIL:email}
+      username: ${ECHNO_AUTH_CLAIM_USERNAME:preferred_username}
+      name: ${ECHNO_AUTH_CLAIM_NAME:name}
+    # Comma-separated token subjects granted ROLE_platform-admin (the global plan and feature
+    # catalogue). Empty by default: nobody is platform staff until a deployment says so.
+    platform-admin-subjects: ${ECHNO_PLATFORM_ADMIN_SUBJECTS:}
+  cors:
+    # Comma-separated browser origins the frontends are served from.
+    allowed-origins: ${ECHNO_CORS_ALLOWED_ORIGINS}
+  # The local-development fixture (DevFixtureRunner): a user row for the given token subject, an
+  # organization of its own and system-admin there, provisioned on startup. Off everywhere real.
+  dev-fixture:
+    enabled: ${ECHNO_DEV_FIXTURE_ENABLED:false}
+    subject: ${ECHNO_DEV_FIXTURE_SUBJECT:}
+    name: ${ECHNO_DEV_FIXTURE_NAME:Local Developer}
+    email: ${ECHNO_DEV_FIXTURE_EMAIL:}
   invite-code:
     redemption:
       # How many times a code may be offered before the caller has to wait. An attempt is charged
@@ -455,12 +421,6 @@ spring:
     password: ${SPRING_DATASOURCE_PASSWORD}
   thymeleaf:
     cache: false
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          jwk-set-uri: ${SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_JWK_SET_URI}
-
   jackson:
     date-format: yyyy-MM-dd
     serialization:

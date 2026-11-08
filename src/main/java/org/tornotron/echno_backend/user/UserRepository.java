@@ -86,13 +86,13 @@ public interface UserRepository extends JpaRepository<User,Long> {
      */
     Optional<User> findUserByName(@NotBlank(message = "name is required") @Size(min = 3,max = 50,message = "name must be between 3 and 50 characters") String name);
 
-    Optional<User> findUserByKeycloakId(String keycloakId);
+    Optional<User> findUserByAuthSubject(String authSubject);
 
-    @Query("SELECT u FROM User u LEFT JOIN FETCH u.employees WHERE u.keycloakId = :keycloakId")
-    Optional<User> findUserWithEmployeesByKeycloakId(@Param("keycloakId") String keycloakId);
+    @Query("SELECT u FROM User u LEFT JOIN FETCH u.employees WHERE u.authSubject = :authSubject")
+    Optional<User> findUserWithEmployeesByAuthSubject(@Param("authSubject") String authSubject);
 
-    @Query("SELECT u FROM User u LEFT JOIN FETCH u.attachments WHERE u.keycloakId = :keycloakId")
-    Optional<User> findUserWithAttachmentsByKeycloakId(@Param("keycloakId") String keycloakId);
+    @Query("SELECT u FROM User u LEFT JOIN FETCH u.attachments WHERE u.authSubject = :authSubject")
+    Optional<User> findUserWithAttachmentsByAuthSubject(@Param("authSubject") String authSubject);
 
     boolean existsUserByEmail(String email);
 }

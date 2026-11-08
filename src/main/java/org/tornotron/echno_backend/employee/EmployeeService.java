@@ -17,7 +17,6 @@ import org.tornotron.echno_backend.employee.mapper.EmployeeMapper;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
-import org.tornotron.echno_backend.common.service.KeycloakGroupService;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.employee.dto.EmployeeCreationDto;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
@@ -54,7 +53,6 @@ public class EmployeeService {
     private final EmployeeRepository employeeRepository;
     private final OrganizationRepository organizationRepository;
     private final UserRepository userRepository;
-    private final KeycloakGroupService keycloakGroupService;
     private final EmployeeMapper employeeMapper;
     private final EmployeeHierarchyService employeeHierarchyService;
     private final ShiftTimingRepository shiftTimingRepository;
@@ -66,17 +64,15 @@ public class EmployeeService {
      * @param employeeRepository     The repository for employee data access.
      * @param organizationRepository The repository for organization data access.
      * @param userRepository         The repository for user data access.
-     * @param keycloakGroupService   The service for managing Keycloak groups.
      * @param employeeHierarchyService The service owning the reporting hierarchy.
      * @param orgSecurity            Answers which org-scoped roles the caller holds, the same bean
      *                               the guards on these endpoints ask. Used by the partial update
      *                               to decide the field scope; see {@link EmployeePatchFieldScope}.
      */
-    public EmployeeService(EmployeeRepository employeeRepository, OrganizationRepository organizationRepository, UserRepository userRepository, KeycloakGroupService keycloakGroupService, EmployeeMapper employeeMapper, EmployeeHierarchyService employeeHierarchyService, ShiftTimingRepository shiftTimingRepository, OrganizationSecurityService orgSecurity) {
+    public EmployeeService(EmployeeRepository employeeRepository, OrganizationRepository organizationRepository, UserRepository userRepository, EmployeeMapper employeeMapper, EmployeeHierarchyService employeeHierarchyService, ShiftTimingRepository shiftTimingRepository, OrganizationSecurityService orgSecurity) {
         this.employeeRepository = employeeRepository;
         this.organizationRepository = organizationRepository;
         this.userRepository = userRepository;
-        this.keycloakGroupService = keycloakGroupService;
         this.employeeMapper = employeeMapper;
         this.employeeHierarchyService = employeeHierarchyService;
         this.shiftTimingRepository = shiftTimingRepository;
@@ -173,20 +169,8 @@ public class EmployeeService {
         employee.setEmailAddress(user.getEmail());
         employee.setDateOfBirth(user.getDateOfBirth());
 
+        // The employee row is the membership: the caller's next request carries ORG_MEMBER_{orgId}.
         Employee savedEmployee = employeeRepository.save(employee);
-
-        // Add user to Keycloak group - if this fails, the transaction will rollback
-        try {
-            keycloakGroupService.addUserToOrganization(
-                    user.getKeycloakId(),
-                    org.getId().toString()
-            );
-        } catch (Exception e) {
-            log.error("Failed to add user {} to Keycloak group for organization {}: {}",
-                    user.getKeycloakId(), org.getId(), e.getMessage());
-            throw new RuntimeException(
-                    "Failed to add user " + userId + " to organization " + orgId + " in Keycloak: " + e.getMessage(), e);
-        }
 
         return employeeMapper.toDto(savedEmployee);
     }
@@ -516,20 +500,8 @@ public class EmployeeService {
         Employee employee = employeeRepository.findByIdAndOrganizationId(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Employee with ID " + id + " was not found in this organization"));
 
-        if (employee.getUser() != null && employee.getUser().getKeycloakId() != null) {
-            try {
-                keycloakGroupService.removeUserFromOrganization(
-                        employee.getUser().getKeycloakId(),
-                        employee.getOrganization().getId().toString()
-                );
-            } catch (Exception e) {
-                log.error("Failed to remove user {} from Keycloak group for organization {}: {}",
-                        employee.getUser().getKeycloakId(),
-                        employee.getOrganization().getId(),
-                        e.getMessage());
-            }
-        }
-
+        // Removing the row removes the membership and every role held with it, in one write: the
+        // authorities are minted from this row, so there is no second copy left to fall behind.
         employeeRepository.deleteById(id);
     }
 
@@ -551,19 +523,6 @@ public class EmployeeService {
         employee.getOrgRoles().add(role);
         Employee savedEmployee = employeeRepository.save(employee);
 
-        try {
-            keycloakGroupService.assignOrgRole(
-                    employee.getUser().getKeycloakId(),
-                    employee.getOrganization().getId().toString(),
-                    role
-            );
-        } catch (Exception e) {
-            log.error("Failed to assign role {} to employee {} in Keycloak: {}",
-                    role, employeeId, e.getMessage());
-            throw new RuntimeException(
-                    "Failed to assign role '" + role + "' to employee " + employeeId + " in Keycloak: " + e.getMessage(), e);
-        }
-
         return employeeMapper.toDto(savedEmployee);
     }
 
@@ -574,19 +533,6 @@ public class EmployeeService {
 
         employee.getOrgRoles().remove(role);
         Employee savedEmployee = employeeRepository.save(employee);
-
-        try {
-            keycloakGroupService.removeOrgRole(
-                    employee.getUser().getKeycloakId(),
-                    employee.getOrganization().getId().toString(),
-                    role
-            );
-        } catch (Exception e) {
-            log.error("Failed to remove role {} from employee {} in Keycloak: {}",
-                    role, employeeId, e.getMessage());
-            throw new RuntimeException(
-                    "Failed to remove role '" + role + "' from employee " + employeeId + " in Keycloak: " + e.getMessage(), e);
-        }
 
         return employeeMapper.toDto(savedEmployee);
     }

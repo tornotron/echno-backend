@@ -12,6 +12,7 @@ import org.tornotron.echno_backend.common.payload.PartialUpdateKeys;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import org.tornotron.echno_backend.auth.AuthenticatedIdentity;
 import org.tornotron.echno_backend.employee.mapper.EmployeeMapper;
 import org.tornotron.echno_backend.user.mapper.UserMapper;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
@@ -45,7 +46,6 @@ public class UserService {
     private static final String ATTACHMENT_TYPE_CV = "USER_CV";
 
     private final UserRepository userRepository;
-    private final KeycloakUserProvisioningService keycloakUserProvisioningService;
     private final AttachmentService attachmentService;
     private final FileStorageService fileStorageService;
     private final EmployeeMapper employeeMapper;
@@ -56,12 +56,10 @@ public class UserService {
      * Constructs a UserService with the given UserRepository.
      *
      * @param userRepository The repository for user data access.
-     * @param keycloakUserProvisioningService The service that provisions the Keycloak identity.
      * @param attachmentService The service for attachment operations.
      */
-    public UserService(UserRepository userRepository, KeycloakUserProvisioningService keycloakUserProvisioningService, AttachmentService attachmentService,FileStorageService fileStorageService, EmployeeMapper employeeMapper, UserMapper userMapper, org.tornotron.echno_backend.organization.mapper.OrganizationMapper organizationMapper) {
+    public UserService(UserRepository userRepository, AttachmentService attachmentService,FileStorageService fileStorageService, EmployeeMapper employeeMapper, UserMapper userMapper, org.tornotron.echno_backend.organization.mapper.OrganizationMapper organizationMapper) {
         this.userRepository = userRepository;
-        this.keycloakUserProvisioningService = keycloakUserProvisioningService;
         this.attachmentService = attachmentService;
         this.fileStorageService = fileStorageService;
         this.employeeMapper = employeeMapper;
@@ -70,37 +68,48 @@ public class UserService {
     }
 
     /**
-     * Registers a new user.
+     * Registers the signed-in account as a user of the application.
      *
-     * @param userRegistrationDto DTO containing the details for the new user.
+     * <p>The account itself already exists at the auth provider, where the person signed up. This
+     * creates the user row bound to it: the subject and the email come from the caller's token, the
+     * rest of the profile from the request. Nothing is written to the provider, so there is nothing
+     * to roll back there if the row cannot be saved.
+     *
+     * @param identity The caller, as their token describes them.
+     * @param userRegistrationDto The profile to store.
      * @return The DTO of the newly created user.
+     * @throws DuplicateResourceException if this account, or another account with its email, is
+     *     already registered.
+     * @throws IllegalArgumentException if the token carries no email, or the role is not one.
      */
     @Transactional
-    public UserDto registerUser(UserRegistrationDto userRegistrationDto) {
-        if (userRepository.existsUserByEmail(userRegistrationDto.getEmail())) {
-            throw new DuplicateResourceException("User with email '" + userRegistrationDto.getEmail() + "' already exists");
+    public UserDto registerUser(AuthenticatedIdentity identity, UserRegistrationDto userRegistrationDto) {
+        if (userRepository.findUserByAuthSubject(identity.subject()).isPresent()) {
+            throw new DuplicateResourceException("This account is already registered");
+        }
+        String email = identity.email();
+        if (email == null || email.isBlank()) {
+            throw new IllegalArgumentException("The access token carries no email, and registration needs the "
+                    + "account's verified email. Configure the auth provider to include it on access tokens "
+                    + "(echno.auth.claims.email names the claim it is read from).");
+        }
+        if (userRepository.existsUserByEmail(email)) {
+            throw new DuplicateResourceException("User with email '" + email + "' already exists");
         }
 
-        String keycloakId = keycloakUserProvisioningService.createUser(userRegistrationDto.getUserName(), userRegistrationDto.getEmail(), userRegistrationDto.getPassword());
-
+        User user = new User();
+        user.setAuthSubject(identity.subject());
+        user.setEmail(email);
+        user.setName(userRegistrationDto.getName());
+        user.setPhone(userRegistrationDto.getPhone());
+        user.setGender(userRegistrationDto.getGender());
+        user.setDateOfBirth(userRegistrationDto.getDateOfBirth());
         try {
-            User user = new User();
-            user.setName(userRegistrationDto.getName());
-            user.setPhone(userRegistrationDto.getPhone());
-            user.setGender(userRegistrationDto.getGender());
-            user.setDateOfBirth(userRegistrationDto.getDateOfBirth());
-            user.setEmail(userRegistrationDto.getEmail());
-            try {
-                user.setRole(UserRole.valueOf(userRegistrationDto.getRole()));
-            } catch (IllegalArgumentException | NullPointerException e) {
-                throw new IllegalArgumentException("'" + userRegistrationDto.getRole() + "' is not a valid user role");
-            }
-            user.setKeycloakId(keycloakId);
-            return userMapper.toDto(userRepository.save(user));
-        } catch (Exception e) {
-            keycloakUserProvisioningService.deleteUser(keycloakId);
-            throw e;
+            user.setRole(UserRole.valueOf(userRegistrationDto.getRole()));
+        } catch (IllegalArgumentException | NullPointerException e) {
+            throw new IllegalArgumentException("'" + userRegistrationDto.getRole() + "' is not a valid user role");
         }
+        return userMapper.toDto(userRepository.save(user));
     }
 
     /**
@@ -121,14 +130,14 @@ public class UserService {
     }
 
     /**
-     * Retrieves all employees associated with a user by their Keycloak ID.
+     * Retrieves all employees associated with a user by their auth subject.
      *
-     * @param keycloakId The Keycloak ID of the user.
+     * @param authSubject The auth subject of the user.
      * @return A list of employee DTOs.
      */
     @Transactional(readOnly = true)
-    public List<EmployeeDto> getEmployeesForUser(String keycloakId) {
-        return userRepository.findUserWithEmployeesByKeycloakId(keycloakId)
+    public List<EmployeeDto> getEmployeesForUser(String authSubject) {
+        return userRepository.findUserWithEmployeesByAuthSubject(authSubject)
                 .map(user -> user.getEmployees().stream()
                         .map(emp -> employeeMapper.toDto(emp))
                         .collect(Collectors.toList()))
@@ -136,17 +145,17 @@ public class UserService {
     }
 
     /**
-     * Retrieves the current user by their Keycloak ID with attachments eagerly loaded.
+     * Retrieves the current user by their auth subject with attachments eagerly loaded.
      *
-     * @param keycloakId The Keycloak ID of the user.
+     * @param authSubject The auth subject of the user.
      * @return The user DTO.
-     * @throws ResourceNotFoundException if no user with the given Keycloak ID is found.
+     * @throws ResourceNotFoundException if no user with the given auth subject is found.
      */
     @Transactional(readOnly = true)
-    public UserDto getCurrentUserDto(String keycloakId) {
-        return userRepository.findUserWithAttachmentsByKeycloakId(keycloakId)
+    public UserDto getCurrentUserDto(String authSubject) {
+        return userRepository.findUserWithAttachmentsByAuthSubject(authSubject)
                 .map(user -> userMapper.toDto(user))
-                .orElseThrow(() -> new ResourceNotFoundException("User with Keycloak ID '" + keycloakId + "' was not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User with subject identifier '" + authSubject + "' was not found"));
     }
 
     /**
@@ -179,7 +188,7 @@ public class UserService {
      */
     @Transactional(readOnly = true)
     public UserDto getAnUser(String sub) {
-        return userRepository.findUserByKeycloakId(sub)
+        return userRepository.findUserByAuthSubject(sub)
                 .map(usr -> userMapper.toDto(usr))
                 .orElseThrow(() -> new ResourceNotFoundException("User with subject identifier '" + sub + "' was not found"));
     }

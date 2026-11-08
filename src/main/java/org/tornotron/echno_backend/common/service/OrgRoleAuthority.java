@@ -9,11 +9,12 @@ import java.util.Arrays;
 import java.util.Collection;
 
 /**
- * The org-scoped role authority, written down once.
+ * The organization membership and org-scoped role authorities, written down once.
  *
- * <p>{@code JwtAuthConverter} mints {@code ORG_{orgId}_ROLE_{role}} from the Keycloak group path
- * {@code /org-{orgId}/{role}}, and everything that asks whether a caller holds a role in an
- * organization is comparing against that string. {@link OrganizationSecurityService} answers that
+ * <p>{@code MembershipAuthorityProvider} mints {@code ORG_MEMBER_{orgId}} and
+ * {@code ORG_{orgId}_ROLE_{role}} from the caller's employee rows, and everything that asks whether
+ * a caller belongs to or holds a role in an organization is comparing against those strings.
+ * {@link OrganizationSecurityService} answers that
  * question for {@code @PreAuthorize} and remains the only way to ask it there. This class exists
  * because the same question is now also asked outside a guard, while a response body is being
  * written, where there is no bean to inject. Both paths go through the format below rather than
@@ -27,6 +28,19 @@ import java.util.Collection;
 public final class OrgRoleAuthority {
 
     private OrgRoleAuthority() {
+    }
+
+    /** The authority a caller carries when they belong to {@code organizationId}. */
+    public static String member(Long organizationId) {
+        return "ORG_MEMBER_" + organizationId;
+    }
+
+    /**
+     * The authority a caller carries when a role they hold in {@code organizationId} grants the
+     * permission with this code. Minted by {@code PermissionAuthorityProvider}.
+     */
+    public static String permission(Long organizationId, String permissionCode) {
+        return "ORG_" + organizationId + "_PERM_" + permissionCode;
     }
 
     /** The authority a caller carries when they hold {@code role} in {@code organizationId}. */

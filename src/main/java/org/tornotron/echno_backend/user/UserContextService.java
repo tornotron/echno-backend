@@ -2,13 +2,13 @@ package org.tornotron.echno_backend.user;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
+import org.tornotron.echno_backend.auth.IdentityClaimsReader;
 
 import javax.naming.AuthenticationException;
 import java.util.Collections;
@@ -22,15 +22,15 @@ import java.util.stream.Collectors;
 public class UserContextService {
 
     private final UserRepository userRepository;
+    private final IdentityClaimsReader identityReader;
 
-//    @Cacheable(value = "userContext", key = "#root.methodName + '_' + @userContextService.getCurrentKeycloakId()")
     public Long getCurrentUserId() {
-        String keycloakId = getCurrentKeycloakId();
-        if (keycloakId == null) {
+        String authSubject = getCurrentSubject();
+        if (authSubject == null) {
             return null;
         }
 
-        return userRepository.findUserByKeycloakId(keycloakId)
+        return userRepository.findUserByAuthSubject(authSubject)
                 .map(User::getId)
                 .orElse(null);
     }
@@ -45,11 +45,11 @@ public class UserContextService {
     }
 
     public User getCurrentUser() {
-        String keycloakId = getCurrentKeycloakId();
-        if (keycloakId == null) {
+        String authSubject = getCurrentSubject();
+        if (authSubject == null) {
             return null;
         }
-        return userRepository.findUserByKeycloakId(keycloakId)
+        return userRepository.findUserByAuthSubject(authSubject)
                 .orElse(null);
     }
 
@@ -61,7 +61,11 @@ public class UserContextService {
         return user;
     }
 
-    public String getCurrentKeycloakId() {
+    /**
+     * The auth provider's subject for the caller, the {@code sub} claim, which is what
+     * {@code users_table.auth_subject} binds a user row to. Null when nobody is authenticated.
+     */
+    public String getCurrentSubject() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
         if(authentication == null || !authentication.isAuthenticated()) {
@@ -80,23 +84,20 @@ public class UserContextService {
             return name;
         }
 
-        log.warn("Could not extract Keycloak ID from authentication principal of type: {}",
+        log.warn("Could not extract the subject from authentication principal of type: {}",
                 principal.getClass().getName());
         return null;
     }
 
+    /**
+     * The email on the caller's user row, or null when they have none yet.
+     *
+     * <p>Read from the row rather than the token: the queries this feeds join on
+     * {@code users_table.email}, and not every provider puts an email on its access tokens.
+     */
     public String getCurrentUserEmail() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-
-        if(authentication == null || !authentication.isAuthenticated()) {
-            return null;
-        }
-
-        if(authentication.getPrincipal() instanceof Jwt) {
-            Jwt jwt = (Jwt) authentication.getPrincipal();
-            return jwt.getClaimAsString("email");
-        }
-        return null;
+        User user = getCurrentUser();
+        return user == null ? null : user.getEmail();
     }
 
     public String getCurrentUsername() {
@@ -106,9 +107,8 @@ public class UserContextService {
             return null;
         }
 
-        if(authentication.getPrincipal() instanceof Jwt) {
-            Jwt jwt = (Jwt) authentication.getPrincipal();
-            return jwt.getClaimAsString("preferred_username");
+        if(authentication.getPrincipal() instanceof Jwt jwt) {
+            return identityReader.fromJwt(jwt).username();
         }
 
         return authentication.getName();

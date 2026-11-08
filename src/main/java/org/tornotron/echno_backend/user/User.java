@@ -29,7 +29,7 @@ public class User {
     private Long id;
 
     @Column(nullable = false, unique = true)
-    private String keycloakId;
+    private String authSubject;
 
     /** The full name of the user. */
     @Column(name = "name", nullable = false)

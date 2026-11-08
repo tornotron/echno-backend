@@ -20,7 +20,6 @@ import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.service.AttachmentService;
 import org.tornotron.echno_backend.common.service.FileStorageService;
-import org.tornotron.echno_backend.common.service.KeycloakGroupService;
 import org.tornotron.echno_backend.employee.EmployeeService;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 import org.tornotron.echno_backend.employee.dto.EmployeeJoinOrgDto;
@@ -64,7 +63,6 @@ public class OrganizationService {
     private final OrganizationRepository repository;
     private final AttachmentService attachmentService;
     private final FileStorageService fileStorageService;
-    private final KeycloakGroupService keycloakGroupService;
     private final SubscriptionService subscriptionService;
     private final UserContextService userContextService;
     private final EmployeeService employeeService;
@@ -78,16 +76,14 @@ public class OrganizationService {
      * @param repository The repository for accessing organization data.
      * @param attachmentService The service for managing attachments.
      * @param fileStorageService The service for file storage operations.
-     * @param keycloakGroupService The service for managing Keycloak groups.
      * @param subscriptionService The service for handling subscription billing.
      * @param onboardingSeeder Seeds the per-organization finance defaults for a new organization.
      * @param payloadValidator Runs the create payload's own constraints.
      */
-    public OrganizationService(OrganizationRepository repository, AttachmentService attachmentService, FileStorageService fileStorageService, KeycloakGroupService keycloakGroupService, SubscriptionService subscriptionService, UserContextService userContextService, EmployeeService employeeService, org.tornotron.echno_backend.organization.mapper.OrganizationMapper organizationMapper, org.tornotron.echno_backend.common.service.OrganizationSecurityService orgSecurity, OrganizationOnboardingSeeder onboardingSeeder, PayloadValidator payloadValidator) {
+    public OrganizationService(OrganizationRepository repository, AttachmentService attachmentService, FileStorageService fileStorageService, SubscriptionService subscriptionService, UserContextService userContextService, EmployeeService employeeService, org.tornotron.echno_backend.organization.mapper.OrganizationMapper organizationMapper, org.tornotron.echno_backend.common.service.OrganizationSecurityService orgSecurity, OrganizationOnboardingSeeder onboardingSeeder, PayloadValidator payloadValidator) {
         this.repository = repository;
         this.attachmentService = attachmentService;
         this.fileStorageService = fileStorageService;
-        this.keycloakGroupService = keycloakGroupService;
         this.subscriptionService = subscriptionService;
         this.userContextService = userContextService;
         this.employeeService = employeeService;
@@ -205,22 +201,15 @@ public class OrganizationService {
         organization.setIsActive(true);
         Organization savedOrganization = repository.save(organization);
 
-        // Create Keycloak group BEFORE joining the organization
-        keycloakGroupService.createOrganizationGroup(
-                savedOrganization.getId().toString(),
-                savedOrganization.getOrganizationName()
-        );
-
         EmployeeJoinOrgDto joinOrgDto = new EmployeeJoinOrgDto();
         EmployeeDto employeeDto = employeeService.joinOrganization(currentUser.getId(), savedOrganization.getId(), joinOrgDto);
         TenantContext.setCurrentOrgId(savedOrganization.getId());
 
         // Make the creator the system-admin of the organization they just created. This is the
-        // linchpin of self-service onboarding: assignOrgRole adds them to the '/org-{id}/system-admin'
-        // Keycloak subgroup (idempotent), so their next token carries ORG_{id}_ROLE_system-admin and
-        // they can administer their own org. It is critical: assignOrgRole rethrows on a Keycloak
-        // failure, which rolls this creation back so the caller sees the error rather than an
-        // org whose creator cannot manage it.
+        // linchpin of self-service onboarding: the role is stored on the employee row written above,
+        // so the creator's next request carries ORG_{id}_ROLE_system-admin and they can administer
+        // their own org. Both writes are in this transaction, so an organization never exists
+        // without an administrator.
         employeeService.assignOrgRole(employeeDto.getId(), OrgRole.SYSTEM_ADMIN);
 
         if (attachments != null && !attachments.isEmpty()) {
@@ -311,8 +300,8 @@ public class OrganizationService {
     public List<OrganizationDto> getAllOrganization() {
         User user = userContextService.getCurrentUser();
         if (user == null) {
-            // Authenticated against Keycloak but with no local user record yet, which happens
-            // between first login and the user being provisioned. They belong to nothing yet.
+            // Authenticated at the provider but with no local user record yet, which happens
+            // between first sign-in and registration. They belong to nothing yet.
             return List.of();
         }
         return repository.findAllByUserEmail(user.getEmail()).stream()
@@ -494,7 +483,7 @@ public class OrganizationService {
     public DatasetConsentDto setDatasetConsent(Long id, boolean datasetConsent) {
         // Resolve who is making the statement before anything changes, so the record of the
         // change always names an actor: the local user where one exists, otherwise the
-        // authenticated Keycloak subject.
+        // authenticated auth subject.
         String actor = consentActor();
         Organization organization = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization with ID " + id + " was not found"));
@@ -511,9 +500,9 @@ public class OrganizationService {
         if (userId != null) {
             return "user " + userId;
         }
-        String subject = userContextService.getCurrentKeycloakId();
+        String subject = userContextService.getCurrentSubject();
         if (subject != null && !subject.isBlank()) {
-            return "keycloak subject " + subject;
+            return "auth subject " + subject;
         }
         throw new AccessDeniedException("Dataset consent can only be changed by an identified user");
     }
@@ -561,13 +550,6 @@ public class OrganizationService {
     public void deleteAnOrganization(Long id) {
         Organization organization = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization with ID " + id + " was not found"));
-
-        try {
-            keycloakGroupService.deleteOrganizationGroup(id.toString());
-        } catch (Exception e) {
-            log.error("Failed to delete Keycloak group for organization {}: {}",
-                    id, e.getMessage());
-        }
 
         Integer creatorId = organization.getCreatorId();
         repository.deleteById(id);

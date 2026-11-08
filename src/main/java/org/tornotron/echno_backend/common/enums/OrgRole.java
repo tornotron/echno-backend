@@ -6,31 +6,21 @@ import java.util.Set;
 /**
  * Defines the roles that can be assigned to users within a specific organization.
  *
- * These roles are implemented as Keycloak subgroups under each organization's group.
- * For example, if organization 5 exists with group "org-5", assigning SYSTEM_ADMIN
- * to a user puts them in the "org-5/system-admin" subgroup.
- *
- * When the JWT is parsed, the group path "/org-5/system-admin" becomes the
- * Spring Security authority "ORG_5_ROLE_system-admin", which can be checked via:
+ * <p>A role is held by an employee and stored with them ({@code employee_org_roles}), so it is
+ * organization-wide and the application's database is the only place it lives. On every request
+ * {@code MembershipAuthorityProvider} turns each role the caller holds into the Spring Security
+ * authority {@code ORG_{orgId}_ROLE_{roleName}}, which is what is checked by:
  *   @PreAuthorize("@orgSecurity.hasOrgRole(#orgId, 'system-admin')")
  *
- * The groupName field is the actual Keycloak subgroup name (kebab-case).
- *
- * <p>Adding a constant here adds the subgroup to every organization created from
- * then on. Organizations that already exist get theirs the first time the role is
- * assigned: {@code KeycloakGroupService.assignOrgRole} creates a missing subgroup
- * rather than refusing, so no backfill over existing tenants is needed.
+ * <p>The roleName field is the kebab-case name used in that authority and in the guards.
+ * Adding a constant here needs nothing else: there is no per-organization structure to create.
  */
 public enum OrgRole {
     SYSTEM_ADMIN("system-admin"),
     ORG_MANAGER("org-manager"),
     HR_ADMIN("hr-admin"),
     PROJECT_MANAGER("project-manager"),
-    // The three inspection roles. They are org-scoped rather than realm occupation
-    // roles because this is the layer @PreAuthorize actually checks: the realm has a
-    // 'site-engineer' and a 'safety-officer' occupation role already, but occupation
-    // roles gate nothing in application code and are a catalogue for assignment, not
-    // an authority. They are deliberately not manager roles: a QA engineer signs off
+    // The three inspection roles. They are deliberately not manager roles: a QA engineer signs off
     // quality, not headcount, and getManagerRoles decides who may be named the
     // manager on a project invite code.
     QA_ENGINEER("qa-engineer"),
@@ -53,20 +43,20 @@ public enum OrgRole {
     // getManagerRoles decides who may be named the manager on a project invite code and who
     // appears in the manager listings, and running a store is not managing headcount.
     STORE_KEEPER("store-keeper"),
-    // The machine producer: the org-scoped role a fleet's or integration's Keycloak service
-    // account is placed in so it may post observations through the intake endpoint. It grants
+    // The machine producer: the org-scoped role a fleet's or integration's service account
+    // holds so it may post observations through the intake endpoint. It grants
     // that one write and nothing else; a device proposes, a person reviews. Not a manager
     // role, and not something a person would normally hold.
     OBSERVATION_PRODUCER("observation-producer");
 
-    private final String groupName;
+    private final String roleName;
 
-    OrgRole(String groupName) {
-        this.groupName = groupName;
+    OrgRole(String roleName) {
+        this.roleName = roleName;
     }
 
-    public String getGroupName() {
-        return groupName;
+    public String getRoleName() {
+        return roleName;
     }
 
     private static final Set<OrgRole> MANAGER_ROLES = Set.of(

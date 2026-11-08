@@ -31,13 +31,38 @@ public interface EmployeeRepository extends JpaRepository<Employee,Long> {
     /**
      * Finds every employee holding at least one of the given organization roles.
      *
-     * <p>Membership of a role is what makes someone a manager here. The roles are mirrored
-     * from the Keycloak group the token carries, which is the same source the
-     * {@code @PreAuthorize} checks read, so a query written this way agrees with the
+     * <p>Membership of a role is what makes someone a manager here. The roles stored on the
+     * employee are the same source the {@code @PreAuthorize} checks read (see
+     * {@link #findMembershipsByAuthSubject}), so a query written this way agrees with the
      * authorization layer by construction.
      */
     @Query("SELECT DISTINCT e FROM Employee e JOIN e.orgRoles r WHERE r IN :roles")
     List<Employee> findEmployeesByOrgRoles(@Param("roles") Set<OrgRole> roles);
+
+    /**
+     * Every organization the user with this auth subject belongs to, with each role held there.
+     *
+     * <p>One row per (organization, role), and one row with a null role for an employee holding
+     * none, so a membership is never lost for want of a role. This is the read the request's
+     * authorities are minted from, and it runs before any tenant is chosen, so it selects scalars
+     * and never materializes a tenant-scoped {@link Employee}.
+     *
+     * @param authSubject The {@code sub} claim of the caller's token.
+     */
+    @Query("SELECT e.organization.id AS organizationId, r AS role FROM Employee e "
+            + "LEFT JOIN e.orgRoles r WHERE e.user.authSubject = :authSubject")
+    List<OrgMembership> findMembershipsByAuthSubject(@Param("authSubject") String authSubject);
+
+    /**
+     * Every permission granted directly to the user with this subject, in every organization they
+     * belong to. Same constraints as {@link #findMembershipsByAuthSubject}: it runs before a tenant
+     * is chosen, so it selects scalars only.
+     *
+     * @param authSubject The {@code sub} claim of the caller's token.
+     */
+    @Query("SELECT e.organization.id AS organizationId, p AS permission FROM Employee e "
+            + "JOIN e.directPermissions p WHERE e.user.authSubject = :authSubject")
+    List<OrgPermissionGrant> findDirectPermissionsByAuthSubject(@Param("authSubject") String authSubject);
 
     /**
      * The same read, narrowed to one organization.

@@ -7,13 +7,17 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
+/**
+ * The profile a signed-in account fills in to become a user of the application.
+ *
+ * <p>There is no username, email or password here. The account already exists at the auth
+ * provider, which is where the person signed up and where their credentials live; registration
+ * binds that account, by the subject on the caller's token, to a user row holding this profile.
+ * The email is taken from the token too, because an address the provider has verified is the only
+ * one worth keying the organization lookups on.
+ */
 @Data
 public class UserRegistrationDto {
-
-    @NotBlank(message = "userName is required")
-    @Size(min = 3, max = 50, message = "userName must be between 3 and 50 characters")
-    @Pattern(regexp = "\\S+",message = "userName cannot contain any space")
-    private String userName;
 
     @NotBlank(message = "name is required")
     private String name;
@@ -31,14 +35,6 @@ public class UserRegistrationDto {
     private String role;
 
     private Boolean acceptTerms;
-
-    @NotBlank(message = "email is required")
-    @Email
-    @Size(max = 100, message = "email must be at most 100 characters")
-    private String email;
-
-    @NotBlank(message = "password is required")
-    private String password;
 
     private Long defaultOrganizationId;
 }

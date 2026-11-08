@@ -47,24 +47,24 @@ final class EmployeeSalaryVisibility {
     }
 
     /**
-     * @param subjectKeycloakId the Keycloak subject of the user whose record is being written
+     * @param recordSubject the auth subject of the user whose record is being written
      * @return whether the caller may see that person's pay
      */
-    static boolean visibleTo(String subjectKeycloakId) {
-        return isTheCaller(subjectKeycloakId)
+    static boolean visibleTo(String recordSubject) {
+        return isTheCaller(recordSubject)
                 || OrgRoleAuthority.heldForCurrentTenant(PAYROLL_ROLES);
     }
 
     /**
-     * Whether the record belongs to whoever is asking. Compared on the Keycloak subject, which is
+     * Whether the record belongs to whoever is asking. Compared on the auth subject, which is
      * on the token and on the record, so the self branch costs nothing and holds across
      * organizations: {@code GET /user/web/employees} answers with records from every organization
      * the caller belongs to, and only one of them can be the tenant in scope.
      *
-     * <p>Mirrors how {@code UserContextService.getCurrentKeycloakId} reads the subject.
+     * <p>Mirrors how {@code UserContextService.getCurrentSubject} reads the subject.
      */
-    private static boolean isTheCaller(String subjectKeycloakId) {
-        if (subjectKeycloakId == null) {
+    private static boolean isTheCaller(String recordSubject) {
+        if (recordSubject == null) {
             return false;
         }
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -75,6 +75,6 @@ final class EmployeeSalaryVisibility {
         String callerSubject = principal instanceof Jwt jwt
                 ? jwt.getSubject()
                 : authentication.getName();
-        return subjectKeycloakId.equals(callerSubject);
+        return recordSubject.equals(callerSubject);
     }
 }

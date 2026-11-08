@@ -114,16 +114,16 @@ public class UserControllerWeb {
     @GetMapping
     @Operation(
             summary = "Get the current user",
-            description = "Resolves the caller's user record from their Keycloak identity."
+            description = "Resolves the caller's user record from their token's subject."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "User returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Caller is not authenticated"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No user matches the caller's Keycloak identity")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No user matches the caller's token subject")
     })
     public ResponseEntity<UserDto> getCurrentUser() {
-        String keycloakId = userContextService.getCurrentKeycloakId();
-        return ResponseEntity.ok(userService.getCurrentUserDto(keycloakId));
+        String authSubject = userContextService.getCurrentSubject();
+        return ResponseEntity.ok(userService.getCurrentUserDto(authSubject));
     }
 
     @PreAuthorize("isAuthenticated()")
@@ -138,8 +138,8 @@ public class UserControllerWeb {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Caller is not authenticated")
     })
     public ResponseEntity<List<EmployeeDto>> getEmployeesForCurrentUser() {
-        String keycloakId = userContextService.getCurrentKeycloakId();
-        List<EmployeeDto> employees = userService.getEmployeesForUser(keycloakId);
+        String authSubject = userContextService.getCurrentSubject();
+        List<EmployeeDto> employees = userService.getEmployeesForUser(authSubject);
         return ResponseEntity.ok(employees);
     }
 

@@ -120,8 +120,8 @@ public class Employee implements TenantScopedEntity {
     private LocalDateTime dateOfBirth;
 
     /**
-     * The organization roles this employee holds, mirrored from the Keycloak groups on their
-     * token. This is the only record of whether someone manages: there is no separate boolean,
+     * The organization roles this employee holds. The request's org-scoped role authorities are
+     * minted from this collection, so it is the only record of whether someone manages: there is no separate boolean,
      * because a second copy of the same fact only ever drifted from this one.
      */
     @ElementCollection(fetch = FetchType.EAGER)
@@ -129,6 +129,18 @@ public class Employee implements TenantScopedEntity {
     @Column(name = "role")
     @Enumerated(EnumType.STRING)
     private Set<OrgRole> orgRoles = new HashSet<>();
+
+    /**
+     * Permission codes granted to this employee directly, on top of whatever their roles grant.
+     * Lazy, and left out of equals, hashCode and toString, because only the role service and the
+     * permission query read it.
+     */
+    @ElementCollection
+    @CollectionTable(name = "employee_permission", joinColumns = @JoinColumn(name = "employee_id"))
+    @Column(name = "permission")
+    @lombok.EqualsAndHashCode.Exclude
+    @lombok.ToString.Exclude
+    private Set<String> directPermissions = new HashSet<>();
 
     /** The list of projects this employee is assigned to. */
     @ManyToMany(mappedBy = "employees")
