@@ -59370,7 +59370,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read expenses"
           },
           "404": {
             "content": {
@@ -59480,7 +59480,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to expenses"
           },
           "404": {
             "content": {
@@ -59627,7 +59627,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read expenses"
           },
           "404": {
             "content": {
@@ -59740,7 +59740,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to expenses"
           },
           "404": {
             "content": {
@@ -59851,7 +59851,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read expenses"
           },
           "404": {
             "content": {
@@ -59972,7 +59972,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to expenses"
           },
           "404": {
             "content": {
@@ -124297,7 +124297,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read receipts"
           },
           "404": {
             "content": {
@@ -124407,7 +124407,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to receipts"
           },
           "404": {
             "content": {
@@ -124554,7 +124554,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read receipts"
           },
           "404": {
             "content": {
@@ -124667,7 +124667,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to receipts"
           },
           "404": {
             "content": {
@@ -124778,7 +124778,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read receipts"
           },
           "404": {
             "content": {
@@ -124899,7 +124899,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to receipts"
           },
           "404": {
             "content": {
@@ -144270,7 +144270,7 @@
       "name": "Employees"
     },
     {
-      "description": "Money spent against a project or the organization: materials, labour, equipment, transport, utilities and the like, with an optional link to a project, vendor, employee, invoice, payment or budget head. Read access requires tenant membership; creating, updating and deleting are restricted to system-admin or project-manager.",
+      "description": "Money spent against a project or the organization: materials, labour, equipment, transport, utilities and the like, with an optional link to a project, vendor, employee, invoice, payment or budget head. Each endpoint needs the expenses permission named for its action (read, create, edit or delete), and an expense outside the caller's scope reads as not found.",
       "name": "Expenses"
     },
     {
@@ -144542,7 +144542,7 @@
       "name": "Purchase Orders (Web)"
     },
     {
-      "description": "Money received against a project or the organization: payments, advances, security deposits and refunds, with the payer, tax breakdown and an optional link to a project, payment, invoice or customer. Read access requires tenant membership; creating, updating and deleting are restricted to system-admin or project-manager.",
+      "description": "Money received against a project or the organization: payments, advances, security deposits and refunds, with the payer, tax breakdown and an optional link to a project, payment, invoice or customer. Receipts sit in the expenses area: each endpoint needs the expenses permission named for its action (read, create, edit or delete), and a receipt outside the caller's scope reads as not found.",
       "name": "Receipts"
     },
     {
