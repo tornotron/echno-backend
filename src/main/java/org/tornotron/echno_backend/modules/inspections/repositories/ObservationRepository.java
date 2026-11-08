@@ -17,6 +17,9 @@ public interface ObservationRepository extends JpaRepository<Observation, UUID>,
     @Query("SELECT o FROM Observation o WHERE o.id = :id")
     Optional<Observation> findByIdScoped(@Param("id") UUID id);
 
+    @Query("SELECT o.projectId FROM Observation o WHERE o.id = :id")
+    Optional<Long> findProjectIdByIdScoped(@Param("id") UUID id);
+
     /** The producer's own reference, scoped to the tenant by the filter; the partial unique index is the guarantee. */
     @Query("SELECT o FROM Observation o WHERE o.externalRef = :externalRef")
     Optional<Observation> findByExternalRefScoped(@Param("externalRef") String externalRef);
@@ -26,6 +29,15 @@ public interface ObservationRepository extends JpaRepository<Observation, UUID>,
 
     @Query("SELECT o FROM Observation o WHERE o.inspectionId = :inspectionId ORDER BY o.observedAt")
     List<Observation> findByInspectionScoped(@Param("inspectionId") UUID inspectionId);
+
+    /** Same rule as {@code ObservationSpecifications.isDetection}: one or zero. */
+    @Query("""
+            SELECT COUNT(o) FROM Observation o WHERE o.id = :id AND (
+                (o.source = org.tornotron.echno_backend.modules.inspections.api.ObservationSource.AI
+                    AND o.externalRef IS NOT NULL)
+                OR EXISTS (SELECT 1 FROM ObservationRegion r WHERE r.observationId = o.id
+                    AND r.origin = org.tornotron.echno_backend.modules.inspections.RegionOrigin.PRODUCER))""")
+    long countDetectionScoped(@Param("id") UUID id);
 
     /** Organization-explicit existence check, for reads that must not lean on the session filter. */
     boolean existsByIdAndOrganization_Id(UUID id, Long organizationId);

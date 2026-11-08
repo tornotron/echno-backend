@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Leave goes to the manager one level above and no further (ClickUp 14zdkkvzx68). The
+        application no longer reads multi_level_approval_enabled; the column stays, so a pod
+        still running the previous build during a rolling deploy keeps writing it, but these
+        changesets make what it holds agree with the rule, so a rollback to that build also
+        routes every request to one approver.
+
+        Three changesets because CockroachDB refuses a schema change after a write in the same
+        transaction: the default changes on its own, then each data step runs alone. All three
+        are re-runnable and touch no row that is already in the new shape.
+    -->
+
+    <changeSet id="135-leave-single-approver-default" author="abhijith">
+        <preConditions onFail="MARK_RAN" onError="MARK_RAN">
+            <columnExists tableName="leave_policy" columnName="multi_level_approval_enabled"/>
+        </preConditions>
+        <comment>New policies written by a previous build start single-level too.</comment>
+        <addDefaultValue tableName="leave_policy" columnName="multi_level_approval_enabled"
+                         defaultValueBoolean="false"/>
+    </changeSet>
+
+    <changeSet id="135-leave-single-approver-policies" author="abhijith">
+        <preConditions onFail="MARK_RAN" onError="MARK_RAN">
+            <columnExists tableName="leave_policy" columnName="multi_level_approval_enabled"/>
+        </preConditions>
+        <comment>Every existing policy reads as single-level.</comment>
+        <sql>
+            UPDATE leave_policy SET multi_level_approval_enabled = false
+            WHERE multi_level_approval_enabled = true;
+        </sql>
+        <rollback>
+            <comment>Which policies had the toggle on is not recorded, so nothing is restored.</comment>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="135-leave-single-approver-in-flight" author="abhijith">
+        <preConditions onFail="MARK_RAN" onError="MARK_RAN">
+            <tableExists tableName="leave_approval"/>
+            <tableExists tableName="leave_request"/>
+        </preConditions>
+        <comment>
+            A request still waiting for approval needs one more decision, from whoever it is waiting
+            on now. The placeholder rows for the levels above that, which nobody has acted on, are
+            removed, and the request's last level becomes its current one. Decided, rejected,
+            withdrawn and cancelled requests keep their trail exactly as it is.
+        </comment>
+        <sql>
+            DELETE FROM leave_approval
+            WHERE action = 'PENDING'
+              AND leave_request_id IN (
+                  SELECT lr.id FROM leave_request lr
+                  WHERE lr.status = 'PENDING_APPROVAL'
+                    AND lr.current_approval_level IS NOT NULL
+                    AND leave_approval.approval_level > lr.current_approval_level
+              );
+
+            UPDATE leave_request SET max_approval_level = current_approval_level
+            WHERE status = 'PENDING_APPROVAL'
+              AND current_approval_level IS NOT NULL
+              AND max_approval_level > current_approval_level;
+        </sql>
+        <rollback>
+            <comment>The removed rows recorded no decision, so there is nothing to restore.</comment>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

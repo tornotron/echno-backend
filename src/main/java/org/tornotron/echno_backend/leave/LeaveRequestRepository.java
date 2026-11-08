@@ -56,11 +56,17 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
 
     List<LeaveRequest> findByEmployeeIdAndStatus(Long employeeId, LeaveStatus status);
 
+    Page<LeaveRequest> findByEmployeeIdAndStatus(Long employeeId, LeaveStatus status, Pageable pageable);
+
     List<LeaveRequest> findByOrganizationId(Long organizationId);
+
+    Page<LeaveRequest> findByOrganizationId(Long organizationId, Pageable pageable);
 
     List<LeaveRequest> findByCurrentApproverId(Long approverId);
 
     List<LeaveRequest> findByCurrentApproverIdAndStatus(Long approverId, LeaveStatus status);
+
+    Page<LeaveRequest> findByCurrentApproverIdAndStatus(Long approverId, LeaveStatus status, Pageable pageable);
 
     @Query("SELECT DISTINCT lr FROM LeaveRequest lr " +
            "JOIN lr.approvals la " +

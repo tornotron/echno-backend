@@ -21,7 +21,7 @@ import lombok.Data;
 @Data
 public class OrganizationUpdateFieldsDto {
 
-    @Schema(nullable = true, description = "Registered name of the organization.", example = "Asset Homes")
+    @Schema(nullable = true, description = "Registered name of the organization.", example = "Riverside Builders")
     private String organizationName;
 
     @Schema(nullable = true, description = "Postal address of the organization.",

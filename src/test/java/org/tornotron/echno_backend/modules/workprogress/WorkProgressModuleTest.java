@@ -31,7 +31,7 @@ class WorkProgressModuleTest {
     void permissionsUseTheColonVocabulary() {
         assertThat(module.manifest().permissions())
                 .containsExactly("work-progress:read", "work-progress:record", "work-progress:billing-setup",
-                        "work-progress:bill", "work-progress:certify", "work-progress:approve")
+                        "work-progress:bill", "work-progress:certify", "work-progress:approve", "work-progress:pay")
                 .allMatch(ModuleManifest.PERMISSION_KEY.asMatchPredicate());
     }
 
@@ -51,6 +51,15 @@ class WorkProgressModuleTest {
         assertThat(WorkProgressModule.BILL_APPROVE_GUARD).isEqualTo(office);
         assertThat(WorkProgressModule.BILL_PREPARE_GUARD).isEqualTo(WorkProgressModule.RECORD_GUARD);
         assertThat(WorkProgressModule.BILL_VERIFY_GUARD).isEqualTo(WorkProgressModule.RECORD_GUARD);
+    }
+
+    @Test
+    void theOfficeRaisesAPaymentAndTheProjectsAuthorizerSignsIt() {
+        String office = "@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')";
+        assertThat(WorkProgressModule.BILL_PAY_REQUEST_GUARD).isEqualTo(office);
+        assertThat(WorkProgressModule.PAYMENT_AUTHORIZER_SETUP_GUARD).isEqualTo(office);
+        // No role signs: the authority is the project's named authorizer, checked in PaymentAuthorizers.
+        assertThat(WorkProgressModule.BILL_PAY_AUTHORIZE_GUARD).isEqualTo(WorkProgressModule.READ_GUARD);
     }
 
     @Test

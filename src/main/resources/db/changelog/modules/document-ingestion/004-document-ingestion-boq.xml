@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        BOQ reading: the sheets of a workbook with their column mapping, and the package's target
+        contract as a BIGINT, which is the type of sub_contract.id. The UUID column of 001 was never
+        written (no code set it), so it is dropped. The new column takes a new name because
+        CockroachDB drops a column in the background and may refuse the same name straight after.
+
+        Design: docs/specs/2026-11-08-document-ingestion-design.md, sections 4.2 and 11 (step 7).
+    -->
+
+    <changeSet id="document-ingestion-004-drop-uuid-sub-contract" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <columnExists tableName="doc_ingest_package" columnName="sub_contract_id"/>
+        </preConditions>
+        <dropColumn tableName="doc_ingest_package" columnName="sub_contract_id"/>
+    </changeSet>
+
+    <changeSet id="document-ingestion-004-add-target-sub-contract" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="doc_ingest_package" columnName="target_sub_contract_id"/></not>
+        </preConditions>
+        <addColumn tableName="doc_ingest_package">
+            <column name="target_sub_contract_id" type="BIGINT"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="document-ingestion-004-create-boq-sheet" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="doc_ingest_boq_sheet"/></not>
+        </preConditions>
+        <createTable tableName="doc_ingest_boq_sheet">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_doc_ingest_boq_sheet" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="package_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="document_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="segment_id" type="UUID"/>
+            <column name="sheet_name" type="VARCHAR(100)"><constraints nullable="false"/></column>
+            <column name="sheet_index" type="INT"><constraints nullable="false"/></column>
+            <column name="hidden" type="BOOLEAN" defaultValueBoolean="false"><constraints nullable="false"/></column>
+            <column name="status" type="VARCHAR(20)"><constraints nullable="false"/></column>
+            <column name="header_row" type="INT"/>
+            <column name="column_map" type="JSONB"><constraints nullable="false"/></column>
+            <column name="code_prefix" type="VARCHAR(20)"/>
+            <column name="preview" type="JSONB"><constraints nullable="false"/></column>
+            <column name="row_count" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="summary" type="JSONB"/>
+            <column name="confirmed_by" type="BIGINT"/>
+            <column name="confirmed_at" type="TIMESTAMP"/>
+            <column name="extracted_at" type="TIMESTAMP"/>
+            <column name="created_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="updated_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="doc_ingest_boq_sheet" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_doc_ingest_boq_sheet_organization"/>
+        <addForeignKeyConstraint baseTableName="doc_ingest_boq_sheet" baseColumnNames="document_id"
+                                 referencedTableName="doc_ingest_document" referencedColumnNames="id"
+                                 constraintName="fk_doc_ingest_boq_sheet_document"/>
+        <addForeignKeyConstraint baseTableName="doc_ingest_boq_sheet" baseColumnNames="segment_id"
+                                 referencedTableName="doc_ingest_segment" referencedColumnNames="id"
+                                 constraintName="fk_doc_ingest_boq_sheet_segment"/>
+        <addUniqueConstraint tableName="doc_ingest_boq_sheet" columnNames="document_id, sheet_index"
+                             constraintName="uq_doc_ingest_boq_sheet_document_index"/>
+    </changeSet>
+
+    <changeSet id="document-ingestion-004-index-candidate-segment" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><indexExists tableName="doc_ingest_candidate" indexName="idx_doc_ingest_candidate_segment"/></not>
+        </preConditions>
+        <createIndex tableName="doc_ingest_candidate" indexName="idx_doc_ingest_candidate_segment">
+            <column name="segment_id"/>
+            <column name="status"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>

@@ -1,0 +1,49 @@
+{
+  "source": {
+    "repository": "tornotron/echno-datasets",
+    "path": "echno_datasets/classes.py",
+    "commit": "4c42531"
+  },
+  "objectClasses": [
+    "worker",
+    "ppe_helmet",
+    "ppe_vest",
+    "rebar",
+    "column",
+    "beam",
+    "wall",
+    "scaffolding",
+    "equipment",
+    "material",
+    "opening",
+    "vehicle"
+  ],
+  "defectClasses": [
+    "crack",
+    "honeycombing",
+    "spalling",
+    "surface_defect",
+    "misalignment",
+    "missing_component",
+    "damaged_component",
+    "finishing_defect"
+  ],
+  "negativeTypes": [
+    "construction_joint",
+    "formwork_line",
+    "scaffold_shadow",
+    "paint_chalk_line",
+    "dirt_streak",
+    "tie_rod_hole",
+    "surface_texture",
+    "wet_patch"
+  ],
+  "progressStates": [
+    "not_started",
+    "in_progress",
+    "structurally_complete",
+    "finishing",
+    "complete",
+    "rework"
+  ]
+}

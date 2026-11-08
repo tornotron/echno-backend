@@ -40,7 +40,8 @@ import java.util.stream.Collectors;
  * legitimately use the same one. An opening paid amount is held to the same ceiling
  * recordPayment enforces. Recording a payment takes a pessimistic lock on the
  * payable so concurrent payments serialize their read-modify-write on the paid amount, and
- * rejects a payment that would push the paid total past the recorded amount.
+ * rejects a payment that would push the paid total past the recorded amount. A reversal takes
+ * the same lock.
  */
 @Service
 public class PayableService {
@@ -181,6 +182,32 @@ public class PayableService {
     }
 
     /**
+     * Takes back a payment recorded earlier, because the bank returned it. Holds the same pessimistic
+     * lock as {@link #recordPayment}, so the two serialize on the paid amount.
+     *
+     * @param id The ID of the payable.
+     * @param amount The amount to take off the paid total; must be greater than zero.
+     * @return The updated payable DTO.
+     * @throws InvalidRequestException if the amount is null or not positive, or more than has been paid.
+     * @throws ResourceNotFoundException if no payable with the given ID exists in the organization.
+     */
+    @Transactional
+    public PayableDto reversePayment(Long id, BigDecimal amount) {
+        if (amount == null || amount.signum() <= 0) {
+            throw new InvalidRequestException("Reversal amount must be greater than zero");
+        }
+        Payable payable = payableRepository.lockByIdAndOrganizationId(id, TenantContext.getCurrentOrgId())
+                .orElseThrow(() -> new ResourceNotFoundException("Payable with ID " + id + " was not found in this organization"));
+        BigDecimal currentPaid = payable.getAmountPaid() != null ? payable.getAmountPaid() : BigDecimal.ZERO;
+        if (amount.compareTo(currentPaid) > 0) {
+            throw new InvalidRequestException(
+                    "Reversal of " + amount + " is more than the " + currentPaid + " paid on payable " + id);
+        }
+        payable.setAmountPaid(currentPaid.subtract(amount));
+        return payableMapper.toDto(payableRepository.save(payable));
+    }
+
+    /**
      * Retrieves a single payable by its ID within the current organization.
      *
      * @param id The ID of the payable to retrieve.
@@ -222,6 +249,21 @@ public class PayableService {
     }
 
     /**
+     * One page of the same rows, newest first, with the id as tie-break.
+     *
+     * @param pageNo   Zero-based page index.
+     * @param pageSize Rows per page.
+     * @return The requested page.
+     */
+    @Transactional(readOnly = true)
+    public Page<PayableDto> getPayablesByVendor(Long vendorId, int pageNo, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNo, pageSize,
+                Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id")));
+        return payableRepository.findByVendorIdAndOrganization_id(vendorId,TenantContext.getCurrentOrgId(), pageable)
+                .map(payable -> payableMapper.toDto(payable));
+    }
+
+    /**
      * Returns the payables that still have an unpaid balance.
      *
      * @return The list of outstanding payable DTOs.
@@ -231,5 +273,20 @@ public class PayableService {
         return payableRepository.findOutstandingPayables().stream()
                 .map(payable -> payableMapper.toDto(payable))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * One page of the same rows, newest first, with the id as tie-break.
+     *
+     * @param pageNo   Zero-based page index.
+     * @param pageSize Rows per page.
+     * @return The requested page.
+     */
+    @Transactional(readOnly = true)
+    public Page<PayableDto> getOutstandingPayables(int pageNo, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNo, pageSize,
+                Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id")));
+        return payableRepository.findOutstandingPayables(pageable)
+                .map(payable -> payableMapper.toDto(payable));
     }
 }

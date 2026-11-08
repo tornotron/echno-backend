@@ -31,9 +31,9 @@ import org.tornotron.echno_backend.indentItem.IndentItemControllerWeb;
  */
 class IndentGuardsTest {
 
-    private static final String ADMIN = "@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')";
+    private static final String ADMIN = "@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')";
     private static final String ADMIN_OR_STORE_KEEPER =
-            "@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')";
+            "@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')";
 
     /** The handlers on the matrix, by the action they ask for. */
     static final Map<String, String> ACTION_BY_HANDLER = Map.ofEntries(
@@ -47,9 +47,8 @@ class IndentGuardsTest {
             entry("IndentItemControllerWeb.deleteIndentItem DELETE /{id}", "delete"));
 
     /**
-     * The handlers left on their old guard. Writes are the system admin's alone, where the starting
-     * project manager role holds indents create and edit; the line reads leave out the project
-     * manager, who holds indents read.
+     * The handlers still on their org-role guard: the system admin and project manager write, and
+     * the stores tier reads the lines (#855).
      */
     static final Map<String, String> LEFT_ON_OLD_GUARD = Map.ofEntries(
             entry("IndentControllerWeb.createIndent POST", ADMIN),

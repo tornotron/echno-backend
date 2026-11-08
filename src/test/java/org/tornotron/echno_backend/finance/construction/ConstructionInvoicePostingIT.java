@@ -327,7 +327,7 @@ class ConstructionInvoicePostingIT extends AbstractIntegrationTest {
 
             Customer client = new Customer();
             client.setCode("CUST-POST-1");
-            client.setName("Asset Homes Pvt Ltd");
+            client.setName("Riverside Builders Pvt Ltd");
             client.setOrganization(org);
             entityManager.persist(client);
 

@@ -49,6 +49,8 @@ class TaskServicePaginationTest {
     @Mock
     private TaskMapper taskMapper;
 
+    @Mock private org.tornotron.echno_backend.project.ProjectCompletion projectCompletion;
+
     @InjectMocks
     private TaskService service;
 

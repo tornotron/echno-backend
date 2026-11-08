@@ -4,7 +4,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
@@ -14,6 +13,10 @@ import org.tornotron.echno_backend.leave.dto.NotificationDto;
 
 import java.util.List;
 import java.util.Map;
+import org.springdoc.core.annotations.ParameterObject;
+import org.tornotron.echno_backend.common.pagination.PageQuery;
+import org.tornotron.echno_backend.common.pagination.PageQuery20;
+import jakarta.validation.Valid;
 
 /**
  * The signed-in caller's notification inbox.
@@ -73,23 +76,25 @@ public class NotificationController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of notifications returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant, or has no employee record in it, so there is no inbox to serve")
     })
-    public ResponseEntity<Page<NotificationDto>> getNotifications(Pageable pageable) {
-        return ResponseEntity.ok(notificationService.getMyNotifications(pageable));
+    public ResponseEntity<Page<NotificationDto>> getNotifications(@Valid @ParameterObject PageQuery20 pageQuery) {
+        return ResponseEntity.ok(notificationService.getMyNotifications(
+                pageQuery.getPageNo(), pageQuery.getPageSize()));
     }
 
     @GetMapping("/unread")
     @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "List your unread notifications",
-            description = "Returns every notification addressed to the signed-in caller that has not yet "
-                    + "been marked read."
+            description = "Returns the notifications addressed to the signed-in caller that have not yet "
+                    + "been marked read, one page at a time, newest first."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Unread notifications returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant, or has no employee record in it, so there is no inbox to serve")
     })
-    public ResponseEntity<List<NotificationDto>> getUnreadNotifications() {
-        return ResponseEntity.ok(notificationService.getMyUnreadNotifications());
+    public ResponseEntity<Page<NotificationDto>> getUnreadNotifications(@Valid @ParameterObject PageQuery pageQuery) {
+        return ResponseEntity.ok(notificationService.getMyUnreadNotifications(
+                pageQuery.getPageNo(), pageQuery.getPageSize()));
     }
 
     @GetMapping("/unread-count")

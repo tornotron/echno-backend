@@ -1,0 +1,38 @@
+{
+  "documentId": "6d1f3a7e-2222-4c1e-9c3a-000000000002",
+  "fileType": "XLSX",
+  "sourceSha256": "a1acae38ff6453a85c92ca45893aeb29c6f33df74891d2d8f762f1374aa72e42",
+  "sourceSizeBytes": 3640,
+  "workerVersion": "<version>",
+  "sheets": [
+    {
+      "index": 0,
+      "name": "BOQ",
+      "hidden": false,
+      "rowCount": 8,
+      "columnCount": 6,
+      "merged": [
+        "A1:F1",
+        "B6:B7"
+      ]
+    },
+    {
+      "index": 1,
+      "name": "Notes",
+      "hidden": true,
+      "rowCount": 1,
+      "columnCount": 1,
+      "merged": []
+    },
+    {
+      "index": 2,
+      "name": "Rates",
+      "hidden": false,
+      "rowCount": 1,
+      "columnCount": 2,
+      "merged": []
+    }
+  ],
+  "pageCount": null,
+  "warnings": []
+}

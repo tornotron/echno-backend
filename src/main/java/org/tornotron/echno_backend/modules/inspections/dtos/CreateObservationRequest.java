@@ -1,6 +1,8 @@
 package org.tornotron.echno_backend.modules.inspections.dtos;
 
+import org.tornotron.echno_backend.modules.inspections.api.ObservationRegionRequest;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -28,5 +30,8 @@ public record CreateObservationRequest(
         DefectSeverity suggestedSeverity,
         @Schema(description = "Ids of attachments already in the Echno store to cite as evidence; "
                 + "each becomes an {attachmentId} entry in evidenceRefs.", nullable = true)
-        List<Long> evidenceAttachmentIds
+        List<Long> evidenceAttachmentIds,
+        @Schema(description = "Regions the inspector drew, up to 20. Stored with origin HUMAN and no score.",
+                nullable = true)
+        @Valid @Size(max = 20) List<ObservationRegionRequest> regions
 ) {}

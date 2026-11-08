@@ -77,6 +77,21 @@ public class InventoryTransactionService {
     }
 
     /**
+     * One page of the same rows, latest movement first, with the id as tie-break.
+     *
+     * @param pageNo   Zero-based page index.
+     * @param pageSize Rows per page.
+     * @return The requested page.
+     */
+    @Transactional(readOnly = true)
+    public Page<InventoryTransactionDto> getTransactionsByMaterial(Long materialId, int pageNo, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNo, pageSize,
+                Sort.by(Sort.Direction.DESC, "transactionDate").and(Sort.by(Sort.Direction.DESC, "id")));
+        return inventoryTransactionRepository.findByMaterialId(materialId, pageable)
+                .map(transaction -> inventoryTransactionMapper.toDto(transaction));
+    }
+
+    /**
      * A material's movement history as a timeline, one page at a time, oldest movement first.
      *
      * <p>Backs the Location module timeline (issue #256): each entry carries where the material
@@ -105,11 +120,41 @@ public class InventoryTransactionService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * One page of the same rows, latest movement first, with the id as tie-break.
+     *
+     * @param pageNo   Zero-based page index.
+     * @param pageSize Rows per page.
+     * @return The requested page.
+     */
+    @Transactional(readOnly = true)
+    public Page<InventoryTransactionDto> getTransactionsByProject(Long projectId, int pageNo, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNo, pageSize,
+                Sort.by(Sort.Direction.DESC, "transactionDate").and(Sort.by(Sort.Direction.DESC, "id")));
+        return inventoryTransactionRepository.findByProjectId(projectId, pageable)
+                .map(transaction -> inventoryTransactionMapper.toDto(transaction));
+    }
+
     @Transactional(readOnly = true)
     public List<InventoryTransactionDto> getTransactionsByType(InventoryTransactionType transactionType) {
         return inventoryTransactionRepository.findByTransactionType(transactionType).stream()
                 .map(transaction -> inventoryTransactionMapper.toDto(transaction))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * One page of the same rows, latest movement first, with the id as tie-break.
+     *
+     * @param pageNo   Zero-based page index.
+     * @param pageSize Rows per page.
+     * @return The requested page.
+     */
+    @Transactional(readOnly = true)
+    public Page<InventoryTransactionDto> getTransactionsByType(InventoryTransactionType transactionType, int pageNo, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNo, pageSize,
+                Sort.by(Sort.Direction.DESC, "transactionDate").and(Sort.by(Sort.Direction.DESC, "id")));
+        return inventoryTransactionRepository.findByTransactionType(transactionType, pageable)
+                .map(transaction -> inventoryTransactionMapper.toDto(transaction));
     }
 
     @Transactional(readOnly = true)
@@ -119,11 +164,41 @@ public class InventoryTransactionService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * One page of the same rows, latest movement first, with the id as tie-break.
+     *
+     * @param pageNo   Zero-based page index.
+     * @param pageSize Rows per page.
+     * @return The requested page.
+     */
+    @Transactional(readOnly = true)
+    public Page<InventoryTransactionDto> getTransactionsByDateRange(LocalDateTime startDate, LocalDateTime endDate, int pageNo, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNo, pageSize,
+                Sort.by(Sort.Direction.DESC, "transactionDate").and(Sort.by(Sort.Direction.DESC, "id")));
+        return inventoryTransactionRepository.findByTransactionDateBetween(startDate, endDate, pageable)
+                .map(transaction -> inventoryTransactionMapper.toDto(transaction));
+    }
+
     @Transactional(readOnly = true)
     public List<InventoryTransactionDto> getTransactionsByStorageLocation(Long storageLocationId) {
         return inventoryTransactionRepository.findByStorageLocationId(storageLocationId).stream()
                 .map(transaction -> inventoryTransactionMapper.toDto(transaction))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * One page of the same rows, latest movement first, with the id as tie-break.
+     *
+     * @param pageNo   Zero-based page index.
+     * @param pageSize Rows per page.
+     * @return The requested page.
+     */
+    @Transactional(readOnly = true)
+    public Page<InventoryTransactionDto> getTransactionsByStorageLocation(Long storageLocationId, int pageNo, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNo, pageSize,
+                Sort.by(Sort.Direction.DESC, "transactionDate").and(Sort.by(Sort.Direction.DESC, "id")));
+        return inventoryTransactionRepository.findByStorageLocationId(storageLocationId, pageable)
+                .map(transaction -> inventoryTransactionMapper.toDto(transaction));
     }
 
     /**
@@ -146,6 +221,21 @@ public class InventoryTransactionService {
         return inventoryTransactionRepository.findByTaskId(taskId).stream()
                 .map(transaction -> inventoryTransactionMapper.toDto(transaction))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * One page of the same rows, latest movement first, with the id as tie-break.
+     *
+     * @param pageNo   Zero-based page index.
+     * @param pageSize Rows per page.
+     * @return The requested page.
+     */
+    @Transactional(readOnly = true)
+    public Page<InventoryTransactionDto> getTransactionsByTask(Long taskId, int pageNo, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNo, pageSize,
+                Sort.by(Sort.Direction.DESC, "transactionDate").and(Sort.by(Sort.Direction.DESC, "id")));
+        return inventoryTransactionRepository.findByTaskId(taskId, pageable)
+                .map(transaction -> inventoryTransactionMapper.toDto(transaction));
     }
 
     /**

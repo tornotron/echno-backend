@@ -27,12 +27,15 @@ import org.tornotron.echno_backend.project.spatial.SpatialNodeService;
 import org.tornotron.echno_backend.project.spatial.dto.SpatialPathSegment;
 
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.HexFormat;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -61,7 +64,8 @@ import java.util.stream.Collectors;
  *
  * <p>The organization's {@code datasetConsent} flag is checked here, not only by the sweep, so an
  * on-demand run on a non-consenting organization is refused with a 409 rather than silently
- * exporting. Every copied object is recorded in {@link DatasetExportedItem}, unique per source
+ * exporting. It is read once more when a started run reads its rows, and a run whose consent was
+ * withdrawn in between ends as {@code cancelled} with nothing copied. Every copied object is recorded in {@link DatasetExportedItem}, unique per source
  * reference, and a later run skips what is recorded: re-running exports nothing new, which is what
  * the note's definition of done asks for.
  *
@@ -92,6 +96,8 @@ public class DatasetExportService {
 
     static final String MANIFEST_FILE = "manifest.jsonl";
     private static final DateTimeFormatter RUN_KEY_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss");
+    static final String CONSENT_WITHDRAWN_REASON =
+            "Cancelled: the organization withdrew dataset consent after this run started; nothing was copied";
 
     private final OrganizationRepository organizationRepository;
     private final AttachmentRepository attachmentRepository;
@@ -182,6 +188,12 @@ public class DatasetExportService {
         Progress progress = new Progress();
         try {
             ExportPlan plan = transactions.runInTransaction(() -> plan(runId, organizationId));
+            if (plan.consentWithdrawn()) {
+                log.info("Dataset export run {} for organization {} cancelled: consent was withdrawn",
+                        plan.runKey(), organizationId);
+                return transactions.runInTransaction(() -> finish(runId, organizationId, progress,
+                        DatasetExportRunStatus.CANCELLED, CONSENT_WITHDRAWN_REASON));
+            }
             progress.skipped = plan.skipped();
             copy(plan, progress);
         } catch (RuntimeException e) {
@@ -207,7 +219,8 @@ public class DatasetExportService {
     }
 
     /** What one run will copy, resolved while the rows are still attached. */
-    record ExportPlan(UUID runId, Long organizationId, String runKey, String runPrefix, List<Planned> planned, int skipped) {
+    record ExportPlan(UUID runId, Long organizationId, String runKey, String runPrefix, List<Planned> planned, int skipped,
+                      boolean consentWithdrawn) {
     }
 
     /** One object to copy, its target key and its manifest line, with no entity behind it. */
@@ -230,6 +243,12 @@ public class DatasetExportService {
             throw new IllegalStateException("Dataset export run " + run.getRunKey() + " is " + run.getStatus().getValue()
                     + ", not running");
         }
+        String runPrefix = runPrefix(run.getRunKey());
+        // Read in the transaction that reads the rows: start() checked the flag, but a withdrawal
+        // between start() and here has to stop the run before anything reaches the dataset bucket.
+        if (!run.getOrganization().isDatasetConsent()) {
+            return new ExportPlan(runId, organizationId, run.getRunKey(), runPrefix, List.of(), 0, true);
+        }
         List<Candidate> candidates = collectCandidates(organizationId);
         Map<DatasetSourceKind, Set<String>> alreadyExported = new HashMap<>();
         for (DatasetSourceKind kind : DatasetSourceKind.values()) {
@@ -238,7 +257,6 @@ public class DatasetExportService {
         Map<UUID, String> breadcrumbs = breadcrumbsFor(candidates);
         Map<String, List<DefectPhotoAnnotation>> annotationsByPhoto = annotationsByPhoto(organizationId);
 
-        String runPrefix = runPrefix(run.getRunKey());
         int cap = Math.max(1, properties.getMaxObjectsPerRun());
         List<Planned> planned = new ArrayList<>();
         int skipped = 0;
@@ -254,13 +272,14 @@ public class DatasetExportService {
             }
             String exportKey = runPrefix + candidate.kind().folder() + "/" + candidate.exportName();
             List<DefectPhotoAnnotation> boxes = candidate.kind() == DatasetSourceKind.DEFECT_PHOTO
-                    ? annotationsByPhoto.getOrDefault(photoKey(candidate.inspection().getId(), candidate.sourceRef()), List.of())
+                    ? annotationsByPhoto.getOrDefault(candidate.sourceRef(), List.of())
                     : List.of();
             planned.add(new Planned(candidate.kind(), candidate.sourceRef(), candidate.sourceKey(),
                     candidate.inspection() == null ? null : candidate.inspection().getId(), exportKey,
-                    toJson(manifestLine(run.getRunKey(), organizationId, candidate, exportKey, breadcrumbs, boxes))));
+                    toJson(manifestLine(run.getRunKey(), organizationId, true, candidate, exportKey, breadcrumbs,
+                            boxes))));
         }
-        return new ExportPlan(runId, organizationId, run.getRunKey(), runPrefix, List.copyOf(planned), skipped);
+        return new ExportPlan(runId, organizationId, run.getRunKey(), runPrefix, List.copyOf(planned), skipped, false);
     }
 
     private void copy(ExportPlan plan, Progress progress) {
@@ -358,10 +377,13 @@ public class DatasetExportService {
                     attachment.getStorageKey(), attachment, inspection, null, null));
         }
 
+        // One line per stored image, the way the ledger counts them: it is unique per source
+        // reference, so the same photo on a second inspection would fail the batch's insert. The
+        // line carries the first inspection that references the photo.
         Set<String> seenPhotos = new LinkedHashSet<>();
         for (InspectionDefect defect : inspectionRepository.findDefectsForOrganization(organizationId)) {
             for (String photo : defect.getPhotos()) {
-                if (photo == null || !seenPhotos.add(photoKey(defect.getInspection().getId(), photo))) {
+                if (photo == null || !seenPhotos.add(photo)) {
                     continue;
                 }
                 Optional<String> key = fileStorageService.keyForStoredReference(photo);
@@ -427,16 +449,44 @@ public class DatasetExportService {
                 .collect(Collectors.joining(" > "));
     }
 
+    /**
+     * The marks on each stored photo, whichever inspection drew them. A photo on two inspections
+     * has one manifest line, and its ledger row keeps a later run from writing another, so a mark
+     * left off that line would never reach the dataset.
+     */
     private Map<String, List<DefectPhotoAnnotation>> annotationsByPhoto(Long organizationId) {
         return annotationRepository.findByOrganization_IdOrderByPhotoAscLineOrderAsc(organizationId).stream()
-                .collect(Collectors.groupingBy(a -> photoKey(a.getInspectionId(), a.getPhoto())));
+                .collect(Collectors.groupingBy(DefectPhotoAnnotation::getPhoto));
     }
 
-    private static String photoKey(UUID inspectionId, String photo) {
-        return inspectionId + "|" + photo;
+    /**
+     * The manifest's {@code evidence_id}: {@code <source>.<ref>}, inside the tooling's
+     * {@code ^[A-Za-z0-9._-]{1,128}$} because the tooling uses it as an object key segment.
+     *
+     * <p>For the two attachment sources the ref is the attachment id, a decimal number. For a
+     * defect photo the source reference is the stored photo reference itself (a CDN URL or a
+     * bare key, with {@code /} and {@code :} in it and no length bound), so the ref is its
+     * SHA-256 in lower-case hex. The source values use only {@code [a-z_]} and neither ref can
+     * contain a {@code .}, so the first {@code .} always splits source from ref and two sources
+     * can never produce the same id. The longest id is {@code defect_photo.} plus 64 hex
+     * characters, 77 in all. Like the ledger, the id is keyed on the source reference, so the
+     * same image gets the same id in every run.
+     */
+    static String evidenceId(DatasetSourceKind kind, String sourceRef) {
+        String ref = kind == DatasetSourceKind.DEFECT_PHOTO ? sha256Hex(sourceRef) : sourceRef;
+        return kind.manifestValue() + "." + ref;
     }
 
-    private DatasetManifestLine manifestLine(String runKey, Long orgId, Candidate c, String exportKey,
+    private static String sha256Hex(String value) {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
+                    .digest(value.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 is not available", e);
+        }
+    }
+
+    private DatasetManifestLine manifestLine(String runKey, Long orgId, boolean consent, Candidate c, String exportKey,
                                              Map<UUID, String> breadcrumbs, List<DefectPhotoAnnotation> boxes) {
         Inspection inspection = c.inspection();
         Observation observation = c.observation();
@@ -446,7 +496,7 @@ public class DatasetExportService {
                         b.getX1(), b.getY1(), b.getX2(), b.getY2(), b.getLabel(), b.getLineOrder()))
                 .toList();
         return new DatasetManifestLine(
-                c.kind().manifestValue() + ":" + c.sourceRef(),
+                evidenceId(c.kind(), c.sourceRef()),
                 c.kind().manifestValue(),
                 observation != null ? "observation:" + observation.getId()
                         : inspection != null ? "inspection:" + inspection.getId() : null,
@@ -454,6 +504,7 @@ public class DatasetExportService {
                 exportKey,
                 c.sourceKey(),
                 orgId,
+                consent,
                 orgId,
                 c.projectId(),
                 inspection == null ? null : inspection.getId(),
@@ -539,7 +590,14 @@ public class DatasetExportService {
             return inspection.getActualStartTime() != null ? inspection.getActualStartTime() : inspection.getCreatedAt();
         }
 
-        /** A file name that is unique within the run and safe as an object key segment. */
+        /**
+         * A file name that is unique within the run and safe as an object key segment.
+         *
+         * <p>An attachment is named by its id. A defect photo has no id, so it is named by the
+         * SHA-256 of its stored reference, the digest its {@code evidence_id} already uses. A
+         * shorter hash could give two references the same name, and the second copy would then
+         * silently overwrite the first with both manifest lines pointing at it.
+         */
         String exportName() {
             String base = sourceKey;
             int slash = base.lastIndexOf('/');
@@ -554,7 +612,7 @@ public class DatasetExportService {
             }
             String safe = base.replaceAll("[^A-Za-z0-9._-]", "_");
             String id = attachment != null ? "att-" + attachment.getId()
-                    : Integer.toHexString(sourceRef.hashCode());
+                    : sha256Hex(sourceRef);
             return id + "-" + safe + ext;
         }
     }

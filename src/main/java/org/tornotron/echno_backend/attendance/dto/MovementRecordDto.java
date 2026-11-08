@@ -35,7 +35,7 @@ public class MovementRecordDto {
     @Schema(description = "Location the employee travelled from.", example = "Kovilambakkam Site Office")
     private String fromLocation;
 
-    @Schema(description = "Location the employee travelled to.", example = "Asset Homes Corporate Office, Chennai")
+    @Schema(description = "Location the employee travelled to.", example = "Riverside Builders Corporate Office, Chennai")
     private String toLocation;
 
     @Schema(description = "Timestamp the movement started.", example = "2026-01-15T11:00:00")

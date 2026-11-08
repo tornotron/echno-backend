@@ -40,8 +40,8 @@ import java.util.Map;
         name = "Tasks",
         description = "Work items tracked against a project. A task carries a title, schedule, assignees, "
                 + "category, tags, progress and status. Endpoints cover creating a task with attachments, "
-                + "browsing and reading tasks, batch updates and deletion. Access is gated by the task "
-                + "authorities, with an admin authority that grants all operations."
+                + "browsing and reading tasks, batch updates and deletion. Access follows the "
+                + "organization roles of the /web twin, endpoint for endpoint."
 )
 public class TaskController {
 
@@ -68,7 +68,7 @@ public class TaskController {
      */
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAuthority('task:create') or hasAuthority('task:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @Operation(
             summary = "Create a task",
             description = "Creates a task from a multipart request. The data part carries the task details "
@@ -78,7 +78,7 @@ public class TaskController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Task created"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The data part is not valid task JSON, or a field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the task create or admin authority, or has no employee record in the current tenant, so the record would name nobody")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant, or has no employee record in it, so the record would name nobody")
     })
     public ResponseEntity<TaskSimpleDto> createTask(
             @Parameter(schema = @Schema(implementation = TaskCreationDto.class))
@@ -96,7 +96,7 @@ public class TaskController {
      * @return A {@link ResponseEntity} containing the list of task DTOs and HTTP status 200 (OK).
      */
     @GetMapping
-    @PreAuthorize("hasAuthority('task:read') or hasAuthority('task:admin')")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "List tasks",
             description = "Returns a single page of tasks. The pageNo and pageSize parameters control "
@@ -104,12 +104,12 @@ public class TaskController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of tasks returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the task read or admin authority")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public ResponseEntity<List<TaskDto>> readAllTasks(@Valid @ParameterObject PageQuery pageQuery) {
+    public ResponseEntity<Page<TaskDto>> readAllTasks(@Valid @ParameterObject PageQuery pageQuery) {
         Page<TaskDto> tasks = service.getAllTasks(pageQuery.getPageNo(), pageQuery.getPageSize());
         logger.info("All Tasks Retrieved Successfully");
-        return new ResponseEntity<>(tasks.getContent(), HttpStatus.OK);
+        return new ResponseEntity<>(tasks, HttpStatus.OK);
     }
 
     /**
@@ -119,7 +119,7 @@ public class TaskController {
      * @return A {@link ResponseEntity} containing the task DTO and HTTP status 200 (OK).
      */
     @GetMapping("{id}")
-    @PreAuthorize("hasAuthority('task:read') or hasAuthority('task:admin')")
+    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "Get a task by id",
             description = "Returns a single task including its creator, assignees, category, issues and "
@@ -127,7 +127,7 @@ public class TaskController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Task found"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the task read or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No task with the given id")
     })
     public ResponseEntity<?> readATask(@PathVariable Long id) {
@@ -155,7 +155,7 @@ public class TaskController {
      * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
      */
     @PatchMapping("/batch")
-    @PreAuthorize("hasAuthority('task:update') or hasAuthority('task:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @Operation(
             summary = "Batch update tasks",
             description = "Applies partial updates to several tasks in one call. Each entry names a task "
@@ -164,7 +164,7 @@ public class TaskController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Batch update applied"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "One of the update entries failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the task update or admin authority")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
     public ResponseEntity<ApiResponse> batchUpdateTasks(@Valid @RequestBody List<TaskPatchDto> updates) {
         service.batchUpdateTasks(updates);
@@ -178,14 +178,14 @@ public class TaskController {
      * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
      */
     @DeleteMapping("{id}")
-    @PreAuthorize("hasAuthority('task:delete') or hasAuthority('task:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @Operation(
             summary = "Delete a task",
             description = "Deletes the task with the given id."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Task deleted"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the task delete or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No task with the given id")
     })
     public ResponseEntity<ApiResponse> deleteATask(@PathVariable Long id) {

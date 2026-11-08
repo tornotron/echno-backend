@@ -7,6 +7,7 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.tornotron.echno_backend.modules.inspections.api.IntakeRejectedException;
 import org.tornotron.echno_backend.modules.inspections.service.ChecklistIncompleteException;
 
 import java.time.LocalDateTime;
@@ -36,6 +37,19 @@ public class InspectionsExceptionHandler {
         pd.setProperty("inspectionNumber", ex.getInspectionNumber());
         pd.setProperty("unansweredCount", ex.getItems().size());
         pd.setProperty("unansweredItems", ex.getItems());
+        return pd;
+    }
+
+    /** A machine finding refused with a stable code, so a producer can act on it without reading prose. */
+    @ExceptionHandler(IntakeRejectedException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ProblemDetail handleIntakeRejected(IntakeRejectedException ex) {
+        ProblemDetail pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+        pd.setTitle("Observation Refused");
+        pd.setProperty("message", ex.getMessage());
+        pd.setProperty("timestamp", LocalDateTime.now());
+        pd.setProperty("code", ex.getCode());
+        pd.setProperty("field", ex.getField());
         return pd;
     }
 }

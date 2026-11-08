@@ -27,12 +27,15 @@ import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.employee.mapper.EmployeeMapperImpl;
 import org.tornotron.echno_backend.modules.workprogress.billing.domain.AdjustmentSource;
 import org.tornotron.echno_backend.modules.workprogress.billing.domain.BillLineStatus;
+import org.tornotron.echno_backend.modules.workprogress.billing.domain.BillPaymentState;
 import org.tornotron.echno_backend.modules.workprogress.billing.domain.BillStatus;
 import org.tornotron.echno_backend.modules.workprogress.billing.domain.BillingModel;
 import org.tornotron.echno_backend.modules.workprogress.billing.domain.DeductionBasis;
 import org.tornotron.echno_backend.modules.workprogress.billing.domain.DeductionKind;
+import org.tornotron.echno_backend.modules.workprogress.billing.domain.ProjectBillingState;
 import org.tornotron.echno_backend.modules.workprogress.billing.domain.RequirementStatus;
 import org.tornotron.echno_backend.modules.workprogress.billing.domain.RequirementType;
+import org.tornotron.echno_backend.modules.workprogress.billing.dto.BillActivityDto;
 import org.tornotron.echno_backend.modules.workprogress.billing.dto.BillAdjustmentDto;
 import org.tornotron.echno_backend.modules.workprogress.billing.dto.BillCommentRequest;
 import org.tornotron.echno_backend.modules.workprogress.billing.dto.BillDto;
@@ -48,6 +51,7 @@ import org.tornotron.echno_backend.modules.workprogress.billing.dto.MeasurementL
 import org.tornotron.echno_backend.modules.workprogress.billing.dto.MeasurementRequest;
 import org.tornotron.echno_backend.modules.workprogress.billing.dto.MilestoneRequirementDto;
 import org.tornotron.echno_backend.modules.workprogress.billing.dto.MilestoneRequirementRequest;
+import org.tornotron.echno_backend.modules.workprogress.billing.dto.ProjectBillingSummaryDto;
 import org.tornotron.echno_backend.modules.workprogress.billing.dto.UpdateBillRequest;
 import org.tornotron.echno_backend.modules.workprogress.billing.service.BillingSupport;
 import org.tornotron.echno_backend.modules.workprogress.billing.service.ContractBillService;
@@ -64,6 +68,7 @@ import org.tornotron.echno_backend.subcontract.dto.SubContractCreationDto;
 import org.tornotron.echno_backend.subcontract.mapper.SubContractMapperImpl;
 import org.tornotron.echno_backend.user.UserContextService;
 import org.tornotron.echno_backend.wbs.ScheduleIntegrationSupport;
+import org.tornotron.echno_backend.wbs.WbsElement;
 import org.tornotron.echno_backend.wbs.WbsElementService;
 import org.tornotron.echno_backend.wbs.mapper.WbsElementMapperImpl;
 
@@ -96,6 +101,9 @@ class ContractBillServiceIT extends ScheduleIntegrationSupport {
 
     @Autowired
     private SubContractService subContracts;
+
+    @Autowired
+    private PayableService payables;
 
     @MockitoBean
     private UserContextService userContext;
@@ -218,7 +226,7 @@ class ContractBillServiceIT extends ScheduleIntegrationSupport {
         bills.cancel(first.id());
         Long milestone = addMilestone(contractA(), "Plinth", new BigDecimal("100000"), null);
         BillDto milestoneBill = bills.create(new CreateBillRequest(subContractAId, BillingModel.MILESTONE, null, null,
-                milestone, null, null, null, null));
+                milestone, null, null, null, null, null));
         assertThat(milestoneBill.billNumber()).as("a cancelled bill does not fix the model").isEqualTo("MB-02");
     }
 
@@ -242,7 +250,7 @@ class ContractBillServiceIT extends ScheduleIntegrationSupport {
         bills.approve(second.id());
         Long milestone = addMilestone(contractA(), "Plinth", new BigDecimal("100000"), null);
         assertThatThrownBy(() -> bills.create(new CreateBillRequest(subContractAId, BillingModel.MILESTONE, null, null,
-                milestone, null, null, null, null)))
+                milestone, null, null, null, null, null)))
                 .isInstanceOf(InvalidRequestException.class).hasMessageContaining("running account");
     }
 
@@ -258,7 +266,7 @@ class ContractBillServiceIT extends ScheduleIntegrationSupport {
         billing.addRule(subContractAId, percentRule(DeductionKind.RETENTION, "5"));
 
         BillDto mb = bills.create(new CreateBillRequest(subContractAId, BillingModel.MILESTONE, null, null, milestone,
-                new BigDecimal("85"), "INV-77", "Tower B, level 5", null));
+                new BigDecimal("85"), "INV-77", "Tower B, level 5", null, null));
         assertThat(mb.billNumber()).isEqualTo("MB-01");
         assertThat(mb.milestoneValue()).isEqualByComparingTo("1500000.00");
         assertThat(mb.grossClaimed()).isEqualByComparingTo("1275000.00");
@@ -280,10 +288,10 @@ class ContractBillServiceIT extends ScheduleIntegrationSupport {
         as(userAId);
         bills.approve(certified.id());
         assertThatThrownBy(() -> bills.create(new CreateBillRequest(subContractAId, BillingModel.MILESTONE, null, null,
-                milestone, new BigDecimal("25"), null, null, null)))
+                milestone, new BigDecimal("25"), null, null, null, null)))
                 .as("80 percent already certified").isInstanceOf(InvalidRequestException.class);
         BillDto rest = bills.create(new CreateBillRequest(subContractAId, BillingModel.MILESTONE, null, null, milestone,
-                new BigDecimal("20"), null, null, null));
+                new BigDecimal("20"), null, null, null, null));
         assertThat(rest.milestoneCertifiedBeforePercent()).isEqualByComparingTo("80");
     }
 
@@ -346,7 +354,7 @@ class ContractBillServiceIT extends ScheduleIntegrationSupport {
         Long milestone = addMilestone(contract, "Plinth", new BigDecimal("100000"), null);
         Long other = addMilestone(contract, "Roof", new BigDecimal("50000"), null);
         bills.create(new CreateBillRequest(subContractAId, BillingModel.MILESTONE, null, null, milestone,
-                new BigDecimal("50"), null, null, null));
+                new BigDecimal("50"), null, null, null, null));
 
         SubContractCreationDto edit = new SubContractCreationDto();
         edit.setContractName("Renamed civil works");
@@ -375,13 +383,13 @@ class ContractBillServiceIT extends ScheduleIntegrationSupport {
         UUID foreignBill = asTenant(orgBId, () -> {
             billing.addBoqItem(subContractBId, boq("X-1", "10", "10"));
             return bills.create(new CreateBillRequest(subContractBId, BillingModel.RUNNING_ACCOUNT, AUG_1, AUG_31, null,
-                    null, null, null, null)).id();
+                    null, null, null, null, null)).id();
         });
         assertThatThrownBy(() -> bills.get(foreignBill)).isInstanceOf(ResourceNotFoundException.class);
         assertThatThrownBy(() -> bills.submit(foreignBill)).isInstanceOf(ResourceNotFoundException.class);
         assertThatThrownBy(() -> bills.events(foreignBill)).isInstanceOf(ResourceNotFoundException.class);
         assertThatThrownBy(() -> bills.create(new CreateBillRequest(subContractBId, BillingModel.RUNNING_ACCOUNT, AUG_1,
-                AUG_31, null, null, null, null, null))).isInstanceOf(ResourceNotFoundException.class);
+                AUG_31, null, null, null, null, null, null))).isInstanceOf(ResourceNotFoundException.class);
         assertThatThrownBy(() -> billing.listBoq(subContractBId)).isInstanceOf(ResourceNotFoundException.class);
         assertThatThrownBy(() -> billing.addRule(subContractBId, percentRule(DeductionKind.TDS, "1")))
                 .isInstanceOf(ResourceNotFoundException.class);
@@ -391,7 +399,153 @@ class ContractBillServiceIT extends ScheduleIntegrationSupport {
                 .contains(subContractAId).doesNotContain(subContractBId);
     }
 
+    @Test
+    void aDraftFromInspectionsClaimsWhatTheLinkedActivityShowsBeyondWhatIsCertified() {
+        var activity = activity(projectAId, "1.1", null, AUG_1, AUG_31);
+        entityManager.find(WbsElement.class, activity.getId()).setProgress(40.0);
+        BoqItemDto linked = billing.addBoqItem(subContractAId, new BoqItemRequest("CP-01", "RCC", "m3",
+                new BigDecimal("500"), new BigDecimal("100"), activity.getId(), null));
+        BoqItemDto unlinked = billing.addBoqItem(subContractAId, boq("BR-01", "100", "10"));
+
+        BillDto first = bills.create(new CreateBillRequest(subContractAId, BillingModel.RUNNING_ACCOUNT, AUG_1, AUG_31,
+                null, null, null, null, null, true));
+        assertThat(byCode(first).get("CP-01").claimedQuantity()).as("40 percent of 500").isEqualByComparingTo("200");
+        assertThat(byCode(first).get("BR-01").claimedQuantity()).as("no activity").isEqualByComparingTo("0");
+        assertThat(first.status()).as("still a draft for the claim and the measurement").isEqualTo(BillStatus.DRAFT);
+        assertThat(bills.events(first.id())).extracting(e -> e.note()).anyMatch(n -> n.contains("drafted from inspected progress"));
+
+        bills.submit(first.id());
+        bills.saveMeasurement(first.id(), measure(Map.of(byCode(first).get("CP-01").id(), "150")));
+        bills.verify(first.id());
+        as(CERTIFIER);
+        bills.certify(first.id());
+        as(userAId);
+        bills.approve(first.id());
+
+        entityManager.find(WbsElement.class, activity.getId()).setProgress(50.0);
+        BillDto second = bills.create(new CreateBillRequest(subContractAId, BillingModel.RUNNING_ACCOUNT, SEP_1, SEP_30,
+                null, null, null, null, null, true));
+        assertThat(byCode(second).get("CP-01").previousQuantity()).isEqualByComparingTo("150");
+        assertThat(byCode(second).get("CP-01").claimedQuantity()).as("250 by progress less 150 certified")
+                .isEqualByComparingTo("100");
+        assertThat(linked.wbsElementId()).isEqualTo(activity.getId());
+        assertThat(unlinked.wbsElementId()).isNull();
+    }
+
+    @Test
+    void aMilestoneBillCannotBeDraftedFromInspections() {
+        Long milestone = addMilestone(contractA(), "Plinth", new BigDecimal("100000"), null);
+        assertThatThrownBy(() -> bills.create(new CreateBillRequest(subContractAId, BillingModel.MILESTONE, null, null,
+                milestone, null, null, null, null, true)))
+                .isInstanceOf(InvalidRequestException.class).hasMessageContaining("no quantities");
+    }
+
+    @Test
+    void aBillsPaymentFiguresAreReadFromItsPayable() {
+        BillDto certified = certifiedBill();
+        assertThat(certified.paymentState()).as("not approved yet").isNull();
+        assertThat(certified.amountDue()).isNull();
+
+        BillDto approved = approveAsAdmin(certified);
+        assertThat(approved.paymentState()).isEqualTo(BillPaymentState.UNPAID);
+        assertThat(approved.amountDue()).isEqualByComparingTo(approved.netPayable());
+
+        // Finance > Payables records against the same row, and the bill follows it.
+        payables.recordPayment(approved.payableId(), new BigDecimal("40.00"));
+        entityManager.flush();
+        BillDto partPaid = bills.get(approved.id());
+        assertThat(partPaid.paymentState()).isEqualTo(BillPaymentState.PART_PAID);
+        assertThat(partPaid.amountPaid()).isEqualByComparingTo("40.00");
+        assertThat(partPaid.amountDue()).isEqualByComparingTo(approved.netPayable().subtract(new BigDecimal("40.00")));
+        assertThat(bills.list(null, null, null, null, 0, 20).getContent()).singleElement().satisfies(row -> {
+            assertThat(row.paymentState()).isEqualTo(BillPaymentState.PART_PAID);
+            assertThat(row.amountPaid()).isEqualByComparingTo("40.00");
+        });
+        assertThat(billing.contracts(null, 0, 20).getContent())
+                .filteredOn(c -> c.subContractId().equals(subContractAId)).singleElement()
+                .satisfies(c -> assertThat(c.paidToDate()).isEqualByComparingTo("40.00"));
+
+        payables.recordPayment(approved.payableId(), partPaid.amountDue());
+        entityManager.flush();
+        assertThat(bills.get(approved.id()).paymentState()).isEqualTo(BillPaymentState.PAID);
+    }
+
+    @Test
+    void projectsAreListedWithTheirContractsAndBillsAddedUp() {
+        contractA().setContractValue(new BigDecimal("1000000"));
+        BillDto certified = certifiedBill();
+        BillDto approved = approveAsAdmin(certified);
+        payables.recordPayment(approved.payableId(), new BigDecimal("40.00"));
+        entityManager.flush();
+
+        Map<Long, ProjectBillingSummaryDto> rows = billing.projects(null, 0, 20).getContent().stream()
+                .collect(Collectors.toMap(ProjectBillingSummaryDto::projectId, Function.identity()));
+        assertThat(rows).as("the other tenant's project is absent").doesNotContainKey(projectBId);
+        ProjectBillingSummaryDto billed = rows.get(projectAId);
+        assertThat(billed.contractCount()).isEqualTo(1);
+        assertThat(billed.contractValue()).isEqualByComparingTo("1000000");
+        assertThat(billed.billCount()).isEqualTo(1);
+        assertThat(billed.openBills()).isZero();
+        assertThat(billed.certifiedToDate()).isEqualByComparingTo(approved.grossAmount());
+        assertThat(billed.netApprovedToDate()).isEqualByComparingTo(approved.netPayable());
+        assertThat(billed.paidToDate()).isEqualByComparingTo("40.00");
+        assertThat(billed.amountDue()).isEqualByComparingTo(approved.netPayable().subtract(new BigDecimal("40.00")));
+        assertThat(billed.billingState()).isEqualTo(ProjectBillingState.PAYMENT_DUE);
+        assertThat(rows.get(projectA2Id).billingState()).as("no sub-contract").isEqualTo(ProjectBillingState.NO_CONTRACTS);
+        assertThat(rows.get(projectA2Id).contractValue()).isEqualByComparingTo("0");
+
+        assertThat(billing.project(projectAId).amountDue()).isEqualByComparingTo(billed.amountDue());
+        assertThatThrownBy(() -> billing.project(projectBId)).as("another tenant's project")
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        assertThat(billing.projects("riverside", 0, 20).getContent()).extracting(ProjectBillingSummaryDto::projectId)
+                .contains(projectAId).doesNotContain(projectBId);
+        assertThat(billing.projects("no such project", 0, 20).getContent()).isEmpty();
+
+        assertThat(billing.overview().projectsInBilling()).isEqualTo(1);
+        assertThat(billing.overview().paidToDate()).isEqualByComparingTo("40.00");
+        assertThat(billing.overview().amountDue()).isEqualByComparingTo(billed.amountDue());
+    }
+
+    @Test
+    void aProjectMovesThroughItsBillingStates() {
+        assertThat(projectRow(projectAId).billingState()).isEqualTo(ProjectBillingState.NOT_STARTED);
+        BillDto certified = certifiedBill();
+        ProjectBillingSummaryDto inProgress = projectRow(projectAId);
+        assertThat(inProgress.billingState()).isEqualTo(ProjectBillingState.IN_PROGRESS);
+        assertThat(inProgress.awaitingSignature()).isEqualTo(1);
+        assertThat(inProgress.openBills()).isEqualTo(1);
+        BillDto approved = approveAsAdmin(certified);
+        payables.recordPayment(approved.payableId(), approved.netPayable());
+        entityManager.flush();
+        assertThat(projectRow(projectAId).billingState()).isEqualTo(ProjectBillingState.SETTLED);
+    }
+
+    @Test
+    void recentActivityIsNewestFirstAndStaysInTheTenant() {
+        BillDto certified = certifiedBill();
+        List<BillActivityDto> all = billing.activity(null, 2);
+        assertThat(all).hasSize(2).allSatisfy(event -> {
+            assertThat(event.billId()).isEqualTo(certified.id());
+            assertThat(event.billNumber()).isEqualTo("RA-01");
+            assertThat(event.projectId()).isEqualTo(projectAId);
+        });
+        assertThat(billing.activity(projectAId, 50)).isNotEmpty();
+        assertThat(billing.activity(projectA2Id, 50)).isEmpty();
+        assertThat(billing.activity(projectBId, 50)).as("another tenant's project").isEmpty();
+    }
+
     // ---------------------------------------------------------------- helpers
+
+    private BillDto approveAsAdmin(BillDto certified) {
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(true);
+        return bills.approve(certified.id());
+    }
+
+    private ProjectBillingSummaryDto projectRow(Long projectId) {
+        return billing.projects(null, 0, 20).getContent().stream()
+                .filter(row -> row.projectId().equals(projectId)).findFirst().orElseThrow();
+    }
 
     private BillDto certifiedBill() {
         billing.addBoqItem(subContractAId, boq("CP-01", "100", "10"));
@@ -434,7 +588,7 @@ class ContractBillServiceIT extends ScheduleIntegrationSupport {
     }
 
     private CreateBillRequest ra(LocalDate from, LocalDate to) {
-        return new CreateBillRequest(subContractAId, BillingModel.RUNNING_ACCOUNT, from, to, null, null, null, null, null);
+        return new CreateBillRequest(subContractAId, BillingModel.RUNNING_ACCOUNT, from, to, null, null, null, null, null, null);
     }
 
     private static BoqItemRequest boq(String code, String quantity, String rate) {

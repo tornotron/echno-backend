@@ -51,7 +51,7 @@ public class ClockEventDto {
     @Schema(description = "Id of the project the event was recorded against.", example = "12")
     private Long projectId;
 
-    @Schema(description = "Name of the project.", example = "Asset Homes Kovilambakkam Phase 2")
+    @Schema(description = "Name of the project.", example = "Riverside Towers Phase 2")
     private String projectName;
 
     @Schema(description = "Platform the event was recorded from. Null where the client sent none, "

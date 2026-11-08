@@ -8,6 +8,7 @@ import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.common.entity.AttachmentDto;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -80,6 +81,9 @@ public interface AttachmentRepository extends JpaRepository<Attachment, Long>, J
      * @return The attachment, if it belongs to that organization
      */
     Optional<Attachment> findByIdAndOrganization_Id(Long id, Long organizationId);
+
+    /** Organization-explicit lookup of several attachments by id, oldest first. */
+    List<Attachment> findByIdInAndOrganization_IdOrderByIdAsc(Collection<Long> ids, Long organizationId);
 
     /**
      * Documents of one entity type whose expiry falls on or before a cutoff, soonest first.

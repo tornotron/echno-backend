@@ -1,0 +1,40 @@
+{
+  "documentId": "6d1f3a7e-2222-4c1e-9c3a-000000000002",
+  "fileType": "XLS",
+  "sourceSha256": "efb3f44fe1455bc3c5662294d95386c631d32e24003c8fb60ab878a0f3a70f82",
+  "sourceSizeBytes": 5632,
+  "workerVersion": "<version>",
+  "sheets": [
+    {
+      "index": 0,
+      "name": "BOQ",
+      "hidden": false,
+      "rowCount": 8,
+      "columnCount": 6,
+      "merged": [
+        "B6:B7",
+        "A1:F1"
+      ]
+    },
+    {
+      "index": 1,
+      "name": "Notes",
+      "hidden": true,
+      "rowCount": 1,
+      "columnCount": 1,
+      "merged": []
+    },
+    {
+      "index": 2,
+      "name": "Rates",
+      "hidden": false,
+      "rowCount": 1,
+      "columnCount": 2,
+      "merged": []
+    }
+  ],
+  "pageCount": null,
+  "warnings": [
+    "Formulas in an .xls file cannot be told apart from typed values; the values shown are the results saved in the file."
+  ]
+}

@@ -66,7 +66,7 @@ public class ReceiptDto {
 
     @Schema(description = "Name of the person or company the amount was received from. Required "
             + "by the create and update endpoints, so a null belongs to a row written outside "
-            + "them.", example = "Asset Homes Pvt Ltd", nullable = true)
+            + "them.", example = "Riverside Builders Pvt Ltd", nullable = true)
     private String receivedFrom;
 
     @Schema(description = "Address of the payer. Null where none was recorded.",

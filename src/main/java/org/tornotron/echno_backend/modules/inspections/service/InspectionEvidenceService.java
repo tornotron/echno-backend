@@ -28,6 +28,8 @@ import java.util.Map;
 import java.util.LinkedHashMap;
 import java.util.Set;
 import java.util.UUID;
+import org.tornotron.echno_backend.modules.inspections.observation.EvidenceInUseByRegionException;
+import org.tornotron.echno_backend.modules.inspections.repositories.ObservationRegionRepository;
 
 /**
  * The files an inspection rests on: the permit, the certificate, the test report, the photograph
@@ -85,6 +87,8 @@ public class InspectionEvidenceService {
     private final AttachmentService attachmentService;
     private final AttachmentMapper attachmentMapper;
     private final InspectionEventRecorder events;
+    private final ObservationRegionRepository regionRepo;
+    private final EvidenceFileLookup evidenceFiles;
 
     /**
      * The evidence filed against one inspection, oldest first, each with a short-lived download
@@ -118,6 +122,7 @@ public class InspectionEvidenceService {
                 .map(attachmentMapper::toDto)
                 .toList();
         recordAttached(inspection, stored);
+        evidenceFiles.inspectionImagesStored(inspection.getId(), inspection.getProjectId(), stored);
         log.info("Filed {} pieces of evidence against inspection {}",
                 stored.size(), inspection.getInspectionNumber());
         return stored;
@@ -155,6 +160,7 @@ public class InspectionEvidenceService {
                 .map(attachmentMapper::toDto)
                 .toList();
         recordAttached(inspection, stored);
+        evidenceFiles.inspectionImagesStored(inspection.getId(), inspection.getProjectId(), stored);
         log.info("Registered {} pieces of evidence against inspection {}",
                 stored.size(), inspection.getInspectionNumber());
         return stored;
@@ -168,11 +174,16 @@ public class InspectionEvidenceService {
      * @throws ResourceNotFoundException if the inspection is not in this tenant, or the file is
      *                                   not filed against it.
      * @throws InvalidRequestException   if the inspection has reached a verdict.
+     * @throws EvidenceInUseByRegionException if an observation region is drawn on the file.
      */
     @Transactional
     public void delete(UUID inspectionId, Long attachmentId) {
         Inspection inspection = requireInspection(inspectionId);
         requireNoVerdictYet(inspection);
+        List<UUID> drawnOnBy = regionRepo.findObservationIdsByAttachmentScoped(attachmentId);
+        if (!drawnOnBy.isEmpty()) {
+            throw new EvidenceInUseByRegionException(attachmentId, drawnOnBy);
+        }
         attachmentService.deleteAttachmentOf(InspectionEvidence.ownerOf(inspectionId), attachmentId);
         events.record(InspectionEventSubject.inspection(inspection), InspectionEventType.EVIDENCE_REMOVED,
                 Map.of("attachmentId", attachmentId), null, null);

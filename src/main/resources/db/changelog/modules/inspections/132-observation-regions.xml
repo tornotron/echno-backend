@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Geometry for observations: a box or polygon on one image, with a class and a score. Rows
+        are never updated in place; a reviewer's correction is a new row that supersedes the
+        producer's, which is retired. Coordinates are fractions of the image in [0, 1] at scale 6,
+        as inspection_defect_annotations. attachment_id is a real FK with on delete restrict: the
+        image under a decision record cannot be deleted from under it. Design:
+        docs/specs/2026-10-26-cv-phase4-design.md, section 4.1.
+    -->
+
+    <changeSet id="132-01-create-inspection-observation-regions" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="inspection_observation_regions"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="inspection_observation_regions">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" primaryKeyName="pk_inspection_observation_regions" nullable="false"/>
+            </column>
+            <column name="organization_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="observation_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="attachment_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="shape" type="VARCHAR(10)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="x1" type="NUMERIC(9,6)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="y1" type="NUMERIC(9,6)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="x2" type="NUMERIC(9,6)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="y2" type="NUMERIC(9,6)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="points" type="JSONB"/>
+            <column name="image_width" type="INT"/>
+            <column name="image_height" type="INT"/>
+            <column name="class_key" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="score" type="NUMERIC(5,4)"/>
+            <column name="origin" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="supersedes_id" type="UUID"/>
+            <column name="retired_at" type="TIMESTAMP"/>
+            <column name="retired_by_id" type="BIGINT"/>
+            <column name="line_order" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_by_id" type="BIGINT"/>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="inspection_observation_regions" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_insp_obs_region_organization"/>
+        <addForeignKeyConstraint baseTableName="inspection_observation_regions" baseColumnNames="observation_id"
+                                 referencedTableName="inspection_observations" referencedColumnNames="id"
+                                 constraintName="fk_insp_obs_region_observation" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseTableName="inspection_observation_regions" baseColumnNames="attachment_id"
+                                 referencedTableName="attachment" referencedColumnNames="id"
+                                 constraintName="fk_insp_obs_region_attachment" onDelete="RESTRICT"/>
+        <addForeignKeyConstraint baseTableName="inspection_observation_regions" baseColumnNames="supersedes_id"
+                                 referencedTableName="inspection_observation_regions" referencedColumnNames="id"
+                                 constraintName="fk_insp_obs_region_supersedes"/>
+
+        <createIndex tableName="inspection_observation_regions" indexName="idx_insp_obs_region_observation">
+            <column name="observation_id"/>
+        </createIndex>
+        <createIndex tableName="inspection_observation_regions" indexName="idx_insp_obs_region_attachment">
+            <column name="attachment_id"/>
+        </createIndex>
+        <createIndex tableName="inspection_observation_regions" indexName="idx_insp_obs_region_org_class">
+            <column name="organization_id"/>
+            <column name="class_key"/>
+        </createIndex>
+
+        <!-- The service validates all of this; the checks keep a direct write from storing a shape no reader expects. -->
+        <sql>
+            ALTER TABLE inspection_observation_regions
+                ADD CONSTRAINT ck_insp_obs_region_shape CHECK (shape IN ('BOX', 'POLYGON')),
+                ADD CONSTRAINT ck_insp_obs_region_origin CHECK (origin IN ('PRODUCER', 'REVIEWER', 'HUMAN')),
+                ADD CONSTRAINT ck_insp_obs_region_box CHECK (
+                    x1 &gt;= 0 AND y1 &gt;= 0 AND x2 &lt;= 1 AND y2 &lt;= 1 AND x1 &lt; x2 AND y1 &lt; y2),
+                ADD CONSTRAINT ck_insp_obs_region_points CHECK ((shape = 'POLYGON') = (points IS NOT NULL)),
+                ADD CONSTRAINT ck_insp_obs_region_score CHECK (score IS NULL OR (score &gt;= 0 AND score &lt;= 1))
+        </sql>
+
+        <rollback>
+            <dropTable tableName="inspection_observation_regions"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="132-02-observation-reject-reason-and-review-batch" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="inspection_observations" columnName="reject_reason"/>
+            </not>
+        </preConditions>
+
+        <addColumn tableName="inspection_observations">
+            <column name="reject_reason" type="VARCHAR(30)"/>
+            <column name="review_batch_id" type="UUID"/>
+        </addColumn>
+
+        <rollback>
+            <dropColumn tableName="inspection_observations" columnName="review_batch_id"/>
+            <dropColumn tableName="inspection_observations" columnName="reject_reason"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

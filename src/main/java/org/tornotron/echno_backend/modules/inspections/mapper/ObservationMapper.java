@@ -9,5 +9,6 @@ import org.tornotron.echno_backend.modules.inspections.dtos.ObservationDto;
 public interface ObservationMapper {
 
     @Mapping(target = "spatialPath", expression = "java(java.util.List.of())")
+    @Mapping(target = "regions", expression = "java(java.util.List.of())")
     ObservationDto toDto(Observation observation);
 }

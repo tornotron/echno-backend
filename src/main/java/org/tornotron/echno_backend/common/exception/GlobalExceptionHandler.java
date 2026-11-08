@@ -4,6 +4,7 @@ import org.tornotron.echno_backend.billing.gateway.BillingNotConfiguredException
 import org.tornotron.echno_backend.billing.gateway.MandatePolicyViolationException;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ValidationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.CannotAcquireLockException;
@@ -204,6 +205,23 @@ public class GlobalExceptionHandler {
         return pd;
     }
 
+    /**
+     * A service refusing a request for a reason it states, such as an attendance correction for an
+     * employee with no shift. Attendance and billing raise this directly and their endpoints
+     * document a 400; with no handler it reached the catch-all and answered 500.
+     *
+     * <p>Only the type itself means that. Its subclasses come from the validation framework
+     * reporting a badly declared constraint, which is a server fault and stays a 500.
+     */
+    @ExceptionHandler(ValidationException.class)
+    public ProblemDetail handleRefusedRequest(ValidationException ex, WebRequest request) {
+        if (ex.getClass() != ValidationException.class) {
+            return handleAllUncaughtException(ex, request);
+        }
+        logger.info("Request refused: {}", ex.getMessage());
+        return problem(HttpStatus.BAD_REQUEST, "Invalid Request", ex.getMessage(), request);
+    }
+
     @ExceptionHandler(DataIntegrityViolationException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
     public ProblemDetail handleDataIntegrityViolationException(DataIntegrityViolationException ex, WebRequest request) {
@@ -232,7 +250,12 @@ public class GlobalExceptionHandler {
         String detail = (ex.getMessage() == null || ex.getMessage().isBlank())
                 ? "Database operation failed, Data already exists"
                 : ex.getMessage();
-        return problem(HttpStatus.CONFLICT, "Duplicate Resource", detail, request);
+        ProblemDetail pd = problem(HttpStatus.CONFLICT, "Duplicate Resource", detail, request);
+        if (ex.getField() != null) {
+            // Same key and shape as a validation failure, so a form marks the taken field.
+            pd.setProperty("errors", Map.of(ex.getField(), detail));
+        }
+        return pd;
     }
 
     @ExceptionHandler(AccessDeniedException.class)
@@ -310,11 +333,25 @@ public class GlobalExceptionHandler {
                 "An unexpected error occurred: " + ex.getMessage(), request);
     }
 
+    /**
+     * A request body that could not be read. Says what is actually wrong with it, because "missing"
+     * for every failure hid a date-time format mismatch behind a registration outage: "missing" is
+     * kept for a body that really is empty, and a field that failed to parse is named along with
+     * what it expects.
+     *
+     * <p>Built from the failure's parts and never from its message, which quotes the rejected
+     * value. The value can be anything a client typed, so it stays out of the answer and the log.
+     */
     @ExceptionHandler(HttpMessageNotReadableException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ProblemDetail handleMissingRequestBody(HttpMessageNotReadableException ex, WebRequest request) {
-        logger.error("Missing request body: ", ex);
-        return problem(HttpStatus.BAD_REQUEST, "Malformed Request", "Required request body is missing", request);
+    public ProblemDetail handleUnreadableRequestBody(HttpMessageNotReadableException ex, WebRequest request) {
+        UnreadableBody unreadable = UnreadableBody.of(ex);
+        logger.info("Unreadable request body: {}", unreadable.detail());
+        ProblemDetail pd = problem(HttpStatus.BAD_REQUEST, "Malformed Request", unreadable.detail(), request);
+        if (unreadable.field() != null) {
+            pd.setProperty("errors", Map.of(unreadable.field(), unreadable.detail()));
+        }
+        return pd;
     }
 
     /**

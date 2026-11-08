@@ -1,5 +1,7 @@
 package org.tornotron.echno_backend.common.exception;
 
+import jakarta.validation.ConstraintDeclarationException;
+import jakarta.validation.ValidationException;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -38,6 +40,16 @@ class FrameworkRequestErrorStatusTest {
             return String.valueOf(converted);
         }
 
+        @GetMapping("/refused")
+        String refused() {
+            throw new ValidationException("No shift timing is assigned to this employee");
+        }
+
+        @GetMapping("/badly-declared-constraint")
+        String badlyDeclaredConstraint() {
+            throw new ConstraintDeclarationException("a constraint is declared wrongly");
+        }
+
         @GetMapping("/needs-header")
         String needsHeader(@RequestHeader("X-Org") String org) {
             return org;
@@ -63,6 +75,22 @@ class FrameworkRequestErrorStatusTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.detail", containsString("converted")));
+    }
+
+    @Test
+    void aServiceRefusingARequest_isA400CarryingItsOwnMessage() throws Exception {
+        mvc.perform(get("/refused"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.title").value("Invalid Request"))
+                .andExpect(jsonPath("$.detail").value("No shift timing is assigned to this employee"));
+    }
+
+    @Test
+    void aBadlyDeclaredConstraint_staysAServerFault() throws Exception {
+        mvc.perform(get("/badly-declared-constraint"))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.status").value(500));
     }
 
     @Test

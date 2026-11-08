@@ -203,6 +203,24 @@ public class MaterialService {
     }
 
     /**
+     * One page of the materials whose name contains the given text, ordered by name with the id
+     * as tie-break. Stock is read for the page's materials only, in one query.
+     *
+     * @param name     Text the material name must contain, ignoring case.
+     * @param pageNo   Zero-based page index.
+     * @param pageSize Rows per page.
+     * @return The requested page.
+     */
+    @Transactional(readOnly = true)
+    public Page<MaterialDto> searchMaterialsByName(String name, int pageNo, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNo, pageSize,
+                Sort.by(Sort.Direction.ASC, "materialName").and(Sort.by(Sort.Direction.ASC, "id")));
+        Page<Material> materials = materialRepository.findByMaterialNameContainingIgnoreCase(name, pageable);
+        MaterialStockLookup stock = stockFor(materials.getContent());
+        return materials.map(material -> materialMapper.toDto(material, stock));
+    }
+
+    /**
      * Applies a partial update to a material.
      *
      * <p>Only the non-null fields on the update DTO are changed. A changed SKU is checked

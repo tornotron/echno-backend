@@ -7,7 +7,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -25,6 +24,9 @@ import org.tornotron.echno_backend.leave.enums.LeaveStatus;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import org.springdoc.core.annotations.ParameterObject;
+import org.tornotron.echno_backend.common.pagination.PageQuery;
+import org.tornotron.echno_backend.common.pagination.PageQuery20;
 
 @RestController
 @RequestMapping("/api/v1/leave-requests")
@@ -90,7 +92,8 @@ public class LeaveRequestController {
     @PreAuthorize("@orgSecurity.isSelfInCurrentTenant(#employeeId)")
     @Operation(
             summary = "List an employee's leave requests",
-            description = "Returns a page of leave requests raised by the employee, across all statuses."
+            description = "Returns a page of leave requests raised by the employee, across all statuses, "
+                    + "newest first."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of requests returned"),
@@ -99,8 +102,9 @@ public class LeaveRequestController {
     })
     public ResponseEntity<Page<LeaveRequestDto>> getEmployeeRequests(
             @PathVariable Long employeeId,
-            Pageable pageable) {
-        return ResponseEntity.ok(requestService.getRequestsByEmployee(employeeId, pageable));
+            @Valid @ParameterObject PageQuery20 pageQuery) {
+        return ResponseEntity.ok(requestService.getRequestsByEmployee(
+                employeeId, pageQuery.getPageNo(), pageQuery.getPageSize()));
     }
 
     @GetMapping("/employeeId/{employeeId}/status/{status}")
@@ -109,17 +113,19 @@ public class LeaveRequestController {
     @Operation(
             summary = "List an employee's leave requests by status",
             description = "Returns the employee's leave requests filtered to the given status, for "
-                    + "example PENDING_APPROVAL or APPROVED."
+                    + "example PENDING_APPROVAL or APPROVED, one page at a time, newest first."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Requests returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No employee with the given id")
     })
-    public ResponseEntity<List<LeaveRequestDto>> getEmployeeRequestsByStatus(
+    public ResponseEntity<Page<LeaveRequestDto>> getEmployeeRequestsByStatus(
             @PathVariable Long employeeId,
-            @PathVariable LeaveStatus status) {
-        return ResponseEntity.ok(requestService.getRequestsByEmployeeAndStatus(employeeId, status));
+            @PathVariable LeaveStatus status,
+            @Valid @ParameterObject PageQuery pageQuery) {
+        return ResponseEntity.ok(requestService.getRequestsByEmployeeAndStatus(
+                employeeId, status, pageQuery.getPageNo(), pageQuery.getPageSize()));
     }
 
     @GetMapping("/organizationId/{organizationId}")
@@ -128,7 +134,8 @@ public class LeaveRequestController {
             + "and @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
     @Operation(
             summary = "List an organization's leave requests",
-            description = "Returns every leave request raised within the given organization, which has to "
+            description = "Returns a page of the leave requests raised within the given organization, newest "
+                    + "first. The organization has to "
                     + "be the caller's own. Identical to the /web twin beside it, which takes the "
                     + "organization from the session instead."
     )
@@ -144,8 +151,10 @@ public class LeaveRequestController {
     // which the service's TenantContext read is the same organization. Whether the route should
     // keep the segment at all is a contract decision; no client calls this route today, both
     // reach the /web twin. See issue #700.
-    public ResponseEntity<List<LeaveRequestDto>> getOrganizationRequests(@PathVariable Long organizationId) {
-        return ResponseEntity.ok(requestService.getRequestsByOrganization());
+    public ResponseEntity<Page<LeaveRequestDto>> getOrganizationRequests(
+            @PathVariable Long organizationId, @Valid @ParameterObject PageQuery pageQuery) {
+        return ResponseEntity.ok(requestService.getRequestsByOrganization(
+                pageQuery.getPageNo(), pageQuery.getPageSize()));
     }
 
     @GetMapping("/pending-approvals")
@@ -157,14 +166,14 @@ public class LeaveRequestController {
                     + "for a role, so an administrator could read a colleague's queue while the managers "
                     + "an approval chain is actually built from could not read their own; a caller that "
                     + "still sends approverId is served their own queue, because a query parameter no "
-                    + "handler declares is ignored."
+                    + "handler declares is ignored. One page at a time, newest first."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Pending requests returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant, or has no employee record in it, so there is no queue to serve")
     })
-    public ResponseEntity<List<LeaveRequestDto>> getPendingApprovals() {
-        return ResponseEntity.ok(requestService.getPendingApprovals());
+    public ResponseEntity<Page<LeaveRequestDto>> getPendingApprovals(@Valid @ParameterObject PageQuery pageQuery) {
+        return ResponseEntity.ok(requestService.getPendingApprovals(pageQuery.getPageNo(), pageQuery.getPageSize()));
     }
 
     @GetMapping("/pending-approvals/count")

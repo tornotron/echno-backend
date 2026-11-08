@@ -28,7 +28,7 @@ import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
                 + "carries its vendor, amount and outstanding balance, and accepts payment records that "
                 + "reduce that balance. Endpoints cover creating payables, recording payments, browsing "
                 + "and filtering by vendor, and listing outstanding items. Access is tenant scoped and "
-                + "gated by the payable authorities, with an admin authority that grants all operations."
+                + "follows the organization roles of the /web twin, endpoint for endpoint."
 )
 public class PayableController {
 
@@ -39,7 +39,7 @@ public class PayableController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAuthority('payable:create') or hasAuthority('payable:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @Operation(
             summary = "Create a payable",
             description = "Creates a payable owed to a vendor with its amount and details."
@@ -47,7 +47,7 @@ public class PayableController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Payable created"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the payable create or admin authority")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
     public ResponseEntity<PayableDto> createPayable(@Valid @RequestBody PayableCreationDto creationDto) {
         PayableDto created = payableService.createPayable(creationDto);
@@ -55,7 +55,7 @@ public class PayableController {
     }
 
     @PostMapping("/{id}/payments")
-    @PreAuthorize("hasAuthority('payable:update') or hasAuthority('payable:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @Operation(
             summary = "Record a payment",
             description = "Records a payment against the given payable, reducing its outstanding balance."
@@ -63,7 +63,7 @@ public class PayableController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Payment recorded"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the payable update or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No payable with the given id")
     })
     public ResponseEntity<PayableDto> recordPayment(
@@ -75,14 +75,14 @@ public class PayableController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('payable:read') or hasAuthority('payable:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @Operation(
             summary = "Get a payable by id",
             description = "Returns a single payable."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Payable found"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the payable read or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No payable with the given id")
     })
     public ResponseEntity<PayableDto> getPayableById(@PathVariable Long id) {
@@ -91,28 +91,28 @@ public class PayableController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAuthority('payable:read') or hasAuthority('payable:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @Operation(
             summary = "List payables",
             description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Payables returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the payable read or admin authority")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
     public ResponseEntity<List<PayableDto>> getAllPayables() {
         return UnpagedResultCap.respond(payableService.getAllPayables(0, UnpagedResultCap.MAX_ROWS));
     }
 
     @GetMapping("/all")
-    @PreAuthorize("hasAuthority('payable:read') or hasAuthority('payable:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @Operation(
             summary = "List payables (paged)",
             description = "Returns a single page of payables controlled by the pageNo and pageSize parameters."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of payables returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the payable read or admin authority")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
     public ResponseEntity<Page<PayableDto>> getAllPayablesPaginated(
             @Valid @ParameterObject PageQuery pageQuery
@@ -122,32 +122,36 @@ public class PayableController {
     }
 
     @GetMapping("/vendor/{vendorId}")
-    @PreAuthorize("hasAuthority('payable:read') or hasAuthority('payable:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @Operation(
             summary = "List payables for a vendor",
             description = "Returns the payables owed to the given vendor."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Payables returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the payable read or admin authority")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public ResponseEntity<List<PayableDto>> getPayablesByVendor(@PathVariable Long vendorId) {
-        List<PayableDto> payables = payableService.getPayablesByVendor(vendorId);
+    public ResponseEntity<Page<PayableDto>> getPayablesByVendor(
+            @PathVariable Long vendorId,
+            @Valid @ParameterObject PageQuery pageQuery) {
+        Page<PayableDto> payables = payableService.getPayablesByVendor(
+                vendorId, pageQuery.getPageNo(), pageQuery.getPageSize());
         return ResponseEntity.ok(payables);
     }
 
     @GetMapping("/outstanding")
-    @PreAuthorize("hasAuthority('payable:read') or hasAuthority('payable:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @Operation(
             summary = "List outstanding payables",
             description = "Returns the payables that still have an outstanding balance."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Outstanding payables returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the payable read or admin authority")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public ResponseEntity<List<PayableDto>> getOutstandingPayables() {
-        List<PayableDto> payables = payableService.getOutstandingPayables();
+    public ResponseEntity<Page<PayableDto>> getOutstandingPayables(@Valid @ParameterObject PageQuery pageQuery) {
+        Page<PayableDto> payables = payableService.getOutstandingPayables(
+                pageQuery.getPageNo(), pageQuery.getPageSize());
         return ResponseEntity.ok(payables);
     }
 }

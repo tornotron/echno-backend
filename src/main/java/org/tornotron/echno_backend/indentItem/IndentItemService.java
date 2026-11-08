@@ -28,6 +28,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Supplier;
+import org.springframework.data.domain.PageImpl;
 
 @Service
 public class IndentItemService {
@@ -137,18 +138,54 @@ public class IndentItemService {
                 (root, query, cb) -> cb.equal(root.get("indent").get("id"), indentId)));
     }
 
+    /**
+     * One page of the same rows, in the order the lines were added.
+     *
+     * @param pageNo   Zero-based page index.
+     * @param pageSize Rows per page.
+     * @return The requested page.
+     */
+    @Transactional(readOnly = true)
+    public Page<IndentItemDto> getIndentItemsByIndentId(Long indentId, int pageNo, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNo, pageSize,
+                Sort.by(Sort.Direction.ASC, "id"));
+        Page<IndentItem> rows = visibleLines(pageable, () -> indentItemRepository.findByIndentId(indentId, pageable),
+                (root, query, cb) -> cb.equal(root.get("indent").get("id"), indentId));
+        return new PageImpl<>(toDtos(rows.getContent()), rows.getPageable(), rows.getTotalElements());
+    }
+
     @Transactional(readOnly = true)
     public List<IndentItemDto> getIndentItemsByMaterialId(Long materialId) {
         return toDtos(visibleLines(() -> indentItemRepository.findByMaterialId(materialId),
                 (root, query, cb) -> cb.equal(root.get("material").get("id"), materialId)));
     }
 
+    /**
+     * One page of the same rows, in the order the lines were added.
+     *
+     * @param pageNo   Zero-based page index.
+     * @param pageSize Rows per page.
+     * @return The requested page.
+     */
+    @Transactional(readOnly = true)
+    public Page<IndentItemDto> getIndentItemsByMaterialId(Long materialId, int pageNo, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNo, pageSize,
+                Sort.by(Sort.Direction.ASC, "id"));
+        Page<IndentItem> rows = visibleLines(pageable, () -> indentItemRepository.findByMaterialId(materialId, pageable),
+                (root, query, cb) -> cb.equal(root.get("material").get("id"), materialId));
+        return new PageImpl<>(toDtos(rows.getContent()), rows.getPageable(), rows.getTotalElements());
+    }
+
     @Transactional(readOnly = true)
     public List<IndentItemDto> getIndentItemsByConversionStatus(Boolean converted) {
         return toDtos(visibleLines(() -> indentItemRepository.findByConvertedToPurchaseOrder(converted),
-                (root, query, cb) -> converted == null
-                        ? cb.isNull(root.get("convertedToPurchaseOrder"))
-                        : cb.equal(root.get("convertedToPurchaseOrder"), converted)));
+                conversionStatus(converted)));
+    }
+
+    private static Specification<IndentItem> conversionStatus(Boolean converted) {
+        return (root, query, cb) -> converted == null
+                ? cb.isNull(root.get("convertedToPurchaseOrder"))
+                : cb.equal(root.get("convertedToPurchaseOrder"), converted);
     }
 
     /**
@@ -166,6 +203,36 @@ public class IndentItemService {
             return unnarrowed.get();
         }
         return indentItemRepository.findAll(condition.and(IndentAccess.linesAdmittedBy(visible)));
+    }
+
+    /** The same, for one page of a lookup: the narrowing is in the query, so the total counts only those. */
+    private Page<IndentItem> visibleLines(Pageable pageable, Supplier<Page<IndentItem>> unnarrowed,
+                                          Specification<IndentItem> condition) {
+        AccessFilter visible = indentAccess.filter(AccessPermission.READ);
+        if (visible.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        if (visible.everything()) {
+            return unnarrowed.get();
+        }
+        return indentItemRepository.findAll(condition.and(IndentAccess.linesAdmittedBy(visible)), pageable);
+    }
+
+    /**
+     * One page of the same rows, in the order the lines were added.
+     *
+     * @param pageNo   Zero-based page index.
+     * @param pageSize Rows per page.
+     * @return The requested page.
+     */
+    @Transactional(readOnly = true)
+    public Page<IndentItemDto> getIndentItemsByConversionStatus(Boolean converted, int pageNo, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNo, pageSize,
+                Sort.by(Sort.Direction.ASC, "id"));
+        Page<IndentItem> rows = visibleLines(pageable,
+                () -> indentItemRepository.findByConvertedToPurchaseOrder(converted, pageable),
+                conversionStatus(converted));
+        return new PageImpl<>(toDtos(rows.getContent()), rows.getPageable(), rows.getTotalElements());
     }
 
     @Transactional

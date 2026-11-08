@@ -19,7 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * An employee's request for time off, from draft through the multi-level approval workflow.
+ * An employee's request for time off, from draft through approval.
  *
  * <p>Carries the leave dates, total days, and current position in the approval chain
  * ({@code currentApprover}, {@code currentApprovalLevel}, {@code maxApprovalLevel}), and owns the

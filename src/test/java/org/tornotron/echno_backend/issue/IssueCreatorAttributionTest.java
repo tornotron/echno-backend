@@ -82,7 +82,9 @@ class IssueCreatorAttributionTest {
         factory = Validation.buildDefaultValidatorFactory();
         service = new IssueService(issueRepository, taskRepository, attachmentService, issueMapper,
                 employeeRepository, currentEmployeeService,
-                new PayloadValidator(factory.getValidator()));
+                new PayloadValidator(factory.getValidator()),
+                org.mockito.Mockito.mock(org.tornotron.echno_backend.project.ProjectRepository.class),
+                org.mockito.Mockito.mock(org.tornotron.echno_backend.category.CategoryRepository.class));
         TenantContext.setCurrentOrgId(ORG_ID);
 
         Organization organization = new Organization();

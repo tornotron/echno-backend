@@ -33,7 +33,7 @@ import org.tornotron.echno_backend.organization.dto.OrganizationUpdateFieldsDto;
         name = "Organizations",
         description = "Tenant-scoped organization access for the current user: creating an organization, "
                 + "listing and reading the organizations the caller is a member of, and updating or "
-                + "deleting an organization the caller administers. Companies such as Asset Homes are "
+                + "deleting an organization the caller administers. Companies such as Riverside Builders are "
                 + "represented as an organization."
 )
 public class OrganizationWebController {

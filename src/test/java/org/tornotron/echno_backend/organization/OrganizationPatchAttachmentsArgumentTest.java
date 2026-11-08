@@ -92,7 +92,7 @@ class OrganizationPatchAttachmentsArgumentTest {
 
         MockMultipartFile data = new MockMultipartFile(
                 "data", "", MediaType.APPLICATION_JSON_VALUE,
-                "{\"organizationName\":\"Asset Homes Kerala\"}".getBytes(StandardCharsets.UTF_8));
+                "{\"organizationName\":\"Riverside Builders Kerala\"}".getBytes(StandardCharsets.UTF_8));
 
         mockMvc.perform(multipart(HttpMethod.PATCH, "/api/v1/organization/web/{id}", ORG_ID)
                         .file(data)

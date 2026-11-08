@@ -20,16 +20,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * A ratchet over the endpoints still guarded by an authority the realm cannot issue, so the
- * number can only come down and a new one cannot arrive unnoticed.
+ * No endpoint is guarded by an authority the realm cannot issue.
  *
- * <h2>What is being counted</h2>
+ * <h2>What is being looked for</h2>
  *
  * <p>{@code JwtAuthConverter.extractPermissions} is the only place a {@code resource:scope}
  * authority is minted, and it reads the {@code authorization} claim of an RPT. The realm defines
@@ -39,26 +39,13 @@ import static org.assertj.core.api.Assertions.assertThat;
  * every caller; ANDed onto a working check it refuses every caller too. Established by #641,
  * #684, #710 and #716, and inventoried in #734.
  *
- * <p>The raw grep in #734 reported 168 lines containing {@code hasAuthority(}, deliberately as an
- * upper bound. That figure counts commented-out annotations, non-guard uses of the same string in
- * {@code TenantFilter} and {@code OrganizationSecurityService}, and whole modules already
- * repaired. Reading the annotations instead, on {@code development} at the time of writing, the
- * live figure was 136 guards on 17 controllers. This test counts the same way, so a
- * {@code hasAuthority} left in a comment or in prose does not move it.
+ * <p>This used to be a ratchet pinning 128 such guards on 15 mobile controllers, left standing
+ * while no client called the tenant API. The Android app does, so each was aligned with its
+ * {@code /web} twin and the count is now zero. The annotations are read, not grepped, so a
+ * {@code hasAuthority} left in a comment or in prose does not count.
  *
- * <h2>Why the remainder is left standing</h2>
- *
- * <p>Every entry below is a mobile controller whose {@code /web} twin carries the working
- * version, so nothing a user does today is blocked by one. Repairing them is not one decision
- * but three, taken per module: a dead read whose twin is alive is usually a surface that should
- * work, a dead write may still be required (the mobile leave endpoints were repaired for exactly
- * that reason), and an endpoint with no caller anywhere is a removal candidate, which is a change
- * to a published contract rather than a repair to a guard. This map is what that decision has to
- * be taken against.
- *
- * <p>Removing an entry means the controller was repaired or removed. Adding one, or raising a
- * number, means a guard nobody can satisfy has just been written, and the fix is the guard rather
- * than this file.
+ * <p>An endpoint that is meant to stay shut says so with {@code denyAll()} and a comment. The
+ * second test pins that list, so a route cannot be closed, or opened, without it showing here.
  */
 class PhantomAuthorityCensusTest {
 
@@ -79,47 +66,34 @@ class PhantomAuthorityCensusTest {
             PutMapping.class, PatchMapping.class, DeleteMapping.class);
 
     /**
-     * Controller simple name to the number of its request-mapped methods still guarded by an
-     * authority the realm cannot issue. Ordered, so a failure reads as a diff.
+     * The endpoints deliberately refused to every caller, as controller and handler name. Each
+     * carries its reason beside the annotation.
      */
-    private static final Map<String, Integer> EXPECTED = new TreeMap<>(Map.ofEntries(
-            Map.entry("CategoryController", 4),
-            Map.entry("EmployeeController", 1),
-            Map.entry("GoodsReceivedNoteController", 7),
-            Map.entry("IndentController", 9),
-            Map.entry("IndentItemController", 10),
-            Map.entry("InventoryTransactionController", 13),
-            Map.entry("MaterialConsumptionController", 8),
-            Map.entry("MaterialController", 12),
-            Map.entry("OrganizationController", 4),
-            Map.entry("PayableController", 7),
-            Map.entry("ProjectController", 9),
-            Map.entry("SiteTransferController", 10),
-            Map.entry("StorageLocationController", 6),
-            Map.entry("TaskController", 5),
-            Map.entry("VendorController", 23)));
+    private static final Set<String> SHUT_ON_PURPOSE = Set.of(
+            "EmployeeController.createEmployee",
+            "OrganizationController.batchUpdateOrganizations",
+            "OrganizationController.readAllOrganizationsByCreatorId");
 
     @Test
-    void theRemainingPhantomGuardsAreExactlyTheOnesRecorded() {
-        assertThat(census()).isEqualTo(EXPECTED);
+    void noEndpointIsGuardedByAnAuthorityTheRealmCannotIssue() {
+        assertThat(census()).isEmpty();
     }
 
-    /**
-     * The Issues module and the mobile join route were the coherent subset repaired first, so
-     * naming them keeps the boundary explicit: a phantom guard reappearing on one of these is a
-     * regression rather than a leftover.
-     */
     @Test
-    void theRepairedControllersCarryNoPhantomGuardAtAll() {
-        assertThat(census()).doesNotContainKeys(
-                "IssueController", "IssueCommentController");
-    }
-
-    /** The single remaining employee guard is the create route, which is proposed for removal. */
-    @Test
-    void theOnlyEmployeeGuardLeftIsTheCreateRouteThatCannotSucceed() {
-        assertThat(phantomGuardedMethodNames("EmployeeController"))
-                .containsExactly("createEmployee");
+    void theEndpointsShutOnPurposeAreExactlyTheOnesRecorded() {
+        Set<String> shut = new TreeSet<>();
+        for (Class<?> controller : controllers()) {
+            for (Method method : controller.getDeclaredMethods()) {
+                if (method.isSynthetic() || method.isBridge() || !isRequestMapped(method)) {
+                    continue;
+                }
+                PreAuthorize guard = AnnotatedElementUtils.findMergedAnnotation(method, PreAuthorize.class);
+                if (guard != null && guard.value().replace(" ", "").equals("denyAll()")) {
+                    shut.add(controller.getSimpleName() + "." + method.getName());
+                }
+            }
+        }
+        assertThat(shut).isEqualTo(new TreeSet<>(SHUT_ON_PURPOSE));
     }
 
     /** Guards against the whole thing passing because the scan found nothing to look at. */
@@ -137,15 +111,6 @@ class PhantomAuthorityCensusTest {
             }
         }
         return found;
-    }
-
-    private static List<String> phantomGuardedMethodNames(String simpleName) {
-        for (Class<?> controller : controllers()) {
-            if (controller.getSimpleName().equals(simpleName)) {
-                return phantomGuardedMethodNames(controller);
-            }
-        }
-        throw new AssertionError("No controller named " + simpleName + " on the classpath");
     }
 
     private static List<String> phantomGuardedMethodNames(Class<?> controller) {

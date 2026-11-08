@@ -112,7 +112,7 @@ public class IssueControllerWeb {
     @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "List issues for a project",
-            description = "Returns every issue raised against tasks belonging to the given project."
+            description = "Returns every issue of the given project: the ones linked to it directly and the ones raised on its tasks."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Issues returned"),
@@ -144,12 +144,14 @@ public class IssueControllerWeb {
     @Operation(
             summary = "Create an issue",
             description = "Creates an issue from a multipart request. The data part carries the issue "
-                    + "details as JSON and the optional attachments part carries supporting files. Returns "
-                    + "the created issue as a simple view."
+                    + "details as JSON and the optional attachments part carries supporting files. The "
+                    + "task is optional, but the issue must be connected to a project or a domain (a "
+                    + "work category); a task supplies its own project. Returns the created issue as a "
+                    + "simple view."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Issue created"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The data part is not valid issue JSON, or a field failed validation"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The data part is not valid issue JSON, a field failed validation, the issue names neither a task, a project nor a domain, or it names a project other than its task's"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant, or has no employee record in it, so the record would name nobody")
     })
     public ResponseEntity<IssueSimpleDto> createIssue(

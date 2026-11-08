@@ -155,3 +155,37 @@ Verify and the webhook race safely because both write the projection through the
 key: whichever arrives first activates, the second finds the row live and changes nothing. A
 verify that never comes (the buyer closed the tab) leaves the session `OPEN` until its expiry; the
 webhook still activates the row on its own.
+
+## Bill payments are a separate setup
+
+Everything above collects subscriptions into the platform's own Razorpay account. Paying a contractor's
+bill goes the other way, from the organization's bank account to the contractor, so it uses Razorpay's
+payout product (RazorpayX) with its own keys, account and webhook. Never reuse the keys above for it:
+money would land in the wrong account. Design note:
+`docs/specs/2026-11-08-billing-in-inspection-and-payments.md`.
+
+All under `echno.contract-payments` in `application.yml`.
+
+| Property | Env var | Default | Meaning |
+|----------|---------|---------|---------|
+| `provider` | `ECHNO_CONTRACT_PAYMENTS_PROVIDER` | `none` | `none` is manual: a person pays from the bank and records the reference. `fake` is for testing the flow, and no money moves. `razorpay` is real, or Razorpay's test mode with test keys. |
+| `razorpay.key-id` / `key-secret` | `RAZORPAY_PAYOUT_KEY_ID` / `RAZORPAY_PAYOUT_KEY_SECRET` | empty | The RazorpayX API key pair. |
+| `razorpay.webhook-secret` | `RAZORPAY_PAYOUT_WEBHOOK_SECRET` | empty | The secret entered when the payout webhook is created. |
+| `account-number` | `RAZORPAY_PAYOUT_ACCOUNT_NUMBER` | empty | The RazorpayX account the money is paid from. |
+| `organization-ids` | `RAZORPAY_PAYOUT_ORGANIZATION_IDS` | empty | Comma-separated. Only these organizations are paid through Razorpay, because the account belongs to one of them. Every other organization stays manual. |
+| `razorpay.proxy-host` / `proxy-port` | `RAZORPAY_PROXY_HOST` / `RAZORPAY_PROXY_PORT` | empty / `3128` | The same forward proxy as above, where the host has no direct egress. |
+
+With `razorpay` and any of the keys, the account number or the webhook secret missing, the backend logs a
+warning at startup and every organization stays manual. Without the webhook secret the only way to learn
+an outcome would be asking by hand, so that counts as not configured.
+
+Register the webhook in the RazorpayX dashboard at `POST /api/v1/billing/webhooks/razorpay-payouts`, for the
+`payout.*` events. A delivery with a bad signature gets a 401. One for a payout Echno did not raise is
+acknowledged and dropped.
+
+The first run should be watched in Razorpay's test mode, since the adapter has only been tested against a
+stub: raise a small payment, authorize it, and confirm it settles on the bill and on Finance > Payables.
+If a webhook is missed, Check status on the payment asks Razorpay where it stands.
+
+Never set `fake` on a deployment that real users pay from. It marks payables paid with no money moved. Every
+such payment says so on the page and the timeline, and the backend logs a warning at startup.

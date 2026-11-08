@@ -20,6 +20,8 @@ import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 @Service
 @Validated
@@ -227,6 +229,33 @@ public class NotificationService {
     public Page<NotificationDto> getMyNotifications(Pageable pageable) {
         Long recipientId = currentRecipientId("read your notifications");
         return notificationRepository.findByRecipientIdOrderByCreatedAtDesc(recipientId, pageable)
+                .map(notificationMapper::toDto);
+    }
+
+    /**
+     * One page of the caller's own inbox, newest first, with the id as tie-break.
+     *
+     * @param pageNo   Zero-based page index.
+     * @param pageSize Rows per page.
+     * @return The page of notifications.
+     */
+    @Transactional(readOnly = true)
+    public Page<NotificationDto> getMyNotifications(int pageNo, int pageSize) {
+        return getMyNotifications(PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.DESC, "id")));
+    }
+
+    /**
+     * One page of the caller's own unread notifications, newest first.
+     *
+     * @param pageNo   Zero-based page index.
+     * @param pageSize Rows per page.
+     * @return The page of unread notifications.
+     */
+    @Transactional(readOnly = true)
+    public Page<NotificationDto> getMyUnreadNotifications(int pageNo, int pageSize) {
+        Long recipientId = currentRecipientId("read your notifications");
+        return notificationRepository.findByRecipientIdAndIsReadFalse(recipientId, PageRequest.of(pageNo, pageSize,
+                        Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id"))))
                 .map(notificationMapper::toDto);
     }
 

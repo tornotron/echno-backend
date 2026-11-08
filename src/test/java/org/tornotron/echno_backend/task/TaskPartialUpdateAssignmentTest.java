@@ -62,6 +62,8 @@ class TaskPartialUpdateAssignmentTest {
     @Mock private AttachmentService attachmentService;
     @Mock private TaskMapper taskMapper;
 
+    @Mock private org.tornotron.echno_backend.project.ProjectCompletion projectCompletion;
+
     @InjectMocks private TaskService service;
 
     private Task task;

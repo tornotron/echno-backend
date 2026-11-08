@@ -127,7 +127,7 @@ class AttendanceGeofenceEnforcementTest {
 
         Project project = new Project();
         project.setId(PROJECT_ID);
-        project.setProjectName("Asset Homes Kovilambakkam Phase 2");
+        project.setProjectName("Riverside Towers Phase 2");
         project.setProjectLatitude(projectLatitude);
         project.setProjectLongitude(projectLongitude);
         project.setEmployees(new ArrayList<>());

@@ -18,7 +18,7 @@ import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.modules.inspections.DefectAnnotationShape;
 import org.tornotron.echno_backend.modules.inspections.InspectionCategory;
 import org.tornotron.echno_backend.modules.inspections.InspectionType;
-import org.tornotron.echno_backend.modules.inspections.ObservationSource;
+import org.tornotron.echno_backend.modules.inspections.api.ObservationSource;
 import org.tornotron.echno_backend.modules.inspections.domain.DefectPhotoAnnotation;
 import org.tornotron.echno_backend.modules.inspections.domain.Inspection;
 import org.tornotron.echno_backend.modules.inspections.domain.InspectionDefect;
@@ -189,7 +189,7 @@ class DatasetExportServiceTest {
     }
 
     @Test
-    void copiesEachImageOnceToTheRunPrefixAndRecordsIt() {
+    void copiesEachImageOnceToTheRunPrefixAndRecordsIt() throws Exception {
         DatasetExportRunDto run = service.runForOrganization(ORG, "user:1");
 
         assertThat(run.status()).isEqualTo(DatasetExportRunStatus.COMPLETED);
@@ -203,7 +203,7 @@ class DatasetExportServiceTest {
         verify(fileStorageService).copyObjectTo(EVIDENCE_KEY, "echno-datasets",
                 prefix + "inspection-evidence/att-11-slab-crack.jpg");
         verify(fileStorageService).copyObjectTo(eq(DEFECT_PHOTO_KEY), eq("echno-datasets"),
-                eq(prefix + "defect-photos/" + Integer.toHexString(DEFECT_PHOTO_REF.hashCode()) + "-defect-1.jpg"));
+                eq(prefix + "defect-photos/" + sha256Hex(DEFECT_PHOTO_REF) + "-defect-1.jpg"));
         verify(fileStorageService).copyObjectTo(OBSERVATION_KEY, "echno-datasets",
                 prefix + "observation-evidence/att-13-rover-frame.png");
         // the PDF was never copied, and the photo referenced by two defects was copied once
@@ -226,11 +226,11 @@ class DatasetExportServiceTest {
 
         JsonNode evidence = lines.get(0);
         assertThat(fieldNames(evidence)).containsExactly("evidence_id", "source", "source_ref", "attachment_id",
-                "object_key", "source_object_key", "org_id", "consent_org_id", "project_id", "inspection_id",
+                "object_key", "source_object_key", "org_id", "consent", "consent_org_id", "project_id", "inspection_id",
                 "spatial_node_id", "spatial_breadcrumb", "trade", "inspection_type", "inspection_category",
                 "captured_at", "uploaded_at", "device", "content_type", "file_size", "annotation_version",
                 "annotations", "licence", "anonymised", "run_id");
-        assertThat(evidence.get("evidence_id").asText()).isEqualTo("inspection_evidence:11");
+        assertThat(evidence.get("evidence_id").asText()).isEqualTo("inspection_evidence.11");
         assertThat(evidence.get("source").asText()).isEqualTo("inspection_evidence");
         assertThat(evidence.get("source_ref").asText()).isEqualTo("inspection:" + inspection.getId());
         assertThat(evidence.get("attachment_id").asLong()).isEqualTo(11L);
@@ -238,6 +238,7 @@ class DatasetExportServiceTest {
                 .isEqualTo("construction-images/export/" + run.runKey() + "/inspection-evidence/att-11-slab-crack.jpg");
         assertThat(evidence.get("source_object_key").asText()).isEqualTo(EVIDENCE_KEY);
         assertThat(evidence.get("org_id").asLong()).isEqualTo(ORG);
+        assertThat(evidence.get("consent").booleanValue()).isTrue();
         assertThat(evidence.get("consent_org_id").asLong()).isEqualTo(ORG);
         assertThat(evidence.get("project_id").asLong()).isEqualTo(42L);
         assertThat(evidence.get("spatial_node_id").asText()).isEqualTo(nodeId.toString());
@@ -271,7 +272,7 @@ class DatasetExportServiceTest {
         JsonNode photo = manifestLines(run).get(1);
 
         assertThat(photo.get("source").asText()).isEqualTo("defect_photo");
-        assertThat(photo.get("evidence_id").asText()).isEqualTo("defect_photo:" + DEFECT_PHOTO_REF);
+        assertThat(photo.get("evidence_id").asText()).isEqualTo("defect_photo." + sha256Hex(DEFECT_PHOTO_REF));
         assertThat(photo.get("attachment_id").isNull()).isTrue();
         assertThat(photo.get("annotation_version").asText()).isEqualTo("a0");
         JsonNode boxes = photo.get("annotations");
@@ -284,6 +285,23 @@ class DatasetExportServiceTest {
         assertThat(boxes.get(0).get("line_order").asInt()).isZero();
         assertThat(boxes.get(1).get("label").asText()).isEqualTo("honeycombing");
         assertThat(boxes.get(1).get("line_order").asInt()).isEqualTo(1);
+    }
+
+    @Test
+    void consentWithdrawnBetweenStartAndExecuteCancelsTheRunWithNothingWritten() {
+        DatasetExportRunDto started = service.start(ORG, "user:1");
+        org.setDatasetConsent(false); // withdrawn after the run was started
+
+        DatasetExportRunDto run = service.execute(started.id(), ORG);
+
+        assertThat(run.status()).isEqualTo(DatasetExportRunStatus.CANCELLED);
+        assertThat(run.errorMessage()).contains("withdrew dataset consent");
+        assertThat(run.finishedAt()).isNotNull();
+        assertThat(run.exportedCount()).isZero();
+        assertThat(run.manifestKey()).isNull();
+        verify(fileStorageService, never()).copyObjectTo(anyString(), anyString(), anyString());
+        verify(fileStorageService, never()).putObject(anyString(), anyString(), any(byte[].class), anyString());
+        verify(itemRepository, never()).save(any());
     }
 
     @Test
@@ -305,6 +323,28 @@ class DatasetExportServiceTest {
     }
 
     @Test
+    void twoDefectPhotosWhoseReferencesShareA32BitHashAndABaseNameGetDifferentExportKeys() throws Exception {
+        // "Aa" and "BB" have the same String.hashCode(), so these two references do as well
+        String first = "https://cdn.example.test/Aa/photo.jpg";
+        String second = "https://cdn.example.test/BB/photo.jpg";
+        assertThat(first.hashCode()).isEqualTo(second.hashCode());
+        when(fileStorageService.keyForStoredReference(first)).thenReturn(Optional.of("Aa/photo.jpg"));
+        when(fileStorageService.keyForStoredReference(second)).thenReturn(Optional.of("BB/photo.jpg"));
+        InspectionDefect defect = new InspectionDefect();
+        defect.setInspection(inspection);
+        defect.setPhotos(new ArrayList<>(List.of(first, second)));
+        when(inspectionRepository.findDefectsForOrganization(ORG)).thenReturn(List.of(defect));
+
+        DatasetExportRunDto run = service.runForOrganization(ORG, "user:1");
+
+        String folder = "construction-images/export/" + run.runKey() + "/defect-photos/";
+        verify(fileStorageService).copyObjectTo("Aa/photo.jpg", "echno-datasets",
+                folder + sha256Hex(first) + "-photo.jpg");
+        verify(fileStorageService).copyObjectTo("BB/photo.jpg", "echno-datasets",
+                folder + sha256Hex(second) + "-photo.jpg");
+    }
+
+    @Test
     void aFailedCopyIsCountedAndTheRunGoesOn() {
         doThrow(new IllegalStateException("boom")).when(fileStorageService)
                 .copyObjectTo(eq(EVIDENCE_KEY), anyString(), anyString());
@@ -315,6 +355,41 @@ class DatasetExportServiceTest {
         assertThat(run.failedCount()).isEqualTo(1);
         assertThat(run.exportedCount()).isEqualTo(2);
         verify(fileStorageService).copyObjectTo(eq(OBSERVATION_KEY), anyString(), anyString());
+    }
+
+    @Test
+    void oneDefectPhotoOnTwoInspectionsIsOneLineOneCopyAndOneLedgerRowCarryingTheMarksOfBoth() throws Exception {
+        Inspection other = new Inspection();
+        other.setId(UUID.randomUUID());
+        other.setOrganization(org);
+        other.setProjectId(42L);
+        InspectionDefect onFirst = new InspectionDefect();
+        onFirst.setInspection(inspection);
+        onFirst.setPhotos(new ArrayList<>(List.of(DEFECT_PHOTO_REF)));
+        InspectionDefect onOther = new InspectionDefect();
+        onOther.setInspection(other);
+        onOther.setPhotos(new ArrayList<>(List.of(DEFECT_PHOTO_REF)));
+        when(inspectionRepository.findDefectsForOrganization(ORG)).thenReturn(List.of(onFirst, onOther));
+        when(annotationRepository.findByOrganization_IdOrderByPhotoAscLineOrderAsc(ORG)).thenReturn(List.of(
+                mark(inspection.getId(), DEFECT_PHOTO_REF, "0.10", "0.20", "0.30", "0.40", "crack", 0),
+                mark(other.getId(), DEFECT_PHOTO_REF, "0.50", "0.50", "0.90", "0.95", "spalling", 0)));
+
+        DatasetExportRunDto run = service.runForOrganization(ORG, "user:1");
+
+        verify(fileStorageService, times(1)).copyObjectTo(eq(DEFECT_PHOTO_KEY), anyString(), anyString());
+        ArgumentCaptor<DatasetExportedItem> items = ArgumentCaptor.forClass(DatasetExportedItem.class);
+        verify(itemRepository, times(3)).save(items.capture());
+        assertThat(items.getAllValues()).extracting(DatasetExportedItem::getSourceRef)
+                .containsOnlyOnce(DEFECT_PHOTO_REF);
+
+        List<JsonNode> photoLines = manifestLines(run).stream()
+                .filter(line -> line.get("source").asText().equals("defect_photo"))
+                .toList();
+        assertThat(photoLines).hasSize(1);
+        JsonNode line = photoLines.get(0);
+        assertThat(line.get("inspection_id").asText()).isEqualTo(inspection.getId().toString());
+        assertThat(line.get("annotations")).extracting(box -> box.get("label").asText())
+                .containsExactlyInAnyOrder("crack", "spalling");
     }
 
     @Test
@@ -402,6 +477,11 @@ class DatasetExportServiceTest {
             }
         }
         return lines;
+    }
+
+    private static String sha256Hex(String value) throws Exception {
+        return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
+                .digest(value.getBytes(StandardCharsets.UTF_8)));
     }
 
     private static List<String> fieldNames(JsonNode node) {

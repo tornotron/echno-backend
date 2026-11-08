@@ -27,8 +27,8 @@ import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
                 + "identifiers, bank accounts and payment terms. A vendor carries a name and the nested "
                 + "records used for procurement and payables. Endpoints cover creating, browsing, "
                 + "searching, updating and deleting vendors and their sub-records, and reading a vendor "
-                + "summary. Access is tenant scoped and gated by the vendor authorities, with an admin "
-                + "authority that grants all operations."
+                + "summary. Access is tenant scoped and follows the organization roles of the "
+                + "/web twin, endpoint for endpoint."
 )
 public class VendorController {
 
@@ -43,7 +43,7 @@ public class VendorController {
     // ==================== Vendor Endpoints ====================
 
     @PostMapping
-    @PreAuthorize("hasAuthority('vendor:create') or hasAuthority('vendor:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @Operation(
             summary = "Create a vendor",
             description = "Creates a vendor record in the current tenant with its identifying details."
@@ -51,7 +51,7 @@ public class VendorController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Vendor created"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the vendor create or admin authority")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
     public ResponseEntity<VendorDto> createVendor(@Valid @RequestBody VendorCreationDto creationDto) {
         VendorDto created = vendorService.createVendor(creationDto);
@@ -59,14 +59,14 @@ public class VendorController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('vendor:read') or hasAuthority('vendor:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "Get a vendor by id",
             description = "Returns a single vendor."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Vendor found"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the vendor read or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No vendor with the given id")
     })
     public ResponseEntity<VendorDto> getVendorById(@PathVariable Long id) {
@@ -75,28 +75,28 @@ public class VendorController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAuthority('vendor:read') or hasAuthority('vendor:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "List vendors",
             description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Vendors returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the vendor read or admin authority")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
     public ResponseEntity<List<VendorDto>> getAllVendors() {
         return UnpagedResultCap.respond(vendorService.getAllVendors(0, UnpagedResultCap.MAX_ROWS));
     }
 
     @GetMapping("/all")
-    @PreAuthorize("hasAuthority('vendor:read') or hasAuthority('vendor:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "List vendors (paged)",
             description = "Returns a single page of vendors controlled by the pageNo and pageSize parameters."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of vendors returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the vendor read or admin authority")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
     public ResponseEntity<Page<VendorDto>> getAllVendorsPaginated(
             @Valid @ParameterObject PageQuery pageQuery
@@ -106,22 +106,25 @@ public class VendorController {
     }
 
     @GetMapping("/search")
-    @PreAuthorize("hasAuthority('vendor:read') or hasAuthority('vendor:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "Search vendors by name",
             description = "Returns vendors whose name matches the given search term."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Matching vendors returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the vendor read or admin authority")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public ResponseEntity<List<VendorDto>> searchVendors(@RequestParam String name) {
-        List<VendorDto> vendors = vendorService.searchVendorsByName(name);
+    public ResponseEntity<Page<VendorDto>> searchVendors(
+            @RequestParam String name,
+            @Valid @ParameterObject PageQuery pageQuery) {
+        Page<VendorDto> vendors = vendorService.searchVendorsByName(
+                name, pageQuery.getPageNo(), pageQuery.getPageSize());
         return ResponseEntity.ok(vendors);
     }
 
     @PatchMapping("/{id}")
-    @PreAuthorize("hasAuthority('vendor:update') or hasAuthority('vendor:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @Operation(
             summary = "Update a vendor",
             description = "Replaces the details of the vendor with the given id."
@@ -129,7 +132,7 @@ public class VendorController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Vendor updated"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the vendor update or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No vendor with the given id")
     })
     public ResponseEntity<VendorDto> updateVendor(
@@ -141,14 +144,14 @@ public class VendorController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('vendor:delete') or hasAuthority('vendor:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @Operation(
             summary = "Delete a vendor",
             description = "Deletes the vendor with the given id."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Vendor deleted"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the vendor delete or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No vendor with the given id")
     })
     public ResponseEntity<ApiResponse> deleteVendor(@PathVariable Long id) {
@@ -159,14 +162,14 @@ public class VendorController {
     // ==================== Summary Endpoint ====================
 
     @GetMapping("/{vendorId}/summary")
-    @PreAuthorize("hasAuthority('vendor:read') or hasAuthority('vendor:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @Operation(
             summary = "Get a vendor summary",
             description = "Returns aggregated summary figures for the given vendor."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Vendor summary returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the vendor read or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No vendor with the given id")
     })
     public ResponseEntity<VendorSummaryDto> getVendorSummary(@PathVariable Long vendorId) {
@@ -176,14 +179,14 @@ public class VendorController {
     // ==================== Contact Endpoints ====================
 
     @GetMapping("/{vendorId}/contacts")
-    @PreAuthorize("hasAuthority('vendor:read') or hasAuthority('vendor:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "List vendor contacts",
             description = "Returns the contacts recorded for the given vendor."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Contacts returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the vendor read or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No vendor with the given id")
     })
     public ResponseEntity<List<VendorContactDto>> getContacts(@PathVariable Long vendorId) {
@@ -191,7 +194,7 @@ public class VendorController {
     }
 
     @PostMapping("/{vendorId}/contacts")
-    @PreAuthorize("hasAuthority('vendor:update') or hasAuthority('vendor:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @Operation(
             summary = "Add a vendor contact",
             description = "Adds a contact to the given vendor."
@@ -199,7 +202,7 @@ public class VendorController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Contact created"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the vendor update or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No vendor with the given id")
     })
     public ResponseEntity<VendorContactDto> addContact(
@@ -210,7 +213,7 @@ public class VendorController {
     }
 
     @PatchMapping("/{vendorId}/contacts/{contactId}")
-    @PreAuthorize("hasAuthority('vendor:update') or hasAuthority('vendor:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @Operation(
             summary = "Update a vendor contact",
             description = "Replaces the details of a contact belonging to the given vendor."
@@ -218,7 +221,7 @@ public class VendorController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Contact updated"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the vendor update or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No vendor or contact with the given id")
     })
     public ResponseEntity<VendorContactDto> updateContact(
@@ -230,14 +233,14 @@ public class VendorController {
     }
 
     @DeleteMapping("/{vendorId}/contacts/{contactId}")
-    @PreAuthorize("hasAuthority('vendor:delete') or hasAuthority('vendor:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @Operation(
             summary = "Delete a vendor contact",
             description = "Deletes a contact belonging to the given vendor."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Contact deleted"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the vendor delete or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No vendor or contact with the given id")
     })
     public ResponseEntity<ApiResponse> deleteContact(
@@ -251,14 +254,14 @@ public class VendorController {
     // ==================== Tax Identifier Endpoints ====================
 
     @GetMapping("/{vendorId}/tax-identifiers")
-    @PreAuthorize("hasAuthority('vendor:read') or hasAuthority('vendor:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @Operation(
             summary = "List vendor tax identifiers",
             description = "Returns the tax identifiers recorded for the given vendor."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Tax identifiers returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the vendor read or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No vendor with the given id")
     })
     public ResponseEntity<List<VendorTaxIdentifierDto>> getTaxIdentifiers(@PathVariable Long vendorId) {
@@ -266,7 +269,7 @@ public class VendorController {
     }
 
     @PostMapping("/{vendorId}/tax-identifiers")
-    @PreAuthorize("hasAuthority('vendor:update') or hasAuthority('vendor:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @Operation(
             summary = "Add a vendor tax identifier",
             description = "Adds a tax identifier to the given vendor."
@@ -274,7 +277,7 @@ public class VendorController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Tax identifier created"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the vendor update or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No vendor with the given id")
     })
     public ResponseEntity<VendorTaxIdentifierDto> addTaxIdentifier(
@@ -285,7 +288,7 @@ public class VendorController {
     }
 
     @PatchMapping("/{vendorId}/tax-identifiers/{taxIdId}")
-    @PreAuthorize("hasAuthority('vendor:update') or hasAuthority('vendor:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @Operation(
             summary = "Update a vendor tax identifier",
             description = "Replaces the details of a tax identifier belonging to the given vendor."
@@ -293,7 +296,7 @@ public class VendorController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Tax identifier updated"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the vendor update or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No vendor or tax identifier with the given id")
     })
     public ResponseEntity<VendorTaxIdentifierDto> updateTaxIdentifier(
@@ -305,14 +308,14 @@ public class VendorController {
     }
 
     @DeleteMapping("/{vendorId}/tax-identifiers/{taxIdId}")
-    @PreAuthorize("hasAuthority('vendor:delete') or hasAuthority('vendor:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @Operation(
             summary = "Delete a vendor tax identifier",
             description = "Deletes a tax identifier belonging to the given vendor."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Tax identifier deleted"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the vendor delete or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No vendor or tax identifier with the given id")
     })
     public ResponseEntity<ApiResponse> deleteTaxIdentifier(
@@ -326,14 +329,14 @@ public class VendorController {
     // ==================== Bank Account Endpoints ====================
 
     @GetMapping("/{vendorId}/bank-accounts")
-    @PreAuthorize("hasAuthority('vendor:read') or hasAuthority('vendor:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @Operation(
             summary = "List vendor bank accounts",
             description = "Returns the bank accounts recorded for the given vendor."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Bank accounts returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the vendor read or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No vendor with the given id")
     })
     public ResponseEntity<List<VendorBankAccountDto>> getBankAccounts(@PathVariable Long vendorId) {
@@ -341,7 +344,7 @@ public class VendorController {
     }
 
     @PostMapping("/{vendorId}/bank-accounts")
-    @PreAuthorize("hasAuthority('vendor:update') or hasAuthority('vendor:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @Operation(
             summary = "Add a vendor bank account",
             description = "Adds a bank account to the given vendor."
@@ -349,7 +352,7 @@ public class VendorController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Bank account created"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the vendor update or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No vendor with the given id")
     })
     public ResponseEntity<VendorBankAccountDto> addBankAccount(
@@ -360,7 +363,7 @@ public class VendorController {
     }
 
     @PatchMapping("/{vendorId}/bank-accounts/{accountId}")
-    @PreAuthorize("hasAuthority('vendor:update') or hasAuthority('vendor:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @Operation(
             summary = "Update a vendor bank account",
             description = "Replaces the details of a bank account belonging to the given vendor."
@@ -368,7 +371,7 @@ public class VendorController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Bank account updated"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the vendor update or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No vendor or bank account with the given id")
     })
     public ResponseEntity<VendorBankAccountDto> updateBankAccount(
@@ -380,14 +383,14 @@ public class VendorController {
     }
 
     @DeleteMapping("/{vendorId}/bank-accounts/{accountId}")
-    @PreAuthorize("hasAuthority('vendor:delete') or hasAuthority('vendor:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @Operation(
             summary = "Delete a vendor bank account",
             description = "Deletes a bank account belonging to the given vendor."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Bank account deleted"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the vendor delete or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No vendor or bank account with the given id")
     })
     public ResponseEntity<ApiResponse> deleteBankAccount(
@@ -401,14 +404,14 @@ public class VendorController {
     // ==================== Payment Terms Endpoints ====================
 
     @GetMapping("/{vendorId}/payment-terms")
-    @PreAuthorize("hasAuthority('vendor:read') or hasAuthority('vendor:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @Operation(
             summary = "Get vendor payment terms",
             description = "Returns the payment terms recorded for the given vendor."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Payment terms returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the vendor read or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No vendor with the given id")
     })
     public ResponseEntity<VendorPaymentTermsDto> getPaymentTerms(@PathVariable Long vendorId) {
@@ -416,7 +419,7 @@ public class VendorController {
     }
 
     @PutMapping("/{vendorId}/payment-terms")
-    @PreAuthorize("hasAuthority('vendor:update') or hasAuthority('vendor:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @Operation(
             summary = "Set vendor payment terms",
             description = "Sets or replaces the payment terms for the given vendor."
@@ -424,7 +427,7 @@ public class VendorController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Payment terms set"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the vendor update or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No vendor with the given id")
     })
     public ResponseEntity<VendorPaymentTermsDto> setPaymentTerms(
@@ -435,14 +438,14 @@ public class VendorController {
     }
 
     @DeleteMapping("/{vendorId}/payment-terms")
-    @PreAuthorize("hasAuthority('vendor:delete') or hasAuthority('vendor:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
     @Operation(
             summary = "Delete vendor payment terms",
             description = "Deletes the payment terms recorded for the given vendor."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Payment terms deleted"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the vendor delete or admin authority"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No vendor with the given id")
     })
     public ResponseEntity<ApiResponse> deletePaymentTerms(@PathVariable Long vendorId) {

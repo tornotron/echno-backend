@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        The pipeline tables of the document ingestion module: a package of tender files, a row per
+        file, and the job row the ingest worker polls. Column names on the job row are the contract
+        in docs/specs/2026-11-08-ingest-worker-contract.md. Each table is guarded on its own
+        existence, so a rerun or a partly applied environment cannot stop the boot.
+
+        Design: docs/specs/2026-11-08-document-ingestion-design.md, sections 6.3 and 6.4.
+    -->
+
+    <changeSet id="document-ingestion-001-create-package" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="doc_ingest_package"/></not>
+        </preConditions>
+        <createTable tableName="doc_ingest_package">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_doc_ingest_package" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="name" type="VARCHAR(200)"><constraints nullable="false"/></column>
+            <column name="project_id" type="BIGINT"/>
+            <column name="sub_contract_id" type="UUID"/>
+            <column name="stage" type="VARCHAR(20)"><constraints nullable="false"/></column>
+            <column name="status" type="VARCHAR(20)"><constraints nullable="false"/></column>
+            <column name="created_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="updated_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="created_by" type="BIGINT"/>
+            <column name="updated_by" type="BIGINT"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="doc_ingest_package" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_doc_ingest_package_organization"/>
+        <addForeignKeyConstraint baseTableName="doc_ingest_package" baseColumnNames="project_id"
+                                 referencedTableName="project" referencedColumnNames="id"
+                                 constraintName="fk_doc_ingest_package_project"/>
+        <createIndex tableName="doc_ingest_package" indexName="idx_doc_ingest_package_org_created">
+            <column name="organization_id"/>
+            <column name="created_at"/>
+        </createIndex>
+        <createIndex tableName="doc_ingest_package" indexName="idx_doc_ingest_package_project">
+            <column name="project_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="document-ingestion-001-create-document" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="doc_ingest_document"/></not>
+        </preConditions>
+        <createTable tableName="doc_ingest_document">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_doc_ingest_document" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="package_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="parent_document_id" type="UUID"/>
+            <column name="attachment_id" type="BIGINT"/>
+            <column name="source_key" type="VARCHAR(500)"><constraints nullable="false"/></column>
+            <column name="output_prefix" type="VARCHAR(500)"/>
+            <column name="sha256" type="VARCHAR(64)"/>
+            <column name="file_name" type="VARCHAR(300)"><constraints nullable="false"/></column>
+            <column name="file_type" type="VARCHAR(10)"><constraints nullable="false"/></column>
+            <column name="content_type" type="VARCHAR(100)"/>
+            <column name="size_bytes" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="status" type="VARCHAR(20)"><constraints nullable="false"/></column>
+            <column name="error" type="TEXT"/>
+            <column name="doc_class" type="VARCHAR(30)"/>
+            <column name="class_set_by" type="BIGINT"/>
+            <column name="revision_label" type="VARCHAR(100)"/>
+            <column name="issue_date" type="DATE"/>
+            <column name="supersedes_document_id" type="UUID"/>
+            <column name="page_count" type="INT"/>
+            <column name="sheet_count" type="INT"/>
+            <column name="row_count" type="INT"/>
+            <column name="pages_ocr" type="INT"/>
+            <column name="pages_failed" type="INT"/>
+            <column name="created_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="updated_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="created_by" type="BIGINT"/>
+            <column name="updated_by" type="BIGINT"/>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="doc_ingest_document" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_doc_ingest_document_organization"/>
+        <addForeignKeyConstraint baseTableName="doc_ingest_document" baseColumnNames="package_id"
+                                 referencedTableName="doc_ingest_package" referencedColumnNames="id"
+                                 constraintName="fk_doc_ingest_document_package"/>
+        <addForeignKeyConstraint baseTableName="doc_ingest_document" baseColumnNames="parent_document_id"
+                                 referencedTableName="doc_ingest_document" referencedColumnNames="id"
+                                 constraintName="fk_doc_ingest_document_parent"/>
+        <addForeignKeyConstraint baseTableName="doc_ingest_document" baseColumnNames="supersedes_document_id"
+                                 referencedTableName="doc_ingest_document" referencedColumnNames="id"
+                                 constraintName="fk_doc_ingest_document_supersedes"/>
+        <createIndex tableName="doc_ingest_document" indexName="idx_doc_ingest_document_package">
+            <column name="package_id"/>
+            <column name="created_at"/>
+        </createIndex>
+        <createIndex tableName="doc_ingest_document" indexName="idx_doc_ingest_document_org_sha">
+            <column name="organization_id"/>
+            <column name="sha256"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="document-ingestion-001-create-parse-job" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="doc_ingest_parse_job"/></not>
+        </preConditions>
+        <createTable tableName="doc_ingest_parse_job">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_doc_ingest_parse_job" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="package_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="document_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="job_type" type="VARCHAR(10)"><constraints nullable="false"/></column>
+            <column name="status" type="VARCHAR(20)"><constraints nullable="false"/></column>
+            <column name="source_key" type="VARCHAR(500)"><constraints nullable="false"/></column>
+            <column name="source_file_name" type="VARCHAR(300)"><constraints nullable="false"/></column>
+            <column name="output_prefix" type="VARCHAR(500)"><constraints nullable="false"/></column>
+            <column name="worker_id" type="VARCHAR(100)"/>
+            <column name="attempt" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="max_attempts" type="INT" defaultValueNumeric="3"><constraints nullable="false"/></column>
+            <column name="lease_expires_at" type="TIMESTAMP"/>
+            <column name="source_sha256" type="VARCHAR(64)"/>
+            <column name="source_size_bytes" type="BIGINT"/>
+            <column name="page_count" type="INT"/>
+            <column name="sheet_count" type="INT"/>
+            <column name="row_count" type="INT"/>
+            <column name="pages_ocr" type="INT"/>
+            <column name="pages_failed" type="INT"/>
+            <column name="reused_output_prefix" type="VARCHAR(500)"/>
+            <column name="worker_version" type="VARCHAR(50)"/>
+            <column name="error" type="TEXT"/>
+            <column name="queued_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="started_at" type="TIMESTAMP"/>
+            <column name="finished_at" type="TIMESTAMP"/>
+            <column name="ingested_at" type="TIMESTAMP"/>
+            <column name="ingest_claimed_by" type="VARCHAR(100)"/>
+            <column name="ingest_claimed_at" type="TIMESTAMP"/>
+            <column name="created_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="updated_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="doc_ingest_parse_job" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_doc_ingest_parse_job_organization"/>
+        <addForeignKeyConstraint baseTableName="doc_ingest_parse_job" baseColumnNames="document_id"
+                                 referencedTableName="doc_ingest_document" referencedColumnNames="id"
+                                 constraintName="fk_doc_ingest_parse_job_document"/>
+        <createIndex tableName="doc_ingest_parse_job" indexName="idx_doc_ingest_parse_job_status_queued">
+            <column name="status"/>
+            <column name="queued_at"/>
+        </createIndex>
+        <createIndex tableName="doc_ingest_parse_job" indexName="idx_doc_ingest_parse_job_document">
+            <column name="document_id"/>
+        </createIndex>
+        <createIndex tableName="doc_ingest_parse_job" indexName="idx_doc_ingest_parse_job_org_sha">
+            <column name="organization_id"/>
+            <column name="source_sha256"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

@@ -111,6 +111,45 @@ class TenantFilterTest {
     }
 
     @Test
+    void theMobileCurrentUserLookupAnswersBeforeAnOrganizationIsPicked() throws Exception {
+        // The app calls GET /user straight after sign-in. A member of two organizations sends no
+        // header yet, and used to be refused with a 400 asking for one (#997).
+        authenticateWith(ORG_MEMBER_7, "ORG_MEMBER_8");
+
+        run("/api/v1/user");
+
+        assertThat(response.getStatus()).isEqualTo(200);
+        assertThat(observed).as("the request reached the application").isNotNull();
+        assertThat(observed.unscopedReason()).contains("current-user lookup");
+        assertThat(observed.orgId()).isNull();
+        assertThat(observed.bypassed()).isFalse();
+    }
+
+    @Test
+    void theMobileCurrentUserLookupDeclaresTheSameForZeroOrOneMembership() throws Exception {
+        authenticateWith("ROLE_USER");
+        run("/api/v1/user");
+        assertThat(observed.unscopedReason()).contains("current-user lookup");
+
+        TenantContext.clear();
+        observed = null;
+        authenticateWith(ORG_MEMBER_7);
+        run("/api/v1/user");
+        assertThat(observed.unscopedReason()).contains("current-user lookup");
+        assertThat(observed.orgId()).isNull();
+    }
+
+    @Test
+    void thePathsBeneathTheMobileUserLookupStillNeedAnOrganization() throws Exception {
+        authenticateWith(ORG_MEMBER_7, "ORG_MEMBER_8");
+
+        run("/api/v1/user/all");
+
+        assertThat(response.getStatus()).isEqualTo(400);
+        assertThat(observed).as("refused before reaching the application").isNull();
+    }
+
+    @Test
     void thePathsBeneathUserWebAreStillOrdinaryTenantRequests() throws Exception {
         authenticateWith(ORG_MEMBER_7);
 

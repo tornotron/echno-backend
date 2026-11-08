@@ -47,4 +47,20 @@ public class IssueUpdateFieldsDto {
     @Schema(nullable = true, description = "Id of the employee the issue is assigned to. The employee must belong to "
             + "the caller's organization. Send null to unassign the issue.", example = "17")
     private Long assignedToId;
+
+    @Schema(nullable = true, description = "Id of the task the issue was found on. Send null to "
+            + "unlink the task; the issue then keeps its project. A new task brings its own project "
+            + "unless projectId is sent with it. The issue must still end up with a project or a "
+            + "domain.", example = "42")
+    private Long taskId;
+
+    @Schema(nullable = true, description = "Id of the project the issue belongs to. Must be the "
+            + "task's project when the issue has a task. Send null to clear it, which is refused "
+            + "when it would leave the issue with neither a project nor a domain.", example = "7")
+    private Long projectId;
+
+    @Schema(nullable = true, description = "Id of the work category that is the issue's domain. "
+            + "Send null to clear it, which is refused when it would leave the issue with neither "
+            + "a project nor a domain.", example = "3")
+    private Long categoryId;
 }

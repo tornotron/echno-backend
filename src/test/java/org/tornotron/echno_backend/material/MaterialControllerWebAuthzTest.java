@@ -58,10 +58,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * and a count each name a material before anything else can be typed, so the store cannot be given
  * the write while the catalogue lookup behind the form stays shut.
  *
- * <p>The write half is the ratchet. Creating a material, editing it, or deleting it are catalogue
- * decisions rather than count decisions, and #650 left them with system-admin: deciding what
- * materials exist is a different job from recording what arrived. If a later change widened them
- * along with the reads, {@code aProjectManagerMayNot*} fails.
+ * <p>The write half is the ratchet. #650 left creating, editing and deleting a material with
+ * system-admin. #855 gave creating and editing to project-manager as well, because project managers
+ * manage purchases and a purchase names a catalogue entry; deleting one stays with system-admin, and
+ * none of the three reaches a storekeeper, who records what arrived rather than deciding what
+ * exists. If a later change widened them further, {@code aStoreKeeperMayNot*} and
+ * {@code aProjectManagerMayNotDeleteAMaterial} fail.
  *
  * <p>Reorder thresholds at a storage location are the one exception, decided on #650 and built for
  * #746: setting one is open to project-manager and store-keeper as well, because tuning a threshold
@@ -69,8 +71,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * people. Removing an override stays with system-admin, so the pair below pins both directions.
  *
  * <p>{@code @orgSecurity} is mocked so each branch is exercised on its own: the project-manager
- * tests deliberately answer false to the system-admin-only expression and true to the pair, which
- * is exactly a caller holding project-manager and not system-admin.
+ * tests deliberately answer false to the system-admin-only expression and true to the expressions
+ * that name project-manager, which is exactly a caller holding project-manager and not system-admin.
  */
 @WebMvcTest(MaterialControllerWeb.class)
 @Import(MaterialControllerWebAuthzTest.TestSecurityConfig.class)
@@ -106,13 +108,14 @@ class MaterialControllerWebAuthzTest {
     /** A caller holding project-manager and not system-admin. */
     private void asProjectManager() {
         when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin")).thenReturn(false);
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager")).thenReturn(true);
         when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager", "store-keeper")).thenReturn(true);
     }
 
     /**
-     * A caller holding store-keeper and not system-admin. The mock answers by expression, so at
-     * this level a storekeeper and a project manager are the same caller; the source-level
-     * {@code StoreKeeperRoleScopeTest} is what tells the two roles apart.
+     * A caller holding store-keeper and not system-admin. The mock answers by expression, so it
+     * differs from a project manager only on the system-admin and project-manager pair; the
+     * source-level {@code StoreKeeperRoleScopeTest} is what tells the two roles apart everywhere.
      */
     private void asStoreKeeper() {
         when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin")).thenReturn(false);
@@ -176,19 +179,43 @@ class MaterialControllerWebAuthzTest {
                 .andExpect(status().isForbidden());
     }
 
+    private static final String NEW_MATERIAL =
+            "{\"materialName\":\"OPC 53 Grade Cement\",\"unit\":\"bags\",\"createdBy\":5}";
+
+    /** Before #855 this answered 403: the write sat on the system-admin-only expression. */
     @Test
-    void aProjectManagerMayNotCreateAMaterial() throws Exception {
+    void aProjectManagerMayCreateAMaterial() throws Exception {
         asProjectManager();
 
         mockMvc.perform(post("/api/v1/materials/web").with(jwt()).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"materialName\":\"OPC 53 Grade Cement\",\"unit\":\"bags\",\"createdBy\":5}"))
+                        .content(NEW_MATERIAL))
+                .andExpect(status().is2xxSuccessful());
+    }
+
+    @Test
+    void aProjectManagerMayEditAMaterial() throws Exception {
+        asProjectManager();
+
+        mockMvc.perform(patch("/api/v1/materials/web/1").with(jwt()).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"materialName\":\"OPC 53 Grade Cement\"}"))
+                .andExpect(status().is2xxSuccessful());
+    }
+
+    @Test
+    void aStoreKeeperMayNotCreateAMaterial() throws Exception {
+        asStoreKeeper();
+
+        mockMvc.perform(post("/api/v1/materials/web").with(jwt()).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(NEW_MATERIAL))
                 .andExpect(status().isForbidden());
     }
 
     @Test
-    void aProjectManagerMayNotEditAMaterial() throws Exception {
-        asProjectManager();
+    void aStoreKeeperMayNotEditAMaterial() throws Exception {
+        asStoreKeeper();
 
         mockMvc.perform(patch("/api/v1/materials/web/1").with(jwt()).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)

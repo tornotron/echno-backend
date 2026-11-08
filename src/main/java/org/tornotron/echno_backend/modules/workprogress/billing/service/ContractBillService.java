@@ -146,8 +146,10 @@ public class ContractBillService {
         Long orgId = orgId();
         Page<ContractBill> rows = bills.findPage(orgId, projectId, subContractId, status, model, PageRequest.of(page, size));
         Map<Long, SubContract> contracts = new HashMap<>();
+        Map<UUID, ContractBillingService.PayableFigures> payables = setup.payableFigures(orgId, rows.getContent());
         return rows.map(bill -> ContractBillingService.summaryOf(bill,
-                contracts.computeIfAbsent(bill.getSubContractId(), id -> support.requireContract(id, orgId))));
+                contracts.computeIfAbsent(bill.getSubContractId(), id -> support.requireContract(id, orgId)),
+                payables.get(bill.getId())));
     }
 
     @Transactional(readOnly = true)
@@ -203,6 +205,7 @@ public class ContractBillService {
         bill.setRemarks(trimToNull(req.remarks()));
         bill.setPreparedBy(userContextService.getCurrentUserId());
 
+        int draftedLines = 0;
         if (req.billingModel() == BillingModel.RUNNING_ACCOUNT) {
             if (req.contractMilestoneId() != null || req.claimedPercent() != null) {
                 throw new InvalidRequestException("A running account bill is billed by quantity, not against a milestone");
@@ -216,6 +219,7 @@ public class ContractBillService {
                         + " has no bill of quantities yet; enter its BOQ before opening a running account bill");
             }
             Map<UUID, BigDecimal> previous = certifiedQuantities(orgId, contract.getId());
+            boolean fromInspections = Boolean.TRUE.equals(req.draftFromInspections());
             int order = 0;
             for (ContractBoqItem item : items) {
                 ContractBillLine line = new ContractBillLine();
@@ -226,13 +230,20 @@ public class ContractBillService {
                 line.setContractQuantity(item.getContractQuantity());
                 line.setRate(item.getRate());
                 line.setPreviousQuantity(BillMath.quantity(previous.getOrDefault(item.getId(), BigDecimal.ZERO)));
-                line.setClaimedQuantity(BillMath.quantity(BigDecimal.ZERO));
+                BigDecimal drafted = fromInspections ? inspectedQuantity(item, line.getPreviousQuantity(), orgId) : null;
+                if (drafted != null && drafted.signum() > 0) {
+                    draftedLines++;
+                }
+                line.setClaimedQuantity(drafted == null ? BillMath.quantity(BigDecimal.ZERO) : drafted);
                 line.setSortOrder(order++);
                 bill.addLine(line);
             }
         } else {
             if (req.periodFrom() != null || req.periodTo() != null) {
                 throw new InvalidRequestException("A milestone bill is billed against its milestone, not a period");
+            }
+            if (Boolean.TRUE.equals(req.draftFromInspections())) {
+                throw new InvalidRequestException("A milestone bill has no quantities to draft from inspections");
             }
             if (req.contractMilestoneId() == null) {
                 throw new InvalidRequestException("Choose the milestone this bill is for");
@@ -265,7 +276,8 @@ public class ContractBillService {
                 + String.format("%02d", sequence));
         ContractBill saved = bills.save(bill);
         record(saved, BillEventType.CREATED, null, BillStatus.DRAFT, label(saved.getBillingModel()) + " bill "
-                + saved.getBillNumber() + " opened");
+                + saved.getBillNumber() + " opened"
+                + (draftedLines > 0 ? ", with " + draftedLines + " quantities drafted from inspected progress" : ""));
         return toDto(saved);
     }
 
@@ -864,6 +876,7 @@ public class ContractBillService {
         BigDecimal deductions = frozen ? bill.getDeductionsTotal() : figures.totals().deductions();
         BigDecimal net = frozen ? bill.getNetPayable() : figures.totals().net();
         BigDecimal previous = frozen ? bill.getPreviousCertified() : figures.previous();
+        ContractBillingService.PayableFigures payable = setup.payableFigures(orgId, List.of(bill)).get(bill.getId());
 
         String milestoneName = null;
         LocalDate milestoneTarget = null;
@@ -898,7 +911,29 @@ public class ContractBillService {
                 support.nameOf(bill.getVerifiedBy(), orgId), bill.getVerifiedAt(),
                 support.nameOf(bill.getCertifiedBy(), orgId), bill.getCertifiedAt(),
                 support.nameOf(bill.getApprovedBy(), orgId), bill.getApprovedAt(), bill.isSelfApproved(),
-                bill.getPayableId(), bill.getCreatedAt(), bill.getUpdatedAt());
+                bill.getPayableId(), bill.getCreatedAt(), bill.getUpdatedAt(),
+                payable == null ? null : payable.paid(), payable == null ? null : payable.due(),
+                ContractBillingService.paymentState(bill, payable));
+    }
+
+    /**
+     * What an item's linked activity says is done since the last certified quantity: the BOQ's own
+     * link from schedule to contract item. Null when the item has no activity or no progress yet.
+     */
+    private BigDecimal inspectedQuantity(ContractBoqItem item, BigDecimal previous, Long orgId) {
+        if (item.getWbsElementId() == null) {
+            return null;
+        }
+        return elements.findByIdAndOrganization_Id(item.getWbsElementId(), orgId)
+                .map(WbsElement::getProgress)
+                .map(percent -> quantityAt(item.getContractQuantity(), BigDecimal.valueOf(percent), previous))
+                .orElse(null);
+    }
+
+    /** The quantity a percent of the contract quantity implies beyond what is already certified, never below zero. */
+    private static BigDecimal quantityAt(BigDecimal contractQuantity, BigDecimal percent, BigDecimal previous) {
+        BigDecimal cumulative = BillMath.quantity(contractQuantity.multiply(percent).divide(HUNDRED));
+        return cumulative.subtract(previous).max(BillMath.quantity(BigDecimal.ZERO));
     }
 
     private List<BillLineDto> lineDtos(ContractBill bill, Long orgId) {
@@ -923,8 +958,7 @@ public class ContractBillService {
             BigDecimal suggested = null;
             BigDecimal activityPercent = progress.get(line.getBoqItemId());
             if (activityPercent != null) {
-                BigDecimal suggestedCumulative = BillMath.quantity(contractQuantity.multiply(activityPercent).divide(HUNDRED));
-                suggested = suggestedCumulative.subtract(line.getPreviousQuantity()).max(BillMath.quantity(BigDecimal.ZERO));
+                suggested = quantityAt(contractQuantity, activityPercent, line.getPreviousQuantity());
             }
             dtos.add(new BillLineDto(line.getId(), line.getBoqItemId(), line.getItemCode(), line.getDescription(),
                     line.getUnit(), contractQuantity, line.getRate(), line.getPreviousQuantity(), line.getClaimedQuantity(),

@@ -6,6 +6,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import org.tornotron.echno_backend.modules.workprogress.billing.domain.BillPaymentState;
 import org.tornotron.echno_backend.modules.workprogress.billing.domain.BillStatus;
 import org.tornotron.echno_backend.modules.workprogress.billing.domain.BillingModel;
 
@@ -100,5 +101,11 @@ public record BillDto(
         @Schema(description = "The payable handed to finance on approval.", nullable = true)
         Long payableId,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        @Schema(description = "Paid against the bill's payable, in rupees, once approved.", nullable = true)
+        BigDecimal amountPaid,
+        @Schema(description = "Still due on the bill's payable, in rupees, once approved.", nullable = true)
+        BigDecimal amountDue,
+        @Schema(description = "How far the bill has been paid, once approved.", nullable = true)
+        BillPaymentState paymentState
 ) {}

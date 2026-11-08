@@ -179,6 +179,8 @@ class PartialUpdateNullBehaviourTest {
         @Mock private TaskMapper taskMapper;
         @Mock private PayloadValidator payloadValidator;
 
+        @Mock private org.tornotron.echno_backend.project.ProjectCompletion projectCompletion;
+
         @InjectMocks private TaskService service;
 
         private Task task;
@@ -236,6 +238,10 @@ class PartialUpdateNullBehaviourTest {
         private void apply(Map<String, Object> updates) {
             issue = new Issue();
             issue.setAssignedTo(new Employee());
+            // Linked to both a project and a domain, so clearing any one link still leaves the
+            // issue connected to something, which is what the rule asks (ClickUp 14zdkkvzx60).
+            issue.setProject(new org.tornotron.echno_backend.project.Project());
+            issue.setCategory(new org.tornotron.echno_backend.category.Category());
             TenantContext.setCurrentOrgId(ORG_ID);
             try {
                 when(issueRepository.findByIdAndOrganization_Id(any(), any())).thenReturn(Optional.of(issue));

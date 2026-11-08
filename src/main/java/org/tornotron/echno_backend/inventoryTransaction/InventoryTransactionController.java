@@ -34,8 +34,8 @@ import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
                 + "adjustment or opening balance) is recorded as a transaction that carries the opening, "
                 + "changed and closing quantity for a material. These endpoints query the ledger by "
                 + "material, project, task, storage location, transaction type or date range, and roll it "
-                + "up into current stock by location and material. All endpoints require the "
-                + "inventory-transaction read or admin authority."
+                + "up into current stock by location and material. Access follows the "
+                + "organization roles of the /web twin, endpoint for endpoint."
 )
 public class InventoryTransactionController {
 
@@ -49,7 +49,7 @@ public class InventoryTransactionController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('inventory-transaction:read') or hasAuthority('inventory-transaction:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
     @Operation(
             summary = "Get an inventory transaction by id",
             description = "Returns a single inventory transaction, including its opening, changed and "
@@ -57,7 +57,7 @@ public class InventoryTransactionController {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Transaction found"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the inventory-transaction read or admin authority"),
+            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @ApiResponse(responseCode = "404", description = "No transaction with the given id")
     })
     public ResponseEntity<InventoryTransactionDto> getTransactionById(@PathVariable Long id) {
@@ -66,14 +66,14 @@ public class InventoryTransactionController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAuthority('inventory-transaction:read') or hasAuthority('inventory-transaction:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "List all inventory transactions",
             description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "List of transactions"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the inventory-transaction read or admin authority")
+            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
     public ResponseEntity<List<InventoryTransactionDto>> getAllTransactions() {
         return UnpagedResultCap.respond(
@@ -81,7 +81,7 @@ public class InventoryTransactionController {
     }
 
     @GetMapping("/all")
-    @PreAuthorize("hasAuthority('inventory-transaction:read') or hasAuthority('inventory-transaction:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "List inventory transactions (paginated)",
             description = "Returns a page of inventory transactions ordered by the service default. "
@@ -89,7 +89,7 @@ public class InventoryTransactionController {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Page of transactions"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the inventory-transaction read or admin authority")
+            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
     public ResponseEntity<Page<InventoryTransactionDto>> getAllTransactionsPaginated(
             @Valid @ParameterObject PageQuery pageQuery
@@ -99,23 +99,26 @@ public class InventoryTransactionController {
     }
 
     @GetMapping("/material/{materialId}")
-    @PreAuthorize("hasAuthority('inventory-transaction:read') or hasAuthority('inventory-transaction:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
     @Operation(
             summary = "List transactions for a material",
-            description = "Returns every stock movement recorded for the given material across all "
+            description = "Returns, one page at a time, every stock movement recorded for the given material across all "
                     + "projects and storage locations."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "List of transactions for the material"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the inventory-transaction read or admin authority")
+            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public ResponseEntity<List<InventoryTransactionDto>> getTransactionsByMaterial(@PathVariable Long materialId) {
-        List<InventoryTransactionDto> transactions = inventoryTransactionService.getTransactionsByMaterial(materialId);
+    public ResponseEntity<Page<InventoryTransactionDto>> getTransactionsByMaterial(
+            @PathVariable Long materialId,
+            @Valid @ParameterObject PageQuery pageQuery) {
+        Page<InventoryTransactionDto> transactions = inventoryTransactionService.getTransactionsByMaterial(
+                materialId, pageQuery.getPageNo(), pageQuery.getPageSize());
         return ResponseEntity.ok(transactions);
     }
 
     @GetMapping("/material/{materialId}/history")
-    @PreAuthorize("hasAuthority('inventory-transaction:read') or hasAuthority('inventory-transaction:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
     @Operation(
             summary = "Get a material's movement history (timeline, paginated)",
             description = "Returns the material's stock movements as a timeline, oldest movement first, one "
@@ -126,7 +129,7 @@ public class InventoryTransactionController {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Page of movement-history entries for the material"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the inventory-transaction read or admin authority")
+            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
     public ResponseEntity<Page<MaterialMovementHistoryDto>> getMaterialMovementHistory(
             @PathVariable Long materialId,
@@ -137,22 +140,25 @@ public class InventoryTransactionController {
     }
 
     @GetMapping("/project/{projectId}")
-    @PreAuthorize("hasAuthority('inventory-transaction:read') or hasAuthority('inventory-transaction:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
     @Operation(
             summary = "List transactions for a project",
-            description = "Returns every inventory transaction booked against the given project."
+            description = "Returns, one page at a time, every inventory transaction booked against the given project."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "List of transactions for the project"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the inventory-transaction read or admin authority")
+            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public ResponseEntity<List<InventoryTransactionDto>> getTransactionsByProject(@PathVariable Long projectId) {
-        List<InventoryTransactionDto> transactions = inventoryTransactionService.getTransactionsByProject(projectId);
+    public ResponseEntity<Page<InventoryTransactionDto>> getTransactionsByProject(
+            @PathVariable Long projectId,
+            @Valid @ParameterObject PageQuery pageQuery) {
+        Page<InventoryTransactionDto> transactions = inventoryTransactionService.getTransactionsByProject(
+                projectId, pageQuery.getPageNo(), pageQuery.getPageSize());
         return ResponseEntity.ok(transactions);
     }
 
     @GetMapping("/type/{transactionType}")
-    @PreAuthorize("hasAuthority('inventory-transaction:read') or hasAuthority('inventory-transaction:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "List transactions by type",
             description = "Returns transactions of a single movement type, for example GRN (goods received), "
@@ -161,15 +167,18 @@ public class InventoryTransactionController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "List of transactions of the given type"),
             @ApiResponse(responseCode = "400", description = "The path value is not a recognised transaction type"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the inventory-transaction read or admin authority")
+            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public ResponseEntity<List<InventoryTransactionDto>> getTransactionsByType(@PathVariable InventoryTransactionType transactionType) {
-        List<InventoryTransactionDto> transactions = inventoryTransactionService.getTransactionsByType(transactionType);
+    public ResponseEntity<Page<InventoryTransactionDto>> getTransactionsByType(
+            @PathVariable InventoryTransactionType transactionType,
+            @Valid @ParameterObject PageQuery pageQuery) {
+        Page<InventoryTransactionDto> transactions = inventoryTransactionService.getTransactionsByType(
+                transactionType, pageQuery.getPageNo(), pageQuery.getPageSize());
         return ResponseEntity.ok(transactions);
     }
 
     @GetMapping("/date-range")
-    @PreAuthorize("hasAuthority('inventory-transaction:read') or hasAuthority('inventory-transaction:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
     @Operation(
             summary = "List transactions in a date range",
             description = "Returns transactions whose transaction date falls between the startDate and "
@@ -178,34 +187,37 @@ public class InventoryTransactionController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "List of transactions in the range"),
             @ApiResponse(responseCode = "400", description = "startDate or endDate is missing or not a valid ISO date-time"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the inventory-transaction read or admin authority")
+            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public ResponseEntity<List<InventoryTransactionDto>> getTransactionsByDateRange(
+    public ResponseEntity<Page<InventoryTransactionDto>> getTransactionsByDateRange(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate
-    ) {
-        List<InventoryTransactionDto> transactions = inventoryTransactionService.getTransactionsByDateRange(startDate, endDate);
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate,
+            @Valid @ParameterObject PageQuery pageQuery) {
+        Page<InventoryTransactionDto> transactions = inventoryTransactionService.getTransactionsByDateRange(
+                startDate, endDate, pageQuery.getPageNo(), pageQuery.getPageSize());
         return ResponseEntity.ok(transactions);
     }
 
     @GetMapping("/storage-location/{storageLocationId}")
-    @PreAuthorize("hasAuthority('inventory-transaction:read') or hasAuthority('inventory-transaction:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
     @Operation(
             summary = "List transactions for a storage location",
-            description = "Returns every stock movement recorded at the given storage location."
+            description = "Returns, one page at a time, every stock movement recorded at the given storage location."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "List of transactions for the storage location"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the inventory-transaction read or admin authority")
+            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public ResponseEntity<List<InventoryTransactionDto>> getTransactionsByStorageLocation(
-            @PathVariable Long storageLocationId) {
-        List<InventoryTransactionDto> transactions = inventoryTransactionService.getTransactionsByStorageLocation(storageLocationId);
+    public ResponseEntity<Page<InventoryTransactionDto>> getTransactionsByStorageLocation(
+            @PathVariable Long storageLocationId,
+            @Valid @ParameterObject PageQuery pageQuery) {
+        Page<InventoryTransactionDto> transactions = inventoryTransactionService.getTransactionsByStorageLocation(
+                storageLocationId, pageQuery.getPageNo(), pageQuery.getPageSize());
         return ResponseEntity.ok(transactions);
     }
 
     @GetMapping("/storage-location/{storageLocationId}/stock")
-    @PreAuthorize("hasAuthority('inventory-transaction:read') or hasAuthority('inventory-transaction:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
     @Operation(
             summary = "Get current stock at a storage location",
             description = "Rolls up the transaction ledger into the current stock held at the given "
@@ -214,7 +226,7 @@ public class InventoryTransactionController {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Current stock for the storage location"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the inventory-transaction read or admin authority")
+            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
     public ResponseEntity<InventoryMaterialStockDto> getStockByStorageLocation(
             @PathVariable Long storageLocationId) {
@@ -223,7 +235,7 @@ public class InventoryTransactionController {
     }
 
     @GetMapping("/material/{materialId}/stock")
-    @PreAuthorize("hasAuthority('inventory-transaction:read') or hasAuthority('inventory-transaction:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
     @Operation(
             summary = "Get current stock for a material",
             description = "Rolls up the transaction ledger into the current stock of the given material, "
@@ -232,7 +244,7 @@ public class InventoryTransactionController {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Current stock for the material"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the inventory-transaction read or admin authority")
+            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
     public ResponseEntity<MaterialLocationStockDto> getStockByMaterial(
             @PathVariable Long materialId) {
@@ -241,7 +253,7 @@ public class InventoryTransactionController {
     }
 
     @GetMapping("/task/{taskId}")
-    @PreAuthorize("hasAuthority('inventory-transaction:read') or hasAuthority('inventory-transaction:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
     @Operation(
             summary = "List transactions for a task",
             description = "Returns the stock movements booked against the given task, typically the "
@@ -249,15 +261,18 @@ public class InventoryTransactionController {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "List of transactions for the task"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the inventory-transaction read or admin authority")
+            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public ResponseEntity<List<InventoryTransactionDto>> getTransactionsByTask(@PathVariable Long taskId) {
-        List<InventoryTransactionDto> transactions = inventoryTransactionService.getTransactionsByTask(taskId);
+    public ResponseEntity<Page<InventoryTransactionDto>> getTransactionsByTask(
+            @PathVariable Long taskId,
+            @Valid @ParameterObject PageQuery pageQuery) {
+        Page<InventoryTransactionDto> transactions = inventoryTransactionService.getTransactionsByTask(
+                taskId, pageQuery.getPageNo(), pageQuery.getPageSize());
         return ResponseEntity.ok(transactions);
     }
 
     @GetMapping("/project/{projectId}/task-summary")
-    @PreAuthorize("hasAuthority('inventory-transaction:read') or hasAuthority('inventory-transaction:admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
     @Operation(
             summary = "Get material usage per task for a project",
             description = "Summarises consumption across the given project grouped by task: for each task "
@@ -265,7 +280,7 @@ public class InventoryTransactionController {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Per-task material usage summary for the project"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the inventory-transaction read or admin authority")
+            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
     public ResponseEntity<List<TaskMaterialUsageDto>> getTaskMaterialUsageSummary(@PathVariable Long projectId) {
         List<TaskMaterialUsageDto> summary = inventoryTransactionService.getTaskMaterialUsageSummary(projectId);

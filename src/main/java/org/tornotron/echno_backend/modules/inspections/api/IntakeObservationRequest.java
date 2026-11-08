@@ -1,13 +1,13 @@
-package org.tornotron.echno_backend.modules.inspections.dtos;
+package org.tornotron.echno_backend.modules.inspections.api;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import org.tornotron.echno_backend.modules.inspections.DefectSeverity;
-import org.tornotron.echno_backend.modules.inspections.ObservationSource;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -43,7 +43,28 @@ public record IntakeObservationRequest(
         @Size(max = 50) String modelVersion,
         @Schema(description = "Model confidence in [0, 1].", nullable = true)
         @DecimalMin("0.0") @DecimalMax("1.0") BigDecimal confidence,
-        @Schema(description = "Pointers to captures outside the Echno store (frame index, point-cloud id, "
-                + "crop bounds), in the producer's own shape.", nullable = true)
-        List<Map<String, Object>> evidenceRefs
-) {}
+        @Schema(description = "Pointers to captures (frame index, point-cloud id, crop bounds), in the producer's "
+                + "own shape, up to 20 entries and 8 KB of JSON. An entry with an attachmentId is held to the same "
+                + "rule as a region's image.", nullable = true)
+        @Size(max = 20) List<Map<String, Object>> evidenceRefs,
+        @Schema(description = "Where the finding is on the images it was seen in: one region per detection is "
+                + "the expected shape, up to 20. Each attachment must be this producer's own upload for the project "
+                + "or inspection or observation evidence of the project.", nullable = true)
+        @Valid @Size(max = 20) List<ObservationRegionRequest> regions,
+        @Schema(description = "The inspection the finding was made on, in the same project, when there is one. "
+                + "When spatialNodeId is not given the observation takes the inspection's node.", nullable = true)
+        UUID inspectionId
+) {
+
+    /** A finding tied to no inspection. */
+    public IntakeObservationRequest(Long projectId, String externalRef, ObservationSource source, String sourceDeviceId,
+                                    String missionRef, String captureRef, UUID spatialNodeId, String locationNote,
+                                    LocalDateTime observedAt, String title, String description, String category,
+                                    DefectSeverity suggestedSeverity, String modelName, String modelVersion,
+                                    BigDecimal confidence, List<Map<String, Object>> evidenceRefs,
+                                    List<ObservationRegionRequest> regions) {
+        this(projectId, externalRef, source, sourceDeviceId, missionRef, captureRef, spatialNodeId, locationNote,
+                observedAt, title, description, category, suggestedSeverity, modelName, modelVersion, confidence,
+                evidenceRefs, regions, null);
+    }
+}

@@ -81,6 +81,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @SpringBootTest(properties = {
         "springdoc.swagger-ui.public-access=true",
+        // The vision module is off by default, and its controllers do not exist when off. The contract
+        // describes them all the same, so core and web can be checked against them before a deployment
+        // turns the module on. This also boots the whole application with the module on.
+        "echno.modules.vision.enabled=true",
         "BACKEND_API_VERSION=v1",
         "DIGITAL_OCEAN_SPACES_URI=http://localhost:9000",
         "DIGITAL_OCEAN_SPACES_KEY_ID=test",

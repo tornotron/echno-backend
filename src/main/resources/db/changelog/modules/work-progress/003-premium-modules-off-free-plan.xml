@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Inspections, BIM and Work Progress (which carries RA and milestone billing) are premium
+        modules: the Free plan keeps Toolbox Talks only, and STARTER, PRO and ENTERPRISE keep all four.
+
+        The earlier seeds granted these three on every plan, including FREE, so this removes just those
+        three FREE grants. It is a new changeSet rather than an edit to the applied ones: their
+        DATABASECHANGELOG keys and checksums stay as they are, and a fresh database still runs them in
+        order and then this one. The file sits in this directory because includeAll runs modules/ in path
+        order, and bim/002 and work-progress/002 must already have granted FREE before this takes it away.
+        (inspections is seeded earlier, in v4.0/096.)
+
+        Nothing is deleted besides the plan_feature rows: an organization's inspections, models and
+        schedule stay in place, and are refused by the entitlement gate while it is on a plan without the
+        module. The delete matches by plan and feature code through sub-selects, so it needs no vendor
+        syntax, does nothing on a database that has no FREE plan or no such grants, and gives the same
+        result when run twice. A plan or feature code that does not exist matches no row, so it cannot
+        stop boot.
+    -->
+
+    <changeSet id="work-progress-003-revoke-premium-modules-from-free" author="echno">
+        <sql>
+            DELETE FROM plan_feature
+            WHERE plan_id IN (SELECT id FROM plan WHERE code = 'FREE')
+              AND feature_id IN (SELECT id FROM feature
+                                 WHERE code IN ('MODULE_INSPECTIONS', 'MODULE_BIM', 'MODULE_WORK_PROGRESS'))
+        </sql>
+        <rollback>
+            <sql>
+                INSERT INTO plan_feature (plan_id, feature_id, enabled)
+                SELECT p.id, f.id, true
+                FROM plan p, feature f
+                WHERE p.code = 'FREE'
+                  AND f.code IN ('MODULE_INSPECTIONS', 'MODULE_BIM', 'MODULE_WORK_PROGRESS')
+                  AND NOT EXISTS (SELECT 1 FROM plan_feature x WHERE x.plan_id = p.id AND x.feature_id = f.id)
+            </sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

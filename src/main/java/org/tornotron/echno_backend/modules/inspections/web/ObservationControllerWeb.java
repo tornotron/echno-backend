@@ -26,13 +26,19 @@ import org.tornotron.echno_backend.common.entity.AttachmentDto;
 import org.tornotron.echno_backend.common.customAnnotation.RequireSubscription;
 import org.tornotron.echno_backend.modules.inspections.InspectionsModule;
 import org.tornotron.echno_backend.modules.inspections.ObservationReviewStatus;
-import org.tornotron.echno_backend.modules.inspections.ObservationSource;
+import org.tornotron.echno_backend.modules.inspections.api.ObservationSource;
 import org.tornotron.echno_backend.modules.inspections.dtos.CreateObservationRequest;
 import org.tornotron.echno_backend.modules.inspections.dtos.ObservationDto;
+import org.tornotron.echno_backend.modules.inspections.dtos.ObservationListFilter;
 import org.tornotron.echno_backend.modules.inspections.dtos.ReviewObservationRequest;
+import org.tornotron.echno_backend.modules.inspections.dtos.ReviewBatchRequest;
+import org.tornotron.echno_backend.modules.inspections.dtos.ReviewBatchResponse;
+import org.tornotron.echno_backend.modules.inspections.service.DetectionVisibility;
+import org.tornotron.echno_backend.modules.inspections.service.ObservationBatchReviewService;
 import org.tornotron.echno_backend.modules.inspections.service.ObservationEvidenceService;
 import org.tornotron.echno_backend.modules.inspections.service.ObservationService;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -52,6 +58,8 @@ public class ObservationControllerWeb {
 
     private final ObservationService service;
     private final ObservationEvidenceService evidenceService;
+    private final DetectionVisibility detectionVisibility;
+    private final ObservationBatchReviewService batchReviewService;
 
     @PostMapping
     @PreAuthorize("@inspectionSecurity.canManageInspections()")
@@ -62,29 +70,36 @@ public class ObservationControllerWeb {
             @ApiResponse(responseCode = "201", description = "Observation recorded"),
             @ApiResponse(responseCode = "400", description = "Validation failed on the request body"),
             @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
-            @ApiResponse(responseCode = "404", description = "No inspection or spatial node with the given id in the current tenant")
+            @ApiResponse(responseCode = "404", description = "No inspection, spatial node or attachment with the given id in the current tenant")
     })
     public ResponseEntity<ObservationDto> create(@Valid @RequestBody CreateObservationRequest req) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.create(req));
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@inspectionSecurity.canRead()")
-    @Operation(summary = "Read an observation")
+    @PreAuthorize("@inspectionSecurity.canRead() and @detectionVisibility.maySee(#id)")
+    @Operation(summary = "Read an observation",
+            description = "Returns the observation with its active regions. includeRetiredRegions=true also returns "
+                    + "the regions a review replaced or removed, so a corrected box can be shown beside the original.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Observation returned"),
             @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @ApiResponse(responseCode = "404", description = "No observation with the given id in the current tenant")
     })
-    public ObservationDto read(@PathVariable UUID id) {
-        return service.findById(id);
+    public ObservationDto read(@PathVariable UUID id,
+                               @RequestParam(defaultValue = "false") boolean includeRetiredRegions) {
+        return service.findById(id, includeRetiredRegions);
     }
 
     @GetMapping
     @PreAuthorize("@inspectionSecurity.canRead()")
     @Operation(summary = "List observations",
             description = "Paged, filtered by project, review status, source, inspection, site structure "
-                    + "subtree and observed-at window. The pending queue is reviewStatus=pending.")
+                    + "subtree and observed-at window, and by model name and version, category (repeatable, reads as the "
+                    + "class for a model's finding), confidence range, whether it has active regions, and the image a "
+                    + "region is on. sort=confidence,asc or desc orders by confidence. The pending queue is "
+                    + "reviewStatus=pending. A model's detections "
+                    + "are listed only for a caller with a role in echno.security.inspection.detection-read-roles.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Page of observations returned"),
             @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
@@ -98,20 +113,30 @@ public class ObservationControllerWeb {
                                      @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
                                      @RequestParam(required = false)
                                      @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
+                                     @RequestParam(required = false) String modelName,
+                                     @RequestParam(required = false) String modelVersion,
+                                     @RequestParam(required = false) List<String> category,
+                                     @RequestParam(required = false) BigDecimal minConfidence,
+                                     @RequestParam(required = false) BigDecimal maxConfidence,
+                                     @RequestParam(required = false) Boolean hasRegions,
+                                     @RequestParam(required = false) Long attachmentId,
                                      Pageable pageable) {
-        return service.findAll(projectId, reviewStatus, source, inspectionId, spatialNodeId, from, to, pageable);
+        return service.findAll(new ObservationListFilter(projectId, reviewStatus, source, inspectionId, spatialNodeId,
+                from, to, detectionVisibility.callerMaySeeDetections(), modelName, modelVersion, category, minConfidence,
+                maxConfidence, hasRegions, attachmentId), pageable);
     }
 
     @PostMapping("/{id}/review")
-    @PreAuthorize("@inspectionSecurity.canReviewObservations()")
+    @PreAuthorize("@inspectionSecurity.canReviewObservations() and @detectionVisibility.maySee(#id)")
     @Operation(summary = "Decide on a pending observation",
             description = "Accept, modify or reject. Accept and modify link the outcome: mark a check item, "
                     + "create or attach a defect, or confirm an inspection. Modify stores the reviewer's "
-                    + "edits as a diff and leaves the proposal as the producer wrote it. Reject needs a note. "
-                    + "One decision per observation.")
+                    + "edits as a diff and leaves the proposal as the producer wrote it; region edits retire the "
+                    + "producer's rows and insert the reviewer's. Reject needs a note, and a rejectReason when the "
+                    + "observation has producer regions. One decision per observation.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Decision recorded"),
-            @ApiResponse(responseCode = "400", description = "Reject without a note, modify without changes, or an incomplete outcome"),
+            @ApiResponse(responseCode = "400", description = "Reject without a note or a required rejectReason, modify without changes, an invalid region edit, or an incomplete outcome"),
             @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
             @ApiResponse(responseCode = "404", description = "No observation, check item, defect or inspection with the given id"),
             @ApiResponse(responseCode = "409", description = "The observation has already been reviewed")
@@ -120,9 +145,26 @@ public class ObservationControllerWeb {
         return service.review(id, req);
     }
 
+    @PostMapping("/review-batch")
+    @PreAuthorize("@inspectionSecurity.canReviewObservations()")
+    @Operation(summary = "Decide on many pending observations",
+            description = "Accept with no outcome, or reject with one reason and one note, for up to 100 ids the "
+                    + "reviewer has seen. Results come back per id and each is its own transaction. Every reviewed row "
+                    + "and its event carry the batch id. MODIFY and any other outcome stay in the single-item review.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Per-observation results returned"),
+            @ApiResponse(responseCode = "400", description = "MODIFY, or the envelope is empty or over its limits; nothing was written"),
+            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+    })
+    public ReviewBatchResponse reviewBatch(@Valid @RequestBody ReviewBatchRequest req) {
+        return batchReviewService.review(req, detectionVisibility.callerMaySeeDetections());
+    }
+
     @GetMapping("/{id}/evidence")
-    @PreAuthorize("@inspectionSecurity.canRead()")
-    @Operation(summary = "List an observation's evidence")
+    @PreAuthorize("@inspectionSecurity.canRead() and @detectionVisibility.maySee(#id)")
+    @Operation(summary = "List an observation's evidence",
+            description = "The observation's own uploads, then every other image one of its regions is drawn on, "
+                    + "each once, with a presigned download URL.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Evidence returned"),
             @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
@@ -133,7 +175,7 @@ public class ObservationControllerWeb {
     }
 
     @PostMapping("/{id}/evidence/presign")
-    @PreAuthorize("@inspectionSecurity.canManageInspections()")
+    @PreAuthorize("@inspectionSecurity.canManageInspections() and @detectionVisibility.maySee(#id)")
     @Operation(summary = "Presign evidence uploads for an observation",
             description = "Step one of the direct-to-storage path, as for inspection evidence.")
     @ApiResponses({
@@ -147,7 +189,7 @@ public class ObservationControllerWeb {
     }
 
     @PostMapping("/{id}/evidence/register")
-    @PreAuthorize("@inspectionSecurity.canManageInspections()")
+    @PreAuthorize("@inspectionSecurity.canManageInspections() and @detectionVisibility.maySee(#id)")
     @Operation(summary = "Register presigned evidence uploads for an observation",
             description = "Step two of the direct-to-storage path: confirms the keys once each object is "
                     + "verified present in storage.")

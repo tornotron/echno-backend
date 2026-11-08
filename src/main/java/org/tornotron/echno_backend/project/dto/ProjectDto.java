@@ -86,6 +86,11 @@ public class ProjectDto {
             + "mean of the project's task progress values.", example = "35.0")
     private Double progress;
 
+    @Schema(description = "True when a system admin marked the project completed by hand while some "
+            + "of its tasks were not complete. False for a project that completed because every task "
+            + "did, and for any project that is not completed.", example = "false")
+    private Boolean completedManually;
+
     @Schema(description = "Tasks that belong to the project.")
     private List<TaskDto> tasks;
 

@@ -81,9 +81,23 @@ class AccessGuardLiteralTest {
         scanner.addIncludeFilter(new AssignableTypeFilter(EchnoModule.class));
         List<EchnoModule> modules = new ArrayList<>();
         for (BeanDefinition definition : scanner.findCandidateComponents(APPLICATION_ROOT + ".modules")) {
-            modules.add((EchnoModule) BeanUtils.instantiateClass(load(definition)));
+            modules.add(instantiate(load(definition)));
         }
         return new ModuleRegistry(modules, (org, key) -> true, new MockEnvironment());
+    }
+
+    /** A module with no default constructor takes the {@link org.springframework.core.env.Environment} alone. */
+    private static EchnoModule instantiate(Class<?> type) {
+        try {
+            return (EchnoModule) BeanUtils.instantiateClass(type.getConstructor());
+        } catch (NoSuchMethodException e) {
+            try {
+                return (EchnoModule) BeanUtils.instantiateClass(
+                        type.getConstructor(org.springframework.core.env.Environment.class), new MockEnvironment());
+            } catch (NoSuchMethodException f) {
+                throw new AssertionError(type.getName() + " has neither a default nor an Environment constructor", f);
+            }
+        }
     }
 
     private static List<Class<?>> applicationClasses() {

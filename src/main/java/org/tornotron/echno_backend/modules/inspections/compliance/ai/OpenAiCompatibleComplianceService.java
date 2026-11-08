@@ -1,21 +1,16 @@
 package org.tornotron.echno_backend.modules.inspections.compliance.ai;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.MediaType;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestClient;
 import org.tornotron.echno_backend.common.exception.ComplianceAiException;
+import org.tornotron.echno_backend.common.llm.ChatCompletionClient;
+import org.tornotron.echno_backend.common.llm.ChatCompletionRequest;
+import org.tornotron.echno_backend.common.llm.ChatCompletionResult;
 import org.tornotron.echno_backend.modules.inspections.compliance.ComplianceGenerationProgress;
 import org.tornotron.echno_backend.modules.inspections.compliance.domain.ComplianceRule;
 import org.tornotron.echno_backend.project.Project;
 
-import java.net.InetSocketAddress;
-import java.net.Proxy;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -32,7 +27,9 @@ import java.util.concurrent.atomic.AtomicInteger;
  * compliance rules apply to a project. The endpoint is any service speaking the
  * OpenAI Chat Completions schema (DigitalOcean Gradient serverless inference by
  * default, or OpenAI, or a self-hosted OSS-model gateway), selected purely through
- * {@code compliance.ai.*} config.
+ * {@code compliance.ai.*} config. The HTTP call itself goes through the shared
+ * {@link ChatCompletionClient}; the prompts, batching and the reading of the answer are this
+ * service's own.
  *
  * <h2>What an empty result means, and what it no longer means</h2>
  *
@@ -102,10 +99,17 @@ public class OpenAiCompatibleComplianceService {
     private final ComplianceAiProperties props;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final ComplianceResponseReader responseReader;
+    private final ChatCompletionClient chatClient;
 
+    /**
+     * The client is built over this service's own properties, which carry the shared endpoint
+     * settings by inheritance, so the endpoint, key, timeouts and switch it uses are exactly the
+     * ones this service checks in {@link #isConfigured()}.
+     */
     public OpenAiCompatibleComplianceService(ComplianceAiProperties props) {
         this.props = props;
         this.responseReader = new ComplianceResponseReader(objectMapper, props.getMaxTokens());
+        this.chatClient = new ChatCompletionClient(props);
     }
 
     /**
@@ -114,7 +118,7 @@ public class OpenAiCompatibleComplianceService {
      * callers can tell "AI not configured" apart from "AI ran and found nothing".
      */
     public boolean isConfigured() {
-        return props.isEnabled() && props.getApiKey() != null && !props.getApiKey().isBlank();
+        return chatClient.isAvailable();
     }
 
     /**
@@ -298,71 +302,35 @@ public class OpenAiCompatibleComplianceService {
      * only observable by making real calls with a rule catalogue large enough to break.
      */
     String callModel(Project project, String state, List<ComplianceRule> candidateRules) {
+        ChatCompletionResult result;
         try {
-            String systemPrompt = buildSystemPrompt();
-            String userPrompt = buildUserPrompt(project, state, candidateRules);
-
-            String requestBody = buildRequestBody(systemPrompt, userPrompt);
-
-            RestClient client = RestClient.builder()
-                    .requestFactory(requestFactory())
-                    .baseUrl(props.getBaseUrl())
-                    .build();
-
-            return client.post()
-                    .uri("/chat/completions")
-                    .header("Authorization", "Bearer " + props.getApiKey())
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON)
-                    .body(requestBody)
-                    .retrieve()
-                    .body(String.class);
+            ChatCompletionRequest request = ChatCompletionRequest
+                    .of(buildSystemPrompt(), buildUserPrompt(project, state, candidateRules), props.getMaxTokens())
+                    .withTemperature(props.getTemperature());
+            result = chatClient.complete(request);
         } catch (Exception e) {
-            // The message stays out of the response body on purpose: for an HTTP error the
-            // RestClient exception carries the provider's own response text, which names the
-            // endpoint and is more of the upstream than an API client has any use for. The log
-            // is where it belongs, and the cause chain keeps it for whoever is debugging.
             log.error("Compliance AI call failed for project {}: {}", project.getId(), e.getMessage(), e);
-            throw new ComplianceAiException(
-                    "The compliance AI service could not be reached or returned an error, so no "
-                            + "compliances were generated. Try again in a moment.", e);
+            throw unreachable(e);
         }
+
+        // An answer with a success status goes to the reader whatever shape it is in, because
+        // the reader is what explains an empty, unreadable or cut-short answer to the user.
+        if (result.outcome().isAnswered()) {
+            return result.responseBody();
+        }
+
+        // The detail stays out of the response body on purpose: for an HTTP error it quotes the
+        // provider's own text, which is more of the upstream than an API client has any use for.
+        // The log is where it belongs.
+        log.error("Compliance AI call failed for project {}: {} {}", project.getId(), result.outcome(),
+                result.detail());
+        throw unreachable(null);
     }
 
-    private SimpleClientHttpRequestFactory requestFactory() {
-        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(Duration.ofSeconds(props.getConnectTimeoutSeconds()));
-        factory.setReadTimeout(Duration.ofSeconds(props.getReadTimeoutSeconds()));
-        String proxyHost = props.getProxyHost();
-        if (proxyHost != null && !proxyHost.isBlank()) {
-            int proxyPort = props.getProxyPort();
-            factory.setProxy(new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxyHost, proxyPort)));
-            log.info("Compliance AI egress routed through HTTP proxy {}:{}", proxyHost, proxyPort);
-        } else {
-            log.debug("Compliance AI egress is direct (no proxy configured)");
-        }
-        return factory;
-    }
-
-    /**
-     * Builds the OpenAI chat-completions request body with the system/user message
-     * split. Jackson assembles the JSON so message content is escaped correctly.
-     */
-    private String buildRequestBody(String systemPrompt, String userPrompt) throws Exception {
-        ObjectNode root = objectMapper.createObjectNode();
-        root.put("model", props.getModel());
-        root.put("max_tokens", props.getMaxTokens());
-        root.put("temperature", props.getTemperature());
-
-        ArrayNode messages = root.putArray("messages");
-        ObjectNode system = messages.addObject();
-        system.put("role", "system");
-        system.put("content", systemPrompt);
-        ObjectNode user = messages.addObject();
-        user.put("role", "user");
-        user.put("content", userPrompt);
-
-        return objectMapper.writeValueAsString(root);
+    private static ComplianceAiException unreachable(Throwable cause) {
+        return new ComplianceAiException(
+                "The compliance AI service could not be reached or returned an error, so no "
+                        + "compliances were generated. Try again in a moment.", cause);
     }
 
     private String buildSystemPrompt() {

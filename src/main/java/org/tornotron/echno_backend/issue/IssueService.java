@@ -30,6 +30,10 @@ import org.tornotron.echno_backend.issue.enums.IssueStatus;
 import org.tornotron.echno_backend.issue.enums.IssueType;
 import org.tornotron.echno_backend.task.Task;
 import org.tornotron.echno_backend.task.TaskRepository;
+import org.tornotron.echno_backend.category.Category;
+import org.tornotron.echno_backend.category.CategoryRepository;
+import org.tornotron.echno_backend.project.Project;
+import org.tornotron.echno_backend.project.ProjectRepository;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -77,6 +81,8 @@ public class IssueService {
     private final EmployeeRepository employeeRepository;
     private final CurrentEmployeeService currentEmployeeService;
     private final PayloadValidator payloadValidator;
+    private final ProjectRepository projectRepository;
+    private final CategoryRepository categoryRepository;
 
     /**
      * Constructs an IssueService with the necessary collaborators.
@@ -89,8 +95,10 @@ public class IssueService {
      * @param currentEmployeeService Resolves the caller to the employee an issue is recorded as
      *                           having been raised by.
      * @param payloadValidator   Runs the create payload's own constraints.
+     * @param projectRepository  Resolves the project an issue belongs to.
+     * @param categoryRepository Resolves the work category that is an issue's domain.
      */
-    public IssueService(IssueRepository issueRepository, TaskRepository taskRepository, AttachmentService attachmentService, IssueMapper issueMapper, EmployeeRepository employeeRepository, CurrentEmployeeService currentEmployeeService, PayloadValidator payloadValidator) {
+    public IssueService(IssueRepository issueRepository, TaskRepository taskRepository, AttachmentService attachmentService, IssueMapper issueMapper, EmployeeRepository employeeRepository, CurrentEmployeeService currentEmployeeService, PayloadValidator payloadValidator, ProjectRepository projectRepository, CategoryRepository categoryRepository) {
         this.issueRepository = issueRepository;
         this.taskRepository = taskRepository;
         this.attachmentService = attachmentService;
@@ -98,10 +106,16 @@ public class IssueService {
         this.employeeRepository = employeeRepository;
         this.currentEmployeeService = currentEmployeeService;
         this.payloadValidator = payloadValidator;
+        this.projectRepository = projectRepository;
+        this.categoryRepository = categoryRepository;
     }
 
     /**
-     * Creates a new issue against a task, with any attachments that came with it.
+     * Creates a new issue, with any attachments that came with it.
+     *
+     * <p>The task is optional, but the issue has to belong to a project or a domain (a work
+     * category), the rule the product owner settled on 8 Nov 2026 (ClickUp 14zdkkvzx60): see
+     * {@link #applyLinks}.
      *
      * <p>The issue starts {@link IssueStatus#open}, whether the payload says so or says nothing,
      * and any other starting value is refused: see {@link #requireCreatableStatus}.
@@ -116,18 +130,18 @@ public class IssueService {
      * @param attachments      Files uploaded with the issue, or null when there are none.
      * @return The created issue.
      * @throws ConstraintViolationException if the payload fails its own constraints.
-     * @throws InvalidRequestException if the payload asks for a status other than open.
+     * @throws InvalidRequestException if the payload asks for a status other than open, names
+     *                                   neither a task, a project nor a domain, or names a project
+     *                                   other than its task's.
      * @throws org.springframework.security.access.AccessDeniedException if the caller has no
      *                                   employee record in this organization.
-     * @throws ResourceNotFoundException if the task or the assignee is not found in this
-     *                                   organization.
+     * @throws ResourceNotFoundException if the task, project, domain or assignee is not found in
+     *                                   this organization.
      */
     @Transactional
     public IssueSimpleDto addIssue(IssueCreationDto issueCreationDto, List<MultipartFile> attachments) {
         payloadValidator.requireValid(issueCreationDto);
         requireCreatableStatus(issueCreationDto.getStatus());
-        Task task = taskRepository.findByIdAndOrganization_Id(issueCreationDto.getTaskId(), TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Task with ID " + issueCreationDto.getTaskId() + " was not found in this organization"));
         Employee creator = currentEmployeeService.requireCurrentEmployee("raise an issue");
         Issue issue = new Issue();
         issue.setTitle(issueCreationDto.getTitle());
@@ -136,8 +150,10 @@ public class IssueService {
         issue.setStatus(CREATION_STATUS);
         issue.setPriority(issueCreationDto.getPriority());
         issue.setCreatedBy(creator);
-        issue.setTask(task);
-        issue.setOrganization(task.getOrganization());
+        applyLinks(issue, resolveTask(issueCreationDto.getTaskId()),
+                resolveProject(issueCreationDto.getProjectId()),
+                resolveCategory(issueCreationDto.getCategoryId()));
+        issue.setOrganization(organizationOf(issue, creator));
 
         if (issueCreationDto.getAssignedToId() != null) {
             Employee assignee = employeeRepository.findByIdAndOrganizationId(issueCreationDto.getAssignedToId(), TenantContext.getCurrentOrgId())
@@ -195,6 +211,106 @@ public class IssueService {
 
     private static IssueType parseType(String type) {
         return (type == null || type.isBlank()) ? null : parseIssueType(type);
+    }
+
+    /**
+     * Sets what an issue is about, and refuses a combination the rule does not allow.
+     *
+     * <p>The rule (ClickUp 14zdkkvzx60): an issue can be raised without a task, but it has to be
+     * connected to a project or to a domain. The domain is a work category, the list a task is
+     * classified under (Concrete Works, Masonry Works and the rest of the standard list, plus any
+     * an organization adds), so "is it about concrete, masonry, structure" has the same answer
+     * on an issue as on the work it concerns.
+     *
+     * <ul>
+     *   <li>With a task, the issue takes the task's project, and the task's work category as its
+     *       domain unless another is named. A project that is not the task's is refused.</li>
+     *   <li>Without a task, a project or a domain (or both) is required.</li>
+     * </ul>
+     *
+     * @param issue    The issue being written.
+     * @param task     The task it is raised on, or null.
+     * @param project  The project named, or null.
+     * @param category The domain named, or null.
+     * @throws InvalidRequestException if the combination breaks the rule.
+     */
+    private static void applyLinks(Issue issue, Task task, Project project, Category category) {
+        if (task != null) {
+            Project taskProject = task.getProject();
+            if (project != null && taskProject != null && !project.getId().equals(taskProject.getId())) {
+                throw new InvalidRequestException("Task " + task.getId() + " belongs to project "
+                        + taskProject.getId() + ", not project " + project.getId()
+                        + ". Leave the project out, or name the task's own project.");
+            }
+            project = taskProject;
+            if (category == null) {
+                category = task.getCategory();
+            }
+        } else if (project == null && category == null) {
+            throw new InvalidRequestException("An issue has to be connected to a project or a domain. "
+                    + "Name the project it belongs to, the work category it concerns (for example "
+                    + "Concrete Works or Masonry Works), or the task it was found on.");
+        }
+        issue.setTask(task);
+        issue.setProject(project);
+        issue.setCategory(category);
+    }
+
+    /**
+     * The organization the issue is filed under: that of what it is linked to, which every lookup
+     * above has already held to the caller's tenant, falling back to the caller's own.
+     */
+    private static org.tornotron.echno_backend.organization.Organization organizationOf(Issue issue, Employee creator) {
+        if (issue.getTask() != null && issue.getTask().getOrganization() != null) {
+            return issue.getTask().getOrganization();
+        }
+        if (issue.getProject() != null && issue.getProject().getOrganization() != null) {
+            return issue.getProject().getOrganization();
+        }
+        if (issue.getCategory() != null && issue.getCategory().getOrganization() != null) {
+            return issue.getCategory().getOrganization();
+        }
+        return creator.getOrganization();
+    }
+
+    private Task resolveTask(Long taskId) {
+        if (taskId == null) {
+            return null;
+        }
+        return taskRepository.findByIdAndOrganization_Id(taskId, TenantContext.getCurrentOrgId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Task with ID " + taskId + " was not found in this organization"));
+    }
+
+    private Project resolveProject(Long projectId) {
+        if (projectId == null) {
+            return null;
+        }
+        return projectRepository.findByIdAndOrganization_Id(projectId, TenantContext.getCurrentOrgId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Project with ID " + projectId + " was not found in this organization"));
+    }
+
+    private Category resolveCategory(Long categoryId) {
+        if (categoryId == null) {
+            return null;
+        }
+        return categoryRepository.findByIdAndOrganization_Id(categoryId, TenantContext.getCurrentOrgId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Work category with ID " + categoryId + " was not found in this organization"));
+    }
+
+    /**
+     * Reads one of the link keys of a partial issue update: a number, or null to clear the link.
+     */
+    private static Long readLinkId(Object value, String key) {
+        if (value == null) {
+            return null;
+        }
+        if (!(value instanceof Number number)) {
+            throw new InvalidRequestException(key + " must be a number");
+        }
+        return number.longValue();
     }
 
     /**
@@ -296,7 +412,7 @@ public class IssueService {
 
     @Transactional(readOnly = true)
     public List<IssueDto> getAllIssuesByProjectId(Long projectId) {
-        return issueRepository.findAllByTask_Project_IdAndOrganization_Id(projectId,TenantContext.getCurrentOrgId()).stream()
+        return issueRepository.findAllInProject(projectId, TenantContext.getCurrentOrgId()).stream()
                 .map(issue -> issueMapper.toDto(issue))
                 .collect(Collectors.toList());
     }
@@ -328,6 +444,29 @@ public class IssueService {
     }
 
     private void partialUpdateAnIssue(Map<String, Object> updates, Issue issue) {
+        // The three links are judged together after the loop, so a patch that moves an issue
+        // off its task and onto a project is not refused halfway through.
+        boolean linksChanged = updates.containsKey("taskId") || updates.containsKey("projectId")
+                || updates.containsKey("categoryId");
+        Task task = issue.getTask();
+        Project project = issue.getProject();
+        Category category = issue.getCategory();
+        if (updates.containsKey("taskId")) {
+            task = resolveTask(readLinkId(updates.get("taskId"), "taskId"));
+            if (task != null && !updates.containsKey("projectId")) {
+                project = null; // taken from the new task; unlinking a task keeps the project
+            }
+        }
+        if (updates.containsKey("projectId")) {
+            project = resolveProject(readLinkId(updates.get("projectId"), "projectId"));
+        }
+        if (updates.containsKey("categoryId")) {
+            category = resolveCategory(readLinkId(updates.get("categoryId"), "categoryId"));
+        }
+        if (linksChanged) {
+            applyLinks(issue, task, project, category);
+        }
+
         updates.forEach((key, value) -> {
             switch (key) {
                 case "title":
@@ -348,6 +487,10 @@ public class IssueService {
                 case "assignedToId":
                     issue.setAssignedTo(resolveAssignee(value));
                     break;
+                case "taskId":
+                case "projectId":
+                case "categoryId":
+                    break; // applied above, together
                 default:
                     PartialUpdateKeys.reportUnknown(log, "issue", issue.getId(), key,
                             DELIBERATELY_DROPPED_UPDATE_KEYS);
