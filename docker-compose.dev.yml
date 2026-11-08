@@ -1,6 +1,8 @@
 # Local development dependencies for the backend: the four services the
-# application needs, at the same versions the IIT Madras staging runs
-# (echno-deployment, ansible/roles/infra/defaults/main.yml). Nothing here is a
+# application needs. The database and cache run the same versions the IIT Madras
+# staging runs (echno-deployment, ansible/roles/infra/defaults/main.yml); the object
+# store is a MinIO build that can still be pulled (see the minio service), and the
+# token issuer is a local stand-in for the real auth provider. Nothing here is a
 # deployment: the credentials are fixed dev-only literals, every port binds on
 # 127.0.0.1, and the compose file is excluded from the image by .dockerignore.
 #
@@ -42,38 +44,45 @@ services:
     entrypoint: ["cockroach", "sql", "--insecure", "--host=cockroachdb:26257", "-e", "CREATE DATABASE IF NOT EXISTS echno"]
     restart: "no"
 
-  keycloak:
-    image: quay.io/keycloak/keycloak:26.0.7
-    # Dev mode: embedded H2 store, HTTP, no hostname pinning. --import-realm loads
-    # dev/keycloak/echno-realm.json on the first start of an empty store; the
-    # backend's KeycloakInitializer then reconciles the realm on every boot.
-    command: ["start-dev", "--import-realm"]
+  # A stand-in OpenID Connect provider, so local development needs no account with the real
+  # one. It signs tokens with a key it publishes at /echno/jwks, which is all the backend needs
+  # to accept them: authorization comes from the application database, not from the token.
+  #
+  # Two ways to get a token. Interactive login (the authorize endpoint shows a form taking any
+  # subject) serves a frontend doing the authorization-code flow. For a script or a curl,
+  # the client-credentials grant mints a token whose subject is the client_id you send:
+  #
+  #   curl -s localhost:8180/echno/token -d grant_type=client_credentials \
+  #        -d client_id=local-dev -d client_secret=unused
+  #
+  # Every token carries an email of <subject>@echno.local, which POST /auth/register reads.
+  # The issuer is taken from the Host header, so always address it as localhost:8180 to
+  # match echno.auth.jwt.issuers in application-local.yml.
+  oidc:
+    image: ghcr.io/navikt/mock-oauth2-server:6.1.4
     environment:
-      KC_BOOTSTRAP_ADMIN_USERNAME: admin
-      KC_BOOTSTRAP_ADMIN_PASSWORD: admin   # dev-only; the console is on localhost
-      KC_HEALTH_ENABLED: "true"
-      KC_HTTP_PORT: "8080"
+      # $$ is compose's escape for a literal $; the server sees ${clientId}.
+      JSON_CONFIG: >-
+        {"interactiveLogin": true, "httpServer": "NettyWrapper",
+         "tokenCallbacks": [{"issuerId": "echno", "tokenExpiry": 3600,
+           "requestMappings": [{"requestParam": "client_id", "match": "*",
+             "claims": {"sub": "$${clientId}", "aud": ["echno-backend"],
+                        "email": "$${clientId}@echno.local", "name": "$${clientId}"}}]}]}
     ports:
-      - "127.0.0.1:${ECHNO_DEV_KEYCLOAK_PORT:-8180}:8080"
-    volumes:
-      # The whole data directory, which the image ships owned by the keycloak user, so the
-      # volume inherits that ownership; a volume on the h2 subdirectory alone would be created
-      # root-owned and the store would fail to open.
-      - keycloak-data:/opt/keycloak/data
-      - ./dev/keycloak:/opt/keycloak/data/import:ro
+      - "127.0.0.1:${ECHNO_DEV_OIDC_PORT:-8180}:8080"
     healthcheck:
-      # The image has no curl; the management port answers on 9000.
-      test:
-        - CMD-SHELL
-        - "exec 3<>/dev/tcp/127.0.0.1/9000 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && cat <&3 | grep -q 'UP'"
-      interval: 10s
-      timeout: 5s
-      retries: 18
-      start_period: 30s
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/isalive"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
 
+  # MinIO no longer serves its images anonymously: quay.io/minio and docker.io/minio both
+  # answer 401. The Bitnami legacy build is still public and frozen at this tag. Its entrypoint
+  # starts the server itself (API on 9000, console on 9001) as uid 1001, so the volume sits on
+  # the image's own data directory, which that user owns.
   minio:
-    image: quay.io/minio/minio:RELEASE.2024-11-07T00-52-20Z
-    command: ["server", "/data", "--console-address", ":9001"]
+    image: bitnamilegacy/minio:2025.7.23-debian-12-r5
     environment:
       MINIO_ROOT_USER: echno-dev
       MINIO_ROOT_PASSWORD: echno-dev-secret   # dev-only
@@ -81,7 +90,7 @@ services:
       - "127.0.0.1:${ECHNO_DEV_MINIO_PORT:-9100}:9000"
       - "127.0.0.1:${ECHNO_DEV_MINIO_CONSOLE_PORT:-9101}:9001"
     volumes:
-      - minio-data:/data
+      - minio-data:/bitnami/minio/data
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://127.0.0.1:9000/minio/health/live"]
       interval: 5s
@@ -95,10 +104,12 @@ services:
   # so the cdn-endpoint URLs the API hands out resolve in a browser, as they do
   # against Spaces.
   minio-init:
-    image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
+    image: bitnamilegacy/minio-client:2025.7.21-debian-12-r3
     depends_on:
       minio:
         condition: service_healthy
+    environment:
+      MC_CONFIG_DIR: /tmp/.mc   # the image runs as uid 1001 with no writable home
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
@@ -119,5 +130,4 @@ services:
 
 volumes:
   cockroach-data:
-  keycloak-data:
   minio-data:

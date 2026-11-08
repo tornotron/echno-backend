@@ -2,18 +2,13 @@
 # starts, on the offset localhost ports that file publishes. Activate it with
 #   ./gradlew bootRun --args='--spring.profiles.active=local'
 # Nothing here is a real credential: the literals are the dev-only ones the compose
-# file and dev/keycloak/echno-realm.json carry, and they exist on no deployed instance.
+# file carries, and they exist on no deployed instance.
 
 spring:
   datasource:
     url: jdbc:postgresql://localhost:27257/echno?sslmode=disable
     username: root
     password: ""
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          jwk-set-uri: http://localhost:8180/realms/echno-realm/protocol/openid-connect/certs
   data:
     redis:
       host: localhost
@@ -23,11 +18,6 @@ spring:
 
 API:
   VERSION: v1
-
-jwt:
-  auth:
-    converter:
-      resource-id: echno-backend
 
 digital-ocean:
   uri: http://localhost:9100
@@ -42,49 +32,28 @@ digital-ocean:
 encryption:
   secret-key: 0123456789abcdef0123456789abcdef
 
-keycloak-initializer:
-  master-realm: master
-  application-realm: echno-realm
-  client-id: admin-cli
-  username: admin
-  password: admin
-  url: http://localhost:8180
-
-keycloak:
-  issuer-uri: http://localhost:8180/realms/echno-realm
-  client-id: echno-backend
-  secret: echno-backend-dev-secret
-  redirect-uri: http://localhost:8080/*,http://localhost:8080/webjars/*
-  web-origin: http://localhost:8080
-  frontend:
-    client-id: echno-web
-    redirect-uri: http://localhost:3000/*
-    web-origin: http://localhost:3000
-  # The echno-web-local client and the echno-local-dev account with its own organization.
-  dev-client-enabled: true
-  initializer:
-    service-client-secret: echno-initializer-dev-secret
-  admin:
-    userName: echno-admin
-    email: admin@echno.local
-    password: echno-dev
-    firstName: Echno
-    lastName: Admin
-  service:
-    userName: echno-service
-    email: service@echno.local
-    password: echno-dev
-    firstName: Echno
-    lastName: Service
-
 echno:
   cache:
     provider: redis
   entitlement:
     mode: advisory
-  security:
+  # The mock issuer in docker-compose.dev.yml. Fetch a token with
+  #   curl -s localhost:8180/echno/token -d grant_type=client_credentials -d client_id=local-dev -d client_secret=x
+  # and the dev fixture below has already given that subject an organization to work in. Any other
+  # client_id is a fresh account: POST /api/v1/auth/register first, then create or join one.
+  auth:
     jwt:
-      accepted-issuers: http://localhost:8180/realms/echno-realm
+      jwk-set-uri: ${WORKOS_CLIENT_ID}
+      issuers: ""
+      audiences: ""
+    platform-admin-subjects: ""
+  cors:
+    allowed-origins: http://localhost:3000
+  dev-fixture:
+    enabled: false
+    subject: local-dev
+    name: Local Developer
+    email: local-dev@echno.local
 
 springdoc:
   swagger-ui:
