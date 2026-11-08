@@ -1,0 +1,6 @@
+<div xmlns:th="http://www.thymeleaf.org" th:fragment="content">
+    <p style="margin:0 0 16px;font-size:18px;font-weight:bold;">Confirm your email address</p>
+    <p style="margin:0 0 16px;" th:text="|Enter this code on the ${product} sign-in page to confirm your email address.|">Enter the code.</p>
+    <p style="margin:0 0 24px;font-size:28px;font-weight:bold;letter-spacing:6px;font-family:'Courier New',Courier,monospace;" th:text="${code}">000000</p>
+    <p style="margin:0;font-size:13px;color:#6b7785;" th:if="${expires} != null" th:text="|The code expires on ${expires}.|">Expires.</p>
+</div>

@@ -28,5 +28,13 @@ public record InvitationDto(
         @Schema(description = "The Echno user who sent it. Absent for one the system created.", nullable = true)
         Long invitedByUserId,
         List<InvitationRoleDto> roles,
-        EmployeeJoinOrgDto employee) {
+        EmployeeJoinOrgDto employee,
+        @Schema(description = "Where Echno's own email for the current link stands: PENDING, SENT, FAILED or SKIPPED "
+                + "(the link expired or was withdrawn before it went). Absent when the identity provider sends the "
+                + "email itself, or before the request to send it has been read.", nullable = true,
+                allowableValues = {"PENDING", "SENT", "FAILED", "SKIPPED"})
+        String emailDelivery,
+        @Schema(description = "Why the email failed or was skipped, or the reason the last attempt failed while it "
+                + "is still being tried.", nullable = true)
+        String emailDeliveryError) {
 }

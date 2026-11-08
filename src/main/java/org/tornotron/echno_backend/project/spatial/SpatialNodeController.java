@@ -17,6 +17,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.tornotron.echno_backend.modules.access.api.AccessPermission;
+import org.tornotron.echno_backend.project.ProjectService;
 import org.tornotron.echno_backend.project.spatial.dto.CreateSpatialNodeRequest;
 import org.tornotron.echno_backend.project.spatial.dto.MoveSpatialNodeRequest;
 import org.tornotron.echno_backend.project.spatial.dto.SpatialImportRequest;
@@ -30,9 +32,13 @@ import java.util.UUID;
 
 /**
  * A project's site structure: Building > Floor > Zone > Element. Project-scoped under the
- * existing {@code /api/v1/project/{projectId}} family, with no {@code /web} twin. Reads are
- * open to every member of the tenant; writes carry the same guard as the project patch path.
- * The org filter and the project id together make a node of another tenant or project a 404.
+ * existing {@code /api/v1/project/{projectId}} family, with no {@code /web} twin. Each endpoint
+ * needs the projects permission named for its action, and takes its project's facts: a caller who
+ * may not read the project gets a 404, and one who may read it but not make the change a 403. The
+ * org filter and the project id together make a node of another tenant or project a 404.
+ *
+ * <p>The check is made here, before the service is called, because the service is also how the
+ * BIM import and the inspections reach the site structure, under guards of their own.
  */
 @RestController
 @RequestMapping("/api/v1/project/{projectId}/spatial")
@@ -41,9 +47,10 @@ import java.util.UUID;
 public class SpatialNodeController {
 
     private final SpatialNodeService service;
+    private final ProjectService projects;
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('projects', 'read')")
     @Operation(summary = "Get the site structure tree",
             description = "The whole tree nested from buildings down. Archived nodes are left out "
                     + "unless includeArchived is set.")
@@ -54,11 +61,12 @@ public class SpatialNodeController {
     public ResponseEntity<List<SpatialTreeNodeDto>> getTree(
             @PathVariable Long projectId,
             @RequestParam(defaultValue = "false") boolean includeArchived) {
+        projects.requireAccess(projectId, AccessPermission.READ);
         return ResponseEntity.ok(service.getTree(projectId, includeArchived));
     }
 
     @GetMapping("/nodes/{nodeId}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('projects', 'read')")
     @Operation(summary = "Get one node with its path",
             description = "The node and the ordered ancestors from its building down to it.")
     @ApiResponses({
@@ -66,11 +74,12 @@ public class SpatialNodeController {
             @ApiResponse(responseCode = "404", description = "Node not in this project, or project not in the tenant")
     })
     public ResponseEntity<SpatialNodeDto> getNode(@PathVariable Long projectId, @PathVariable UUID nodeId) {
+        projects.requireAccess(projectId, AccessPermission.READ);
         return ResponseEntity.ok(service.getNode(projectId, nodeId));
     }
 
     @PostMapping("/nodes")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('projects', 'create')")
     @Operation(summary = "Add a node",
             description = "A building takes no parent; a floor, zone or element takes a parent of "
                     + "the level above. The code must be unique among siblings.")
@@ -82,11 +91,12 @@ public class SpatialNodeController {
     })
     public ResponseEntity<SpatialNodeDto> create(@PathVariable Long projectId,
                                                  @Valid @RequestBody CreateSpatialNodeRequest request) {
+        projects.requireAccess(projectId, AccessPermission.CREATE);
         return ResponseEntity.status(HttpStatus.CREATED).body(service.create(projectId, request));
     }
 
     @PatchMapping("/nodes/{nodeId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('projects', 'edit')")
     @Operation(summary = "Update a node's fields",
             description = "Omitted fields are left as they are. Level and parent do not change here; use move.")
     @ApiResponses({
@@ -97,11 +107,12 @@ public class SpatialNodeController {
     })
     public ResponseEntity<SpatialNodeDto> update(@PathVariable Long projectId, @PathVariable UUID nodeId,
                                                  @Valid @RequestBody UpdateSpatialNodeRequest request) {
+        projects.requireAccess(projectId, AccessPermission.EDIT);
         return ResponseEntity.ok(service.update(projectId, nodeId, request));
     }
 
     @PostMapping("/nodes/{nodeId}/move")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('projects', 'create')")
     @Operation(summary = "Move a node under another parent",
             description = "Same project, parent of the level above, not into the node's own subtree. "
                     + "Descendant paths are rewritten.")
@@ -113,11 +124,12 @@ public class SpatialNodeController {
     })
     public ResponseEntity<SpatialNodeDto> move(@PathVariable Long projectId, @PathVariable UUID nodeId,
                                                @Valid @RequestBody MoveSpatialNodeRequest request) {
+        projects.requireAccess(projectId, AccessPermission.CREATE);
         return ResponseEntity.ok(service.move(projectId, nodeId, request.parentId()));
     }
 
     @PostMapping("/nodes/{nodeId}/archive")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('projects', 'create')")
     @Operation(summary = "Archive a node and its subtree",
             description = "The node leaves pickers and refuses new references; existing references stay valid.")
     @ApiResponses({
@@ -125,11 +137,12 @@ public class SpatialNodeController {
             @ApiResponse(responseCode = "404", description = "Node not in this project")
     })
     public ResponseEntity<SpatialNodeDto> archive(@PathVariable Long projectId, @PathVariable UUID nodeId) {
+        projects.requireAccess(projectId, AccessPermission.CREATE);
         return ResponseEntity.ok(service.archive(projectId, nodeId));
     }
 
     @PostMapping("/nodes/{nodeId}/restore")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('projects', 'create')")
     @Operation(summary = "Restore an archived node",
             description = "Brings back the node and the descendants archived with it. The parent must be active.")
     @ApiResponses({
@@ -138,11 +151,12 @@ public class SpatialNodeController {
             @ApiResponse(responseCode = "422", description = "Parent is archived")
     })
     public ResponseEntity<SpatialNodeDto> restore(@PathVariable Long projectId, @PathVariable UUID nodeId) {
+        projects.requireAccess(projectId, AccessPermission.CREATE);
         return ResponseEntity.ok(service.restore(projectId, nodeId));
     }
 
     @PostMapping("/import")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('projects', 'create')")
     @Operation(summary = "Import a site structure from rows",
             description = "One row per leaf, codes from the building down. Idempotent on the code path: "
                     + "nodes that already exist are matched and counted, not created again. All or "
@@ -157,6 +171,7 @@ public class SpatialNodeController {
     })
     public ResponseEntity<SpatialImportResult> importRows(@PathVariable Long projectId,
                                                           @Valid @RequestBody SpatialImportRequest request) {
+        projects.requireAccess(projectId, AccessPermission.CREATE);
         return ResponseEntity.ok(service.importRows(projectId, request.rows()));
     }
 }

@@ -7,6 +7,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,6 +33,8 @@ import org.tornotron.echno_backend.modules.inspections.api.IndianStateResolver;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 import org.tornotron.echno_backend.finance.ledger.repositories.CustomerRepository;
+import org.tornotron.echno_backend.modules.access.api.AccessFilter;
+import org.tornotron.echno_backend.modules.access.api.AccessPermission;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.organization.OrganizationRepository;
 import org.tornotron.echno_backend.common.events.ProjectApprovedEvent;
@@ -106,6 +109,7 @@ public class ProjectService {
     private final StatusTransitionRepository statusTransitionRepository;
     private final StatusTransitionMapper statusTransitionMapper;
     private final OrganizationSecurityService orgSecurity;
+    private final ProjectAccess projectAccess;
 
     /**
      * Constructs a ProjectService with the necessary repositories.
@@ -122,6 +126,7 @@ public class ProjectService {
      * @param statusTransitionMapper Maps trail entries to their DTO.
      * @param orgSecurity            Says whether the caller is a system admin, the one role that may
      *                               mark a project completed by hand.
+     * @param projectAccess          Says which projects the caller may read and change.
      */
     public ProjectService(ProjectRepository repository,
                           OrganizationRepository organizationRepository,
@@ -135,7 +140,8 @@ public class ProjectService {
                           StatusTransitionRecorder statusTransitionRecorder,
                           StatusTransitionRepository statusTransitionRepository,
                           StatusTransitionMapper statusTransitionMapper,
-                          OrganizationSecurityService orgSecurity) {
+                          OrganizationSecurityService orgSecurity,
+                          ProjectAccess projectAccess) {
         this.repository = repository;
         this.organizationRepository = organizationRepository;
         this.employeeRepository = employeeRepository;
@@ -150,6 +156,7 @@ public class ProjectService {
         this.statusTransitionRepository = statusTransitionRepository;
         this.statusTransitionMapper = statusTransitionMapper;
         this.orgSecurity = orgSecurity;
+        this.projectAccess = projectAccess;
     }
 
     /**
@@ -206,6 +213,9 @@ public class ProjectService {
             
             // Save the project first to get the ID
             Project savedProject = repository.save(project);
+            // Checked on the project as created and before any file is stored, so a refusal rolls the
+            // whole creation back and leaves nothing behind.
+            projectAccess.require(AccessPermission.CREATE, ProjectAccess.facts(orgId, savedProject));
 
             // The trail opens on the status the project was created in, so a project that was
             // created already holding a status is distinguishable from one patched into it later.
@@ -234,8 +244,14 @@ public class ProjectService {
     @Transactional(readOnly = true)
     public Page<ProjectDto> getAllProjects(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.ASC,"id"));
-        return repository.findAll(pageable)
-                .map(project -> projectMapper.toDto(project));
+        AccessFilter visible = projectAccess.filter(AccessPermission.READ);
+        if (visible.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        Page<Project> projects = visible.everything()
+                ? repository.findAll(pageable)
+                : repository.findAll(ProjectAccess.admittedBy(visible), pageable);
+        return projects.map(project -> projectMapper.toDto(project));
     }
 
     /**
@@ -256,7 +272,7 @@ public class ProjectService {
         int page = Math.max(pageNo, 0);
         int size = Math.clamp(pageSize, 1, UnpagedResultCap.MAX_ROWS);
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "id"));
-        return repository.search(searchPattern(search), pageable)
+        return searchVisible(searchPattern(search), pageable)
                 .map(project -> projectMapper.toDto(project));
     }
 
@@ -285,9 +301,32 @@ public class ProjectService {
         int page = Math.max(pageNo, 0);
         int size = Math.clamp(pageSize, 1, UnpagedResultCap.MAX_ROWS);
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "id"));
-        Page<Project> projects = repository.search(searchPattern(search), pageable);
+        Page<Project> projects = searchVisible(searchPattern(search), pageable);
         ProjectSummaryLookup totals = totalsFor(projects.getContent());
         return projects.map(project -> projectMapper.toSummaryDto(project, totals));
+    }
+
+    /**
+     * One page of the projects the caller may read that match the search, narrowed in the query so
+     * the page and its total count only those. A caller who may read every project gets the plain
+     * search.
+     */
+    private Page<Project> searchVisible(String pattern, Pageable pageable) {
+        AccessFilter visible = projectAccess.filter(AccessPermission.READ);
+        if (visible.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        if (visible.everything()) {
+            return repository.search(pattern, pageable);
+        }
+        return repository.findAll(named(pattern).and(ProjectAccess.admittedBy(visible)), pageable);
+    }
+
+    /** The search of {@link ProjectRepository#search} as a query condition; no condition for no pattern. */
+    static Specification<Project> named(String pattern) {
+        return (root, query, cb) -> pattern == null
+                ? cb.conjunction()
+                : cb.like(cb.lower(root.<String>get("projectName")), pattern, '\\');
     }
 
     /**
@@ -337,15 +376,35 @@ public class ProjectService {
      */
     @Transactional(readOnly = true)
     public ProjectDto getAProject(Long id) {
-        ProjectDto projectDto =repository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .map(project -> projectMapper.toDto(project))
-                .orElse(null);
-        if(projectDto==null) {
-            throw new ResourceNotFoundException("Project with ID " + id + " was not found in this organization");
-        } else {
-            return projectDto;
-        }
+        return projectMapper.toDto(requireProject(id, AccessPermission.READ));
+    }
 
+    /**
+     * Refuses unless the caller may act this way on the project: one they may not read reads as
+     * missing, and one they may read but not act on this way is refused. For the area's records
+     * that take their project's facts, such as its site structure.
+     *
+     * @param id     The project.
+     * @param action The action, one of {@link AccessPermission}'s.
+     * @throws ResourceNotFoundException if no such project is in this organization or the caller may
+     *                                   not read it.
+     */
+    @Transactional(readOnly = true)
+    public void requireAccess(Long id, String action) {
+        requireProject(id, action);
+    }
+
+    /** The project, if the caller may act on it this way; see {@link #requireAccess}. */
+    private Project requireProject(Long id, String action) {
+        Long orgId = TenantContext.getCurrentOrgId();
+        Project project = repository.findByIdAndOrganization_Id(id, orgId)
+                .orElseThrow(() -> projectNotFound(id));
+        projectAccess.requireOn(action, ProjectAccess.facts(orgId, project), () -> projectNotFound(id));
+        return project;
+    }
+
+    private static ResourceNotFoundException projectNotFound(Long id) {
+        return new ResourceNotFoundException("Project with ID " + id + " was not found in this organization");
     }
 
     /**
@@ -357,8 +416,7 @@ public class ProjectService {
      */
     @Transactional
     public ProjectSimpleDto partialUpdateAProject(Map<String,Object> updates, Long id, List<MultipartFile> attachments, String entityType) {
-        Project project = repository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Project with ID " + id + " was not found in this organization"));
+        Project project = requireProject(id, AccessPermission.EDIT);
         partialUpdateAProject(updates, project);
 
         if (attachments != null) {
@@ -527,10 +585,7 @@ public class ProjectService {
     @Transactional(readOnly = true)
     public Page<StatusTransitionDto> getStatusHistory(Long id, int pageNo, int pageSize) {
         Long orgId = TenantContext.getCurrentOrgId();
-        if (!repository.existsByIdAndOrganization_Id(id, orgId)) {
-            throw new ResourceNotFoundException(
-                    "Project with ID " + id + " was not found in this organization");
-        }
+        requireProject(id, AccessPermission.READ);
         return statusTransitionRepository
                 .findByEntityTypeAndEntityIdAndOrganization_IdOrderByOccurredAtDescIdDesc(
                         HISTORY_ENTITY_TYPE, id, orgId, PageRequest.of(pageNo, pageSize))
@@ -771,9 +826,7 @@ public class ProjectService {
      */
     @Transactional
     public void deleteAProject(Long id) {
-        if(!repository.existsByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())) {
-            throw new ResourceNotFoundException("Project with ID " + id + " was not found in this organization");
-        }
+        requireProject(id, AccessPermission.DELETE);
         // Delete all attachments associated with this project
         attachmentService.deleteAllAttachments("PROJECT", id);
         repository.deleteByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId());
@@ -802,8 +855,7 @@ public class ProjectService {
      */
     @Transactional
     public List<EmployeeDto> addEmployeeToProject(Long projectId, Long employeeId) {
-        Project project = repository.findByIdAndOrganization_Id(projectId,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Project with ID " + projectId + " was not found in this organization"));
+        Project project = requireProject(projectId, AccessPermission.CREATE);
         Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Employee with ID " + employeeId + " was not found in this organization"));
 
@@ -830,8 +882,7 @@ public class ProjectService {
      */
     @Transactional
     public void removeEmployeeFromProject(Long projectId, Long employeeId) {
-        Project project = repository.findByIdAndOrganization_Id(projectId,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Project with ID " + projectId + " was not found in this organization"));
+        Project project = requireProject(projectId, AccessPermission.DELETE);
         Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Employee with ID " + employeeId + " was not found in this organization"));
 
@@ -853,7 +904,14 @@ public class ProjectService {
     public List<ProjectDto> getProjectsByEmployeeId(Long employeeId) {
         employeeRepository.findByIdAndOrganizationId(employeeId, TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Employee with ID " + employeeId + " was not found in this organization"));
-        return repository.findByEmployees_IdAndOrganization_Id(employeeId, TenantContext.getCurrentOrgId())
+        AccessFilter visible = projectAccess.filter(AccessPermission.READ);
+        if (visible.isEmpty()) {
+            return List.of();
+        }
+        List<Project> projects = visible.everything()
+                ? repository.findByEmployees_IdAndOrganization_Id(employeeId, TenantContext.getCurrentOrgId())
+                : repository.findAll(withMember(employeeId).and(ProjectAccess.admittedBy(visible)));
+        return projects
                 .stream()
                 .map(project -> projectMapper.toDto(project))
                 .collect(Collectors.toList());
@@ -861,8 +919,7 @@ public class ProjectService {
 
     @Transactional(readOnly = true)
     public List<EmployeeDto> getEmployeesByProjectId(Long projectId) {
-        Project project = repository.findByIdAndOrganization_Id(projectId,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Project with ID " + projectId + " was not found in this organization"));
+        Project project = requireProject(projectId, AccessPermission.READ);
 
         return project.getEmployees().stream()
                 .map(e -> employeeMapper.toDto(e))
@@ -876,17 +933,24 @@ public class ProjectService {
      * @param pageNo    Zero-based page index.
      * @param pageSize  Rows per page.
      * @return The page of assigned employees.
-     * @throws ResourceNotFoundException if the project is not in the current organization.
+     * @throws ResourceNotFoundException if the project is not in the current organization, or the
+     *         caller may not read it.
      */
     @Transactional(readOnly = true)
     public Page<EmployeeDto> getEmployeesByProjectId(Long projectId, int pageNo, int pageSize) {
         Long organizationId = TenantContext.getCurrentOrgId();
-        if (repository.findByIdAndOrganization_Id(projectId, organizationId).isEmpty()) {
-            throw new ResourceNotFoundException("Project with ID " + projectId + " was not found in this organization");
-        }
+        requireProject(projectId, AccessPermission.READ);
         Pageable pageable = PageRequest.of(pageNo, pageSize,
                 Sort.by(Sort.Direction.ASC, "employeeName").and(Sort.by(Sort.Direction.ASC, "id")));
         return employeeRepository.findByProjects_IdAndOrganization_Id(projectId, organizationId, pageable)
                 .map(e -> employeeMapper.toDto(e));
+    }
+
+    /** The projects whose team includes this employee, as a query condition. */
+    static Specification<Project> withMember(Long employeeId) {
+        return (root, query, cb) -> {
+            query.distinct(true);
+            return cb.equal(root.join("employees").get("id"), employeeId);
+        };
     }
 }

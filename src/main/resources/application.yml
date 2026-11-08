@@ -305,6 +305,25 @@ echno:
   invitations:
     # How long an invitation link lasts, 1 to 30 days (the identity provider's own limits).
     expiry-days: ${ECHNO_INVITATION_EXPIRY_DAYS:7}
+  # Echno's own email. none, the default, creates no sender, and the identity provider sends its own
+  # sign-in email; both stagings and CI keep it. ses sends through Amazon SES with the AWS default
+  # credentials chain (the instance role in production, a profile or env variables locally); log
+  # records each message without its body and sends nothing. Under WorkOS with a sender set, the
+  # environment's invitation, password reset and email verification emails must be switched off in
+  # the WorkOS dashboard, or people get both. MailConfiguration refuses to start without a from address.
+  mail:
+    provider: ${ECHNO_MAIL_PROVIDER:none}
+    from: ${ECHNO_MAIL_FROM:}
+    reply-to: ${ECHNO_MAIL_REPLY_TO:}
+    product-name: ${ECHNO_MAIL_PRODUCT_NAME:Echno}
+    ses:
+      region: ${ECHNO_MAIL_SES_REGION:}
+      profile: ${ECHNO_MAIL_SES_PROFILE:}
+      configuration-set: ${ECHNO_MAIL_SES_CONFIGURATION_SET:}
+    sign-in:
+      # How often the identity provider's new requests are read and due emails are sent. A
+      # verification code is short lived, so this stays short.
+      poll-ms: ${ECHNO_MAIL_SIGN_IN_POLL_MS:10000}
   cors:
     # Falls back to the variable environments have always set.
     allowed-origins: ${ECHNO_CORS_ALLOWED_ORIGINS:${keycloak.frontend.web-origin}}

@@ -54,6 +54,8 @@ import org.tornotron.echno_backend.organization.OrganizationService;
 import org.tornotron.echno_backend.organization.mapper.OrganizationMapper;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.ProjectRepository;
+import org.tornotron.echno_backend.project.ProjectAccess;
+import org.tornotron.echno_backend.project.ProjectAccessStubs;
 import org.tornotron.echno_backend.project.ProjectService;
 import org.tornotron.echno_backend.project.enums.ProjectCreationStatus;
 import org.tornotron.echno_backend.project.mapper.ProjectMapper;
@@ -287,6 +289,7 @@ class PartialUpdateNullBehaviourTest {
         @Mock private StatusTransitionRecorder statusTransitionRecorder;
         @Mock private StatusTransitionRepository statusTransitionRepository;
         @Mock private StatusTransitionMapper statusTransitionMapper;
+        @Mock private ProjectAccess projectAccess;
 
         @InjectMocks private ProjectService service;
 
@@ -299,6 +302,7 @@ class PartialUpdateNullBehaviourTest {
             project.setProjectLatitude(12.9f);
             project.setProjectLongitude(80.2f);
             TenantContext.setCurrentOrgId(ORG_ID);
+            ProjectAccessStubs.allowEverything(projectAccess);
             try {
                 when(repository.findByIdAndOrganization_Id(any(), any())).thenReturn(Optional.of(project));
                 when(repository.save(any(Project.class))).thenAnswer(i -> i.getArgument(0));

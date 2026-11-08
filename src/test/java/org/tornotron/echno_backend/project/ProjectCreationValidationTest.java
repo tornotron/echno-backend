@@ -78,7 +78,8 @@ class ProjectCreationValidationTest {
                 attachmentService, projectMapper, employeeMapper, eventPublisher,
                 customerRepository, new PayloadValidator(validator), userContextService,
                 statusTransitionRecorder, statusTransitionRepository, statusTransitionMapper,
-                org.mockito.Mockito.mock(org.tornotron.echno_backend.common.service.OrganizationSecurityService.class));
+                org.mockito.Mockito.mock(org.tornotron.echno_backend.common.service.OrganizationSecurityService.class),
+                ProjectAccessStubs.allowingEverything());
     }
 
     private ProjectCreationDto validDto() {

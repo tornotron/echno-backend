@@ -110,7 +110,8 @@ class ProjectStatusHistoryTest {
                 attachmentService, projectMapper, employeeMapper, eventPublisher,
                 customerRepository, new PayloadValidator(validator), userContextService,
                 statusTransitionRecorder, statusTransitionRepository, statusTransitionMapper,
-                orgSecurity);
+                orgSecurity,
+                ProjectAccessStubs.allowingEverything());
 
         TenantContext.setCurrentOrgId(ORG_ID);
 

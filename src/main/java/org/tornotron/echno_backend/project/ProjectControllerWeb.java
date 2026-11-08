@@ -35,9 +35,13 @@ import java.util.Map;
 import org.tornotron.echno_backend.project.dto.ProjectUpdateFieldsDto;
 
 /**
- * Project endpoints for the web client. Reads are open to any member of the current tenant;
- * creating, updating, deleting and managing project membership need the system-admin or
- * project-manager role in it.
+ * Project endpoints for the web client. Each endpoint needs the projects permission named for its
+ * action on the access matrix (read, create, edit or delete), and a project outside what the
+ * caller's roles reach reads as not found. The starting roles give read to every member and the
+ * changes to the system admin and the project manager, which is what the role guards here gave
+ * before; {@code ProjectAccessEquivalenceIT} holds every role to that.
+ *
+ * <p>The history below is of the role guards these endpoints carried before the move.
  *
  * <p>The read guards used to read {@code isMemberOfCurrentTenant() or
  * hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')}, added by {@code eec6c37} so a
@@ -66,8 +70,9 @@ import org.tornotron.echno_backend.project.dto.ProjectUpdateFieldsDto;
         name = "Projects",
         description = "Web-client twin of the project endpoints. Adds employee membership management "
                 + "(add/remove/list by project or by employee) alongside the same create, read, "
-                + "update and delete operations as the base project API. Access is gated by tenant "
-                + "membership, with mutations restricted to a system admin or project manager."
+                + "update and delete operations as the base project API. Each endpoint needs the "
+                + "projects permission named for its action (read, create, edit or delete), and a "
+                + "project outside the caller's scope reads as not found."
 )
 public class ProjectControllerWeb {
 
@@ -95,7 +100,7 @@ public class ProjectControllerWeb {
      */
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('projects', 'create')")
     @Operation(
             summary = "Create a project",
             description = "Creates a project from a multipart request. The data part carries the "
@@ -105,7 +110,7 @@ public class ProjectControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Project created"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The data part is not valid project JSON, or a field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to projects")
     })
     public ResponseEntity<ProjectSimpleDto> createProject(
             @Parameter(schema = @Schema(implementation = ProjectCreationDto.class))
@@ -134,7 +139,7 @@ public class ProjectControllerWeb {
      * @return A {@link ResponseEntity} containing the project DTOs and the count headers.
      */
     @GetMapping()
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('projects', 'read')")
     @Operation(
             summary = "List projects",
             description = "Returns the current tenant's projects as a bare array, capped at 500 "
@@ -144,7 +149,7 @@ public class ProjectControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Projects returned, capped at 500 rows"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read projects")
     })
     public ResponseEntity<List<ProjectDto>> readAllProjects() {
         logger.info("All Projects Retrieved Successfully");
@@ -164,7 +169,7 @@ public class ProjectControllerWeb {
      * @return A {@link ResponseEntity} containing the page of project DTOs.
      */
     @GetMapping("/paginated")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('projects', 'read')")
     @Operation(
             summary = "List projects, paginated and filtered",
             description = "Returns a single page of projects with the paging metadata included, "
@@ -173,7 +178,7 @@ public class ProjectControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of projects returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read projects")
     })
     public ResponseEntity<Page<ProjectDto>> readAllProjectsPaginated(
             @Valid @ParameterObject PageQuery20 pageQuery,
@@ -198,7 +203,7 @@ public class ProjectControllerWeb {
      * @return A {@link ResponseEntity} containing the page of project summaries.
      */
     @GetMapping("/summary")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('projects', 'read')")
     @Operation(
             summary = "List projects as summaries, paginated and filtered",
             description = "Returns a single page of projects carrying every scalar field of the "
@@ -209,7 +214,7 @@ public class ProjectControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of project summaries returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read projects")
     })
     public ResponseEntity<Page<ProjectSummaryDto>> readAllProjectSummaries(
             @Valid @ParameterObject PageQuery20 pageQuery,
@@ -225,14 +230,14 @@ public class ProjectControllerWeb {
      * @return A {@link ResponseEntity} containing the project DTO and HTTP status 200 (OK).
      */
     @GetMapping("{id}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('projects', 'read')")
     @Operation(
             summary = "Get a project by id",
             description = "Returns a single project including its assigned employees and attachments."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Project found"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read projects"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No project with the given id")
     })
     public ResponseEntity<?> readAProject(@PathVariable Long id) {
@@ -248,7 +253,7 @@ public class ProjectControllerWeb {
      * @return A {@link ResponseEntity} containing a page of trail entries and HTTP status 200 (OK).
      */
     @GetMapping("{id}/status-history")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('projects', 'read')")
     @Operation(
             summary = "Read a project's status trail",
             description = "Returns a page of the project's status entries, newest first: what it "
@@ -263,7 +268,7 @@ public class ProjectControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of status entries returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read projects"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No project with the given id")
     })
     public ResponseEntity<Page<StatusTransitionDto>> readStatusHistory(
@@ -281,7 +286,7 @@ public class ProjectControllerWeb {
      * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
      */
     @PatchMapping(value = "{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('projects', 'edit')")
     @Operation(
             summary = "Partially update a project",
             description = "Applies field updates from a multipart request. The data part carries the "
@@ -291,7 +296,7 @@ public class ProjectControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Project updated"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The data part is not valid JSON, or a field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to projects"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No project with the given id")
     })
     public ResponseEntity<ProjectSimpleDto> partialUpdateAProject(
@@ -324,14 +329,14 @@ public class ProjectControllerWeb {
      * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
      */
     @DeleteMapping("{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('projects', 'delete')")
     @Operation(
             summary = "Delete a project",
             description = "Deletes the project with the given id."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Project deleted"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to projects"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No project with the given id")
     })
     public ResponseEntity<ApiResponse> deleteProject(@PathVariable Long id) {
@@ -340,14 +345,14 @@ public class ProjectControllerWeb {
     }
 
     @PostMapping("{projectId}/employees/{employeeId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('projects', 'create')")
     @Operation(
             summary = "Add an employee to a project",
             description = "Assigns the given employee to the given project's team."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Employee added, updated project team returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to projects"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No project or employee with the given id")
     })
     public ResponseEntity<List<EmployeeDto>> addEmployeeToProject(@PathVariable Long projectId, @PathVariable Long employeeId) {
@@ -355,14 +360,14 @@ public class ProjectControllerWeb {
     }
 
     @DeleteMapping("{projectId}/employees/{employeeId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('projects', 'delete')")
     @Operation(
             summary = "Remove an employee from a project",
             description = "Removes the given employee from the given project's team."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Employee removed"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to projects"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No project or employee with the given id")
     })
     public ResponseEntity<ApiResponse> removeEmployeeFromProject(@PathVariable Long projectId, @PathVariable Long employeeId) {
@@ -371,14 +376,14 @@ public class ProjectControllerWeb {
     }
 
     @GetMapping("{projectId}/employees")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('projects', 'read')")
     @Operation(
             summary = "List a project's employees",
             description = "Returns every employee assigned to the given project."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Employees returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read projects"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No project with the given id")
     })
     public ResponseEntity<List<EmployeeDto>> getEmployeesByProjectId(@PathVariable Long projectId) {
@@ -386,14 +391,14 @@ public class ProjectControllerWeb {
     }
 
     @GetMapping("employees/{employeeId}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('projects', 'read')")
     @Operation(
             summary = "List an employee's projects",
             description = "Returns every project the given employee is assigned to."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Projects returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read projects"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No employee with the given id")
     })
     public ResponseEntity<List<ProjectDto>> getProjectsByEmployeeId(@PathVariable Long employeeId) {

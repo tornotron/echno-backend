@@ -17,8 +17,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.tornotron.echno_backend.IssueComment.IssueCommentControllerWeb;
 import org.tornotron.echno_backend.IssueComment.IssueCommentService;
-import org.tornotron.echno_backend.category.CategoryControllerWeb;
-import org.tornotron.echno_backend.category.CategoryService;
 import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
 import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
@@ -46,15 +44,16 @@ import org.tornotron.echno_backend.common.payload.JsonPartBinder;
 import org.tornotron.echno_backend.common.payload.PayloadValidator;
 
 /**
- * Locks in the read guards across the seven controllers that carried the asymmetry fixed for
+ * Locks in the read guards across the six controllers that carried the asymmetry fixed for
  * projects in #399: their reads gated on tenant membership while their writes gated on the
  * system-admin or project-manager org role.
  *
  * <p>Stock adjustments were the ninth until #853 moved their reads onto the stores tier
  * (system-admin, project-manager, store-keeper) to match the roles matrix and every other
  * Resources read; {@code StockAdjustmentControllerWebAuthzTest} pins that shape. Assets were the
- * eighth until they moved onto the access matrix, where {@code AssetAccessEquivalenceIT} holds
- * every role to the reads it had.
+ * eighth and work categories the seventh until they moved onto the access matrix, where
+ * {@code AssetAccessEquivalenceIT} and {@code ProjectAccessEquivalenceIT} hold every role to the
+ * reads it had.
  *
  * <p><b>The role-without-membership case this class used to assert has been removed, because it
  * asserted an outcome for a state the real beans cannot produce.</b> It stubbed
@@ -79,15 +78,14 @@ import org.tornotron.echno_backend.common.payload.PayloadValidator;
  * expression without building JWT authorities; what was wrong was stubbing a combination the
  * bean cannot return, and that is now a test failure at the point of stubbing.
  *
- * <p>Deliberately one @WebMvcTest over all seven controllers rather than seven separate slices.
- * Spring caches a context per distinct slice and the test JVM is capped, so seven new contexts
+ * <p>Deliberately one @WebMvcTest over all six controllers rather than six separate slices.
+ * Spring caches a context per distinct slice and the test JVM is capped, so six new contexts
  * would be a real cost; this adds exactly one.
  */
 @WebMvcTest({
         ExpenseControllerWeb.class,
         ReceiptControllerWeb.class,
         SubContractControllerWeb.class,
-        CategoryControllerWeb.class,
         TaskControllerWeb.class,
         IssueControllerWeb.class,
         IssueCommentControllerWeb.class
@@ -101,7 +99,6 @@ class ReadWriteGuardSymmetryTest {
     @MockitoBean private ExpenseService expenseService;
     @MockitoBean private ReceiptService receiptService;
     @MockitoBean private SubContractService subContractService;
-    @MockitoBean private CategoryService categoryService;
     @MockitoBean private TaskService taskService;
     @MockitoBean private IssueService issueService;
     @MockitoBean private IssueCommentService issueCommentService;
@@ -123,7 +120,6 @@ class ReadWriteGuardSymmetryTest {
                 "/api/v1/expenses/web",
                 "/api/v1/receipts/web",
                 "/api/v1/sub-contracts/web",
-                "/api/v1/category/web",
                 "/api/v1/tasks/web",
                 "/api/v1/issues/web",
                 "/api/v1/issues/comments/web"
@@ -138,7 +134,6 @@ class ReadWriteGuardSymmetryTest {
         when(subContractService.getPaginated(anyInt(), anyInt(), any(), any(), any())).thenReturn(Page.empty());
         when(issueService.getAllIssuesPaginated(anyInt(), anyInt(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(Page.empty());
-        when(categoryService.getAllCategories(anyInt(), anyInt())).thenReturn(Page.empty());
         when(taskService.getAllTasks(anyInt(), anyInt())).thenReturn(Page.empty());
         when(issueCommentService.getAllIssueComments(anyInt(), anyInt())).thenReturn(Page.empty());
     }

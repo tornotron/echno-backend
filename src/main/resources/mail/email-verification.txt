@@ -1,0 +1,8 @@
+Enter this code on the [(${product})] sign-in page to confirm your email address:
+
+    [(${code})]
+[# th:if="${expires != null}"]
+The code expires on [(${expires})].[/]
+
+--
+This email was sent to [(${email})] by [(${product})]. [(${footer})]
