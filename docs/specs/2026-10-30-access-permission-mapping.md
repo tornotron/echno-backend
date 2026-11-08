@@ -235,8 +235,8 @@ These are derived from today's role-name checks, so a user with a role today can
 | `inventory` | | all five | all five | view, create, edit | |
 | `material-consumption` | | view, create | view | view, create | |
 | `storage-locations` | | view, create, edit, delete | view | view | |
-| `indents` | | view, create, edit, delete | view | view | |
-| `purchase-orders` | | view, create, edit, delete | view | view | |
+| `indents` | | view, create, edit, delete | view, create, edit | view | |
+| `purchase-orders` | | all five | view, create, edit | view | |
 | `goods-receipts` | | view, create, edit | view | view, create, edit | |
 | `vendors` | | view, create, edit, delete | | view | |
 | `finance` | view (expenses and receipts only, see below) | all five | all five | | |
@@ -247,6 +247,8 @@ These are derived from today's role-name checks, so a user with a role today can
 | `leave-regularisation` | view (own) | (bean) | (bean) | | (bean) |
 | `chat` | view, create | | | | |
 | `org-admin` | | all five | | | create, edit |
+
+**Purchasing, decided on echno-backend #855 (8 Nov 2026):** project managers create and edit indents and purchase orders by default, and an organization may remove that on the access screen. Moving a purchase order's status, approval included, is `purchase-orders: approve`, held by the system admin alone; it no longer rides on `edit`, which the project manager now holds. Deleting stays with the system admin. The endpoint CSV carries the guards as #855 left them.
 
 **Two things to settle before seeding:**
 

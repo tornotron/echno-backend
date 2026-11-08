@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Project managers manage purchases (echno-backend #855): the project manager template gains
+        create and edit on indents and purchase orders, so every organization's project manager holds
+        them by default and an organization can take them away on the access screen.
+
+        Moving a purchase order through its lifecycle, approval included, stays with the system admin,
+        so it becomes purchase-orders:approve rather than riding on purchase-orders:edit, and the
+        system admin template gains that key.
+
+        A separate changeset and CSV rather than an edit to access-008, whose checksum covers its CSVs.
+        The reconciler carries these rows to every uncustomized role on the next boot.
+    -->
+
+    <changeSet id="access-009-purchasing-grants" author="echno">
+        <loadData tableName="access_role_template_grant" file="db/data/access/role-template-grants-purchasing.csv" separator=",">
+            <column name="id" type="UUID"/>
+            <column name="template_id" type="UUID"/>
+            <column name="permission_key" type="STRING"/>
+            <column name="scope" type="STRING"/>
+        </loadData>
+    </changeSet>
+
+</databaseChangeLog>

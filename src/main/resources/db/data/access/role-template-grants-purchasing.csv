@@ -1,0 +1,6 @@
+id,template_id,permission_key,scope
+9039ab30-7df6-5048-926e-d8b9b6768ce2,0f205e55-9cf3-5a43-8fda-c0d6c92e5bef,indents:create,ALL
+17d8e826-9ee1-54bd-84e4-da71eda60efe,0f205e55-9cf3-5a43-8fda-c0d6c92e5bef,indents:edit,ALL
+aca8fa5d-ece3-551f-9d4b-5a854df8b5ea,0f205e55-9cf3-5a43-8fda-c0d6c92e5bef,purchase-orders:create,ALL
+ebcbe43b-3b1f-55a0-bd77-4378f0c45c55,0f205e55-9cf3-5a43-8fda-c0d6c92e5bef,purchase-orders:edit,ALL
+aded589b-9b1e-5746-80b7-056fd2367497,ed34dfe6-5468-5f6e-b6ed-ef6eefccfce2,purchase-orders:approve,ALL

@@ -26,6 +26,11 @@ class AccessRoleTemplateSeedTest {
     private static final Path MAPPING = Path.of("docs/specs/2026-10-30-access-permission-mapping-endpoints.csv");
     private static final String BASELINE = "employee";
 
+    /** Every CSV a changeset loads into access_role_template_grant, in changeset order. */
+    private static final List<String> GRANT_FILES = List.of(
+            "db/data/access/role-template-grants.csv",
+            "db/data/access/role-template-grants-purchasing.csv");
+
     private static final Map<String, String> SLUG_BY_ID = new HashMap<>();
     private static final Map<String, String> LEGACY_BY_SLUG = new HashMap<>();
     private static final Set<String> SYSTEM = new HashSet<>();
@@ -50,8 +55,10 @@ class AccessRoleTemplateSeedTest {
             }
             KEYS_BY_SLUG.put(row[1], new HashSet<>());
         }
-        for (String[] row : rows("db/data/access/role-template-grants.csv")) {
-            KEYS_BY_SLUG.get(SLUG_BY_ID.get(row[1])).add(row[2]);
+        for (String file : GRANT_FILES) {
+            for (String[] row : rows(file)) {
+                KEYS_BY_SLUG.get(SLUG_BY_ID.get(row[1])).add(row[2]);
+            }
         }
     }
 
