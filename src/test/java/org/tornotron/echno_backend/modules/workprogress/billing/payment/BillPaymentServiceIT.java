@@ -16,12 +16,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.tornotron.echno_backend.attendance.mapper.ShiftTimingMapperImpl;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
+import org.tornotron.echno_backend.employee.Employee;
+import org.tornotron.echno_backend.employee.enums.EmployeeStatus;
 import org.tornotron.echno_backend.employee.mapper.EmployeeMapperImpl;
 import org.tornotron.echno_backend.modules.workprogress.billing.domain.BillEventType;
 import org.tornotron.echno_backend.modules.workprogress.billing.domain.BillPaymentState;
@@ -34,8 +37,10 @@ import org.tornotron.echno_backend.modules.workprogress.billing.dto.CreateBillRe
 import org.tornotron.echno_backend.modules.workprogress.billing.dto.MeasurementLineRequest;
 import org.tornotron.echno_backend.modules.workprogress.billing.dto.MeasurementRequest;
 import org.tornotron.echno_backend.modules.workprogress.billing.dto.UpdateBillRequest;
+import org.tornotron.echno_backend.modules.workprogress.billing.payment.authorizer.PaymentAuthorizers;
 import org.tornotron.echno_backend.modules.workprogress.billing.payment.dto.BillPaymentDto;
 import org.tornotron.echno_backend.modules.workprogress.billing.payment.dto.BillPaymentsDto;
+import org.tornotron.echno_backend.modules.workprogress.billing.payment.dto.ProjectPaymentAuthorizerDto;
 import org.tornotron.echno_backend.modules.workprogress.billing.payment.dto.RaiseBillPaymentRequest;
 import org.tornotron.echno_backend.modules.workprogress.billing.payment.dto.RecordBillPaymentRequest;
 import org.tornotron.echno_backend.modules.workprogress.billing.payment.gateway.BillPaymentGateway;
@@ -49,10 +54,12 @@ import org.tornotron.echno_backend.modules.workprogress.billing.service.BillingS
 import org.tornotron.echno_backend.modules.workprogress.billing.service.ContractBillService;
 import org.tornotron.echno_backend.modules.workprogress.billing.service.ContractBillingRecords;
 import org.tornotron.echno_backend.modules.workprogress.billing.service.ContractBillingService;
+import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.payable.PayableService;
 import org.tornotron.echno_backend.payable.mapper.PayableMapperImpl;
 import org.tornotron.echno_backend.subcontract.SubContract;
 import org.tornotron.echno_backend.subcontract.mapper.SubContractMapperImpl;
+import org.tornotron.echno_backend.user.User;
 import org.tornotron.echno_backend.user.UserContextService;
 import org.tornotron.echno_backend.wbs.ScheduleIntegrationSupport;
 import org.tornotron.echno_backend.wbs.WbsElementService;
@@ -61,18 +68,19 @@ import org.tornotron.echno_backend.wbs.mapper.WbsElementMapperImpl;
 /**
  * Paying an approved bill on the real migration: the manual path and the provider path to the payable,
  * part payment, the one-in-flight rule, what a lost answer leaves behind, late and replayed answers,
- * and tenant isolation. The provider is scripted through a mocked {@link BillPaymentGateways}.
+ * and tenant isolation; and who may sign: only the project's named payment authorizer, never on a
+ * payment they raised, and never a system admin by role alone. The provider is scripted through a mocked
+ * {@link BillPaymentGateways}.
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import({BillPaymentService.class, BillPaymentStore.class, ContractBillService.class, ContractBillingService.class,
+@Import({BillPaymentService.class, BillPaymentStore.class, PaymentAuthorizers.class, ContractBillService.class, ContractBillingService.class,
         BillingSupport.class, ContractBillingRecords.class, PayableService.class, PayableMapperImpl.class,
         SubContractMapperImpl.class, WbsElementService.class, WbsElementMapperImpl.class, EmployeeMapperImpl.class,
         ShiftTimingMapperImpl.class, TenantEntityHelper.class, ScheduleIntegrationSupport.FixedClocks.class})
 class BillPaymentServiceIT extends ScheduleIntegrationSupport {
 
     private static final long CERTIFIER = 990_001L;
-    private static final long ADMIN = 990_002L;
 
     @Autowired
     private BillPaymentService payments;
@@ -98,12 +106,22 @@ class BillPaymentServiceIT extends ScheduleIntegrationSupport {
     @MockitoBean
     private BillPaymentGateways gateways;
 
+    @Autowired
+    private PaymentAuthorizers authorizers;
+
+    /** Raises payments: the project manager of project A. */
     private Long userAId;
+
+    /** Project A's payment authorizer. */
+    private Long financeEmployeeId;
+    private Long financeUserId;
 
     @BeforeEach
     void actors() {
-        userAId = (Long) entityManager.createQuery("SELECT e.user.id FROM Employee e WHERE e.id = :id")
-                .setParameter("id", employeeAId).getSingleResult();
+        userAId = userOf(employeeAId);
+        financeEmployeeId = employee(orgAId, "Meera Finance", EmployeeStatus.active);
+        financeUserId = userOf(financeEmployeeId);
+        authorizers.set(projectAId, financeEmployeeId, userAId);
         as(userAId);
         manual();
     }
@@ -122,7 +140,7 @@ class BillPaymentServiceIT extends ScheduleIntegrationSupport {
         assertThat(raised.inFlight()).isTrue();
         assertThat(raised.amountPaid()).as("nothing paid until it settles").isEqualByComparingTo("0");
 
-        as(ADMIN);
+        as(financeUserId);
         BillPaymentsDto authorized = payments.authorize(payment.id());
         assertThat(only(authorized).status()).isEqualTo(BillPaymentStatus.AUTHORIZED);
         assertThat(only(authorized).selfAuthorized()).isFalse();
@@ -171,7 +189,7 @@ class BillPaymentServiceIT extends ScheduleIntegrationSupport {
         assertThatThrownBy(() -> payments.raise(bill.id(), request("100.00")))
                 .isInstanceOf(InvalidRequestException.class).hasMessageContaining("in progress");
 
-        as(ADMIN);
+        as(financeUserId);
         BillPaymentsDto rejected = payments.reject(first, "Wrong amount");
         assertThat(only(rejected).status()).isEqualTo(BillPaymentStatus.REJECTED);
         assertThat(only(rejected).failureReason()).isEqualTo("Wrong amount");
@@ -186,18 +204,158 @@ class BillPaymentServiceIT extends ScheduleIntegrationSupport {
         UUID id = only(payments.raise(bill.id(), request("800.00"))).id();
         payables.recordPayment(bill.payableId(), new BigDecimal("500.00"));
         entityManager.flush();
-        as(ADMIN);
+        as(financeUserId);
         assertThatThrownBy(() -> payments.authorize(id))
                 .isInstanceOf(InvalidRequestException.class).hasMessageContaining("is due");
     }
 
     @Test
-    void aSystemAdminsOwnAuthorizationIsRecordedAsSuch() {
+    void theAuthorizationIsRecordedWithTheCapacityItWasGivenIn() {
         BillDto bill = approvedBill();
         UUID id = only(payments.raise(bill.id(), request("100.00"))).id();
-        assertThat(only(payments.authorize(id)).selfAuthorized()).isTrue();
-        assertThat(bills.events(bill.id())).extracting(e -> e.note())
-                .anyMatch(note -> note.contains("by the system admin who raised it"));
+        as(financeUserId);
+        BillPaymentDto authorized = only(payments.authorize(id));
+        assertThat(authorized.authorizedAs()).isEqualTo(BillPaymentAuthority.PROJECT_AUTHORIZER);
+        assertThat(authorized.authorizedByName()).isEqualTo("Meera Finance");
+        assertThat(authorized.selfAuthorized()).isFalse();
+        assertThat(bills.events(bill.id())).filteredOn(e -> e.type() == BillEventType.PAYMENT_AUTHORIZED)
+                .singleElement()
+                .satisfies(e -> {
+                    assertThat(e.note()).contains("by the project's payment authorizer");
+                    assertThat(e.actorName()).isEqualTo("Meera Finance");
+                });
+    }
+
+    @Test
+    void aSystemAdminWhoIsNotTheAuthorizerCannotSign() {
+        BillDto bill = approvedBill();
+        UUID id = only(payments.raise(bill.id(), request("100.00"))).id();
+        // The roles a mocked session holds: every one of them, system admin included.
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(true);
+        Long admin = userOf(employee(orgAId, "Org Admin", EmployeeStatus.active));
+        as(admin);
+        BillPaymentDto seen = only(payments.list(bill.id()));
+        assertThat(seen.readerMayAuthorize()).isFalse();
+        assertThat(seen.authorizeBlock()).isEqualTo(BillPaymentAuthorizeBlock.NOT_THE_AUTHORIZER);
+        assertThatThrownBy(() -> payments.authorize(id))
+                .isInstanceOf(AccessDeniedException.class).hasMessageContaining("Meera Finance");
+        assertThatThrownBy(() -> payments.reject(id, "No"))
+                .isInstanceOf(AccessDeniedException.class);
+        assertThat(only(payments.list(bill.id())).status()).isEqualTo(BillPaymentStatus.REQUESTED);
+    }
+
+    @Test
+    void theAuthorizerCannotSignAPaymentTheyRaisedSoItWaitsUntilAnotherIsNamed() {
+        BillDto bill = approvedBill();
+        as(financeUserId);
+        UUID id = only(payments.raise(bill.id(), request("100.00"))).id();
+
+        BillPaymentDto own = only(payments.list(bill.id()));
+        assertThat(own.readerMayAuthorize()).isFalse();
+        assertThat(own.authorizeBlock()).isEqualTo(BillPaymentAuthorizeBlock.OWN_REQUEST);
+        assertThatThrownBy(() -> payments.authorize(id))
+                .isInstanceOf(InvalidRequestException.class).hasMessageContaining("You raised this payment");
+
+        as(userAId);
+        assertThat(only(payments.list(bill.id())).authorizeBlock())
+                .as("anyone else is told the only authorizer raised it")
+                .isEqualTo(BillPaymentAuthorizeBlock.RAISED_BY_THE_AUTHORIZER);
+
+        Long other = employee(orgAId, "Arun Accounts", EmployeeStatus.active);
+        authorizers.set(projectAId, other, userAId);
+        as(userOf(other));
+        BillPaymentDto now = only(payments.list(bill.id()));
+        assertThat(now.readerMayAuthorize()).isTrue();
+        assertThat(now.authorizeBlock()).isNull();
+        assertThat(only(payments.authorize(id)).status()).isEqualTo(BillPaymentStatus.AUTHORIZED);
+    }
+
+    @Test
+    void theAuthorizerMayWithdrawTheirOwnRequest() {
+        BillDto bill = approvedBill();
+        as(financeUserId);
+        UUID id = only(payments.raise(bill.id(), request("100.00"))).id();
+        assertThat(only(payments.reject(id, "Raised by mistake")).status()).isEqualTo(BillPaymentStatus.REJECTED);
+    }
+
+    @Test
+    void aProjectWithNoAuthorizerHoldsItsPaymentsAndSaysWhy() {
+        authorizers.clear(projectAId, userAId);
+        BillDto bill = approvedBill();
+        UUID id = only(payments.raise(bill.id(), request("100.00"))).id();
+        BillPaymentsDto view = payments.list(bill.id());
+        assertThat(view.authorizerEmployeeId()).isNull();
+        assertThat(only(view).authorizeBlock()).isEqualTo(BillPaymentAuthorizeBlock.NO_AUTHORIZER);
+        as(financeUserId);
+        assertThatThrownBy(() -> payments.authorize(id))
+                .isInstanceOf(AccessDeniedException.class).hasMessageContaining("no payment authorizer");
+    }
+
+    @Test
+    void anotherProjectsAuthorizerCannotSign() {
+        authorizers.clear(projectAId, userAId);
+        authorizers.set(projectA2Id, financeEmployeeId, userAId);
+        BillDto bill = approvedBill();
+        UUID id = only(payments.raise(bill.id(), request("100.00"))).id();
+        as(financeUserId);
+        assertThatThrownBy(() -> payments.authorize(id)).isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void anAuthorizerWhoHasLeftNoLongerSignsAndCannotBeNamed() {
+        BillDto bill = approvedBill();
+        UUID id = only(payments.raise(bill.id(), request("100.00"))).id();
+        entityManager.find(Employee.class, financeEmployeeId).setStatus(EmployeeStatus.resigned);
+        entityManager.flush();
+        assertThat(only(payments.list(bill.id())).authorizeBlock()).isEqualTo(BillPaymentAuthorizeBlock.NO_AUTHORIZER);
+        as(financeUserId);
+        assertThatThrownBy(() -> payments.authorize(id))
+                .isInstanceOf(AccessDeniedException.class).hasMessageContaining("no longer active");
+        assertThatThrownBy(() -> authorizers.set(projectA2Id, financeEmployeeId, userAId))
+                .isInstanceOf(InvalidRequestException.class).hasMessageContaining("resigned");
+    }
+
+    @Test
+    void everyChangeOfAuthorizerIsKept() {
+        Long other = employee(orgAId, "Arun Accounts", EmployeeStatus.active);
+        authorizers.set(projectAId, other, userAId);
+        authorizers.set(projectAId, other, userAId);
+        ProjectPaymentAuthorizerDto cleared = authorizers.clear(projectAId, userAId);
+        assertThat(cleared.employeeId()).isNull();
+        // The test clock is fixed, so the three share a timestamp and their order is not under test here.
+        assertThat(cleared.changes()).as("naming the same person again records nothing")
+                .extracting(c -> c.previousEmployeeName() + " -> " + c.employeeName())
+                .containsExactlyInAnyOrder("null -> Meera Finance", "Meera Finance -> Arun Accounts",
+                        "Arun Accounts -> null");
+        assertThat(cleared.changes()).allSatisfy(c -> assertThat(c.changedByName()).isEqualTo("Ravi Kumar"));
+    }
+
+    @Test
+    void anAuthorizerIsNamedOnlyFromTheOrganizationOnItsOwnProjects() {
+        assertThatThrownBy(() -> authorizers.set(projectAId, employeeBId, userAId))
+                .as("an employee of another organization").isInstanceOf(ResourceNotFoundException.class);
+        assertThatThrownBy(() -> authorizers.set(projectBId, financeEmployeeId, userAId))
+                .as("a project of another organization").isInstanceOf(ResourceNotFoundException.class);
+        assertThatThrownBy(() -> authorizers.view(projectBId, userAId)).isInstanceOf(ResourceNotFoundException.class);
+        asTenant(orgBId, () -> {
+            assertThatThrownBy(() -> authorizers.view(projectAId, financeUserId))
+                    .isInstanceOf(ResourceNotFoundException.class);
+            assertThat(authorizers.holds(orgBId, projectAId, financeUserId))
+                    .as("org A's naming means nothing under org B").isFalse();
+            assertThat(authorizers.view(projectBId, financeUserId).employeeId()).isNull();
+            return null;
+        });
+    }
+
+    @Test
+    void anotherOrganizationsAuthorizerCannotSignHere() {
+        Long orgBFinance = employee(orgBId, "Other Org Finance", EmployeeStatus.active);
+        asTenant(orgBId, () -> authorizers.set(projectBId, orgBFinance, null));
+        Long orgBUser = asTenant(orgBId, () -> userOf(orgBFinance));
+        BillDto bill = approvedBill();
+        UUID id = only(payments.raise(bill.id(), request("100.00"))).id();
+        as(orgBUser);
+        assertThatThrownBy(() -> payments.authorize(id)).isInstanceOf(AccessDeniedException.class);
     }
 
     @Test
@@ -205,8 +363,10 @@ class BillPaymentServiceIT extends ScheduleIntegrationSupport {
         BillDto bill = approvedBill();
         UUID id = only(payments.raise(bill.id(), request("100.00"))).id();
         assertThatThrownBy(() -> payments.record(id, paid("UTR-1")))
+                .as("recording is the authorizer's").isInstanceOf(AccessDeniedException.class);
+        as(financeUserId);
+        assertThatThrownBy(() -> payments.record(id, paid("UTR-1")))
                 .isInstanceOf(InvalidRequestException.class).hasMessageContaining("only an authorized");
-        as(ADMIN);
         payments.authorize(id);
         assertThatThrownBy(() -> payments.record(id, new RecordBillPaymentRequest("UTR-1", TODAY.plusDays(1))))
                 .isInstanceOf(InvalidRequestException.class).hasMessageContaining("future");
@@ -220,7 +380,7 @@ class BillPaymentServiceIT extends ScheduleIntegrationSupport {
         withBankDetails();
         BillDto bill = approvedBill();
         UUID id = only(payments.raise(bill.id(), request("400.00"))).id();
-        as(ADMIN);
+        as(financeUserId);
         BillPaymentDto sent = only(payments.authorize(id));
         assertThat(sent.status()).isEqualTo(BillPaymentStatus.PROCESSING);
         assertThat(sent.test()).isTrue();
@@ -241,7 +401,7 @@ class BillPaymentServiceIT extends ScheduleIntegrationSupport {
         withBankDetails();
         BillDto bill = approvedBill();
         UUID id = only(payments.raise(bill.id(), request("100.13"))).id();
-        as(ADMIN);
+        as(financeUserId);
         payments.authorize(id);
         BillPaymentsDto failed = payments.sync(id);
         assertThat(only(failed).status()).isEqualTo(BillPaymentStatus.FAILED);
@@ -267,7 +427,7 @@ class BillPaymentServiceIT extends ScheduleIntegrationSupport {
         withBankDetails();
         BillDto bill = approvedBill();
         UUID id = only(payments.raise(bill.id(), request("400.00"))).id();
-        as(ADMIN);
+        as(financeUserId);
 
         gateway.nextSend = () -> {
             throw new BillPaymentGatewayException("The provider gave no usable answer");
@@ -354,7 +514,7 @@ class BillPaymentServiceIT extends ScheduleIntegrationSupport {
         withBankDetails();
         BillDto bill = approvedBill();
         UUID id = only(payments.raise(bill.id(), request("400.00"))).id();
-        as(ADMIN);
+        as(financeUserId);
         gateway.nextSend = () -> {
             throw new BillPaymentGatewayException("The provider gave no usable answer");
         };
@@ -373,6 +533,7 @@ class BillPaymentServiceIT extends ScheduleIntegrationSupport {
         provider(new ScriptedGateway());
         withBankDetails();
         UUID id = sentPayment(approvedBill(), "400.00");
+        as(financeUserId);
         assertThatThrownBy(() -> payments.reject(id, "Too late"))
                 .isInstanceOf(InvalidRequestException.class).hasMessageContaining("no longer");
     }
@@ -396,7 +557,7 @@ class BillPaymentServiceIT extends ScheduleIntegrationSupport {
 
     private UUID sentPayment(BillDto bill, String amount) {
         UUID id = only(payments.raise(bill.id(), request(amount))).id();
-        as(ADMIN);
+        as(financeUserId);
         assertThat(only(payments.authorize(id)).status()).isEqualTo(BillPaymentStatus.PROCESSING);
         as(userAId);
         return id;
@@ -406,7 +567,7 @@ class BillPaymentServiceIT extends ScheduleIntegrationSupport {
         as(userAId);
         BillPaymentsDto raised = payments.raise(billId, request(amount));
         UUID id = raised.payments().getFirst().id();
-        as(ADMIN);
+        as(financeUserId);
         payments.authorize(id);
         BillPaymentsDto done = payments.record(id, paid(reference));
         entityManager.flush();
@@ -464,6 +625,33 @@ class BillPaymentServiceIT extends ScheduleIntegrationSupport {
 
     private void as(Long userId) {
         when(userContext.getCurrentUserId()).thenReturn(userId);
+    }
+
+    private Long userOf(Long employeeId) {
+        return (Long) entityManager.createQuery("SELECT e.user.id FROM Employee e WHERE e.id = :id")
+                .setParameter("id", employeeId).getSingleResult();
+    }
+
+    /** An employee with a sign-in, in this test's transaction, so it goes when the test does. */
+    private Long employee(Long orgId, String name, EmployeeStatus status) {
+        User user = new User();
+        user.setKeycloakId("payauth-it-" + UUID.randomUUID());
+        user.setName(name);
+        entityManager.persist(user);
+        Employee employee = new Employee();
+        employee.setOrganization(entityManager.find(Organization.class, orgId));
+        employee.setUser(user);
+        employee.setEmployeeName(name);
+        employee.setEmployeeId("PAY-" + UUID.randomUUID().toString().substring(0, 8));
+        employee.setGender("U");
+        employee.setPhoneNumber("0000000000");
+        employee.setEmailAddress(UUID.randomUUID().toString().substring(0, 12) + "@emp.test");
+        employee.setDateOfBirth(java.time.LocalDateTime.of(1990, 1, 1, 0, 0));
+        employee.setStatus(status);
+        employee.setOrgRoles(new java.util.HashSet<>());
+        entityManager.persist(employee);
+        entityManager.flush();
+        return employee.getId();
     }
 
     private static RaiseBillPaymentRequest request(String amount) {

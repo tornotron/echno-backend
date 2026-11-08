@@ -52,12 +52,17 @@ public class WorkProgressModule implements EchnoModule {
     public static final String BILL_APPROVE_GUARD =
             "@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')";
 
-    // Paying an approved bill takes two steps. The office raises a payment; authorizing it follows
-    // Finance > Payables, which is the system admin's. No new role.
+    // Paying an approved bill takes two signatures. The office raises a payment. The second
+    // signature, and every step after it, belongs to the employee the project names as its payment
+    // authorizer, which no organization role grants: PaymentAuthorizers checks it per project under
+    // the payment's lock, so the endpoint gate is membership of the tenant. Naming that person is
+    // managing the project, so it is the same pair of roles that edits a project. A system admin
+    // can always name someone, which is what keeps an organization from locking itself out.
     public static final String BILL_PAY_REQUEST_GUARD =
             "@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')";
-    public static final String BILL_PAY_AUTHORIZE_GUARD =
-            "@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')";
+    public static final String BILL_PAY_AUTHORIZE_GUARD = READ_GUARD;
+    public static final String PAYMENT_AUTHORIZER_SETUP_GUARD =
+            "@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')";
 
     static final List<String> PERMISSIONS = List.of(PERMISSION_READ, PERMISSION_RECORD, PERMISSION_BILLING_SETUP,
             PERMISSION_BILL, PERMISSION_CERTIFY, PERMISSION_APPROVE, PERMISSION_PAY);

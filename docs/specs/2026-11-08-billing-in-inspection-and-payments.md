@@ -3,8 +3,8 @@
 **Date:** 2026-11-08
 **Status:** Design for the next build. Revises `2026-10-04-ra-milestone-billing.md`: its section 7
 (home page under Finance) and its "no payment through Echno" cut no longer stand. Issues:
-echno-backend #955, echno-core #164, echno-web #549. ClickUp `14zdkkvrpb4`, `14zdkkvrpbq`,
-`14zdkkvrnhd`.
+echno-backend #955, echno-core #164, echno-web #549. Section 7 revised under echno-backend #1010
+(who authorizes a payment). ClickUp `14zdkkvrpb4`, `14zdkkvrpbq`, `14zdkkvrnhd`.
 
 ## 1. What changed
 
@@ -16,6 +16,9 @@ echno-backend #955, echno-core #164, echno-web #549. ClickUp `14zdkkvrpb4`, `14z
   billing should be grouped on a project basis.
 - Product owner, 31 Oct, on the Milestone ticket: the values an inspection measures should reach the
   contract items and make a draft bill.
+- Product owner, 8 Nov, on payments: "I believe having sys admin authorise payments is not the correct
+  workflow. it should be the finance department/ specific person controlling the project that should
+  have the authority to authorize payments in billing". Section 7 follows this.
 
 The bill workflow, the money rules and the tables of the 4 Oct note are unchanged. A bill still ends
 its own workflow at `APPROVED`, which raises the `Payable`. Everything here is either a new way to
@@ -102,8 +105,9 @@ AUTHORIZED   the second signature
 ```
 
 - `contract_bill_payment` holds one row per attempt: bill, payable, amount, status, provider, the
-  provider's id, the bank reference, who asked and who authorized, and the beneficiary as paid (name,
-  IFSC, last four digits of the account). Its events go on the bill's timeline.
+  provider's id, the bank reference, who asked, who authorized and in what capacity (`authorized_as`),
+  and the beneficiary as paid (name, IFSC, last four digits of the account). Its events go on the bill's
+  timeline.
 - `SETTLED` calls `PayableService.recordPayment`, the same call Finance > Payables makes. `Payable`
   stays the single record of what was paid. A bill's paid and due figures are read from it, so a
   payment recorded directly in Finance still shows on the bill.
@@ -132,12 +136,15 @@ All twinned under `/contract-billing` and `/contract-billing/web`, under
 
 | Call | Does |
 |---|---|
-| `GET /bills/{id}/payments` | Mode, paid, due, payments |
+| `GET /bills/{id}/payments` | Mode, paid, due, payments, the project's authorizer, and for the reader whether they may sign each payment and why not |
 | `POST /bills/{id}/payments` | Raise a payment |
 | `POST /bill-payments/{id}/authorize` | Second signature; sends it when a gateway is wired |
 | `POST /bill-payments/{id}/reject` | Decline, with a reason |
 | `POST /bill-payments/{id}/record` | Manual mode: bank reference and date, settles it |
 | `POST /bill-payments/{id}/sync` | Retry a send, or ask the provider |
+| `GET /projects/{id}/payment-authorizer` | The project's payment authorizer and the latest changes |
+| `PUT /projects/{id}/payment-authorizer` | Name or change it |
+| `DELETE /projects/{id}/payment-authorizer` | Leave the project with none |
 
 ## 6. Relation to the subscription gateway
 
@@ -175,26 +182,69 @@ against Razorpay because no keys exist yet, and the first run in its test mode s
 
 ## 7. Who may do what
 
-Existing guards and nav access roles only. No new role, so this does not touch the access rework.
-
 | Action | Guard | Web access |
 |---|---|---|
-| Read billing, projects, activity, payments | Any member | Any member |
+| Read billing, projects, activity, payments, a project's authorizer | Any member | Any member |
 | Open a draft from inspections | system-admin, project-manager, site-engineer, as any bill | `BILL_PREPARE_ACCESS` |
 | Raise a payment | system-admin, project-manager | `BILLING_SIGN_ACCESS` |
-| Authorize, reject, record, sync | system-admin | `PAYABLES_ACCESS` |
+| Name, change or clear a project's payment authorizer | system-admin, project-manager | `BILLING_SIGN_ACCESS` |
+| Authorize, reject, record, sync | The project's payment authorizer | The reader is that person |
 
-Authorizing follows Finance > Payables, which is system-admin today. A project manager's request
-therefore always takes a second person. A system admin who raised a request may authorize it
-themselves, and it is recorded as such, as with a bill's final approval, because a small organization
-may have only one.
+### 7.1 The project's payment authorizer
+
+The product owner's decision of 8 Nov moves the second signature from the system admin to the finance
+function or the person controlling the project. The organization roles on `development` have no
+finance role, so each project names the person instead: one employee, its payment authorizer, held in
+`project_payment_authorizer`. Whoever may manage the project names or changes them, the same
+system-admin and project-manager pair that edits a project. A system admin therefore can always name
+someone, and an organization cannot lock itself out, but holding the role does not let anyone sign. The
+person named has to be an active employee of the organization; one who later leaves stops holding the
+authority, and the project's payments wait until another is named.
+
+The authority covers every step after raising: authorize, reject, record the bank reference, and
+sync. The endpoints gate on membership of the tenant, and `PaymentAuthorizers` checks the authority
+per project inside the transaction that changes the payment, under its row lock, so a change of
+authorizer and a signature cannot cross. A refusal is a 403 that names the authorizer.
+
+### 7.2 Separation of duties
+
+The person who raised a payment cannot authorize it. There is no exception for a system admin. With
+one authorizer per project this means:
+
+- a payment raised by anyone else waits for the authorizer;
+- a payment raised by the authorizer waits until someone who manages the project names another, and
+  the bill page says so to everyone who reads it;
+- the authorizer may still reject a payment they raised, which is withdrawing it.
+
+The bill page shows who the project's authorizer is, and in place of the Authorize button it says why
+it is absent: the project names no one, someone else is the authorizer, the reader raised it, or the
+only authorizer raised it.
+
+### 7.3 The record
+
+Each authorization stores the capacity it was given in (`PROJECT_AUTHORIZER`), and its timeline entry
+says it was authorized by the project's payment authorizer, under that person's name. Each change of
+authorizer is a row in `project_payment_authorizer_change`, append-only, with the person before and
+after and who made the change, names copied so the history reads the same after someone leaves. A
+payment authorized before this change keeps a null capacity, and `selfAuthorized` stays true on the
+ones a system admin signed for themselves; no new payment can be.
+
+### 7.4 Under the access matrix
+
+The access-control rework (`auth-workos`) adds a Finance Manager role template. There, a role granted
+`progress-bills:authorize-payment` holds the authority as well, on the projects its scope covers, and
+Finance Manager has that grant by default; System Admin does not. The project's named authorizer
+remains, as a record-level fact the billing module checks beside the permission, so the matrix needs
+no hook for it. Raising a payment maps to `progress-bills:approve`, which the roles that raise today
+already hold. Separation of duties applies to either route.
 
 ## 8. Defaults chosen
 
 The tickets leave these open. Each can change without a data change unless noted.
 
 1. Part payment is allowed, one payment in flight per bill.
-2. Two signatures: request and authorize, and a system admin may give both, on the record.
+2. Two signatures: request and authorize, by two different people. The authorizer is named per project
+   (section 7).
 3. Payment does not hold up the next bill.
 4. Retention is not released through this flow. It stays deducted, and its release is a later feature.
 5. Milestone bills pay the same way as RA bills, and a milestone's own status is not closed by payment.
