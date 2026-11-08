@@ -13,6 +13,7 @@ public final class DocumentIngestionStorageLayout {
     public static final String ATTACHMENT_FOLDER = "doc-ingest";
     public static final String META_FILE = "meta.json";
     public static final String MANIFEST_FILE = "manifest.json";
+    public static final String TABLES_FILE = "tables.jsonl";
 
     private DocumentIngestionStorageLayout() {
     }

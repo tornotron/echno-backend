@@ -2,6 +2,7 @@ package org.tornotron.echno_backend.modules.documentingestion.extraction;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -25,6 +26,29 @@ public class CandidateWriter {
     private final CandidateRepository candidates;
     private final SourceRefRepository sources;
     private final TenantEntityHelper tenantEntityHelper;
+
+    /** Proposes a batch in one transaction; the caller keeps batches small. */
+    @Transactional
+    public List<UUID> proposeAll(List<ProposedCandidate> batch) {
+        List<UUID> ids = new ArrayList<>(batch.size());
+        for (ProposedCandidate proposed : batch) {
+            ids.add(propose(proposed));
+        }
+        return ids;
+    }
+
+    /**
+     * Removes what a segment proposed and nobody applied, with its sources, so reading the segment
+     * again replaces its rows instead of adding to them. Applied rows stay, as provenance points at them.
+     *
+     * @return how many candidates were removed
+     */
+    @Transactional
+    public int discardUnapplied(UUID segmentId) {
+        Long orgId = tenantEntityHelper.resolveCurrentOrganization().getId();
+        sources.deleteForUnappliedInSegment(orgId, segmentId);
+        return candidates.deleteUnappliedInSegment(orgId, segmentId);
+    }
 
     @Transactional
     public UUID propose(ProposedCandidate proposed) {

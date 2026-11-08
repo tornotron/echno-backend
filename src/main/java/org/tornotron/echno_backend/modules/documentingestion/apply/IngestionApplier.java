@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.modules.documentingestion.apply;
 
 import java.util.Map;
+import java.util.UUID;
 import org.tornotron.echno_backend.modules.documentingestion.domain.Candidate;
 import org.tornotron.echno_backend.modules.documentingestion.domain.CandidateKind;
 
@@ -17,6 +18,16 @@ public interface IngestionApplier {
     CandidateKind kind();
 
     String targetGuard();
+
+    /**
+     * Checks, once per apply call and before any row, what would make every row fail the same way,
+     * such as no target chosen or the target's module being off, so the caller gets one clear refusal
+     * instead of a whole package marked failed.
+     *
+     * @throws RuntimeException with a sentence for the person; nothing is written
+     */
+    default void preflight(UUID packageId) {
+    }
 
     /**
      * Writes one candidate and says where it landed. Runs inside the batch transaction, which also

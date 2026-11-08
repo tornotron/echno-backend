@@ -4019,6 +4019,241 @@
         ],
         "type": "object"
       },
+      "BoqMappingRequest": {
+        "description": "The column mapping a person confirms for one BOQ sheet. Reading the sheet again replaces its unapplied rows.",
+        "properties": {
+          "codePrefix": {
+            "description": "Put before every item code, so sheets that each number from 1 can share a contract",
+            "example": "B2-",
+            "maxLength": 20,
+            "minLength": 0,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "columns": {
+            "additionalProperties": {
+              "format": "int32",
+              "type": "integer"
+            },
+            "description": "Field to 1-based column. description is required; itemCode, unit, quantity, rate and amount are optional",
+            "example": {
+              "amount": 6,
+              "description": 2,
+              "itemCode": 1,
+              "quantity": 4,
+              "rate": 5,
+              "unit": 3
+            },
+            "minProperties": 1,
+            "type": "object"
+          },
+          "headerRow": {
+            "description": "The header row; data starts below it. 0 when the sheet has no header row",
+            "example": 2,
+            "format": "int32",
+            "maximum": 1048576,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "columns",
+          "headerRow"
+        ],
+        "type": "object"
+      },
+      "BoqPreviewRow": {
+        "properties": {
+          "cells": {
+            "items": {
+              "$ref": "#/components/schemas/PreviewCell"
+            },
+            "type": "array"
+          },
+          "hidden": {
+            "type": "boolean"
+          },
+          "row": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "BoqSheetDto": {
+        "description": "One sheet of a workbook read as a BOQ: its proposed or confirmed column mapping, its top rows, and what reading it found.",
+        "properties": {
+          "codePrefix": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "columns": {
+            "additionalProperties": {
+              "format": "int32",
+              "type": "integer"
+            },
+            "description": "Field to 1-based column. Fields: itemCode, description, unit, quantity, rate, amount",
+            "type": "object"
+          },
+          "confirmedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confirmedBy": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "documentId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "extractedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "headerRow": {
+            "description": "The header row; data starts below it. 0 means the sheet has no header row",
+            "format": "int32",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "hidden": {
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "preview": {
+            "description": "The top rows of the sheet, for the mapping screen",
+            "items": {
+              "$ref": "#/components/schemas/BoqPreviewRow"
+            },
+            "type": "array"
+          },
+          "rowCount": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "segmentId": {
+            "description": "Set once a person confirms the mapping; candidates of this sheet carry it",
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sheetIndex": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "sheetName": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "DETECTED",
+              "NEEDS_MAPPING",
+              "EXTRACTED"
+            ],
+            "type": "string"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BoqSheetSummary"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What reading the sheet found, once it is read"
+          }
+        },
+        "type": "object"
+      },
+      "BoqSheetSummary": {
+        "properties": {
+          "flaggedItems": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "ignoredRows": {
+            "items": {
+              "format": "int32",
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "items": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "rowsRead": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "sections": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "totals": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "warnings": {
+            "items": {
+              "$ref": "#/components/schemas/BoqWarning"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "BoqTargetRequest": {
+        "description": "The sub-contract a package's BOQ is written to. Null clears it, and accepted rows stay as the package's tender BOQ.",
+        "properties": {
+          "subContractId": {
+            "description": "A sub-contract of the organization, in the package's project when the package has one",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "BoqWarning": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "row": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "BudgetAllocationDto": {
         "description": "One budget-head allocation on a project: the amount set aside for a cost category.",
         "properties": {
@@ -17910,8 +18145,8 @@
             "type": "string"
           },
           "subContractId": {
-            "format": "uuid",
-            "type": "string"
+            "format": "int64",
+            "type": "integer"
           }
         },
         "type": "object"
@@ -20963,6 +21198,21 @@
             "type": "string"
           },
           "url": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "PreviewCell": {
+        "properties": {
+          "col": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "ref": {
+            "type": "string"
+          },
+          "text": {
             "type": "string"
           }
         },
@@ -57733,6 +57983,369 @@
         ]
       }
     },
+    "/api/v1/document-ingestion/documents/{documentId}/boq/sheets": {
+      "get": {
+        "operationId": "DocumentIngestionBoqController_listSheets",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "documentId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BoqSheetDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List a workbook's sheets with their mapping and what reading each found",
+        "tags": [
+          "Document Ingestion"
+        ]
+      }
+    },
+    "/api/v1/document-ingestion/documents/{documentId}/boq/sheets/detect": {
+      "post": {
+        "description": "Sheets already found keep their mapping. Reads no rows into candidates.",
+        "operationId": "DocumentIngestionBoqController_detectSheets",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "documentId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BoqSheetDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Every sheet of the workbook, in workbook order"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not a workbook, not read yet, or the package is archived"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "MODULE_DISABLED, or the caller lacks an upload role"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such document in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Find the header of each sheet of a parsed workbook and propose a column mapping",
+        "tags": [
+          "Document Ingestion"
+        ]
+      }
+    },
+    "/api/v1/document-ingestion/documents/{documentId}/boq/sheets/{sheetId}/extract": {
+      "post": {
+        "description": "Reading a sheet again replaces its unapplied candidates. Refused once a row of the sheet is on a contract.",
+        "operationId": "DocumentIngestionBoqController_extractSheet",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "documentId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "sheetId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BoqMappingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoqSheetDto"
+                }
+              }
+            },
+            "description": "The sheet with what reading it found"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "A bad mapping, or rows of the sheet are already applied"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "MODULE_DISABLED, or the caller lacks an upload role"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such document or sheet in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Confirm a sheet's column mapping and read its rows into BOQ candidates",
+        "tags": [
+          "Document Ingestion"
+        ]
+      }
+    },
     "/api/v1/document-ingestion/documents/{documentId}/download-url": {
       "get": {
         "operationId": "DocumentIngestionPackageController_downloadUrl",
@@ -58545,6 +59158,129 @@
         ]
       }
     },
+    "/api/v1/document-ingestion/packages/{packageId}/boq-target": {
+      "put": {
+        "description": "With none chosen, accepted BOQ rows stay on the package as its tender BOQ.",
+        "operationId": "DocumentIngestionBoqController_setBoqTarget",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "packageId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BoqTargetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PackageDto"
+                }
+              }
+            },
+            "description": "The package with its target"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The contract is in another project, or BOQ rows are already applied elsewhere"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "MODULE_DISABLED, or the caller cannot apply"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such package or sub-contract in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Choose the sub-contract a package's BOQ is written to, or clear it",
+        "tags": [
+          "Document Ingestion"
+        ]
+      }
+    },
     "/api/v1/document-ingestion/packages/{packageId}/candidates": {
       "get": {
         "operationId": "DocumentIngestionReviewController_listCandidates",
@@ -58595,10 +59331,11 @@
           },
           {
             "in": "query",
-            "name": "flagged",
+            "name": "segmentId",
             "required": false,
             "schema": {
-              "type": "boolean"
+              "format": "uuid",
+              "type": "string"
             }
           },
           {
@@ -58714,7 +59451,7 @@
             "description": "Bad Gateway"
           }
         },
-        "summary": "List a package's candidate values with their sources, filtered by kind and status",
+        "summary": "List a package's candidate values with their sources, filtered by kind, status and segment",
         "tags": [
           "Document Ingestion"
         ]

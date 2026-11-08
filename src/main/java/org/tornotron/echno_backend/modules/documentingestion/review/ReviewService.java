@@ -61,10 +61,10 @@ public class ReviewService {
     }
 
     @Transactional(readOnly = true)
-    public Page<CandidateDto> list(UUID packageId, CandidateKind kind, CandidateStatus status, Boolean flagged,
+    public Page<CandidateDto> list(UUID packageId, CandidateKind kind, CandidateStatus status, UUID segmentId,
                                    int page, int size) {
         requirePackage(packageId);
-        Page<Candidate> rows = candidates.findForReview(packageId, kind, status,
+        Page<Candidate> rows = candidates.findForReview(packageId, kind, status, segmentId,
                 PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), MAX_PAGE_SIZE)));
         Map<UUID, List<SourceRefDto>> refs = sources.findForCandidates(rows.map(Candidate::getId).getContent()).stream()
                 .collect(Collectors.groupingBy(s -> s.getCandidateId(), LinkedHashMap::new,

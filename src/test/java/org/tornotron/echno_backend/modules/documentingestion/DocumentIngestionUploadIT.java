@@ -54,6 +54,7 @@ import org.tornotron.echno_backend.modules.documentingestion.service.DocumentIng
 import org.tornotron.echno_backend.modules.documentingestion.service.IngestDocumentService;
 import org.tornotron.echno_backend.modules.documentingestion.service.IngestPackageService;
 import org.tornotron.echno_backend.organization.Organization;
+import org.tornotron.echno_backend.modules.workprogress.api.ContractBoqPort;
 import org.tornotron.echno_backend.support.AbstractIntegrationTest;
 import org.tornotron.echno_backend.user.UserContextService;
 
@@ -88,6 +89,9 @@ class DocumentIngestionUploadIT extends AbstractIntegrationTest {
 
     @MockitoBean
     private AttachmentService attachments;
+
+    @MockitoBean
+    private ContractBoqPort contractBoq;
 
     @PersistenceContext
     private EntityManager entityManager;

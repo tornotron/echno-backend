@@ -6,7 +6,7 @@ import org.tornotron.echno_backend.modules.documentingestion.domain.IngestPackag
 import org.tornotron.echno_backend.modules.documentingestion.domain.PackageStage;
 import org.tornotron.echno_backend.modules.documentingestion.domain.PackageStatus;
 
-public record PackageDto(UUID id, String name, Long projectId, UUID subContractId, PackageStage stage,
+public record PackageDto(UUID id, String name, Long projectId, Long subContractId, PackageStage stage,
                          PackageStatus status, long documentCount, LocalDateTime createdAt, Long createdBy) {
 
     public static PackageDto of(IngestPackage p, long documentCount) {
