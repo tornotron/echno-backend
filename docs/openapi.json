@@ -29057,6 +29057,7 @@
           }
         },
         "required": [
+          "acceptTerms",
           "dateOfBirth",
           "email",
           "gender",
@@ -38317,7 +38318,7 @@
                 }
               }
             },
-            "description": "A field failed validation, or the username/email is already taken"
+            "description": "A field failed validation, including acceptTerms not being true. errors names each field that failed."
           },
           "402": {
             "content": {
@@ -38352,12 +38353,36 @@
           "409": {
             "content": {
               "*/*": {
+                "examples": {
+                  "email": {
+                    "description": "email",
+                    "value": {
+                      "detail": "An account with this email already exists. Please sign in, or register with a different email.",
+                      "errors": {
+                        "email": "An account with this email already exists. Please sign in, or register with a different email."
+                      },
+                      "status": 409,
+                      "title": "Duplicate Resource"
+                    }
+                  },
+                  "userName": {
+                    "description": "userName",
+                    "value": {
+                      "detail": "The username 'site.engineer' is already taken. Please choose a different username.",
+                      "errors": {
+                        "userName": "The username 'site.engineer' is already taken. Please choose a different username."
+                      },
+                      "status": 409,
+                      "title": "Duplicate Resource"
+                    }
+                  }
+                },
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             },
-            "description": "Conflict"
+            "description": "The username or the email is already taken. errors names the field: errors.userName or errors.email."
           },
           "422": {
             "content": {
@@ -141787,7 +141812,7 @@
     },
     "/api/v1/user": {
       "get": {
-        "description": "Resolves the caller's user record from the subject claim of their access token.",
+        "description": "Resolves the caller's user record from the subject claim of their access token. Needs no X-Organization-Id, and ignores one if sent: it answers before the caller has picked an organization, whether they belong to none, one or several.",
         "operationId": "UserController_readAnUser",
         "responses": {
           "200": {

@@ -147,8 +147,11 @@ public class TenantFilter extends OncePerRequestFilter {
      * to say it was intended.
      *
      * <p>The organization and user endpoints in general are intentionally filtered: they rely on
-     * per-id membership checks, not a blanket exemption. Only the exact {@code /user/web} lookup
-     * is listed, not the paths beneath it. (Two earlier patterns, {@code /organizations} and
+     * per-id membership checks, not a blanket exemption. Only the exact current-user lookups,
+     * {@code /user} for the mobile client and {@code /user/web} for the web one, are listed, not
+     * the paths beneath them. The app calls {@code /user} straight after sign-in, before the
+     * caller has picked an organization, so a member of two or more organizations would
+     * otherwise be refused for want of a header they cannot know yet (#997). (Two earlier patterns, {@code /organizations} and
      * {@code /users/profile}, never matched the real singular paths and were removed to avoid the
      * false impression that those endpoints are unfiltered.)
      *
@@ -175,7 +178,7 @@ public class TenantFilter extends OncePerRequestFilter {
         if (path.equals(apiRoot + "/auth/register")) {
             return "Self-registration runs before the caller belongs to any organization";
         }
-        if (path.equals(apiRoot + "/user/web")) {
+        if (path.equals(apiRoot + "/user") || path.equals(apiRoot + "/user/web")) {
             return "The current-user lookup answers across every organization the caller belongs to";
         }
         return null;

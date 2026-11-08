@@ -105,7 +105,9 @@ public class UserController {
     @GetMapping
     @Operation(
             summary = "Get the current user",
-            description = "Resolves the caller's user record from the subject claim of their access token."
+            description = "Resolves the caller's user record from the subject claim of their access token. "
+                    + "Needs no X-Organization-Id, and ignores one if sent: it answers before the caller "
+                    + "has picked an organization, whether they belong to none, one or several."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "User returned"),

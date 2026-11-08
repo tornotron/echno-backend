@@ -30,6 +30,11 @@ public class UserRegistrationDto {
 
     private String role;
 
+    // Checked here as well as in the form, so a direct call cannot register a user who has not
+    // accepted the terms. A missing value is refused with its own message rather than passing,
+    // which is what @AssertTrue alone would do with a null.
+    @NotNull(message = "acceptTerms is required")
+    @AssertTrue(message = "acceptTerms must be true")
     private Boolean acceptTerms;
 
     @NotBlank(message = "email is required")
