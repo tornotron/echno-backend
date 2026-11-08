@@ -13,6 +13,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.context.annotation.Import;
+import org.tornotron.echno_backend.common.configuration.JpaAuditingConfig;
 import org.springframework.data.domain.PageRequest;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.finance.ledger.domain.Customer;
@@ -30,6 +32,10 @@ import org.tornotron.echno_backend.support.AbstractIntegrationTest;
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+// Customer carries Spring Data's AuditingEntityListener, so this slice imports the auditing
+// configuration for a handler of its own; without it the listener is configured by whichever earlier
+// context last enabled auditing, and a persist fails once the context cache has closed that one.
+@Import(JpaAuditingConfig.class)
 class ProjectAccessFilterIT extends AbstractIntegrationTest {
 
     @Autowired
