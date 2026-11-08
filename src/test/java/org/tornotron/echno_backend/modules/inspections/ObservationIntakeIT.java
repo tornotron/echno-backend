@@ -1,5 +1,7 @@
 package org.tornotron.echno_backend.modules.inspections;
 
+import org.tornotron.echno_backend.modules.inspections.domain.Inspection;
+import org.tornotron.echno_backend.modules.inspections.InspectionType;
 import org.tornotron.echno_backend.modules.inspections.api.ObservationSource;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jakarta.persistence.EntityManager;
@@ -452,6 +454,34 @@ class ObservationIntakeIT extends AbstractIntegrationTest {
         assertThat(service.findById(detection).reviewStatus()).isEqualTo(ObservationReviewStatus.PENDING);
     }
 
+    @Test
+    void aFindingNamingAnInspectionIsFiledUnderItAndTakesItsNode() {
+        UUID inspectionId = commitInspection(projectId, zone);
+
+        ObservationDto dto = service.intake(new IntakeObservationRequest(projectId, "cv/job/0", ObservationSource.DRONE,
+                "drone-7", null, null, null, null, LocalDateTime.of(2026, 9, 12, 8, 16), "Helmet missing", null,
+                null, null, null, null, null, null, null, inspectionId)).observation();
+
+        assertThat(dto.inspectionId()).isEqualTo(inspectionId);
+        assertThat(dto.spatialPath()).hasSize(3);
+    }
+
+    @Test
+    void anInspectionOnAnotherProjectOrOrganizationIsRefused() {
+        TenantContext.clear();
+        TenantContext.setCurrentOrgId(orgBId);
+        UUID foreign = commitInspection(otherProjectId, null);
+        TenantContext.clear();
+        TenantContext.setCurrentOrgId(orgAId);
+
+        assertThatThrownBy(() -> service.intake(new IntakeObservationRequest(projectId, "cv/job/1",
+                ObservationSource.DRONE, "drone-7", null, null, null, null, LocalDateTime.of(2026, 9, 12, 8, 16),
+                "Helmet missing", null, null, null, null, null, null, null, null, foreign)))
+                .isInstanceOf(ResourceNotFoundException.class);
+        assertThat(service.findAll(projectId, null, null, null, null, null, null, PageRequest.of(0, 10))
+                .getTotalElements()).isZero();
+    }
+
     private UUID taken(String ref) {
         return service.intake(batchItem(ref, projectId)).observation().id();
     }
@@ -545,6 +575,18 @@ class ObservationIntakeIT extends AbstractIntegrationTest {
         TransactionTemplate tt = new TransactionTemplate(txManager);
         tt.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         tt.executeWithoutResult(status -> work.run());
+    }
+
+    private UUID commitInspection(Long project, UUID node) {
+        Inspection inspection = new Inspection();
+        inspection.setOrganization(entityManager.getReference(Organization.class, TenantContext.getCurrentOrgId()));
+        inspection.setInspectionNumber("INS-" + UUID.randomUUID().toString().substring(0, 8));
+        inspection.setTitle("Level 1 safety walk");
+        inspection.setType(InspectionType.SAFETY);
+        inspection.setProjectId(project);
+        inspection.setSpatialNodeId(node);
+        inCommittedTx(() -> entityManager.persist(inspection));
+        return inspection.getId();
     }
 
     private Organization persistOrganization(String name) {

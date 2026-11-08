@@ -25,6 +25,7 @@ import org.tornotron.echno_backend.modules.inspections.observation.EvidenceInUse
 import org.tornotron.echno_backend.modules.inspections.repositories.ObservationRegionRepository;
 import org.tornotron.echno_backend.modules.inspections.events.InspectionEventRecorder;
 import org.tornotron.echno_backend.modules.inspections.events.InspectionEventType;
+import org.tornotron.echno_backend.modules.inspections.service.EvidenceFileLookup;
 import org.tornotron.echno_backend.modules.inspections.service.InspectionEvidenceService;
 
 import java.util.List;
@@ -60,13 +61,15 @@ class InspectionEvidenceServiceTest {
     @Mock private AttachmentMapper attachmentMapper;
     @Mock private InspectionEventRecorder events;
     @Mock private ObservationRegionRepository regionRepo;
+    @Mock private EvidenceFileLookup evidenceFiles;
 
     private InspectionEvidenceService service;
     private UUID inspectionId;
 
     @BeforeEach
     void setUp() {
-        service = new InspectionEvidenceService(inspectionRepo, attachmentService, attachmentMapper, events, regionRepo);
+        service = new InspectionEvidenceService(inspectionRepo, attachmentService, attachmentMapper, events, regionRepo,
+                evidenceFiles);
         inspectionId = UUID.randomUUID();
     }
 

@@ -88,6 +88,7 @@ public class InspectionEvidenceService {
     private final AttachmentMapper attachmentMapper;
     private final InspectionEventRecorder events;
     private final ObservationRegionRepository regionRepo;
+    private final EvidenceFileLookup evidenceFiles;
 
     /**
      * The evidence filed against one inspection, oldest first, each with a short-lived download
@@ -121,6 +122,7 @@ public class InspectionEvidenceService {
                 .map(attachmentMapper::toDto)
                 .toList();
         recordAttached(inspection, stored);
+        evidenceFiles.inspectionImagesStored(inspection.getId(), inspection.getProjectId(), stored);
         log.info("Filed {} pieces of evidence against inspection {}",
                 stored.size(), inspection.getInspectionNumber());
         return stored;
@@ -158,6 +160,7 @@ public class InspectionEvidenceService {
                 .map(attachmentMapper::toDto)
                 .toList();
         recordAttached(inspection, stored);
+        evidenceFiles.inspectionImagesStored(inspection.getId(), inspection.getProjectId(), stored);
         log.info("Registered {} pieces of evidence against inspection {}",
                 stored.size(), inspection.getInspectionNumber());
         return stored;

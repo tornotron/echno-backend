@@ -277,17 +277,21 @@ public class ObservationService {
             return new IntakeResult(findById(existing.get().getId(), false), false);
         }
         requireIntakeProject(req.projectId());
+        Inspection inspection = requireIntakeInspection(req.inspectionId(), req.projectId());
         Set<Long> usable = new HashSet<>();
         List<NewRegion> regions = prepareProducerRegions(req.regions(), req.projectId(), usable);
         requireEvidenceRefs(req.evidenceRefs(), req.projectId(), usable);
         IntakeCandidate candidate = candidateOf(req, regions);
         intakeChecks.orderedStream().forEach(check -> check.check(candidate));
-        Observation o = newObservation(req.projectId(), null, req.source(), req.title(), req.description());
+        Observation o = newObservation(req.projectId(), inspection == null ? null : inspection.getId(), req.source(),
+                req.title(), req.description());
         o.setExternalRef(req.externalRef());
         o.setSourceDeviceId(req.sourceDeviceId());
         o.setMissionRef(req.missionRef());
         o.setCaptureRef(req.captureRef());
-        o.setSpatialNodeId(resolveNode(req.projectId(), req.spatialNodeId()));
+        o.setSpatialNodeId(req.spatialNodeId() == null && inspection != null
+                ? inspection.getSpatialNodeId()
+                : resolveNode(req.projectId(), req.spatialNodeId()));
         o.setLocationNote(req.locationNote());
         o.setObservedAt(req.observedAt());
         o.setCategory(categoryOf(candidate));
@@ -1280,6 +1284,21 @@ public class ObservationService {
         if (projectId == null || !projectRepository.existsByIdAndOrganization_Id(projectId, TenantContext.getCurrentOrgId())) {
             throw new ResourceNotFoundException("Project with ID " + projectId + " was not found");
         }
+    }
+
+    /** The inspection a producer names, which must be on the intake's project; null when it names none. */
+    private Inspection requireIntakeInspection(UUID inspectionId, Long projectId) {
+        if (inspectionId == null) {
+            return null;
+        }
+        Inspection inspection = inspectionRepo.findByIdScoped(inspectionId)
+                .orElseThrow(() -> new IntakeReferenceNotFoundException(IntakeRejectedCodes.INSPECTION_NOT_FOUND,
+                        "Inspection with ID " + inspectionId + " was not found"));
+        if (!projectId.equals(inspection.getProjectId())) {
+            throw new IntakeRejectedException(IntakeRejectedCodes.VALIDATION, "inspectionId",
+                    "Inspection " + inspectionId + " belongs to a different project");
+        }
+        return inspection;
     }
 
     private void requireIntakeProject(Long projectId) {
