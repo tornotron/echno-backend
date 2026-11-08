@@ -74444,7 +74444,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read finance records"
           },
           "404": {
             "content": {
@@ -74554,7 +74554,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not create finance records"
           },
           "404": {
             "content": {
@@ -74666,7 +74666,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read finance records"
           },
           "404": {
             "content": {
@@ -74769,7 +74769,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read finance records"
           },
           "404": {
             "content": {
@@ -74830,7 +74830,7 @@
     },
     "/api/v1/finance/accounts/web/import": {
       "post": {
-        "description": "Upserts accounts by code from an uploaded CSV with the columns code, name, type, parentCode and active. Existing accounts are updated and missing ones are created, applied parent-before-child; accounts absent from the file are never deleted. Returns a summary of the created and updated counts and any per-row errors. Restricted to system administrators.",
+        "description": "Upserts accounts by code from an uploaded CSV with the columns code, name, type, parentCode and active. Existing accounts are updated and missing ones are created, applied parent-before-child; accounts absent from the file are never deleted. Returns a summary of the created and updated counts and any per-row errors. Needs finance configure.",
         "operationId": "AccountControllerWeb_importCsv",
         "requestBody": {
           "content": {
@@ -74889,7 +74889,7 @@
                 }
               }
             },
-            "description": "Caller is not a system administrator in the current tenant"
+            "description": "Caller may not configure finance"
           },
           "404": {
             "content": {
@@ -74950,7 +74950,7 @@
     },
     "/api/v1/finance/accounts/web/seed-defaults": {
       "post": {
-        "description": "Creates the default chart of accounts for the current tenant. The operation is idempotent: a tenant that already has a chart is left untouched, so it can safely back-fill an organization created before seeding was wired in. Returns the number of accounts created. Restricted to system administrators.",
+        "description": "Creates the default chart of accounts for the current tenant. The operation is idempotent: a tenant that already has a chart is left untouched, so it can safely back-fill an organization created before seeding was wired in. Returns the number of accounts created. Needs finance configure.",
         "operationId": "AccountControllerWeb_seedDefaults",
         "responses": {
           "200": {
@@ -74995,7 +74995,7 @@
                 }
               }
             },
-            "description": "Caller is not a system administrator in the current tenant"
+            "description": "Caller may not configure finance"
           },
           "404": {
             "content": {
@@ -75100,7 +75100,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read finance records"
           },
           "404": {
             "content": {
@@ -75213,7 +75213,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read finance records"
           },
           "404": {
             "content": {
@@ -75334,7 +75334,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not edit finance records"
           },
           "404": {
             "content": {
@@ -75447,7 +75447,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not edit finance records"
           },
           "404": {
             "content": {
@@ -78592,7 +78592,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read finance records"
           },
           "404": {
             "content": {
@@ -78702,7 +78702,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not create finance records"
           },
           "404": {
             "content": {
@@ -78825,7 +78825,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read finance records"
           },
           "404": {
             "content": {
@@ -78948,7 +78948,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not edit finance records"
           },
           "404": {
             "content": {
@@ -79054,7 +79054,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not edit finance records"
           },
           "404": {
             "content": {
@@ -79793,7 +79793,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read finance records"
           },
           "404": {
             "content": {
@@ -79903,7 +79903,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not create finance records"
           },
           "404": {
             "content": {
@@ -80037,7 +80037,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read finance records"
           },
           "404": {
             "content": {
@@ -80160,7 +80160,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not approve finance records"
           },
           "404": {
             "content": {
@@ -80283,7 +80283,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read finance records"
           },
           "404": {
             "content": {
@@ -80623,7 +80623,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read finance records"
           },
           "404": {
             "content": {
@@ -80743,7 +80743,7 @@
                 }
               }
             },
-            "description": "Caller is not a system administrator in the current tenant"
+            "description": "Caller may not configure finance"
           },
           "404": {
             "content": {
@@ -80871,7 +80871,7 @@
                 }
               }
             },
-            "description": "Caller is not a system administrator in the current tenant"
+            "description": "Caller may not configure finance"
           },
           "404": {
             "content": {
@@ -81458,7 +81458,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read finance records"
           },
           "404": {
             "content": {
@@ -81580,7 +81580,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read finance records"
           },
           "404": {
             "content": {
@@ -81693,7 +81693,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read finance records"
           },
           "404": {
             "content": {
@@ -81795,7 +81795,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read finance records"
           },
           "404": {
             "content": {
@@ -81905,7 +81905,7 @@
                 }
               }
             },
-            "description": "Caller is not a system administrator in the current tenant"
+            "description": "Caller may not configure finance"
           },
           "404": {
             "content": {
@@ -169351,7 +169351,7 @@
       "name": "Customer Payments"
     },
     {
-      "description": "Customers billed by the ledger, holding their tax registration, contact and billing details along with a credit limit and payment terms. All endpoints are tenant scoped and limited to system administrators and project managers.",
+      "description": "Customers billed by the ledger, holding their tax registration, contact and billing details along with a credit limit and payment terms. All endpoints are tenant scoped. Each needs the finance permission named for its action (read, create or edit).",
       "name": "Customers"
     },
     {
@@ -169391,11 +169391,11 @@
       "name": "Expenses (Mobile)"
     },
     {
-      "description": "Standard accounting reports computed from the ledger: trial balance, profit and loss, and balance sheet. Each report is computed on demand from posted journal entries for the requested date or date range. All endpoints are tenant scoped and limited to system administrators and project managers.",
+      "description": "Standard accounting reports computed from the ledger: trial balance, profit and loss, and balance sheet. Each report is computed on demand from posted journal entries for the requested date or date range. All endpoints are tenant scoped and need finance read.",
       "name": "Finance Reports"
     },
     {
-      "description": "Organization-level finance configuration for the web client. Holds the approval threshold that decides whether a construction invoice is auto-approved on submit or routed for manual approval. Reading is open to project managers and system administrators; changing the settings is restricted to system administrators.",
+      "description": "Organization-level finance configuration for the web client. Holds the approval threshold that decides whether a construction invoice is auto-approved on submit or routed for manual approval. Reading needs finance read; changing the settings needs finance configure.",
       "name": "Finance Settings"
     },
     {
@@ -169479,11 +169479,11 @@
       "name": "Issues"
     },
     {
-      "description": "Double-entry journal entries posted to the ledger. Each entry carries two or more lines whose total debits must equal total credits. A posted entry is immutable and can only be undone by posting a reversing entry. All endpoints are tenant scoped and limited to system administrators and project managers.",
+      "description": "Double-entry journal entries posted to the ledger. Each entry carries two or more lines whose total debits must equal total credits. A posted entry is immutable and can only be undone by posting a reversing entry. All endpoints are tenant scoped. Reading needs finance read, posting needs finance create and reversing needs finance approve.",
       "name": "Journal Entries"
     },
     {
-      "description": "CSV export of the ledger's journal entries for external accounting systems, one row per journal line. Tenant scoped and limited to system administrators and project managers.",
+      "description": "CSV export of the ledger's journal entries for external accounting systems, one row per journal line. Tenant scoped; needs finance read.",
       "name": "Journal Export"
     },
     {
@@ -169543,7 +169543,7 @@
       "name": "Leave Requests (Web)"
     },
     {
-      "description": "Chart of accounts for double-entry bookkeeping. Accounts are arranged in a hierarchy under the five root types (asset, liability, equity, income, expense), and only leaf accounts are postable. All endpoints are tenant scoped and limited to system administrators and project managers, apart from the default seed, which is admin only.",
+      "description": "Chart of accounts for double-entry bookkeeping. Accounts are arranged in a hierarchy under the five root types (asset, liability, equity, income, expense), and only leaf accounts are postable. All endpoints are tenant scoped. Each needs the finance permission named for its action (read, create or edit), and the CSV import and the default seed need finance configure.",
       "name": "Ledger Accounts"
     },
     {
@@ -169623,7 +169623,7 @@
       "name": "Payables (Web)"
     },
     {
-      "description": "Per-organization mapping of finance posting roles (accounts receivable, GST output, accounts payable, GST input, default revenue, default expense) to concrete accounts. Where a role is unmapped, the postings fall back to the configured default account. Reading is open to project managers and system administrators; changing a mapping is restricted to system administrators.",
+      "description": "Per-organization mapping of finance posting roles (accounts receivable, GST output, accounts payable, GST input, default revenue, default expense) to concrete accounts. Where a role is unmapped, the postings fall back to the configured default account. Reading needs finance read; changing a mapping needs finance configure.",
       "name": "Posting Account Mapping"
     },
     {
