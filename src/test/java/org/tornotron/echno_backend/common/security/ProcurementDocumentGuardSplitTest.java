@@ -77,7 +77,10 @@ class ProcurementDocumentGuardSplitTest {
             "IndentControllerWeb.createIndent",
             "IndentControllerWeb.UpdateAnIndent",
             "IndentControllerWeb.addItem",
-            "IndentControllerWeb.updateItem");
+            "IndentControllerWeb.updateItem",
+            "IndentController.createIndent",
+            "IndentController.addItem",
+            "IndentController.updateItem");
 
     @Test
     void everyDocumentReadAdmitsTheProjectManager() {
