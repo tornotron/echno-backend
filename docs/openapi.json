@@ -120223,7 +120223,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read purchase orders"
           },
           "404": {
             "content": {
@@ -120333,7 +120333,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to purchase orders"
           },
           "404": {
             "content": {
@@ -120443,7 +120443,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to purchase orders"
           },
           "404": {
             "content": {
@@ -120559,7 +120559,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read purchase orders"
           },
           "404": {
             "content": {
@@ -120690,7 +120690,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read purchase orders"
           },
           "404": {
             "content": {
@@ -120806,7 +120806,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read purchase orders"
           },
           "404": {
             "content": {
@@ -120911,7 +120911,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read purchase orders"
           },
           "404": {
             "content": {
@@ -121021,7 +121021,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to purchase orders"
           },
           "404": {
             "content": {
@@ -121131,7 +121131,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to purchase orders"
           },
           "404": {
             "content": {
@@ -121247,7 +121247,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read purchase orders"
           },
           "404": {
             "content": {
@@ -121378,7 +121378,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read purchase orders"
           },
           "404": {
             "content": {
@@ -121494,7 +121494,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read purchase orders"
           },
           "404": {
             "content": {
@@ -121607,7 +121607,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to purchase orders"
           },
           "404": {
             "content": {
@@ -121718,7 +121718,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read purchase orders"
           },
           "404": {
             "content": {
@@ -121831,7 +121831,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to purchase orders"
           },
           "404": {
             "content": {
@@ -121942,7 +121942,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read purchase orders"
           },
           "404": {
             "content": {
@@ -122047,7 +122047,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read purchase orders"
           },
           "404": {
             "content": {
@@ -122157,7 +122157,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to purchase orders"
           },
           "404": {
             "content": {
@@ -122267,7 +122267,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to purchase orders"
           },
           "404": {
             "content": {
@@ -122398,7 +122398,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read purchase orders"
           },
           "404": {
             "content": {
@@ -122514,7 +122514,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read purchase orders"
           },
           "404": {
             "content": {
@@ -122638,7 +122638,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read purchase orders"
           },
           "404": {
             "content": {
@@ -122754,7 +122754,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read purchase orders"
           },
           "404": {
             "content": {
@@ -122859,7 +122859,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read purchase orders"
           },
           "404": {
             "content": {
@@ -122969,7 +122969,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to purchase orders"
           },
           "404": {
             "content": {
@@ -123079,7 +123079,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to purchase orders"
           },
           "404": {
             "content": {
@@ -123210,7 +123210,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read purchase orders"
           },
           "404": {
             "content": {
@@ -123326,7 +123326,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read purchase orders"
           },
           "404": {
             "content": {
@@ -123450,7 +123450,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read purchase orders"
           },
           "404": {
             "content": {
@@ -123566,7 +123566,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read purchase orders"
           },
           "404": {
             "content": {
@@ -123679,7 +123679,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read purchase orders"
           },
           "404": {
             "content": {
@@ -123809,7 +123809,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to purchase orders"
           },
           "404": {
             "content": {
@@ -123949,7 +123949,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read purchase orders"
           },
           "404": {
             "content": {
@@ -124062,7 +124062,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read purchase orders"
           },
           "404": {
             "content": {
@@ -124192,7 +124192,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to purchase orders"
           },
           "404": {
             "content": {
@@ -144526,19 +144526,19 @@
       "name": "Projects"
     },
     {
-      "description": "Line items belonging to a purchase order: the material, ordered and received quantities, unit price and totals. Items can be created independently of the parent order create call and looked up by purchase order or by material. Writing an item is restricted to the system-admin role for the current tenant. Reading one is also open to store-keeper, who needs the ordered quantities to check a delivery against them.",
+      "description": "Line items belonging to a purchase order: the material, ordered and received quantities, unit price and totals. Items can be created independently of the parent order create call and looked up by purchase order or by material. An item takes its order's access: each endpoint needs the purchase-orders permission named for its action (read, create, edit or delete), checked on the order the item sits on, and an item of an order outside the caller's scope reads as not found. The starting roles give read to system-admin, project-manager and store-keeper, who needs the ordered quantities to check a delivery against them; create and edit to system-admin and project-manager; and delete to system-admin alone.",
       "name": "Purchase Order Items"
     },
     {
-      "description": "Web-console mirror of the purchase order item endpoints. Same line-item operations as the mobile API, gated by the web app's org-role check instead of point authorities.",
+      "description": "Web-console mirror of the purchase order item endpoints. Same line-item operations as the mobile API, each needing the purchase-orders permission named for its action, checked on the order the item sits on.",
       "name": "Purchase Order Items (Web)"
     },
     {
-      "description": "Purchase orders raised against a vendor, optionally converted from an indent. A purchase order carries line items, a status lifecycle from draft through fully received or cancelled, and the totals used for payables. Raising and changing an order is restricted to the system-admin role for the current tenant. Reading one is also open to store-keeper, which is what a goods receipt is booked against, and to project-manager, which already sees what that receipt booked in the stock ledger. Neither can alter the order.",
+      "description": "Purchase orders raised against a vendor, optionally converted from an indent. A purchase order carries line items, a status lifecycle from draft through fully received or cancelled, and the totals used for payables. Each endpoint needs the purchase-orders permission named for its action: read, create, edit, or approve for a status change, whether sent to the status endpoint or on an edit. The starting roles give read to system-admin, project-manager and store-keeper, which is what a goods receipt is booked against; create and edit to system-admin and project-manager; and approve to system-admin alone. An order outside the caller's scope reads as not found.",
       "name": "Purchase Orders"
     },
     {
-      "description": "Web-console mirror of the purchase order endpoints. Same purchase order lifecycle as the mobile API, but gated by the web app's org-role check instead of point authorities.",
+      "description": "Web-console mirror of the purchase order endpoints. Same purchase order lifecycle as the mobile API. Each endpoint needs the purchase-orders permission named for its action (read, create, edit, or approve for a status change), and an order outside the caller's scope reads as not found.",
       "name": "Purchase Orders (Web)"
     },
     {
