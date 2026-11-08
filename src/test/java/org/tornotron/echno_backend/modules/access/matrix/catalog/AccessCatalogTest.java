@@ -23,6 +23,13 @@ class AccessCatalogTest {
     }
 
     @Test
+    void aContractorBillOffersEachStepOfItsChain() {
+        Area bills = AccessCatalog.areas().stream().filter(area -> area.id().equals("progress-bills"))
+                .findFirst().orElseThrow();
+        assertThat(bills.namedActions()).containsExactly("prepare", "verify", "certify", "authorize-payment");
+    }
+
+    @Test
     void namedActionsBelongToTheirAreaOnly() {
         assertThat(AccessCatalog.areas()).filteredOn(area -> area.actions().contains("certify"))
                 .extracting(Area::id)
