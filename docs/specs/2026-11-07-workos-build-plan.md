@@ -561,6 +561,12 @@ the point the Roles & Permissions screen is usable.
 **Step 31. Remaining role-name queries.**
 
 - Builds: Manager listings, attendance geofence, `EmployeeDto.orgRoles`.
+- Before deploying: before `auth-workos` reaches either staging on the Keycloak adapter, count the
+  `keycloak_group_only_member` rows on each staging and give each of those people an employee
+  record, or confirm none of them uses the product. A converted area asks the matrix, which needs an
+  employee record, so such a person keeps the old guards but silently loses every converted area
+  (step 30). Under WorkOS this cannot happen: the step 20 bootstrap invitation and every accepted
+  invitation create the record. Record the counts on #914.
 
 **Step 32. Remove the old role code.**
 
