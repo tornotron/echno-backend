@@ -27,8 +27,9 @@ import java.util.List;
         name = "Expenses",
         description = "Money spent against a project or the organization: materials, labour, equipment, "
                 + "transport, utilities and the like, with an optional link to a project, vendor, employee, "
-                + "invoice, payment or budget head. Read access requires tenant membership; creating, "
-                + "updating and deleting are restricted to system-admin or project-manager."
+                + "invoice, payment or budget head. Each endpoint needs the expenses permission named for its "
+                + "action (read, create, edit or delete), and an expense outside the caller's scope reads "
+                + "as not found."
 )
 public class ExpenseControllerWeb {
 
@@ -39,14 +40,14 @@ public class ExpenseControllerWeb {
     }
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('expenses', 'read')")
     @Operation(
             summary = "List all expenses",
             description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Expenses returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read expenses")
     })
     public ResponseEntity<List<ExpenseDto>> readAllExpenses() {
         return UnpagedResultCap.respond(expenseService.getPaginated(
@@ -54,7 +55,7 @@ public class ExpenseControllerWeb {
     }
 
     @GetMapping("/paginated")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('expenses', 'read')")
     @Operation(
             summary = "List expenses, paginated and filterable",
             description = "Returns a single page of expenses. Supports a free-text search over the expense "
@@ -62,7 +63,7 @@ public class ExpenseControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of expenses returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read expenses")
     })
     public ResponseEntity<Page<ExpenseDto>> readAllExpensesPaginated(
             @Valid @ParameterObject PageQuery pageQuery,
@@ -72,14 +73,14 @@ public class ExpenseControllerWeb {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('expenses', 'read')")
     @Operation(
             summary = "Get an expense by id",
             description = "Returns a single expense with its category, amount and optional links."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Expense found"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read expenses"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No expense with the given id")
     })
     public ResponseEntity<ExpenseDto> readAnExpense(@PathVariable Long id) {
@@ -87,7 +88,7 @@ public class ExpenseControllerWeb {
     }
 
     @PostMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('expenses', 'create')")
     @Operation(
             summary = "Create an expense",
             description = "Creates an expense with its category, amount and optional links. The expense "
@@ -96,14 +97,14 @@ public class ExpenseControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Expense created"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "description or amount is missing"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to expenses")
     })
     public ResponseEntity<ExpenseDto> createExpense(@Valid @RequestBody ExpenseCreationDto creationDto) {
         return new ResponseEntity<>(expenseService.create(creationDto), HttpStatus.CREATED);
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('expenses', 'edit')")
     @Operation(
             summary = "Update an expense",
             description = "Replaces the expense's editable details with the given payload. The expense "
@@ -112,7 +113,7 @@ public class ExpenseControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Expense updated"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "description or amount is missing"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to expenses"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No expense with the given id")
     })
     public ResponseEntity<ExpenseDto> updateExpense(@PathVariable Long id,
@@ -121,14 +122,14 @@ public class ExpenseControllerWeb {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('expenses', 'delete')")
     @Operation(
             summary = "Delete an expense",
             description = "Deletes the expense with the given id."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Expense deleted"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to expenses"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No expense with the given id")
     })
     public ResponseEntity<ApiResponse> deleteExpense(@PathVariable Long id) {

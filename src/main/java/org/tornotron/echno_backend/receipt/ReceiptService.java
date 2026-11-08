@@ -10,6 +10,9 @@ import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.numbering.EntryNumberGenerator;
+import org.tornotron.echno_backend.expense.ExpenseAccess;
+import org.tornotron.echno_backend.modules.access.api.AccessFilter;
+import org.tornotron.echno_backend.modules.access.api.AccessPermission;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.receipt.dto.ReceiptCreationDto;
 import org.tornotron.echno_backend.receipt.dto.ReceiptDto;
@@ -24,6 +27,11 @@ import java.util.UUID;
 /**
  * CRUD + list for receipts. The receipt is a flat header scoped to the current tenant;
  * its number is generated on create and never changes afterwards.
+ *
+ * <p>Receipts sit in the expenses area of the access matrix. Each read and write asks it about the
+ * receipt itself ({@link ReceiptAccess} for its facts, {@link ExpenseAccess} for the answer): the list
+ * is narrowed to what the caller may read, one they may not read is reported missing, and a write is
+ * checked on the receipt as it stands and on where it leaves it.
  */
 @Service
 public class ReceiptService {
@@ -34,15 +42,18 @@ public class ReceiptService {
     private final ReceiptMapper receiptMapper;
     private final TenantEntityHelper tenantEntityHelper;
     private final EntryNumberGenerator numberGenerator;
+    private final ExpenseAccess access;
 
     public ReceiptService(ReceiptRepository receiptRepository,
                           ReceiptMapper receiptMapper,
                           TenantEntityHelper tenantEntityHelper,
-                          EntryNumberGenerator numberGenerator) {
+                          EntryNumberGenerator numberGenerator,
+                          ExpenseAccess access) {
         this.receiptRepository = receiptRepository;
         this.receiptMapper = receiptMapper;
         this.tenantEntityHelper = tenantEntityHelper;
         this.numberGenerator = numberGenerator;
+        this.access = access;
     }
 
     @Transactional
@@ -58,6 +69,8 @@ public class ReceiptService {
                 creationDto.getTaxType(), creationDto.getDescription(), creationDto.getNotes(),
                 creationDto.getIssuedBy(), creationDto.getProjectId(), creationDto.getPaymentId(),
                 creationDto.getInvoiceId(), creationDto.getCustomerId());
+        // Checked on the receipt as recorded, so nobody records one where they may not.
+        access.require(AccessPermission.CREATE, ReceiptAccess.facts(receipt));
 
         // saveAndFlush before mapping so the @CreationTimestamp and generated id are
         // populated on the returned DTO.
@@ -67,27 +80,29 @@ public class ReceiptService {
 
     @Transactional(readOnly = true)
     public ReceiptDto getById(Long id) {
-        Receipt receipt = receiptRepository
-                .findByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Receipt with ID " + id + " was not found in this organization"));
-        return receiptMapper.toDto(receipt);
+        return receiptMapper.toDto(requireReceipt(id, AccessPermission.READ));
     }
 
 
     @Transactional(readOnly = true)
     public Page<ReceiptDto> getPaginated(int pageNo, int pageSize, String search, String status) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.DESC, "createdAt"));
-        return receiptRepository.search(searchPattern(search), blankToNull(status), pageable)
-                .map(receiptMapper::toDto);
+        AccessFilter visible = access.filter(AccessPermission.READ);
+        if (visible.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        String pattern = searchPattern(search);
+        String wanted = blankToNull(status);
+        Page<Receipt> receipts = visible.everything()
+                ? receiptRepository.search(pattern, wanted, pageable)
+                : receiptRepository.findAll(
+                        ReceiptAccess.admittedBy(visible).and(ReceiptRepository.matching(pattern, wanted)), pageable);
+        return receipts.map(receiptMapper::toDto);
     }
 
     @Transactional
     public ReceiptDto update(Long id, ReceiptUpdateDto updateDto) {
-        Receipt receipt = receiptRepository
-                .findByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Receipt with ID " + id + " was not found in this organization"));
+        Receipt receipt = requireReceipt(id, AccessPermission.EDIT);
 
         applyFields(receipt, updateDto.getType(), updateDto.getStatus(), updateDto.getAmount(),
                 updateDto.getCurrency(), updateDto.getReceiptDate(), updateDto.getPaymentMethod(),
@@ -96,6 +111,9 @@ public class ReceiptService {
                 updateDto.getTaxType(), updateDto.getDescription(), updateDto.getNotes(),
                 updateDto.getIssuedBy(), updateDto.getProjectId(), updateDto.getPaymentId(),
                 updateDto.getInvoiceId(), updateDto.getCustomerId());
+        // An edit can move the receipt to another project, and must not move it out of what the
+        // caller may edit.
+        access.require(AccessPermission.EDIT, ReceiptAccess.facts(receipt));
 
         // saveAndFlush before mapping so the @UpdateTimestamp on the returned DTO reflects
         // this write.
@@ -105,11 +123,23 @@ public class ReceiptService {
 
     @Transactional
     public void delete(Long id) {
+        receiptRepository.delete(requireReceipt(id, AccessPermission.DELETE));
+    }
+
+    /**
+     * The receipt, if the caller may act on it this way. One they may not read is reported missing,
+     * as one in another organization is; one they may read but not act on this way is refused.
+     */
+    private Receipt requireReceipt(Long id, String action) {
         Receipt receipt = receiptRepository
                 .findByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Receipt with ID " + id + " was not found in this organization"));
-        receiptRepository.delete(receipt);
+                .orElseThrow(() -> notFound(id));
+        access.check(action, ReceiptAccess.facts(receipt), () -> notFound(id));
+        return receipt;
+    }
+
+    private static ResourceNotFoundException notFound(Long id) {
+        return new ResourceNotFoundException("Receipt with ID " + id + " was not found in this organization");
     }
 
     /**
