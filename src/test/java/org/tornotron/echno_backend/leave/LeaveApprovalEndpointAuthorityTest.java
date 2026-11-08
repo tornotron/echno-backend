@@ -140,8 +140,11 @@ class LeaveApprovalEndpointAuthorityTest {
         // A queue is the caller's own by definition. Taking the approver as a parameter under a
         // guard that only checked a role let an administrator read a colleague's queue and left
         // the managers an approval chain is built from unable to read their own. Each of these
-        // declared one parameter, @RequestParam Long approverId, and now declares none.
-        assertThat(parameterCount(LeaveRequestController.class, "getPendingApprovals")).isZero();
+        // declared one parameter, @RequestParam Long approverId, and now declares none. The mobile
+        // queue is paged since #999, so its one parameter is the page it asks for and names nobody.
+        assertThat(endpointMethod(LeaveRequestController.class, "getPendingApprovals").getParameterTypes())
+                .containsExactly(org.tornotron.echno_backend.common.pagination.PageQuery.class);
+        assertThat(requestParameterCount(LeaveRequestController.class, "getPendingApprovals")).isZero();
         assertThat(parameterCount(LeaveRequestController.class, "getPendingApprovalCount")).isZero();
         assertThat(parameterCount(LeaveRequestControllerWeb.class, "getPendingApprovals")).isZero();
         assertThat(parameterCount(LeaveRequestControllerWeb.class, "getPendingApprovalCount")).isZero();
