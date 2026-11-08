@@ -1,5 +1,6 @@
 package org.tornotron.echno_backend.modules.documentingestion.apply;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.tornotron.echno_backend.modules.documentingestion.domain.Candidate;
@@ -44,7 +45,17 @@ public interface IngestionApplier {
      * @param targetType Stable name of the target, such as {@code CONTRACT_BOQ_ITEM}
      * @param targetId The target row's id
      * @param fields Payload field to target field, for each field written
+     * @param also Further rows the same value was written to, such as a milestone's contract milestone
+     *             beside its schedule milestone; each gets its own provenance
      */
-    record AppliedTarget(String targetType, String targetId, Map<String, String> fields) {
+    record AppliedTarget(String targetType, String targetId, Map<String, String> fields, List<AppliedTarget> also) {
+
+        public AppliedTarget {
+            also = also == null ? List.of() : List.copyOf(also);
+        }
+
+        public AppliedTarget(String targetType, String targetId, Map<String, String> fields) {
+            this(targetType, targetId, fields, List.of());
+        }
     }
 }

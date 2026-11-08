@@ -37,7 +37,7 @@ public class ChangeLinker {
     /** Links every change a job proposed. */
     @Transactional
     public void linkJob(UUID jobId, UUID packageId) {
-        link(candidates.findProposedChangesOfJob(jobId), packageId);
+        link(candidates.findProposedOfJob(jobId, CandidateKind.CHANGE), packageId);
     }
 
     /** Links these changes, all of one package. */

@@ -228,6 +228,33 @@ public class SubContractService {
         }
     }
 
+    /**
+     * Adds one payment milestone to a sub-contract of the caller's organization, leaving the others as
+     * they are, and returns its id. The milestones of a contract are otherwise written through the
+     * contract's update, which replaces the whole list; this is for a caller that adds one at a time,
+     * such as document ingestion applying an accepted milestone schedule. The caller asks the update
+     * endpoint's guard first.
+     *
+     * @throws ResourceNotFoundException when the sub-contract is not in the caller's organization
+     */
+    @Transactional
+    public Long addMilestone(Long subContractId, ContractMilestoneDto dto) {
+        Organization organization = tenantEntityHelper.resolveCurrentOrganization();
+        SubContract subContract = subContractRepository.findByIdAndOrganization_Id(subContractId, organization.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Sub-contract " + subContractId + " was not found"));
+        ContractMilestone milestone = new ContractMilestone();
+        copyMilestoneFields(milestone, dto);
+        if (milestone.getStatus() == null) {
+            milestone.setStatus("PENDING");
+        }
+        milestone.setOrganization(organization);
+        subContract.addMilestone(milestone);
+        // save merges a contract read in this transaction, which persists a copy of the new milestone; the
+        // id is on the copy, the last one in the merged contract's list.
+        List<ContractMilestone> saved = subContractRepository.saveAndFlush(subContract).getMilestones();
+        return saved.get(saved.size() - 1).getId();
+    }
+
     private static void copyMilestoneFields(ContractMilestone milestone, ContractMilestoneDto dto) {
         milestone.setName(dto.getName());
         milestone.setDescription(dto.getDescription());

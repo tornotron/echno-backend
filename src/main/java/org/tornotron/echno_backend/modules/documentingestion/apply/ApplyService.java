@@ -130,11 +130,14 @@ public class ApplyService {
         LocalDateTime now = LocalDateTime.now();
         Map<String, SourceRef> refByField = sources.findForCandidates(List.of(candidateId)).stream()
                 .collect(Collectors.toMap(SourceRef::getField, Function.identity(), (first, second) -> first));
-        target.fields().forEach((payloadField, targetField) -> {
+        List<IngestionApplier.AppliedTarget> written = new java.util.ArrayList<>();
+        written.add(target);
+        written.addAll(target.also());
+        written.forEach(t -> t.fields().forEach((payloadField, targetField) -> {
             Provenance p = new Provenance();
             p.setOrganization(c.getOrganization());
-            p.setTargetType(target.targetType());
-            p.setTargetId(target.targetId());
+            p.setTargetType(t.targetType());
+            p.setTargetId(t.targetId());
             p.setTargetField(targetField);
             p.setValueExtracted(text(c.getPayload().get(payloadField)));
             p.setValueAccepted(text(accepted.get(payloadField)));
@@ -147,7 +150,7 @@ public class ApplyService {
             p.setAppliedBy(appliedBy);
             p.setAppliedAt(now);
             provenance.save(p);
-        });
+        }));
         c.setStatus(CandidateStatus.APPLIED);
         c.setAppliedTargetType(target.targetType());
         c.setAppliedTargetId(target.targetId());

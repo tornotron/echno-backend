@@ -29284,6 +29284,75 @@
         },
         "type": "object"
       },
+      "TenderProfileDto": {
+        "description": "The accepted facts of a tender that a project has no field for, each as printed, with a typed value where the text reads plainly as an amount, a date or a number of days.",
+        "properties": {
+          "bidDueAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "bidDueText": {
+            "type": "string"
+          },
+          "bidValidityDays": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "bidValidityText": {
+            "type": "string"
+          },
+          "client": {
+            "type": "string"
+          },
+          "consultant": {
+            "type": "string"
+          },
+          "durationText": {
+            "type": "string"
+          },
+          "emdAmount": {
+            "type": "number"
+          },
+          "emdText": {
+            "type": "string"
+          },
+          "engineer": {
+            "type": "string"
+          },
+          "estimatedValue": {
+            "type": "number"
+          },
+          "estimatedValueText": {
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "packageId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "projectId": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "tenderFeeAmount": {
+            "type": "number"
+          },
+          "tenderFeeText": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "ToolboxTalkAttendeeDto": {
         "description": "An employee who attended a toolbox talk.",
         "properties": {
@@ -66640,6 +66709,119 @@
           }
         },
         "summary": "Read what reading this package has used, against the package's and the month's limits",
+        "tags": [
+          "Document Ingestion"
+        ]
+      }
+    },
+    "/api/v1/document-ingestion/packages/{packageId}/tender-profile": {
+      "get": {
+        "description": "The accepted tender facts that a project has no field for: client, estimated value, EMD, tender fee, bid due date, bid validity, duration, consultant, engineer and scope, each as printed, with a typed value where the text reads plainly as one. Written only by applying accepted project fields; provenance for each field is under GET /provenance with target type TENDER_PROFILE.",
+        "operationId": "DocumentIngestionPackageController_getTenderProfile",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "packageId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenderProfileDto"
+                }
+              }
+            },
+            "description": "The tender profile"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such package in the current tenant, or no tender fact applied to it yet"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Get a package's tender profile",
         "tags": [
           "Document Ingestion"
         ]
