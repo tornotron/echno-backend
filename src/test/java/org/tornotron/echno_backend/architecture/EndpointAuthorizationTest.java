@@ -36,11 +36,12 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods;
  *
  * <p>The second rule pins the guard itself, for the areas the roles matrix in the admin guide
  * ({@code docs/admin-guide/roles-and-permissions.md} in echno-docs) names and #853 aligned:
- * construction invoices, issues, storage locations, stock adjustments and the third-party
+ * issues, storage locations, stock adjustments and the third-party
  * registers, and since #855 materials. An area that moves onto the access
  * matrix leaves this table, and its own guard test and equivalence test pin it instead
  * ({@code AssetGuardsTest} and {@code AssetAccessEquivalenceIT}, {@code IndentGuardsTest} and
- * {@code IndentAccessEquivalenceIT}). A guard on one of those controllers must name exactly the roles the matrix gives
+ * {@code IndentAccessEquivalenceIT}, {@code FinanceBillingGuardsTest} and
+ * {@code FinanceBillingAccessEquivalenceIT} for construction invoices). A guard on one of those controllers must name exactly the roles the matrix gives
  * the endpoint's row, so a loosening arrives as a failed build rather than a line in a diff.
  * A new endpoint on a pinned controller must be added to {@link #MATRIX} with its row, which
  * is the same decision the matrix asks of it.
@@ -121,9 +122,6 @@ class EndpointAuthorizationTest {
      * same thing and this test is what keeps them saying it.
      */
     private static final List<Pin> MATRIX = List.of(
-            // Construction invoices: read, write, approve and pay are all the same pair.
-            pin("ConstructionInvoiceControllerWeb", ADMIN_OR_PM, "*"),
-
             // Issues sit with projects and tasks: any member reads, the pair writes. Both twins.
             pin("IssueController", MEMBER, "read*"),
             pin("IssueController", ADMIN_OR_PM, "createIssue", "partialUpdateAnIssue", "deleteAnIssue"),

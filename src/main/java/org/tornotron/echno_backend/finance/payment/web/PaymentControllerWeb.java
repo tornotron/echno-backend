@@ -23,15 +23,14 @@ import java.util.UUID;
         name = "Customer Payments",
         description = "Payments received from customers and allocated across their outstanding invoices. "
                 + "Recording a payment posts the receipt to the ledger and reduces the balance due on each "
-                + "allocated invoice. All endpoints are tenant scoped and limited to system administrators "
-                + "and project managers."
+                + "allocated invoice. All endpoints are tenant scoped. Each endpoint needs the finance permission named for its action."
 )
 public class PaymentControllerWeb {
 
     private final PaymentService service;
 
     @PostMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('finance', 'create')")
     @Operation(
             summary = "Record a customer payment",
             description = "Records a payment received from a customer and allocates it across the invoices "
@@ -42,7 +41,7 @@ public class PaymentControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Payment recorded and allocated"),
             @ApiResponse(responseCode = "400", description = "Validation failed, or the allocations do not reconcile with the amount or the invoice balances"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not create finance records"),
             @ApiResponse(responseCode = "404", description = "A referenced customer, bank account or invoice was not found in the current tenant")
     })
     public ResponseEntity<PaymentDto> record(
@@ -53,14 +52,14 @@ public class PaymentControllerWeb {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('finance', 'read')")
     @Operation(
             summary = "Get a payment by id",
             description = "Returns a single customer payment with its invoice allocations."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Payment found"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not read finance records"),
             @ApiResponse(responseCode = "404", description = "No payment with the given id in the current tenant")
     })
     public PaymentDto get(@PathVariable UUID id) {

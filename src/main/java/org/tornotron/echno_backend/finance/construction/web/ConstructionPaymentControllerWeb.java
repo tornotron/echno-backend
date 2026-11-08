@@ -32,15 +32,15 @@ import java.util.UUID;
                 + "subcontractors, labour and employees. A voucher captures the amount, method and payee "
                 + "details and moves through a pending and verified lifecycle. Verification is its own "
                 + "action, stamped from the session, and is not part of the update payload. This increment "
-                + "does not post ledger journal entries. All endpoints are tenant scoped and limited to "
-                + "system administrators and project managers."
+                + "does not post ledger journal entries. All endpoints are tenant scoped. "
+                + "Each endpoint needs the finance permission named for its action."
 )
 public class ConstructionPaymentControllerWeb {
 
     private final ConstructionPaymentService service;
 
     @PostMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('finance', 'create')")
     @Operation(
             summary = "Create a construction payment voucher",
             description = "Creates a payment voucher in pending status. The payment number is generated "
@@ -49,21 +49,21 @@ public class ConstructionPaymentControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Voucher created and returned in pending status"),
             @ApiResponse(responseCode = "400", description = "Validation failed on the request body"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not create finance records")
     })
     public ResponseEntity<ConstructionPaymentDto> create(@Valid @RequestBody CreateConstructionPaymentRequest req) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.create(req));
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('finance', 'read')")
     @Operation(
             summary = "Get a construction payment voucher by id",
             description = "Returns a single payment voucher with its amount, method and payee details."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Voucher found"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not read finance records"),
             @ApiResponse(responseCode = "404", description = "No voucher with the given id in the current tenant")
     })
     public ConstructionPaymentDto get(@PathVariable UUID id) {
@@ -71,7 +71,7 @@ public class ConstructionPaymentControllerWeb {
     }
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('finance', 'read')")
     @Operation(
             summary = "List construction payment vouchers",
             description = "Returns a paged list of payment vouchers in the current tenant. The optional "
@@ -88,7 +88,7 @@ public class ConstructionPaymentControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Page of matching vouchers"),
             @ApiResponse(responseCode = "400", description = "pageNo or pageSize is out of range"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read finance records")
     })
     public Page<ConstructionPaymentDto> list(@RequestParam(required = false) Long projectId,
                                              @RequestParam(required = false) Long vendorId,
@@ -105,7 +105,7 @@ public class ConstructionPaymentControllerWeb {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('finance', 'edit')")
     @Operation(
             summary = "Update a construction payment voucher",
             description = "Replaces the editable fields of a payment voucher, including its status, which "
@@ -117,7 +117,7 @@ public class ConstructionPaymentControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Voucher updated"),
             @ApiResponse(responseCode = "400", description = "Validation failed, the voucher is verified or cancelled, or the payload asks for the cancelled status"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not edit finance records"),
             @ApiResponse(responseCode = "404", description = "No voucher with the given id in the current tenant")
     })
     public ConstructionPaymentDto update(@PathVariable UUID id,
@@ -126,7 +126,7 @@ public class ConstructionPaymentControllerWeb {
     }
 
     @PostMapping("/{id}/verify")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('finance', 'approve')")
     @Operation(
             summary = "Verify a construction payment voucher",
             description = "Records that the voucher has been checked. The verifier is the signed-in user "
@@ -138,7 +138,7 @@ public class ConstructionPaymentControllerWeb {
             @ApiResponse(responseCode = "200", description = "Voucher verified, and returned naming the verifier"),
             @ApiResponse(responseCode = "400", description = "The voucher is cancelled, already verified, "
                     + "or is being verified by whoever raised it"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not approve finance records"),
             @ApiResponse(responseCode = "404", description = "No voucher with the given id in the current tenant")
     })
     public ConstructionPaymentDto verify(@PathVariable UUID id) {
@@ -146,7 +146,7 @@ public class ConstructionPaymentControllerWeb {
     }
 
     @PostMapping("/{id}/cancel")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('finance', 'edit')")
     @Operation(
             summary = "Cancel a construction payment voucher",
             description = "Voids a voucher and records why. This is the only route to the cancelled "
@@ -158,7 +158,7 @@ public class ConstructionPaymentControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Voucher cancelled, and returned carrying the reason"),
             @ApiResponse(responseCode = "400", description = "No reason given, or the voucher is already cancelled"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not edit finance records"),
             @ApiResponse(responseCode = "404", description = "No voucher with the given id in the current tenant")
     })
     public ConstructionPaymentDto cancel(@PathVariable UUID id,

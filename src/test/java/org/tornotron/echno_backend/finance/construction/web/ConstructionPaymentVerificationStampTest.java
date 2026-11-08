@@ -16,7 +16,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
 import org.tornotron.echno_backend.common.configuration.RPTCache;
-import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
+import org.tornotron.echno_backend.modules.access.guard.AccessGuard;
 import org.tornotron.echno_backend.finance.construction.dtos.CreateConstructionPaymentRequest;
 import org.tornotron.echno_backend.finance.construction.dtos.UpdateConstructionPaymentRequest;
 import org.tornotron.echno_backend.finance.construction.service.ConstructionPaymentService;
@@ -27,6 +27,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -86,8 +87,8 @@ class ConstructionPaymentVerificationStampTest {
     @MockitoBean
     private ConstructionPaymentService service;
 
-    @MockitoBean(name = "orgSecurity")
-    private OrganizationSecurityService orgSecurity;
+    @MockitoBean(name = "access")
+    private AccessGuard access;
 
     @MockitoBean
     private KeycloakAuthorizationService keycloakAuthorizationService;
@@ -97,7 +98,7 @@ class ConstructionPaymentVerificationStampTest {
 
     @Test
     void aCreateBodyNamingAVerifier_reachesTheServiceCarryingNoVerificationStamp() throws Exception {
-        allowElevatedRole();
+        allowFinance();
 
         mockMvc.perform(post("/api/v1/finance/construction-payments/web")
                         .with(jwt())
@@ -114,7 +115,7 @@ class ConstructionPaymentVerificationStampTest {
 
     @Test
     void anUpdateBodyNamingAVerifier_reachesTheServiceCarryingNoVerificationStamp() throws Exception {
-        allowElevatedRole();
+        allowFinance();
         UUID id = UUID.randomUUID();
 
         mockMvc.perform(put("/api/v1/finance/construction-payments/web/{id}", id)
@@ -131,33 +132,31 @@ class ConstructionPaymentVerificationStampTest {
     }
 
     @Test
-    void verify_isTheActionThatWritesTheStamp_andIsRoleGated() throws Exception {
+    void verify_isTheActionThatWritesTheStamp_andIsGated() throws Exception {
         UUID id = UUID.randomUUID();
 
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager"))
-                .thenReturn(false);
+        when(access.can(eq("finance"), anyString())).thenReturn(false);
         mockMvc.perform(post("/api/v1/finance/construction-payments/web/{id}/verify", id).with(jwt()))
                 .andExpect(status().isForbidden());
 
-        allowElevatedRole();
+        allowFinance();
         mockMvc.perform(post("/api/v1/finance/construction-payments/web/{id}/verify", id).with(jwt()))
                 .andExpect(status().isOk());
         verify(service).verify(id);
     }
 
     @Test
-    void cancel_isRoleGated_andRefusesAVoucherVoidedWithNoReasonGiven() throws Exception {
+    void cancel_isGated_andRefusesAVoucherVoidedWithNoReasonGiven() throws Exception {
         UUID id = UUID.randomUUID();
 
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager"))
-                .thenReturn(false);
+        when(access.can(eq("finance"), anyString())).thenReturn(false);
         mockMvc.perform(post("/api/v1/finance/construction-payments/web/{id}/cancel", id)
                         .with(jwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"reason\": \"Duplicate of CPMT-000118\"}"))
                 .andExpect(status().isForbidden());
 
-        allowElevatedRole();
+        allowFinance();
         mockMvc.perform(post("/api/v1/finance/construction-payments/web/{id}/cancel", id)
                         .with(jwt())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -172,9 +171,8 @@ class ConstructionPaymentVerificationStampTest {
         verify(service).cancel(id, "Duplicate of CPMT-000118");
     }
 
-    private void allowElevatedRole() {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager"))
-                .thenReturn(true);
+    private void allowFinance() {
+        when(access.can(eq("finance"), anyString())).thenReturn(true);
     }
 
     /** The request as it reached the service, read as plain JSON so no accessor is named. */

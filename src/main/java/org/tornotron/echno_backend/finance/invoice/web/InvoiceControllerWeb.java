@@ -34,14 +34,14 @@ import java.util.UUID;
         name = "Customer Invoices",
         description = "Accounts-receivable invoices raised to customers. An invoice is created as a draft, "
                 + "issued to post its receivable journal entry, and can be cancelled with a reversing entry. "
-                + "All endpoints are tenant scoped and limited to system administrators and project managers."
+                + "All endpoints are tenant scoped. Each endpoint needs the finance permission named for its action."
 )
 public class InvoiceControllerWeb {
 
     private final InvoiceService service;
 
     @PostMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('finance', 'create')")
     @Operation(
             summary = "Create a draft invoice",
             description = "Creates a draft customer invoice from the supplied header and line items. "
@@ -51,14 +51,14 @@ public class InvoiceControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Invoice created and returned in draft status"),
             @ApiResponse(responseCode = "400", description = "Validation failed on the request body"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not create finance records")
     })
     public ResponseEntity<InvoiceDto> createDraft(@Valid @RequestBody CreateInvoiceRequest req) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.createDraft(req));
     }
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('finance', 'read')")
     @Operation(
             summary = "List invoices",
             description = "Returns a page of customer invoices in the current tenant, newest invoice date "
@@ -69,7 +69,7 @@ public class InvoiceControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Page of matching invoices"),
             @ApiResponse(responseCode = "400", description = "pageNo or pageSize is outside its permitted range"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read finance records")
     })
     public Page<InvoiceDto> list(
             @Parameter(description = "Restrict to invoices billed to this customer.")
@@ -84,14 +84,14 @@ public class InvoiceControllerWeb {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('finance', 'read')")
     @Operation(
             summary = "Get an invoice by id",
             description = "Returns a single customer invoice, including its computed totals and line items."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Invoice found"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not read finance records"),
             @ApiResponse(responseCode = "404", description = "No invoice with the given id in the current tenant")
     })
     public InvoiceDto get(@PathVariable UUID id) {
@@ -99,7 +99,7 @@ public class InvoiceControllerWeb {
     }
 
     @PostMapping("/{id}/issue")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('finance', 'approve')")
     @Operation(
             summary = "Issue a draft invoice",
             description = "Issues a draft invoice, transitioning it to issued status and posting the "
@@ -108,7 +108,7 @@ public class InvoiceControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Invoice issued and posted"),
             @ApiResponse(responseCode = "400", description = "Invoice is not in a state that can be issued"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not approve finance records"),
             @ApiResponse(responseCode = "404", description = "No invoice with the given id in the current tenant")
     })
     public InvoiceDto issue(@PathVariable UUID id) {
@@ -116,7 +116,7 @@ public class InvoiceControllerWeb {
     }
 
     @PostMapping("/{id}/cancel")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('finance', 'edit')")
     @Operation(
             summary = "Cancel an invoice",
             description = "Cancels an invoice and records the supplied reason. If the invoice was already "
@@ -130,7 +130,7 @@ public class InvoiceControllerWeb {
             @ApiResponse(responseCode = "400",
                     description = "The reason is blank or longer than 455 characters, or the invoice "
                             + "is already paid or otherwise cannot be cancelled"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not edit finance records"),
             @ApiResponse(responseCode = "404", description = "No invoice with the given id in the current tenant")
     })
     public InvoiceDto cancel(
