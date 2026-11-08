@@ -43,9 +43,12 @@ public final class AuthorizationRequirement {
     private static final Set<String> ORG_ROLE_CALLS = Set.of(
             "hasOrgRole", "hasAnyOrgRole", "hasAnyOrgRoleForCurrentTenant", "isSelfOrHasAnyOrgRole");
 
-    /** Calls whose quoted arguments are global authority names. */
+    /**
+     * Calls whose quoted arguments are permission names: global authorities, and the
+     * organization-scoped permission codes of {@code @orgSecurity.hasPermission}.
+     */
     private static final Set<String> AUTHORITY_CALLS = Set.of(
-            "hasAuthority", "hasAnyAuthority", "hasRole", "hasAnyRole");
+            "hasAuthority", "hasAnyAuthority", "hasRole", "hasAnyRole", "hasPermission");
 
     /** Calls that ask for membership of an organization rather than a role within one. */
     private static final Set<String> MEMBERSHIP_CALLS = Set.of(
@@ -150,16 +153,9 @@ public final class AuthorizationRequirement {
         }
 
         String routes = String.join(", or ", alternatives.stream().map(Alternative::describe).toList());
-        StringBuilder sentence = new StringBuilder("This action requires ").append(routes).append(".");
-
-        boolean organizationScoped = alternatives.stream()
-                .anyMatch(alternative -> !alternative.organizationRoles().isEmpty()
-                        || alternative.organizationMembership());
-        if (organizationScoped) {
-            sentence.append(" Your roles are read from the session you signed in with, so if one was "
-                    + "granted just now, sign out and back in to pick it up.");
-        }
-        return sentence.toString();
+        // No "sign out and back in" hint: roles are read from the database on every request, so one
+        // granted a moment ago is already in force and a fresh session would change nothing.
+        return "This action requires " + routes + ".";
     }
 
     /**

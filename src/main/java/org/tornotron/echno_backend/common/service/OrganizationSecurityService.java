@@ -22,14 +22,16 @@ import java.util.Optional;
  *
  * 1. MEMBERSHIP: isMember(orgId)
  *    - Checks if user belongs to the org (ORG_MEMBER_{id} authority)
- *    - Source: user is in Keycloak group "org-{id}"
+ *    - Source: user has an employee record in the org
  *
  * 2. ORG-SCOPED ROLES: hasOrgRole(orgId, "system-admin")
  *    - Checks if user has a specific role within this org (ORG_{id}_ROLE_{role} authority)
- *    - Source: user is in Keycloak subgroup "org-{id}/system-admin"
+ *    - Source: the role is stored on the user's employee record in the org
  *
  * 3. GLOBAL PERMISSIONS: still checked via hasAuthority() directly in @PreAuthorize
  *    - e.g., hasAuthority('organization:admin') for global admins
+ *
+ * Authorities 1 and 2 are minted per request by MembershipAuthorityProvider.
  *
  * Example @PreAuthorize combining all three:
  *   @PreAuthorize("@orgSecurity.hasOrgRole(#id, 'system-admin') or
@@ -50,8 +52,8 @@ public class OrganizationSecurityService {
 
     /**
      * Checks if the currently authenticated user is a member of the specified organization.
-     * This works by checking for the ORG_MEMBER_{orgId} authority which is extracted
-     * from the "groups" claim in the JWT token by JwtAuthConverter.
+     * This works by checking for the ORG_MEMBER_{orgId} authority, which
+     * MembershipAuthorityProvider mints from the caller's employee records.
      *
      * Usage in @PreAuthorize: @orgSecurity.isMember(#orgId)
      */
@@ -60,7 +62,7 @@ public class OrganizationSecurityService {
         if (auth == null) {
             return false;
         }
-        String requiredAuthority = "ORG_MEMBER_" + organizationId;
+        String requiredAuthority = OrgRoleAuthority.member(organizationId);
         boolean result = auth.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals(requiredAuthority));
         log.debug("Organization membership check for org {}: {}", organizationId, result);
@@ -77,7 +79,7 @@ public class OrganizationSecurityService {
         if (auth == null) {
             return false;
         }
-        String memberAuthority = "ORG_MEMBER_" + organizationId;
+        String memberAuthority = OrgRoleAuthority.member(organizationId);
         return auth.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals(memberAuthority)
                         || a.getAuthority().equals("organization:admin"));
@@ -86,15 +88,14 @@ public class OrganizationSecurityService {
     /**
      * Checks if the current user has a specific org-scoped role in the given organization.
      *
-     * This checks for the authority "ORG_{orgId}_ROLE_{role}" which is extracted from
-     * the JWT groups claim by JwtAuthConverter when the user belongs to a Keycloak
-     * subgroup like "org-{id}/{role}".
+     * This checks for the authority "ORG_{orgId}_ROLE_{role}", which
+     * MembershipAuthorityProvider mints when the user's employee record in that org holds the role.
      *
      * Example usage in @PreAuthorize:
      *   @PreAuthorize("@orgSecurity.hasOrgRole(#orgId, 'system-admin')")
      *
      * @param organizationId the organization to check the role for
-     * @param role the role name (must match the Keycloak subgroup name, e.g., "system-admin")
+     * @param role the role name (an OrgRole role name, e.g., "system-admin")
      * @return true if the user has this role in the specified organization
      */
     public boolean hasOrgRole(Long organizationId, String role) {
@@ -102,7 +103,6 @@ public class OrganizationSecurityService {
         if (auth == null) {
             return false;
         }
-        // This authority format matches what JwtAuthConverter produces from "/org-{id}/{role}"
         String requiredAuthority = OrgRoleAuthority.of(organizationId, role);
         boolean result = auth.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals(requiredAuthority));
@@ -241,15 +241,14 @@ public class OrganizationSecurityService {
      * behaving as a one-part one. That is what #709 found and #717 swept out of ten more
      * controllers; anyone restoring the clause as a fix will be restoring the same illusion.
      *
-     * <p>The split it was written for, a user in {@code /org-5/system-admin} but not
-     * {@code /org-5}, is now prevented rather than tolerated: {@code KeycloakGroupService} grants
-     * parent membership with any role and clears the role subgroups with the membership, and
-     * {@code KeycloakInitializer} repairs a realm that already holds the split on startup. Use
+     * <p>The split it was written for, a user holding a role in org 5 without being a member of
+     * it, cannot arise: both authorities are minted from the same employee record, so a role is
+     * never present without the membership it is stored on. Use
      * this where the role is what decides, and {@link #isMemberOfCurrentTenant()} where mere
      * membership is enough. Combining them with {@code and} is meaningful; with {@code or} it is
      * not.
      *
-     * @param roles one or more role names, matching the Keycloak subgroup names
+     * @param roles one or more OrgRole role names
      */
     public boolean hasAnyOrgRoleForCurrentTenant(String... roles) {
         Long orgId = TenantContext.getCurrentOrgId();
@@ -258,6 +257,37 @@ public class OrganizationSecurityService {
             return false;
         }
         return hasAnyOrgRole(orgId, roles);
+    }
+
+    /**
+     * Whether a role the caller holds in the current tenant grants any of these permissions.
+     *
+     * <p>The permission-based counterpart of {@link #hasAnyOrgRoleForCurrentTenant}: instead of
+     * naming the roles allowed in, the guard names what the action needs, and each organization
+     * decides which of its roles grant that (see {@code Permission} and {@code RoleDefinition}).
+     * Like the role check it refuses when no organization is in force, and so implies membership.
+     *
+     * <p>Usage in @PreAuthorize: @orgSecurity.hasPermission('project.create')
+     *
+     * @param permissions one or more permission codes, any one of which is enough
+     */
+    public boolean hasPermission(String... permissions) {
+        Long orgId = TenantContext.getCurrentOrgId();
+        if (orgId == null) {
+            log.debug("No current tenant org ID set in TenantContext");
+            return false;
+        }
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null) {
+            return false;
+        }
+        Collection<? extends GrantedAuthority> authorities = auth.getAuthorities();
+        boolean result = Arrays.stream(permissions)
+                .map(permission -> OrgRoleAuthority.permission(orgId, permission))
+                .anyMatch(required -> authorities.stream()
+                        .anyMatch(a -> a.getAuthority().equals(required)));
+        log.debug("Permission check for org {} permissions {}: {}", orgId, Arrays.toString(permissions), result);
+        return result;
     }
 
     /**
