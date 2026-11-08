@@ -80,7 +80,7 @@ public class ReportController {
      */
     private Context populateContext() {
         Page<TaskDto> tasks = taskService.getAllTasks(0, UnpagedResultCap.MAX_ROWS);
-        Page<IndentDto> indents = indentService.getAllIndents(0, UnpagedResultCap.MAX_ROWS);
+        Page<IndentDto> indents = indentService.getAllIndentsForReport(0, UnpagedResultCap.MAX_ROWS);
 
         Context ctx = new Context();
         ctx.setVariable("tasks", tasks.getContent());

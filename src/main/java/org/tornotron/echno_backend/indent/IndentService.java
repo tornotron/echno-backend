@@ -33,6 +33,8 @@ import org.tornotron.echno_backend.inventoryTransaction.InventoryService;
 import org.tornotron.echno_backend.inventoryTransaction.MaterialStockLookup;
 import org.tornotron.echno_backend.material.Material;
 import org.tornotron.echno_backend.material.MaterialRepository;
+import org.tornotron.echno_backend.modules.access.api.AccessFilter;
+import org.tornotron.echno_backend.modules.access.api.AccessPermission;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.ProjectRepository;
 
@@ -63,13 +65,15 @@ public class IndentService {
     private final DocumentNumberAllocator documentNumberAllocator;
     private final TransactionRetryTemplate retryTemplate;
     private final InventoryService inventoryService;
+    private final IndentAccess indentAccess;
 
     public IndentService(IndentRepository indentRepository, IndentItemRepository indentItemRepository,
                          MaterialRepository materialRepository, IndentMapper indentMapper,
                          TenantEntityHelper tenantEntityHelper, EmployeeRepository employeeRepository,
                          ProjectRepository projectRepository, IndentItemMapper indentItemMapper,
                          DocumentNumberAllocator documentNumberAllocator,
-                         TransactionRetryTemplate retryTemplate, InventoryService inventoryService) {
+                         TransactionRetryTemplate retryTemplate, InventoryService inventoryService,
+                         IndentAccess indentAccess) {
         this.indentRepository = indentRepository;
         this.indentItemRepository = indentItemRepository;
         this.materialRepository = materialRepository;
@@ -81,6 +85,7 @@ public class IndentService {
         this.documentNumberAllocator = documentNumberAllocator;
         this.retryTemplate = retryTemplate;
         this.inventoryService = inventoryService;
+        this.indentAccess = indentAccess;
     }
 
     // ==================== Indent CRUD ====================
@@ -98,7 +103,7 @@ public class IndentService {
      */
     @Transactional
     public IndentDto updateIndent(Long id, IndentUpdateDto indentDto) {
-        Indent indent = indentRepository.findByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId()).orElseThrow(() -> new ResourceNotFoundException("Indent with ID " + id + " was not found in this organization"));
+        Indent indent = requireIndent(id, AccessPermission.EDIT);
 
         if(indentDto.getIndentNumber() != null) {
             if(!indentDto.getIndentNumber().equals(indent.getIndentNumber()) &&
@@ -132,6 +137,9 @@ public class IndentService {
         if(indentDto.getRemarks() != null) {
             indent.setRemarks(indentDto.getRemarks());
         }
+        // An edit can move the indent to another project or another raiser, and must not move it out
+        // of what the caller may edit.
+        indentAccess.require(AccessPermission.EDIT, IndentAccess.facts(indent));
 
         Indent saved = indentRepository.save(indent);
         return indentMapper.toDto(saved, stockForIndents(List.of(saved)));
@@ -184,6 +192,8 @@ public class IndentService {
                 indent.addItem(item);
             }
         }
+        // Checked on the indent as raised, so nobody raises one where they may not.
+        indentAccess.require(AccessPermission.CREATE, IndentAccess.facts(indent));
 
         Indent saved = indentRepository.save(indent);
         return indentMapper.toDto(saved, stockForIndents(List.of(saved)));
@@ -192,6 +202,9 @@ public class IndentService {
     /**
      * Retrieves indents one page at a time, ordered by id.
      *
+     * <p>Only the indents the caller may read are listed, and the narrowing is part of the query, so
+     * the page and its total count only those.
+     *
      * @param pageNo Zero-based page index.
      * @param pageSize Number of indents per page.
      * @return A page of indent DTOs ordered by id ascending.
@@ -199,9 +212,38 @@ public class IndentService {
     @Transactional(readOnly = true)
     public Page<IndentDto> getAllIndents(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.ASC, "id"));
-        Page<Indent> indents = indentRepository.findAll(pageable);
+        return toDtos(visibleIndents(pageable));
+    }
+
+    /**
+     * Every indent of the organization, one page at a time, for the organization report.
+     *
+     * <p>Not narrowed to the indents the caller may read. The report is open to roles that hold no
+     * indents permission at all, and its reach is decided with the report itself, not here.
+     *
+     * @param pageNo Zero-based page index.
+     * @param pageSize Number of indents per page.
+     * @return A page of indent DTOs ordered by id ascending.
+     */
+    @Transactional(readOnly = true)
+    public Page<IndentDto> getAllIndentsForReport(int pageNo, int pageSize) {
+        return toDtos(indentRepository.findAll(PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.ASC, "id"))));
+    }
+
+    private Page<IndentDto> toDtos(Page<Indent> indents) {
         MaterialStockLookup stock = stockForIndents(indents.getContent());
         return indents.map(indent -> indentMapper.toDto(indent, stock));
+    }
+
+    /** The indents the caller may read, narrowed in the query. */
+    private Page<Indent> visibleIndents(Pageable pageable) {
+        AccessFilter visible = indentAccess.filter(AccessPermission.READ);
+        if (visible.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        return visible.everything()
+                ? indentRepository.findAll(pageable)
+                : indentRepository.findAll(IndentAccess.admittedBy(visible), pageable);
     }
 
     /**
@@ -225,7 +267,7 @@ public class IndentService {
     @Transactional(readOnly = true)
     public Page<IndentSummaryDto> getAllIndentsSummary(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.ASC, "id"));
-        Page<Indent> indents = indentRepository.findAll(pageable);
+        Page<Indent> indents = visibleIndents(pageable);
         IndentItemCountLookup itemCounts = itemCountsFor(indents.getContent());
         return indents.map(indent -> indentMapper.toSummaryDto(indent, itemCounts));
     }
@@ -257,9 +299,8 @@ public class IndentService {
      */
     @Transactional(readOnly = true)
     public IndentDto getAnIndent(Long id) {
-        return indentRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .map(indent -> indentMapper.toDto(indent, stockForIndents(List.of(indent))))
-                .orElseThrow(() -> new ResourceNotFoundException("Indent with ID " + id + " was not found in this organization"));
+        Indent indent = requireIndent(id, AccessPermission.READ);
+        return indentMapper.toDto(indent, stockForIndents(List.of(indent)));
     }
 
     /**
@@ -270,9 +311,7 @@ public class IndentService {
      */
     @Transactional
     public void deleteIndent(Long id) {
-        if (!indentRepository.existsByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())) {
-            throw new ResourceNotFoundException("Indent with ID " + id + " was not found in this organization");
-        }
+        requireIndent(id, AccessPermission.DELETE);
         indentRepository.deleteByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId());
     }
 
@@ -287,7 +326,7 @@ public class IndentService {
      */
     @Transactional(readOnly = true)
     public List<IndentItemDto> getItemsByIndentId(Long indentId) {
-        findIndentById(indentId);
+        requireIndent(indentId, AccessPermission.READ);
         List<IndentItem> items = indentItemRepository.findByIndentId(indentId);
         MaterialStockLookup stock = stockForItems(items);
         return items.stream()
@@ -305,7 +344,7 @@ public class IndentService {
      */
     @Transactional
     public IndentItemDto addItem(Long indentId, IndentItemCreationDto dto) {
-        Indent indent = findIndentById(indentId);
+        Indent indent = requireIndent(indentId, AccessPermission.CREATE);
         IndentItem item = mapToIndentItemEntity(dto);
         item.setOrganization(indent.getOrganization());
         indent.addItem(item);
@@ -327,7 +366,7 @@ public class IndentService {
      */
     @Transactional
     public IndentItemDto updateItem(Long indentId, Long itemId, IndentItemUpdateDto dto) {
-        findIndentById(indentId);
+        requireIndent(indentId, AccessPermission.EDIT);
         IndentItem item = indentItemRepository.findByIdAndOrganization_Id(itemId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Indent item with ID " + itemId + " was not found in this organization"));
         if (!item.getIndent().getId().equals(indentId)) {
@@ -371,7 +410,7 @@ public class IndentService {
      */
     @Transactional
     public void deleteItem(Long indentId, Long itemId) {
-        Indent indent = findIndentById(indentId);
+        Indent indent = requireIndent(indentId, AccessPermission.DELETE);
         IndentItem item = indentItemRepository.findByIdAndOrganization_Id(itemId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Indent item with ID " + itemId + " was not found in this organization"));
         if (!item.getIndent().getId().equals(indentId)) {
@@ -383,9 +422,19 @@ public class IndentService {
 
     // ==================== Helper Methods ====================
 
-    private Indent findIndentById(Long id) {
-        return indentRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Indent with ID " + id + " was not found in this organization"));
+    /**
+     * The indent, if the caller may act on it this way. One they may not read is reported missing, as
+     * one in another organization is; one they may read but not act on this way is refused.
+     */
+    private Indent requireIndent(Long id, String action) {
+        Indent indent = indentRepository.findByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId())
+                .orElseThrow(() -> notFound(id));
+        indentAccess.check(action, IndentAccess.facts(indent), () -> notFound(id));
+        return indent;
+    }
+
+    private static ResourceNotFoundException notFound(Long id) {
+        return new ResourceNotFoundException("Indent with ID " + id + " was not found in this organization");
     }
 
     private IndentItem mapToIndentItemEntity(IndentItemCreationDto dto) {

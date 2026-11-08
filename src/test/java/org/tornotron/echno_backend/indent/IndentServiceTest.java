@@ -64,7 +64,8 @@ class IndentServiceTest {
         TenantContext.setCurrentOrgId(ORG);
         service = new IndentService(indentRepository, indentItemRepository, materialRepository,
                 indentMapper, tenantEntityHelper, employeeRepository, projectRepository,
-                indentItemMapper, documentNumberAllocator, retryTemplate, inventoryService);
+                indentItemMapper, documentNumberAllocator, retryTemplate, inventoryService,
+                IndentAccessStubs.allowingEverything());
         lenient().when(retryTemplate.execute(anyString(), any(Predicate.class), any(Supplier.class)))
                 .thenAnswer(invocation -> invocation.getArgument(2, Supplier.class).get());
     }

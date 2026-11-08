@@ -24,7 +24,10 @@ import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 @Tag(
         name = "Indent Items (Web)",
         description = "Web-console mirror of the indent item endpoints. Same requested-item operations as "
-                + "the mobile API, gated by the web app's org-role check instead of point authorities."
+                + "the mobile API, gated by the web app's org-role check instead of point authorities, "
+                + "except deletion, which needs the indents delete permission. Every operation is "
+                + "limited to the lines of indents the caller may read, and a line outside that scope "
+                + "reads as not found."
 )
 public class IndentItemControllerWeb {
 
@@ -198,14 +201,14 @@ public class IndentItemControllerWeb {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@access.can('indents', 'delete')")
     @Operation(
             summary = "Delete an indent item",
             description = "Deletes the indent item with the given id."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Indent item deleted"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to indents"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No indent item with the given id")
     })
     public ResponseEntity<ApiResponse> deleteIndentItem(@PathVariable Long id) {

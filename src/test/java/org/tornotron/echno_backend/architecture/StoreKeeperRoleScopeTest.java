@@ -165,13 +165,10 @@ class StoreKeeperRoleScopeTest {
             "PurchaseOrderItemController.getItemsByMaterialId GET /material/{materialId}",
 
             // What has been requisitioned, so the store knows what a delivery answers and what is
-            // still outstanding. Raising a requisition is not on this list. Both getAllIndents
-            // overloads are here by name and by mapping: they are two endpoints, not one.
-            "IndentControllerWeb.getAllIndents GET /all",
-            "IndentControllerWeb.getAllIndentSummaries GET /summary",
-            "IndentControllerWeb.getAllIndents GET",
-            "IndentControllerWeb.getAnIndent GET /{id}",
-            "IndentControllerWeb.getItems GET /{indentId}/items",
+            // still outstanding. Raising a requisition is not on this list. The indent reads on
+            // IndentControllerWeb moved onto the access matrix, where the store keeper's starting
+            // role holds indents read and IndentAccessEquivalenceIT pins it; the line reads below
+            // still carry the role name.
             "IndentItemControllerWeb.getIndentItemById GET /{id}",
             "IndentItemControllerWeb.getAllIndentItems GET",
             "IndentItemControllerWeb.getIndentItemsPaginated GET /paginated",

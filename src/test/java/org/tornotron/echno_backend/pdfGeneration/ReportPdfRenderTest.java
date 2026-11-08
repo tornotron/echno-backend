@@ -129,7 +129,7 @@ class ReportPdfRenderTest {
         Page<TaskDto> taskPage = page(tasks);
         Page<IndentDto> indentPage = page(indents);
         when(taskService.getAllTasks(0, UnpagedResultCap.MAX_ROWS)).thenReturn(taskPage);
-        when(indentService.getAllIndents(0, UnpagedResultCap.MAX_ROWS)).thenReturn(indentPage);
+        when(indentService.getAllIndentsForReport(0, UnpagedResultCap.MAX_ROWS)).thenReturn(indentPage);
         when(pdfReportService.statusCount())
                 .thenReturn(Map.of("COMPLETED", 2L, "IN_PROGRESS", 5L, "NOT_STARTED", 1L));
     }

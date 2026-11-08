@@ -28,8 +28,10 @@ import java.util.List;
 @Tag(
         name = "Indents (Web)",
         description = "Web-console mirror of the indent endpoints, with an additional partial-update "
-                + "operation not exposed on the mobile API. Access is gated by the web app's org-role "
-                + "check instead of point authorities."
+                + "operation not exposed on the mobile API. Reads and deletions need the indents "
+                + "permission named for their action (read or delete), and an indent outside the "
+                + "caller's scope reads as not found; raising and changing an indent or its lines are "
+                + "gated by the web app's org-role check."
 )
 public class IndentControllerWeb {
 
@@ -57,14 +59,14 @@ public class IndentControllerWeb {
     }
 
     @GetMapping("/all")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
+    @PreAuthorize("@access.can('indents', 'read')")
     @Operation(
             summary = "List indents, paginated",
             description = "Returns a single page of indents. The pageNo and pageSize parameters control paging."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of indents returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read indents")
     })
     public ResponseEntity<List<IndentDto>> getAllIndents(
             @Valid @ParameterObject PageQuery pageQuery
@@ -88,7 +90,7 @@ public class IndentControllerWeb {
      * @return A {@link ResponseEntity} containing the page of indent summaries.
      */
     @GetMapping("/summary")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
+    @PreAuthorize("@access.can('indents', 'read')")
     @Operation(
             summary = "List indents as summaries, paginated",
             description = "Returns a single page of indents without their item lines, each "
@@ -97,7 +99,7 @@ public class IndentControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of indent summaries returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read indents")
     })
     public ResponseEntity<Page<IndentSummaryDto>> getAllIndentSummaries(
             @Valid @ParameterObject PageQuery pageQuery
@@ -108,28 +110,28 @@ public class IndentControllerWeb {
     }
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
+    @PreAuthorize("@access.can('indents', 'read')")
     @Operation(
             summary = "List all indents",
             description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Indents returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read indents")
     })
     public ResponseEntity<List<IndentDto>> getAllIndents() {
         return UnpagedResultCap.respond(indentService.getAllIndents(0, UnpagedResultCap.MAX_ROWS));
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
+    @PreAuthorize("@access.can('indents', 'read')")
     @Operation(
             summary = "Get an indent by id",
             description = "Returns a single indent, including its creator, project and requested items."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Indent found"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read indents"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No indent with the given id")
     })
     public ResponseEntity<IndentDto> getAnIndent(@PathVariable Long id) {
@@ -158,14 +160,14 @@ public class IndentControllerWeb {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@access.can('indents', 'delete')")
     @Operation(
             summary = "Delete an indent",
             description = "Deletes the indent with the given id, along with its items."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Indent deleted"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to indents"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No indent with the given id")
     })
     public ResponseEntity<ApiResponse> deleteIndent(@PathVariable Long id) {
@@ -176,14 +178,14 @@ public class IndentControllerWeb {
     // ==================== IndentItem Endpoints ====================
 
     @GetMapping("/{indentId}/items")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
+    @PreAuthorize("@access.can('indents', 'read')")
     @Operation(
             summary = "List items on an indent",
             description = "Returns every requested item on the given indent."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Indent items returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read indents"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No indent with the given id")
     })
     public ResponseEntity<List<IndentItemDto>> getItems(@PathVariable Long indentId) {
@@ -230,14 +232,14 @@ public class IndentControllerWeb {
     }
 
     @DeleteMapping("/{indentId}/items/{itemId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@access.can('indents', 'delete')")
     @Operation(
             summary = "Delete an item from an indent",
             description = "Deletes the given item from the indent."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Indent item deleted"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to indents"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No indent or indent item with the given id")
     })
     public ResponseEntity<ApiResponse> deleteItem(
