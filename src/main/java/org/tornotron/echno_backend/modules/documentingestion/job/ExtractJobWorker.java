@@ -45,6 +45,7 @@ import org.tornotron.echno_backend.modules.documentingestion.extraction.llm.LlmB
 import org.tornotron.echno_backend.modules.documentingestion.extraction.llm.LlmGate;
 import org.tornotron.echno_backend.modules.documentingestion.parsing.PageText;
 import org.tornotron.echno_backend.modules.documentingestion.parsing.ParsedOutputReader;
+import org.tornotron.echno_backend.modules.documentingestion.parsing.TableRow;
 import org.tornotron.echno_backend.modules.documentingestion.parsing.WorkbookMeta;
 import org.tornotron.echno_backend.modules.documentingestion.repository.ExtractJobRepository;
 import org.tornotron.echno_backend.modules.documentingestion.repository.IngestDocumentRepository;
@@ -144,7 +145,7 @@ public class ExtractJobWorker {
             end(claim, ExtractJobStatus.FAILED, EXTRACTOR_OFF, null);
             return;
         }
-        ExtractContext context = withOutputs(loaded);
+        ExtractContext context = withOutputs(loaded, extractor.readsTables());
         markSegment(context.segmentId(), SegmentStatus.EXTRACTING, null);
 
         ExtractPlan plan = extractor.plan(context);
@@ -386,7 +387,7 @@ public class ExtractJobWorker {
         return new Loaded(context, job.getExtractorKey(), doc.getOutputPrefix());
     }
 
-    private ExtractContext withOutputs(Loaded loaded) {
+    private ExtractContext withOutputs(Loaded loaded, boolean readsTables) {
         ExtractContext c = loaded.context();
         WorkbookMeta meta = outputs.meta(loaded.outputPrefix());
         List<PageText> pages = List.of();
@@ -396,9 +397,31 @@ public class ExtractJobWorker {
                     .filter(p -> c.pageTo() == null || p.page() <= c.pageTo())
                     .toList();
         }
+        List<TableRow> tables = readsTables ? tables(loaded.outputPrefix(), c) : List.of();
         return new ExtractContext(c.jobId(), c.organizationId(), c.packageId(), c.documentId(), c.fileName(),
                 c.fileType(), c.documentSha256(), c.segmentId(), c.segmentClass(), c.pageFrom(), c.pageTo(), pages,
-                meta, c.result());
+                meta, c.result(), tables);
+    }
+
+    /**
+     * The table rows in the segment's pages, or every row of a workbook. A PDF with no table may have no
+     * {@code tables.jsonl} from a worker before 0.2.0, which reads as no rows.
+     */
+    private List<TableRow> tables(String outputPrefix, ExtractContext c) {
+        List<TableRow> rows;
+        try {
+            rows = outputs.tables(outputPrefix);
+        } catch (RuntimeException e) {
+            if (c.fileType() != DocumentFileType.PDF) {
+                throw e;
+            }
+            log.info("Extract job {}: no table rows were read for a PDF ({})", c.jobId(), e.getMessage());
+            return List.of();
+        }
+        return rows.stream()
+                .filter(r -> r.page() == null || c.pageFrom() == null || r.page() >= c.pageFrom())
+                .filter(r -> r.page() == null || c.pageTo() == null || r.page() <= c.pageTo())
+                .toList();
     }
 
     private static boolean stillOurs(ExtractJob job, Claim claim) {

@@ -205,7 +205,68 @@ public class ClassificationService {
                 queued++;
             }
         }
+        if (isWorkbook(doc)) {
+            queued += confirmWorkbook(doc, docClass, userId, now);
+        }
         return new int[] {confirmed.size(), queued};
+    }
+
+    /**
+     * A workbook of a class read by extractors, such as a milestone schedule, gets one confirmed segment
+     * for the whole file, and those extractors are queued on it. A BOQ workbook keeps its per-sheet flow,
+     * whose segments are made when a sheet's mapping is confirmed. Changing the class drops the old
+     * whole-workbook segment unless a value read from it is already on a live record.
+     *
+     * @return jobs queued
+     */
+    private int confirmWorkbook(IngestDocument doc, DocClass docClass, Long userId, LocalDateTime now) {
+        List<Extractor> readers = docClass == DocClass.BOQ ? List.of() : registry.segmentExtractors(docClass);
+        Segment kept = null;
+        for (Segment s : segments.findWholeWorkbook(doc.getId())) {
+            if (kept == null && !readers.isEmpty() && docClass.name().equals(s.getDocClass())) {
+                kept = s;
+                continue;
+            }
+            if (candidates.countAppliedInSegment(s.getId()) > 0) {
+                throw new InvalidRequestException("Values read from " + doc.getFileName()
+                        + " are already on live records, so its class cannot be changed");
+            }
+            for (ExtractJob job : jobs.findUnfinishedForSegments(List.of(s.getId()), PageRequest.of(0, 200))) {
+                if (job.getStatus() == ExtractJobStatus.RUNNING) {
+                    throw new InvalidRequestException(doc.getFileName() + " is being read now; wait for it to finish "
+                            + "before changing its class");
+                }
+                job.setStatus(ExtractJobStatus.FAILED);
+                job.setMessage(REDRAWN);
+                job.setFinishedAt(now);
+                jobs.save(job);
+            }
+            writer.discardUnapplied(s.getId());
+            segments.delete(s);
+            segments.flush();
+        }
+        if (readers.isEmpty() || (kept != null && kept.isConfirmed())) {
+            return 0;
+        }
+        Segment s = kept != null ? kept : new Segment();
+        s.setOrganization(doc.getOrganization());
+        s.setDocumentId(doc.getId());
+        s.setDocClass(docClass.name());
+        s.setSheetName(Segment.WHOLE_WORKBOOK);
+        s.setMethod(ClassMethod.PERSON);
+        s.setReason("The whole workbook.");
+        s.setStatus(SegmentStatus.CONFIRMED);
+        s.setConfirmedBy(userId);
+        s.setConfirmedAt(now);
+        Segment saved = segments.saveAndFlush(s);
+        for (Extractor e : readers) {
+            queue.queue(doc.getOrganization(), doc.getPackageId(), doc.getId(), saved.getId(), e, userId);
+        }
+        return readers.size();
+    }
+
+    private static boolean isWorkbook(IngestDocument doc) {
+        return doc.getFileType() == DocumentFileType.XLSX || doc.getFileType() == DocumentFileType.XLS;
     }
 
     /** The ranges to confirm: as given, or the whole file for a PDF given none; none for a workbook. */

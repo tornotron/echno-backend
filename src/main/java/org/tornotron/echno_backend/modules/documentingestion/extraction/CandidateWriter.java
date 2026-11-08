@@ -3,6 +3,9 @@ package org.tornotron.echno_backend.modules.documentingestion.extraction;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import org.tornotron.echno_backend.modules.documentingestion.domain.CandidateKind;
+import org.tornotron.echno_backend.modules.documentingestion.domain.CandidateFlag;
+import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -67,6 +70,29 @@ public class CandidateWriter {
         }
         sources.deleteForCandidate(existing.getOrganization().getId(), existing.getId());
         return write(existing, jobId, chunkKey, proposed);
+    }
+
+    /**
+     * Runs a check over everything one job proposed of a kind, such as payment percentages that must
+     * add up to 100 across all its chunks, and adds the flag it returns to each of those rows. A row a
+     * person has decided on is left as it is.
+     */
+    @Transactional
+    public void flagJob(UUID jobId, CandidateKind kind,
+                        java.util.function.Function<List<Map<String, Object>>, CandidateFlag> check) {
+        List<Candidate> rows = candidates.findProposedOfJob(jobId, kind);
+        CandidateFlag flag = rows.isEmpty() ? null : check.apply(rows.stream().map(Candidate::getPayload).toList());
+        if (flag == null) {
+            return;
+        }
+        for (Candidate c : rows) {
+            if (c.getFlags().stream().noneMatch(f -> f.code().equals(flag.code()))) {
+                List<CandidateFlag> flags = new ArrayList<>(c.getFlags());
+                flags.add(flag);
+                c.setFlags(flags);
+                candidates.save(c);
+            }
+        }
     }
 
     @Transactional

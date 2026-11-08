@@ -31,6 +31,15 @@ public interface Extractor {
     Set<DocClass> segmentClasses();
 
     /**
+     * Whether the job reads {@code tables.jsonl} as well as the pages: the rows on the segment's pages
+     * of a PDF, or every sheet row of a workbook. Off unless asked, since a large file's tables are
+     * not small.
+     */
+    default boolean readsTables() {
+        return false;
+    }
+
+    /**
      * Does what needs no LLM and says which pages still need reading. Runs on every attempt, so it must
      * not write; what it decides goes in {@link ExtractPlan#result()}.
      */
