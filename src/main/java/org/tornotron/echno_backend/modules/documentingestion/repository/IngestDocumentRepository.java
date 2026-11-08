@@ -19,6 +19,11 @@ public interface IngestDocumentRepository extends JpaRepository<IngestDocument, 
     @Query("SELECT d FROM IngestDocument d WHERE d.packageId = :packageId ORDER BY d.createdAt")
     Page<IngestDocument> findByPackage(@Param("packageId") UUID packageId, Pageable pageable);
 
+    /** Documents with a class proposed and not yet confirmed, for "confirm all"; bounded by the page. */
+    @Query("SELECT d FROM IngestDocument d WHERE d.packageId = :packageId AND d.docClass IS NOT NULL "
+            + "AND d.classConfirmedAt IS NULL ORDER BY d.createdAt, d.id")
+    java.util.List<IngestDocument> findUnconfirmed(@Param("packageId") UUID packageId, Pageable pageable);
+
     @Query("SELECT COUNT(d) FROM IngestDocument d WHERE d.packageId = :packageId")
     long countInPackage(@Param("packageId") UUID packageId);
 }

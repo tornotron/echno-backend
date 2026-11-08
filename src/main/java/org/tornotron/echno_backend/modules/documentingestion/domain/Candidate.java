@@ -59,6 +59,13 @@ public class Candidate implements TenantScopedEntity {
     @Column(name = "segment_id")
     private UUID segmentId;
 
+    /** The extract job and chunk that proposed it; null for deterministic readers such as Excel BOQ. */
+    @Column(name = "extract_job_id")
+    private UUID extractJobId;
+
+    @Column(name = "chunk_key", length = 40)
+    private String chunkKey;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 40)
     private CandidateKind kind;

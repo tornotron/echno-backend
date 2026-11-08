@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        The extract queue and the LLM-call ledger, with the columns classification, page splits and
+        the budget need on existing tables. The backend's replicas claim extract jobs with one
+        conditional update, as compliance does. The ledger has one row per call that left Echno and
+        holds no document text. Each change is guarded on its own existence, so a re-run is a no-op.
+
+        Design: docs/specs/2026-11-08-document-ingestion-design.md, sections 6.3, 6.4, 7.3, 7.4 and 9.
+    -->
+
+    <changeSet id="document-ingestion-006-create-extract-job" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="doc_ingest_extract_job"/></not>
+        </preConditions>
+        <createTable tableName="doc_ingest_extract_job">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_doc_ingest_extract_job" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="package_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="document_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="segment_id" type="UUID"/>
+            <column name="extractor_key" type="VARCHAR(60)"><constraints nullable="false"/></column>
+            <column name="extractor_version" type="VARCHAR(20)"><constraints nullable="false"/></column>
+            <column name="status" type="VARCHAR(20)"><constraints nullable="false"/></column>
+            <column name="attempt" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="max_attempts" type="INT" defaultValueNumeric="3"><constraints nullable="false"/></column>
+            <column name="claimed_by" type="VARCHAR(120)"/>
+            <column name="lease_expires_at" type="TIMESTAMP"/>
+            <column name="chunks_total" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="chunks_done" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="chunks_failed" type="INT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="failed_pages" type="JSONB"/>
+            <column name="unread_pages" type="JSONB"/>
+            <column name="result" type="JSONB"/>
+            <column name="message" type="TEXT"/>
+            <column name="queued_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="started_at" type="TIMESTAMP"/>
+            <column name="finished_at" type="TIMESTAMP"/>
+            <column name="created_by" type="BIGINT"/>
+            <column name="created_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="updated_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="doc_ingest_extract_job" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_doc_ingest_extract_job_organization"/>
+        <addForeignKeyConstraint baseTableName="doc_ingest_extract_job" baseColumnNames="document_id"
+                                 referencedTableName="doc_ingest_document" referencedColumnNames="id"
+                                 constraintName="fk_doc_ingest_extract_job_document"/>
+        <createIndex tableName="doc_ingest_extract_job" indexName="idx_doc_ingest_extract_job_status_queued">
+            <column name="status"/>
+            <column name="queued_at"/>
+        </createIndex>
+        <createIndex tableName="doc_ingest_extract_job" indexName="idx_doc_ingest_extract_job_package">
+            <column name="organization_id"/>
+            <column name="package_id"/>
+        </createIndex>
+        <createIndex tableName="doc_ingest_extract_job" indexName="idx_doc_ingest_extract_job_document">
+            <column name="document_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="document-ingestion-006-create-llm-call" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="doc_ingest_llm_call"/></not>
+        </preConditions>
+        <createTable tableName="doc_ingest_llm_call">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_doc_ingest_llm_call" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="package_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="document_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="job_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="extractor_key" type="VARCHAR(60)"><constraints nullable="false"/></column>
+            <column name="chunk_key" type="VARCHAR(40)"><constraints nullable="false"/></column>
+            <column name="call_number" type="INT"><constraints nullable="false"/></column>
+            <column name="page_from" type="INT"><constraints nullable="false"/></column>
+            <column name="page_to" type="INT"><constraints nullable="false"/></column>
+            <column name="pages" type="VARCHAR(2000)"><constraints nullable="false"/></column>
+            <column name="model" type="VARCHAR(120)"/>
+            <column name="model_version" type="VARCHAR(120)"/>
+            <column name="prompt_version" type="VARCHAR(40)"><constraints nullable="false"/></column>
+            <column name="prompt_tokens" type="INT"/>
+            <column name="completion_tokens" type="INT"/>
+            <column name="estimated_cost_usd" type="DECIMAL(14,6)"/>
+            <column name="finish_reason" type="VARCHAR(40)"/>
+            <column name="latency_ms" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="http_status" type="INT"/>
+            <column name="outcome" type="VARCHAR(30)"><constraints nullable="false"/></column>
+            <column name="called_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="doc_ingest_llm_call" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_doc_ingest_llm_call_organization"/>
+        <addForeignKeyConstraint baseTableName="doc_ingest_llm_call" baseColumnNames="job_id"
+                                 referencedTableName="doc_ingest_extract_job" referencedColumnNames="id"
+                                 constraintName="fk_doc_ingest_llm_call_job"/>
+        <addUniqueConstraint tableName="doc_ingest_llm_call" columnNames="job_id, chunk_key, call_number"
+                             constraintName="uq_doc_ingest_llm_call_job_chunk_call"/>
+        <createIndex tableName="doc_ingest_llm_call" indexName="idx_doc_ingest_llm_call_package">
+            <column name="organization_id"/>
+            <column name="package_id"/>
+            <column name="called_at"/>
+        </createIndex>
+        <createIndex tableName="doc_ingest_llm_call" indexName="idx_doc_ingest_llm_call_org_time">
+            <column name="organization_id"/>
+            <column name="called_at"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="document-ingestion-006-document-classification" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="doc_ingest_document" columnName="class_method"/></not>
+        </preConditions>
+        <addColumn tableName="doc_ingest_document">
+            <column name="class_method" type="VARCHAR(20)"/>
+            <column name="class_reason" type="VARCHAR(300)"/>
+            <column name="class_confirmed_at" type="TIMESTAMP"/>
+            <column name="unread_pages" type="JSONB"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="document-ingestion-006-segment-status" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="doc_ingest_segment" columnName="status"/></not>
+        </preConditions>
+        <addColumn tableName="doc_ingest_segment">
+            <column name="status" type="VARCHAR(20)"/>
+            <column name="method" type="VARCHAR(20)"/>
+            <column name="reason" type="VARCHAR(300)"/>
+            <column name="unread_pages" type="JSONB"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="document-ingestion-006-package-budget" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="doc_ingest_package" columnName="llm_budget_usd"/></not>
+        </preConditions>
+        <addColumn tableName="doc_ingest_package">
+            <column name="llm_budget_usd" type="DECIMAL(12,2)"/>
+            <column name="llm_budget_tokens" type="BIGINT"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="document-ingestion-006-org-token-budget" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="doc_ingest_org_settings" columnName="monthly_budget_tokens"/></not>
+        </preConditions>
+        <addColumn tableName="doc_ingest_org_settings">
+            <column name="monthly_budget_tokens" type="BIGINT"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="document-ingestion-006-candidate-chunk" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="doc_ingest_candidate" columnName="extract_job_id"/></not>
+        </preConditions>
+        <addColumn tableName="doc_ingest_candidate">
+            <column name="extract_job_id" type="UUID"/>
+            <column name="chunk_key" type="VARCHAR(40)"/>
+        </addColumn>
+    </changeSet>
+
+    <!-- Its own changeset, after the columns exist: an LLM extractor upserts on job, chunk and key. -->
+    <changeSet id="document-ingestion-006-candidate-chunk-unique" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><indexExists tableName="doc_ingest_candidate" indexName="uq_doc_ingest_candidate_job_chunk_key"/></not>
+        </preConditions>
+        <createIndex tableName="doc_ingest_candidate" indexName="uq_doc_ingest_candidate_job_chunk_key" unique="true">
+            <column name="extract_job_id"/>
+            <column name="chunk_key"/>
+            <column name="kind"/>
+            <column name="natural_key"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>

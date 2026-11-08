@@ -11,6 +11,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 import lombok.Getter;
@@ -50,6 +51,13 @@ public class IngestPackage implements TenantScopedEntity {
 
     @Column(name = "target_sub_contract_id")
     private Long subContractId;
+
+    /** The package's LLM budget as an admin raised it; null means the configured default. */
+    @Column(name = "llm_budget_usd", precision = 12, scale = 2)
+    private BigDecimal llmBudgetUsd;
+
+    @Column(name = "llm_budget_tokens")
+    private Long llmBudgetTokens;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)

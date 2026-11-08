@@ -28,6 +28,10 @@ import org.tornotron.echno_backend.organization.Organization;
 public class IngestSettingChange implements TenantScopedEntity {
 
     public static final String LLM_READING = "LLM_READING";
+    public static final String MONTHLY_BUDGET_USD = "MONTHLY_BUDGET_USD";
+    public static final String MONTHLY_BUDGET_TOKENS = "MONTHLY_BUDGET_TOKENS";
+    public static final String PACKAGE_BUDGET_USD = "PACKAGE_BUDGET_USD";
+    public static final String PACKAGE_BUDGET_TOKENS = "PACKAGE_BUDGET_TOKENS";
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

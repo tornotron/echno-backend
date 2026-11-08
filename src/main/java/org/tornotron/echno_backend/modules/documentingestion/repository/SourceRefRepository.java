@@ -20,6 +20,11 @@ public interface SourceRefRepository extends JpaRepository<SourceRef, UUID> {
     @Query("SELECT COUNT(s) FROM SourceRef s WHERE s.candidateId = :candidateId")
     long countForCandidate(@Param("candidateId") UUID candidateId);
 
+    /** The sources of one candidate, before a refreshed reading replaces them. */
+    @Modifying
+    @Query("DELETE FROM SourceRef s WHERE s.organization.id = :orgId AND s.candidateId = :candidateId")
+    int deleteForCandidate(@Param("orgId") Long orgId, @Param("candidateId") UUID candidateId);
+
     /** A bulk delete skips the tenant filter, so the organization is in the statement. */
     @Modifying
     @Query("DELETE FROM SourceRef s WHERE s.organization.id = :orgId AND s.candidateId IN (SELECT c.id FROM Candidate c "
