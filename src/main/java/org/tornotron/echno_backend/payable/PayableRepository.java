@@ -1,7 +1,9 @@
 package org.tornotron.echno_backend.payable;
 
 import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -11,7 +13,7 @@ import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
-public interface PayableRepository extends JpaRepository<Payable, Long> {
+public interface PayableRepository extends JpaRepository<Payable, Long>, JpaSpecificationExecutor<Payable> {
 
     Optional<Payable> findByIdAndOrganization_Id(Long id, Long organizationId);
 
@@ -41,4 +43,20 @@ public interface PayableRepository extends JpaRepository<Payable, Long> {
     Page<Payable> findOutstandingPayables(Pageable pageable);
 
     boolean existsByPayableNumberAndOrganization_Id(String payableNumber, Long organizationId);
+
+    /**
+     * The condition of {@link #findByVendorIdAndOrganization_id} as a specification, for a listing that
+     * is also narrowed to the payables a caller may see.
+     */
+    static Specification<Payable> owedTo(Long vendorId) {
+        return (root, query, cb) -> cb.equal(root.get("vendor").get("id"), vendorId);
+    }
+
+    /**
+     * The condition of {@link #findOutstandingPayables} as a specification, for a listing that is also
+     * narrowed to the payables a caller may see.
+     */
+    static Specification<Payable> outstanding() {
+        return (root, query, cb) -> cb.greaterThan(root.get("amountRecorded"), root.get("amountPaid"));
+    }
 }

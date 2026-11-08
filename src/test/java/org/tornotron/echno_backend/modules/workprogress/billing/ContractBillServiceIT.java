@@ -58,6 +58,7 @@ import org.tornotron.echno_backend.modules.workprogress.billing.service.Contract
 import org.tornotron.echno_backend.modules.workprogress.billing.service.ContractBillingRecords;
 import org.tornotron.echno_backend.modules.workprogress.billing.service.ContractBillingService;
 import org.tornotron.echno_backend.payable.Payable;
+import org.tornotron.echno_backend.payable.PayableAccessStubs;
 import org.tornotron.echno_backend.payable.PayableService;
 import org.tornotron.echno_backend.payable.mapper.PayableMapperImpl;
 import org.tornotron.echno_backend.subcontract.ContractMilestone;
@@ -84,7 +85,8 @@ import org.tornotron.echno_backend.wbs.mapper.WbsElementMapperImpl;
 @Import({ContractBillService.class, ContractBillingService.class, BillingSupport.class, ContractBillingRecords.class,
         PayableService.class, PayableMapperImpl.class, SubContractService.class, SubContractMapperImpl.class,
         WbsElementService.class, WbsElementMapperImpl.class, EmployeeMapperImpl.class, ShiftTimingMapperImpl.class,
-        TenantEntityHelper.class, ScheduleIntegrationSupport.FixedClocks.class})
+        TenantEntityHelper.class, ScheduleIntegrationSupport.FixedClocks.class,
+        PayableAccessStubs.AllowingEverything.class})
 class ContractBillServiceIT extends ScheduleIntegrationSupport {
 
     private static final LocalDate AUG_1 = LocalDate.of(2026, 8, 1);
