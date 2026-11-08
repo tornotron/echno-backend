@@ -5458,6 +5458,46 @@
         ],
         "type": "object"
       },
+      "ClassificationRequest": {
+        "description": "The class and page segments a person confirms for one document. Replaces what was proposed.",
+        "properties": {
+          "docClass": {
+            "description": "The document's class",
+            "enum": [
+              "NIT",
+              "ITB",
+              "ELIGIBILITY",
+              "GCC",
+              "SCC",
+              "CONTRACT_DATA",
+              "SCOPE",
+              "BOQ",
+              "SPECIFICATION",
+              "DRAWING",
+              "MILESTONE_SCHEDULE",
+              "CORRIGENDUM",
+              "OTHER"
+            ],
+            "type": "string"
+          },
+          "segments": {
+            "description": "Page ranges of a PDF, in order and not overlapping. Empty means one segment of the whole file in the document's class; ignored for a workbook, whose sheets are read through the BOQ mapping",
+            "items": {
+              "$ref": "#/components/schemas/Range"
+            },
+            "maxItems": 200,
+            "minItems": 0,
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "docClass"
+        ],
+        "type": "object"
+      },
       "ClientCreationDto": {
         "properties": {
           "adminUrl": {
@@ -5952,6 +5992,29 @@
               "failed"
             ],
             "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ConfirmAllResultDto": {
+        "description": "What \"confirm all\" confirmed, and the readers it queued.",
+        "properties": {
+          "documentsConfirmed": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "jobsQueued": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "remaining": {
+            "description": "Documents still to confirm, beyond this call's page; call again while above zero",
+            "format": "int32",
+            "type": "integer"
+          },
+          "segmentsConfirmed": {
+            "format": "int32",
+            "type": "integer"
           }
         },
         "type": "object"
@@ -8912,6 +8975,114 @@
         ],
         "type": "object"
       },
+      "DocumentClassificationDto": {
+        "description": "A document's proposed or confirmed class and page segments, for the class confirmation screen.",
+        "properties": {
+          "classMethod": {
+            "enum": [
+              "DETERMINISTIC",
+              "LLM",
+              "PERSON"
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "classReason": {
+            "description": "What the class was read from, in one sentence",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "classification": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExtractJobDto"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The latest classification job, or null if none ran"
+          },
+          "confirmed": {
+            "type": "boolean"
+          },
+          "confirmedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confirmedBy": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "docClass": {
+            "description": "NIT, ITB, ELIGIBILITY, GCC, SCC, CONTRACT_DATA, SCOPE, BOQ, SPECIFICATION, DRAWING, MILESTONE_SCHEDULE, CORRIGENDUM or OTHER; null while not yet classified",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "documentId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "fileName": {
+            "type": "string"
+          },
+          "fileType": {
+            "enum": [
+              "PDF",
+              "XLSX",
+              "XLS",
+              "DOCX",
+              "DXF",
+              "DWG",
+              "ZIP"
+            ],
+            "type": "string"
+          },
+          "pageCount": {
+            "format": "int32",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "segments": {
+            "items": {
+              "$ref": "#/components/schemas/SegmentDto"
+            },
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "AWAITING_UPLOAD",
+              "QUEUED",
+              "PARSED",
+              "FAILED",
+              "STORED_ONLY"
+            ],
+            "type": "string"
+          },
+          "unreadPages": {
+            "description": "Pages not read for classification, with why: shown as \"not read\"",
+            "items": {
+              "$ref": "#/components/schemas/UnreadPage"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "DocumentDto": {
         "properties": {
           "createdAt": {
@@ -10193,6 +10364,106 @@
         ],
         "type": "object"
       },
+      "ExtractJobDto": {
+        "description": "One reader's run over a document or a segment, on the extract queue.",
+        "properties": {
+          "attempt": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "chunksDone": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "chunksFailed": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "chunksTotal": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "documentId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "extractorKey": {
+            "type": "string"
+          },
+          "extractorVersion": {
+            "type": "string"
+          },
+          "failedPages": {
+            "description": "Pages whose chunk got no usable answer after the retries",
+            "items": {
+              "$ref": "#/components/schemas/UnreadPage"
+            },
+            "type": "array"
+          },
+          "finishedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "maxAttempts": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "message": {
+            "description": "Why the job waits, paused or failed, in one plain sentence",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "queuedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "segmentId": {
+            "description": "Null for a job over a whole document, such as classification",
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "startedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "description": "WAITING_LLM and PAUSED_BUDGET keep what is done and resume by themselves; PARTIAL names the pages not read",
+            "enum": [
+              "QUEUED",
+              "RUNNING",
+              "WAITING_LLM",
+              "PAUSED_BUDGET",
+              "PARTIAL",
+              "DONE",
+              "FAILED"
+            ],
+            "type": "string"
+          },
+          "unreadPages": {
+            "description": "Pages not sent: not in English, or not readable by the file reader",
+            "items": {
+              "$ref": "#/components/schemas/UnreadPage"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "FeatureAccessResultDto": {
         "description": "Result of checking whether a user's subscription grants access to a feature.",
         "properties": {
@@ -11100,6 +11371,21 @@
           "llmReadingEnabled": {
             "description": "Whether the text of tender files may be sent to the outside AI service to be read. On unless an admin turned it off",
             "type": "boolean"
+          },
+          "monthlyBudgetTokens": {
+            "description": "The monthly AI reading limit in tokens; null means the configured default",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "monthlyBudgetUsd": {
+            "description": "The monthly AI reading limit in estimated dollars; null means the configured default",
+            "type": [
+              "number",
+              "null"
+            ]
           },
           "recentChanges": {
             "description": "The most recent changes, newest first",
@@ -15502,6 +15788,137 @@
         ],
         "type": "object"
       },
+      "LlmBudgetRequest": {
+        "description": "A new AI reading limit. A null value goes back to the configured default.",
+        "properties": {
+          "budgetTokens": {
+            "description": "Prompt and completion tokens together",
+            "example": 10000000,
+            "format": "int64",
+            "maximum": 10000000000,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "budgetUsd": {
+            "description": "Estimated dollars",
+            "example": 10.0,
+            "maximum": 100000,
+            "minimum": 0,
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "LlmCallDto": {
+        "description": "One call that sent pages of a document to the outside AI service. Holds no document text.",
+        "properties": {
+          "callNumber": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "calledAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "chunkKey": {
+            "type": "string"
+          },
+          "completionTokens": {
+            "format": "int32",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "documentId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "estimatedCostUsd": {
+            "description": "Null when the configured rates are zero",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "extractorKey": {
+            "type": "string"
+          },
+          "finishReason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "jobId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "latencyMs": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "modelVersion": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "outcome": {
+            "enum": [
+              "OK",
+              "INVALID_ANSWER",
+              "TRUNCATED",
+              "RATE_LIMITED",
+              "SERVER_ERROR",
+              "TIMEOUT",
+              "UNREACHABLE",
+              "CLIENT_ERROR",
+              "MALFORMED_ENVELOPE"
+            ],
+            "type": "string"
+          },
+          "packageId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "pages": {
+            "description": "The pages that were sent",
+            "items": {
+              "format": "int32",
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "promptTokens": {
+            "format": "int32",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "promptVersion": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "LlmReadingRequest": {
         "description": "Turns reading tender text with the outside AI service on or off for the organization.",
         "properties": {
@@ -15512,6 +15929,60 @@
         "required": [
           "enabled"
         ],
+        "type": "object"
+      },
+      "LlmSpendDto": {
+        "description": "What reading a package with the AI service has used, against the package's and the month's limits.",
+        "properties": {
+          "exceeded": {
+            "description": "Why no further call fits, or null",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "monthCalls": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "monthCostUsd": {
+            "type": "number"
+          },
+          "monthTokenLimit": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "monthTokens": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "monthUsdLimit": {
+            "type": "number"
+          },
+          "packageCalls": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "packageCostUsd": {
+            "description": "Estimated from the configured rates; zero when they are not set",
+            "type": "number"
+          },
+          "packageTokenLimit": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "packageTokens": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "packageUsdLimit": {
+            "type": "number"
+          },
+          "pricesKnown": {
+            "description": "Whether rates are configured, so the dollar limits apply; the token limits always do",
+            "type": "boolean"
+          }
+        },
         "type": "object"
       },
       "LocationStockDto": {
@@ -18975,6 +19446,52 @@
         },
         "type": "object"
       },
+      "PageDocumentClassificationDto": {
+        "properties": {
+          "content": {
+            "items": {
+              "$ref": "#/components/schemas/DocumentClassificationDto"
+            },
+            "type": "array"
+          },
+          "empty": {
+            "type": "boolean"
+          },
+          "first": {
+            "type": "boolean"
+          },
+          "last": {
+            "type": "boolean"
+          },
+          "number": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "numberOfElements": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "pageable": {
+            "$ref": "#/components/schemas/PageableObject"
+          },
+          "size": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "sort": {
+            "$ref": "#/components/schemas/SortObject"
+          },
+          "totalElements": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "totalPages": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "PageDocumentDto": {
         "properties": {
           "content": {
@@ -19118,6 +19635,52 @@
           "content": {
             "items": {
               "$ref": "#/components/schemas/ExpenseDto"
+            },
+            "type": "array"
+          },
+          "empty": {
+            "type": "boolean"
+          },
+          "first": {
+            "type": "boolean"
+          },
+          "last": {
+            "type": "boolean"
+          },
+          "number": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "numberOfElements": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "pageable": {
+            "$ref": "#/components/schemas/PageableObject"
+          },
+          "size": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "sort": {
+            "$ref": "#/components/schemas/SortObject"
+          },
+          "totalElements": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "totalPages": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "PageExtractJobDto": {
+        "properties": {
+          "content": {
+            "items": {
+              "$ref": "#/components/schemas/ExtractJobDto"
             },
             "type": "array"
           },
@@ -19624,6 +20187,52 @@
           "content": {
             "items": {
               "$ref": "#/components/schemas/LeaveRequestDto"
+            },
+            "type": "array"
+          },
+          "empty": {
+            "type": "boolean"
+          },
+          "first": {
+            "type": "boolean"
+          },
+          "last": {
+            "type": "boolean"
+          },
+          "number": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "numberOfElements": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "pageable": {
+            "$ref": "#/components/schemas/PageableObject"
+          },
+          "size": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "sort": {
+            "$ref": "#/components/schemas/SortObject"
+          },
+          "totalElements": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "totalPages": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "PageLlmCallDto": {
+        "properties": {
+          "content": {
+            "items": {
+              "$ref": "#/components/schemas/LlmCallDto"
             },
             "type": "array"
           },
@@ -23577,6 +24186,47 @@
         ],
         "type": "object"
       },
+      "Range": {
+        "description": "One page range and its class.",
+        "properties": {
+          "docClass": {
+            "enum": [
+              "NIT",
+              "ITB",
+              "ELIGIBILITY",
+              "GCC",
+              "SCC",
+              "CONTRACT_DATA",
+              "SCOPE",
+              "BOQ",
+              "SPECIFICATION",
+              "DRAWING",
+              "MILESTONE_SCHEDULE",
+              "CORRIGENDUM",
+              "OTHER"
+            ],
+            "type": "string"
+          },
+          "pageFrom": {
+            "format": "int32",
+            "maximum": 2000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "pageTo": {
+            "format": "int32",
+            "maximum": 2000,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "docClass",
+          "pageFrom",
+          "pageTo"
+        ],
+        "type": "object"
+      },
       "ReactionRequestDto": {
         "description": "Payload to toggle an emoji reaction on a message.",
         "properties": {
@@ -25451,6 +26101,93 @@
             ],
             "example": "TASK",
             "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "SegmentDto": {
+        "description": "A part of a document holding one class: a page range of a PDF, or a sheet of a workbook.",
+        "properties": {
+          "confirmedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confirmedBy": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "docClass": {
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "method": {
+            "enum": [
+              "DETERMINISTIC",
+              "LLM",
+              "PERSON"
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "pageFrom": {
+            "format": "int32",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "pageTo": {
+            "format": "int32",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "reason": {
+            "description": "What the class was read from, in one sentence",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sheetName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "description": "PROPOSED until a person confirms it; extraction starts only after",
+            "enum": [
+              "PROPOSED",
+              "CONFIRMED",
+              "EXTRACTING",
+              "EXTRACTED",
+              "PARTIAL",
+              "FAILED"
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "unreadPages": {
+            "description": "Pages of the segment that were not read, with why",
+            "items": {
+              "$ref": "#/components/schemas/UnreadPage"
+            },
+            "type": "array"
           }
         },
         "type": "object"
@@ -28684,6 +29421,21 @@
               "EXPENSE"
             ],
             "example": "LIABILITY",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "UnreadPage": {
+        "properties": {
+          "detail": {
+            "type": "string"
+          },
+          "page": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "reason": {
             "type": "string"
           }
         },
@@ -62719,6 +63471,129 @@
         ]
       }
     },
+    "/api/v1/document-ingestion/documents/{documentId}/classification": {
+      "put": {
+        "description": "Replaces what was proposed. Each confirmed segment queues the readers of its class.",
+        "operationId": "DocumentIngestionExtractionController_confirm",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "documentId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClassificationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentClassificationDto"
+                }
+              }
+            },
+            "description": "The document as confirmed"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Pages out of range or overlapping, or a segment already applied"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "MODULE_DISABLED, or the caller cannot upload"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Confirm a document's class and page segments",
+        "tags": [
+          "Document Ingestion"
+        ]
+      }
+    },
     "/api/v1/document-ingestion/documents/{documentId}/download-url": {
       "get": {
         "operationId": "DocumentIngestionPackageController_downloadUrl",
@@ -62938,6 +63813,261 @@
           }
         },
         "summary": "Read a document again after its reading failed",
+        "tags": [
+          "Document Ingestion"
+        ]
+      }
+    },
+    "/api/v1/document-ingestion/extract-jobs/{jobId}/retry-failed": {
+      "post": {
+        "description": "Parts already read are skipped, so only the failed chunks are sent.",
+        "operationId": "DocumentIngestionExtractionController_retryFailed",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "jobId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExtractJobDto"
+                }
+              }
+            },
+            "description": "The job, queued again"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The job did not end PARTIAL or FAILED"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Read the failed parts of a job again",
+        "tags": [
+          "Document Ingestion"
+        ]
+      }
+    },
+    "/api/v1/document-ingestion/llm-calls": {
+      "get": {
+        "description": "Which pages of which file left Echno, when, with which model and prompt version, and what they cost. Holds no document text.",
+        "operationId": "DocumentIngestionExtractionController_llmCalls",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "packageId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "documentId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "size",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageLlmCallDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List the calls that sent pages to the outside AI service, newest first",
         "tags": [
           "Document Ingestion"
         ]
@@ -63956,6 +65086,251 @@
         ]
       }
     },
+    "/api/v1/document-ingestion/packages/{packageId}/classification": {
+      "get": {
+        "operationId": "DocumentIngestionExtractionController_classification",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "packageId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "size",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageDocumentClassificationDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List a package's documents with their proposed or confirmed classes and page segments",
+        "tags": [
+          "Document Ingestion"
+        ]
+      }
+    },
+    "/api/v1/document-ingestion/packages/{packageId}/classification/confirm-all": {
+      "post": {
+        "description": "Call again while remaining is above zero.",
+        "operationId": "DocumentIngestionExtractionController_confirmAll",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "packageId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfirmAllResultDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Confirm every proposed class and segment of a package as proposed",
+        "tags": [
+          "Document Ingestion"
+        ]
+      }
+    },
     "/api/v1/document-ingestion/packages/{packageId}/documents": {
       "get": {
         "operationId": "DocumentIngestionPackageController_listDocuments",
@@ -64342,6 +65717,514 @@
         ]
       }
     },
+    "/api/v1/document-ingestion/packages/{packageId}/extract-jobs": {
+      "get": {
+        "operationId": "DocumentIngestionExtractionController_extractJobs",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "packageId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "size",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageExtractJobDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List a package's extract jobs, with the pages each could not read",
+        "tags": [
+          "Document Ingestion"
+        ]
+      }
+    },
+    "/api/v1/document-ingestion/packages/{packageId}/llm-budget": {
+      "put": {
+        "description": "A job paused on the budget resumes once it has room.",
+        "operationId": "DocumentIngestionExtractionController_setPackageBudget",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "packageId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LlmBudgetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/LlmSpendDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Set a package's AI reading limit",
+        "tags": [
+          "Document Ingestion"
+        ]
+      }
+    },
+    "/api/v1/document-ingestion/packages/{packageId}/llm-calls": {
+      "get": {
+        "operationId": "DocumentIngestionExtractionController_packageLlmCalls",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "packageId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "documentId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "size",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageLlmCallDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List the calls that sent pages of this package to the outside AI service, newest first",
+        "tags": [
+          "Document Ingestion"
+        ]
+      }
+    },
+    "/api/v1/document-ingestion/packages/{packageId}/llm-spend": {
+      "get": {
+        "operationId": "DocumentIngestionExtractionController_spend",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "packageId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/LlmSpendDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Read what reading this package has used, against the package's and the month's limits",
+        "tags": [
+          "Document Ingestion"
+        ]
+      }
+    },
     "/api/v1/document-ingestion/provenance": {
       "get": {
         "operationId": "DocumentIngestionReviewController_provenance",
@@ -64560,6 +66443,118 @@
           }
         },
         "summary": "Read the organization's settings, with the last changes and who made them",
+        "tags": [
+          "Document Ingestion"
+        ]
+      }
+    },
+    "/api/v1/document-ingestion/settings/llm-budget": {
+      "put": {
+        "description": "Each change is recorded. A job paused on the budget resumes once it has room.",
+        "operationId": "DocumentIngestionExtractionController_setMonthlyBudget",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LlmBudgetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestSettingsDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Set the organization's monthly AI reading limit",
         "tags": [
           "Document Ingestion"
         ]

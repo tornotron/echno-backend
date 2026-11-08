@@ -24,6 +24,7 @@ import org.tornotron.echno_backend.modules.documentingestion.dto.CandidateDto;
 import org.tornotron.echno_backend.modules.documentingestion.dto.DecisionOutcomeDto;
 import org.tornotron.echno_backend.modules.documentingestion.dto.DecisionOutcomeDto.Outcome;
 import org.tornotron.echno_backend.modules.documentingestion.dto.SourceRefDto;
+import org.tornotron.echno_backend.modules.documentingestion.extraction.quote.QuotedCandidates;
 import org.tornotron.echno_backend.modules.documentingestion.repository.CandidateRepository;
 import org.tornotron.echno_backend.modules.documentingestion.repository.IngestPackageRepository;
 import org.tornotron.echno_backend.modules.documentingestion.repository.SourceRefRepository;
@@ -32,7 +33,7 @@ import org.tornotron.echno_backend.user.UserContextService;
 /**
  * Review, generic over kinds. Accepting needs a source reference: a value with nowhere to point is
  * never accepted. A flagged candidate is skipped by a bulk accept unless each of its flags is
- * acknowledged. A correction keeps the extracted value beside the accepted one. Accepting a revised
+ * acknowledged, and one whose quote was not found is accepted only on its own. A correction keeps the extracted value beside the accepted one. Accepting a revised
  * value supersedes the one it replaces. Each decision is recorded with who made it and when; a person
  * may review what they uploaded.
  */
@@ -44,6 +45,9 @@ public class ReviewService {
     /** Kinds a QA engineer may review beside the two base roles, and those a site engineer may. */
     static final Set<CandidateKind> QUALITY_KINDS = Set.of(CandidateKind.QUALITY_REQUIREMENT);
     static final Set<CandidateKind> DRAWING_KINDS = Set.of(CandidateKind.DRAWING);
+
+    /** Flags a reviewer can acknowledge only in a request about that one candidate (design section 8.3). */
+    static final Set<String> SINGLE_ROW_FLAGS = Set.of(QuotedCandidates.QUOTE_NOT_FOUND);
 
     private final CandidateRepository candidates;
     private final SourceRefRepository sources;
@@ -86,12 +90,13 @@ public class ReviewService {
                 outcomes.add(new DecisionOutcomeDto(decision.candidateId(), Outcome.NOT_FOUND, "No such candidate in this package"));
                 continue;
             }
-            outcomes.add(decideOne(c, decision, reviewer, now));
+            outcomes.add(decideOne(c, decision, decisions.size() > 1, reviewer, now));
         }
         return outcomes;
     }
 
-    private DecisionOutcomeDto decideOne(Candidate c, CandidateDecision decision, Long reviewer, LocalDateTime now) {
+    private DecisionOutcomeDto decideOne(Candidate c, CandidateDecision decision, boolean bulk, Long reviewer,
+                                         LocalDateTime now) {
         if (!mayReview(c.getKind())) {
             return new DecisionOutcomeDto(c.getId(), Outcome.REFUSED_ROLE, "Your role does not review " + c.getKind());
         }
@@ -106,6 +111,10 @@ public class ReviewService {
         if (sources.countForCandidate(c.getId()) == 0) {
             return new DecisionOutcomeDto(c.getId(), Outcome.REFUSED_NO_SOURCE,
                     "The candidate has no source reference, so it cannot be accepted");
+        }
+        if (bulk && c.getFlags().stream().anyMatch(f -> SINGLE_ROW_FLAGS.contains(f.code()))) {
+            return new DecisionOutcomeDto(c.getId(), Outcome.SKIPPED_FLAGGED,
+                    "Its quote was not found on the page it names, so it is accepted only on its own, never in bulk");
         }
         Set<String> acknowledged = decision.acknowledgedFlags() == null ? Set.of() : new HashSet<>(decision.acknowledgedFlags());
         List<String> unread = c.getFlags().stream().map(CandidateFlag::code).filter(code -> !acknowledged.contains(code)).toList();
