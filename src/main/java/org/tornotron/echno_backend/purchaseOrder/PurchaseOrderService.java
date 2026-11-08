@@ -88,6 +88,7 @@ public class PurchaseOrderService {
     private final StatusTransitionRecorder statusTransitionRecorder;
     private final StatusTransitionRepository statusTransitionRepository;
     private final StatusTransitionMapper statusTransitionMapper;
+    private final PurchaseOrderEditPolicy editPolicy;
     private final UserContextService userContextService;
 
     public PurchaseOrderService(PurchaseOrderRepository purchaseOrderRepository,
@@ -105,7 +106,8 @@ public class PurchaseOrderService {
                                 StatusTransitionRecorder statusTransitionRecorder,
                                 StatusTransitionRepository statusTransitionRepository,
                                 StatusTransitionMapper statusTransitionMapper,
-                                UserContextService userContextService) {
+                                UserContextService userContextService,
+                                PurchaseOrderEditPolicy editPolicy) {
         this.purchaseOrderRepository = purchaseOrderRepository;
         this.vendorRepository = vendorRepository;
         this.indentRepository = indentRepository;
@@ -122,6 +124,7 @@ public class PurchaseOrderService {
         this.statusTransitionRepository = statusTransitionRepository;
         this.statusTransitionMapper = statusTransitionMapper;
         this.userContextService = userContextService;
+        this.editPolicy = editPolicy;
     }
 
     /**
@@ -307,17 +310,25 @@ public class PurchaseOrderService {
      *
      * @param updateDto The purchase order id and the header fields to change.
      * @return The updated purchase order as a DTO.
+     * <p>A project manager may edit an order only while it is a draft, and may not change its
+     * status here; both are the approver's (see {@link PurchaseOrderEditPolicy}).
+     *
      * @throws ResourceNotFoundException if no purchase order with the given id exists in this
      *     organization, or the payload names a project that does not.
+     * @throws org.springframework.security.access.AccessDeniedException if a caller who is not a
+     *     system admin edits an order past DRAFT or changes its status.
      */
     @Transactional
     public PurchaseOrderDto updatePurchaseOrder(PurchaseOrderUpdateDto updateDto) {
         PurchaseOrder purchaseOrder = purchaseOrderRepository.findByIdAndOrganization_Id(updateDto.getId(),TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Purchase order with ID " + updateDto.getId() + " was not found in this organization"));
 
+        editPolicy.requireEditable(purchaseOrder);
         PurchaseOrderStatus previousStatus = purchaseOrder.getStatus();
         if (updateDto.getStatus() != null) {
-            purchaseOrder.setStatus(PurchaseOrderStatus.valueOf(updateDto.getStatus()));
+            PurchaseOrderStatus requested = PurchaseOrderStatus.valueOf(updateDto.getStatus());
+            editPolicy.requireStatusChangeAllowed(purchaseOrder, requested);
+            purchaseOrder.setStatus(requested);
         }
 
         if (updateDto.getProjectId() != null) {

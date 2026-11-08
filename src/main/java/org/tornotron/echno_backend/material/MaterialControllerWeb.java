@@ -43,8 +43,8 @@ import java.util.List;
                 + "without reading the catalogue first. Setting a material's reorder thresholds at a "
                 + "storage location is open to the same three roles, because tuning them per project is "
                 + "an operational decision and the low-stock sweep that reads them notifies the same "
-                + "people. Creating, editing and deleting materials, and removing a threshold override, "
-                + "stay with system-admin."
+                + "people. Creating and editing materials is open to system-admin and project-manager; "
+                + "deleting a material and removing a threshold override stay with system-admin."
 )
 public class MaterialControllerWeb {
 
@@ -64,7 +64,7 @@ public class MaterialControllerWeb {
     }
 
     @PostMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @Operation(
             summary = "Create a material",
             description = "Creates a material with its SKU, unit and reorder thresholds. If an opening "
@@ -233,7 +233,7 @@ public class MaterialControllerWeb {
     }
 
     @PatchMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @Operation(
             summary = "Update a material",
             description = "Applies a partial update to a material's SKU, name, unit or reorder thresholds. "

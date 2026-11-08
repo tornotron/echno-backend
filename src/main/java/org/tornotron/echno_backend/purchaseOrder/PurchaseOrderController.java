@@ -28,11 +28,10 @@ import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
         name = "Purchase Orders",
         description = "Purchase orders raised against a vendor, optionally converted from an indent. A "
                 + "purchase order carries line items, a status lifecycle from draft through fully "
-                + "received or cancelled, and the totals used for payables. Raising and changing an order "
-                + "is restricted to the system-admin role for the current tenant. Reading one is also open "
-                + "to store-keeper, which is what a goods receipt is booked against, and to "
-                + "project-manager, which already sees what that receipt booked in the stock ledger. "
-                + "Neither can alter the order."
+                + "received or cancelled, and the totals used for payables. Raising an order and editing its "
+                + "header are open to system-admin and project-manager in the current tenant; a status "
+                + "change, approval included, stays with system-admin. Reading one is also open to "
+                + "store-keeper, which is what a goods receipt is booked against."
 )
 public class PurchaseOrderController {
 
@@ -42,7 +41,7 @@ public class PurchaseOrderController {
         this.purchaseOrderService = purchaseOrderService;
     }
 
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @PostMapping
     @Operation(
             summary = "Create a purchase order",
@@ -156,7 +155,7 @@ public class PurchaseOrderController {
         return ResponseEntity.ok(purchaseOrders);
     }
 
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @PatchMapping
     @Operation(
             summary = "Update a purchase order",

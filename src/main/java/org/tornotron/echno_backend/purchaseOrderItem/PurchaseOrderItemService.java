@@ -16,6 +16,7 @@ import org.tornotron.echno_backend.indentItem.IndentItemRepository;
 import org.tornotron.echno_backend.material.Material;
 import org.tornotron.echno_backend.material.MaterialRepository;
 import org.tornotron.echno_backend.purchaseOrder.PurchaseOrder;
+import org.tornotron.echno_backend.purchaseOrder.PurchaseOrderEditPolicy;
 import org.tornotron.echno_backend.purchaseOrder.PurchaseOrderRepository;
 import org.tornotron.echno_backend.purchaseOrder.PurchaseOrderService;
 import org.tornotron.echno_backend.purchaseOrderItem.dto.PurchaseOrderItemCreationDto;
@@ -35,25 +36,29 @@ public class PurchaseOrderItemService {
     private final IndentItemRepository indentItemRepository;
     private final TenantEntityHelper tenantEntityHelper;
     private final PurchaseOrderService purchaseOrderService;
+    private final PurchaseOrderEditPolicy editPolicy;
 
     public PurchaseOrderItemService(PurchaseOrderItemRepository purchaseOrderItemRepository,
                                     PurchaseOrderRepository purchaseOrderRepository,
                                     MaterialRepository materialRepository,
                                     IndentItemRepository indentItemRepository,
                                     TenantEntityHelper tenantEntityHelper,
-                                    PurchaseOrderService purchaseOrderService) {
+                                    PurchaseOrderService purchaseOrderService,
+                                    PurchaseOrderEditPolicy editPolicy) {
         this.purchaseOrderItemRepository = purchaseOrderItemRepository;
         this.purchaseOrderRepository = purchaseOrderRepository;
         this.materialRepository = materialRepository;
         this.indentItemRepository = indentItemRepository;
         this.tenantEntityHelper = tenantEntityHelper;
         this.purchaseOrderService = purchaseOrderService;
+        this.editPolicy = editPolicy;
     }
 
     @Transactional
     public PurchaseOrderItemResponseDto createPurchaseOrderItem(PurchaseOrderItemCreationDto creationDto) {
         PurchaseOrder purchaseOrder = purchaseOrderRepository.findByIdAndOrganization_Id(creationDto.getPurchaseOrderId(), TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Purchase order with ID " + creationDto.getPurchaseOrderId() + " was not found in this organization"));
+        editPolicy.requireEditable(purchaseOrder);
 
         Material material = materialRepository.findByIdAndOrganization_Id(creationDto.getMaterialId(),TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Material with ID " + creationDto.getMaterialId() + " was not found in this organization"));
@@ -167,11 +172,14 @@ public class PurchaseOrderItemService {
      *     or the payload names a material that does not.
      * @throws InvalidRequestException if the material is changed on a line that has already
      *     received stock.
+     * @throws org.springframework.security.access.AccessDeniedException if a caller who is not a
+     *     system admin edits a line on an order that has left DRAFT.
      */
     @Transactional
     public PurchaseOrderItemResponseDto updatePurchaseOrderItem(PurchaseOrderItemUpdateDto updateDto) {
         PurchaseOrderItem item = purchaseOrderItemRepository.findByIdAndOrganization_Id(updateDto.getId(),TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Purchase order item with ID " + updateDto.getId() + " was not found in this organization"));
+        editPolicy.requireEditable(item.getPurchaseOrder());
 
         if (updateDto.getMaterialId() != null
                 && !updateDto.getMaterialId().equals(item.getMaterial().getId())) {
