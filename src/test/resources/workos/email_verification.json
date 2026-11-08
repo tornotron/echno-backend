@@ -1,0 +1,10 @@
+{
+  "object": "email_verification",
+  "id": "email_verification_01FIXTURE0000000000000009",
+  "user_id": "user_01FIXTURE00000000000000001",
+  "email": "person@example.test",
+  "expires_at": "2026-11-07T22:25:26.304Z",
+  "code": "SENTINEL-BEARER-VALUE",
+  "created_at": "2026-11-07T22:15:26.304Z",
+  "updated_at": "2026-11-07T22:15:26.304Z"
+}

@@ -35,6 +35,11 @@ import java.util.regex.Pattern;
  * {@code src/test/resources/workos}) with its fields set, and every refusal is the recorded body for
  * that case, so the adapter is read against WorkOS's real shapes. The recorded bearer values are
  * {@link #BEARER_SENTINEL}, so a test can show they never reach a log.
+ *
+ * <p>Two shapes were not recorded and follow the API reference's examples instead: an email
+ * verification ({@code email_verification.json}) and an event, which is the object it is about with
+ * the secret fields removed, as the events reference says, wrapped as {@code object}, {@code id},
+ * {@code event}, {@code data}, {@code created_at}.
  */
 final class WorkOsStub implements AutoCloseable {
 
@@ -51,6 +56,9 @@ final class WorkOsStub implements AutoCloseable {
     private final Map<String, ObjectNode> memberships = new ConcurrentHashMap<>();
     private final Map<String, ObjectNode> invitations = new ConcurrentHashMap<>();
     private final Map<String, ObjectNode> sessions = new ConcurrentHashMap<>();
+    private final Map<String, ObjectNode> passwordResets = new ConcurrentHashMap<>();
+    private final Map<String, ObjectNode> emailVerifications = new ConcurrentHashMap<>();
+    private final List<ObjectNode> events = Collections.synchronizedList(new ArrayList<>());
     private final Map<String, AtomicInteger> invitationEmails = new ConcurrentHashMap<>();
     private final Map<String, AtomicInteger> passwordResetEmails = new ConcurrentHashMap<>();
     private final List<String> requests = Collections.synchronizedList(new ArrayList<>());
@@ -146,6 +154,27 @@ final class WorkOsStub implements AutoCloseable {
                 .anyMatch(s -> s.get("user_id").asText().equals(userId) && s.get("status").asText().equals("active"));
     }
 
+    /** What WorkOS does when a person signing up has to confirm their address: a code, and its event. */
+    String addEmailVerification(String userId) {
+        ObjectNode verification = template("email_verification.json");
+        String id = id("email_verification");
+        verification.put("id", id).put("user_id", userId).put("email", users.get(userId).get("email").asText())
+                .put("expires_at", Instant.now().plus(10, ChronoUnit.MINUTES).toString());
+        emailVerifications.put(id, verification);
+        event("email_verification.created", verification);
+        return id;
+    }
+
+    /** An event of a type the caller did not ask about, to show it is passed over. */
+    void addUnrelatedEvent() {
+        event("user.created", template("user.json").put("id", id("user")));
+    }
+
+    /** Events in the order WorkOS made them. */
+    List<ObjectNode> events() {
+        return List.copyOf(events);
+    }
+
     /** The next {@code count} requests answer 429 with this {@code Retry-After}. */
     void rateLimitNext(int count, String retryAfterValue) {
         rateLimitedResponses.set(count);
@@ -239,8 +268,27 @@ final class WorkOsStub implements AutoCloseable {
             }
             passwordResetEmails.computeIfAbsent(email.toLowerCase(), k -> new AtomicInteger()).incrementAndGet();
             ObjectNode reset = template("password_reset.json");
-            reset.put("id", id("password_reset")).put("user_id", user.get()).put("email", email);
+            reset.put("id", id("password_reset")).put("user_id", user.get()).put("email", email)
+                    .put("expires_at", Instant.now().plus(15, ChronoUnit.MINUTES).toString());
+            passwordResets.put(reset.get("id").asText(), reset);
+            event("password_reset.created", reset);
             send(exchange, 201, reset);
+        } else if (method.equals("GET") && (m = match("/user_management/password_reset/(ID)", path)) != null) {
+            ObjectNode reset = passwordResets.get(m.group(1));
+            if (reset == null) {
+                notFound(exchange);
+            } else {
+                send(exchange, 200, reset);
+            }
+        } else if (method.equals("GET") && (m = match("/user_management/email_verification/(ID)", path)) != null) {
+            ObjectNode verification = emailVerifications.get(m.group(1));
+            if (verification == null) {
+                notFound(exchange);
+            } else {
+                send(exchange, 200, verification);
+            }
+        } else if (method.equals("GET") && path.equals("/events")) {
+            listEvents(exchange, query);
         } else if (method.equals("POST") && path.equals("/user_management/organization_memberships")) {
             createMembership(exchange, body.get("user_id").asText(), body.get("organization_id").asText());
         } else if (method.equals("GET") && path.equals("/user_management/organization_memberships")) {
@@ -315,6 +363,7 @@ final class WorkOsStub implements AutoCloseable {
         }
         invitations.put(invitation.get("id").asText(), invitation);
         invitationEmails.computeIfAbsent(email.toLowerCase(), k -> new AtomicInteger()).incrementAndGet();
+        event("invitation.created", invitation);
         send(exchange, 201, invitation);
     }
 
@@ -333,6 +382,7 @@ final class WorkOsStub implements AutoCloseable {
         if (action.equals("resend")) {
             invitationEmails.computeIfAbsent(invitation.get("email").asText().toLowerCase(), k -> new AtomicInteger())
                     .incrementAndGet();
+            event("invitation.resent", invitation);
         } else {
             invitation.put("state", "revoked").put("revoked_at", Instant.now().toString());
         }
@@ -346,6 +396,53 @@ final class WorkOsStub implements AutoCloseable {
             invitation.put("state", "expired");
         }
         return invitation;
+    }
+
+    /** The events reference: the object with its secrets omitted. */
+    private void event(String type, ObjectNode object) {
+        ObjectNode data = object.deepCopy();
+        data.remove(List.of("token", "accept_invitation_url", "password_reset_token", "password_reset_url", "code"));
+        ObjectNode event = JSON.createObjectNode().put("object", "event").put("id", id("event")).put("event", type);
+        event.set("data", data);
+        event.put("created_at", Instant.now().toString());
+        event.putObject("context");
+        events.add(event);
+    }
+
+    /** Oldest first; {@code after} and {@code range_start} together are refused, as the API does. */
+    private void listEvents(HttpExchange exchange, Map<String, List<String>> query) throws IOException {
+        List<String> types = List.of(query.getOrDefault("events", List.of("")).get(0).split(","));
+        String after = query.containsKey("after") ? query.get("after").get(0) : null;
+        String rangeStart = query.containsKey("range_start") ? query.get("range_start").get(0) : null;
+        if (after != null && rangeStart != null) {
+            send(exchange, 422, JSON.createObjectNode().put("message", "after and range_start cannot be combined"));
+            return;
+        }
+        int limit = Integer.parseInt(query.getOrDefault("limit", List.of("10")).get(0));
+        List<ObjectNode> all = events();
+        int start = 0;
+        if (after != null) {
+            for (int i = 0; i < all.size(); i++) {
+                if (all.get(i).get("id").asText().equals(after)) {
+                    start = i + 1;
+                }
+            }
+        }
+        Instant from = rangeStart == null ? Instant.EPOCH : Instant.parse(rangeStart);
+        List<ObjectNode> page = all.subList(start, all.size()).stream()
+                .filter(e -> types.contains(e.get("event").asText()))
+                .filter(e -> !Instant.parse(e.get("created_at").asText()).isBefore(from))
+                .limit(limit).toList();
+        ObjectNode list = JSON.createObjectNode().put("object", "list");
+        ArrayNode data = list.putArray("data");
+        page.forEach(data::add);
+        ObjectNode metadata = list.putObject("list_metadata");
+        if (page.isEmpty()) {
+            metadata.putNull("after");
+        } else {
+            metadata.put("after", page.get(page.size() - 1).get("id").asText());
+        }
+        send(exchange, 200, list);
     }
 
     private Optional<ObjectNode> organizationByExternalId(String external) {

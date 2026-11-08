@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.common.identity.workos;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.json.JsonMapper;
@@ -35,9 +36,11 @@ import java.util.function.Supplier;
  * The WorkOS endpoints the adapter uses, on Spring's {@link RestClient}, with no SDK.
  *
  * <p>Responses are read into the records below, which name only the fields Echno uses. An
- * invitation's {@code token} and {@code accept_invitation_url}, and a password reset's token and
- * address, are bearer values, so they are never read into anything and never reach a log. Nothing in
- * this class logs a request or a response.
+ * invitation's {@code token} and {@code accept_invitation_url}, a password reset's token and address,
+ * and a verification code are bearer values. The general records leave them out. Only the three
+ * sign-in email reads ({@link #invitationLink}, {@link #passwordReset}, {@link #emailVerification})
+ * read one, for the email it goes into, and their records leave it out of {@code toString()}. Nothing
+ * in this class logs a request or a response.
  */
 class WorkOsApi {
 
@@ -56,6 +59,39 @@ class WorkOsApi {
     }
 
     record Session(String id, String status) {
+    }
+
+    /** An event from the Events API. {@code data} is the object it is about, with its secrets omitted. */
+    record Event(String id, String event, @Nullable JsonNode data, @Nullable Instant createdAt) {
+    }
+
+    /** An invitation with its accept link, for the email that carries it. */
+    record InvitationLink(String id, String email, String state, @Nullable String organizationId,
+                          @Nullable String inviterUserId, @Nullable Instant expiresAt,
+                          @Nullable String acceptInvitationUrl) {
+
+        @Override
+        public String toString() {
+            return "InvitationLink[id=" + id + ", state=" + state + "]";
+        }
+    }
+
+    /** A password reset with its link, for the email that carries it. */
+    record PasswordReset(String id, String email, @Nullable String passwordResetUrl, @Nullable Instant expiresAt) {
+
+        @Override
+        public String toString() {
+            return "PasswordReset[id=" + id + "]";
+        }
+    }
+
+    /** An email verification with its code, for the email that carries it. */
+    record EmailVerification(String id, String email, @Nullable String code, @Nullable Instant expiresAt) {
+
+        @Override
+        public String toString() {
+            return "EmailVerification[id=" + id + "]";
+        }
     }
 
     record Page<T>(List<T> data, @Nullable ListMetadata listMetadata) {
@@ -145,7 +181,7 @@ class WorkOsApi {
         post("/user_management/sessions/revoke", Map.of("session_id", sessionId), Void.class);
     }
 
-    /** WorkOS sends the email. The response holds the reset token, so it is not read. */
+    /** WorkOS sends the email unless its password reset email is off. The response holds the token, so it is not read. */
     void sendPasswordReset(String email) {
         post("/user_management/password_reset", Map.of("email", email), Void.class);
     }
@@ -197,6 +233,38 @@ class WorkOsApi {
 
     void revokeInvitation(String id) {
         post(uri -> uri.path("/user_management/invitations/{id}/revoke").build(id));
+    }
+
+    // --- Sign-in email -------------------------------------------------------------------------
+
+    /**
+     * One page of events of these types, oldest first, after the event {@code after}, or, with none,
+     * from {@code since}. The API takes the types as one comma-separated parameter and refuses
+     * {@code after} together with {@code range_start}.
+     */
+    Page<Event> events(List<String> types, @Nullable String after, Instant since, int limit) {
+        return get(uri -> {
+            uri.path("/events").queryParam("events", String.join(",", types)).queryParam("limit", limit);
+            if (after != null) {
+                uri.queryParam("after", after);
+            } else {
+                uri.queryParam("range_start", since.toString());
+            }
+            return uri.build();
+        }, new ParameterizedTypeReference<Page<Event>>() { });
+    }
+
+    Optional<InvitationLink> invitationLink(String id) {
+        return found(() -> get(uri -> uri.path("/user_management/invitations/{id}").build(id), InvitationLink.class));
+    }
+
+    Optional<PasswordReset> passwordReset(String id) {
+        return found(() -> get(uri -> uri.path("/user_management/password_reset/{id}").build(id), PasswordReset.class));
+    }
+
+    Optional<EmailVerification> emailVerification(String id) {
+        return found(() -> get(uri -> uri.path("/user_management/email_verification/{id}").build(id),
+                EmailVerification.class));
     }
 
     // --- Plumbing --------------------------------------------------------------------------------

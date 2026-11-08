@@ -15,6 +15,9 @@ import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.tornotron.echno_backend.common.identity.IdentityProvider;
 import org.tornotron.echno_backend.common.identity.IdentityTokenMapper;
+import org.tornotron.echno_backend.common.identity.mail.SignInEmailOutbox;
+import org.tornotron.echno_backend.common.mail.LogMailSender;
+import org.tornotron.echno_backend.common.mail.MailSender;
 import org.tornotron.echno_backend.support.AbstractIntegrationTest;
 
 import java.util.Arrays;
@@ -23,7 +26,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * The whole application on WorkOS with no Keycloak setting, which is the shape of the first production
- * stack. The API address goes nowhere: nothing at boot calls WorkOS.
+ * stack. The API address goes nowhere: nothing at boot calls WorkOS. Echno sends its own sign-in email,
+ * as production does, here through the log-only sender.
  */
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @ActiveProfiles("test")
@@ -36,6 +40,8 @@ import static org.assertj.core.api.Assertions.assertThat;
         "ECHNO_JWT_ACCEPTED_ISSUERS=https://api.workos.com/user_management/client_boot_only",
         "SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_JWK_SET_URI=",
         "ECHNO_CORS_ALLOWED_ORIGINS=https://ui.example.test",
+        "ECHNO_MAIL_PROVIDER=log",
+        "ECHNO_MAIL_FROM=Echno <no-reply@example.test>",
         "BACKEND_API_VERSION=v1",
         "DIGITAL_OCEAN_SPACES_URI=http://localhost:9000",
         "DIGITAL_OCEAN_SPACES_KEY_ID=test",
@@ -57,6 +63,13 @@ class WorkOsBootIT extends AbstractIntegrationTest {
         assertThat(context.getBean(IdentityTokenMapper.class)).isInstanceOf(WorkOsTokenMapper.class);
         assertThat(context.getBeansOfType(JwtDecoder.class)).hasSize(1);
         assertThat(context.getBean("workos")).isInstanceOf(WorkOsHealthIndicator.class);
+    }
+
+    @Test
+    void echnoSendsTheSignInEmail() {
+        assertThat(context.getBean(MailSender.class)).isInstanceOf(LogMailSender.class);
+        assertThat(context.getBean(SignInEmailOutbox.class)).isNotNull();
+        assertThat(context.getBean(IdentityProvider.class).capabilities().signInEmails()).isPresent();
     }
 
     @Test

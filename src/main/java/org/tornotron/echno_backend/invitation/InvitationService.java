@@ -60,9 +60,21 @@ public class InvitationService {
     static final String RENEWED = "invitation.renewed";
     static final String REVOKED = "invitation.revoked";
 
-    private static final String COLUMNS = """
+    private static final String BASE_COLUMNS = """
             id, email, status, expires_at, sent_at, accepted_at, revoked_at, created_at, invited_by_user_id,
             CAST(employee_details AS TEXT) AS employee_details
+            """;
+
+    /**
+     * Where Echno's own email for the current link stands, from the latest request for it. Read only
+     * when nothing is locked, so a locking read stays a plain one.
+     */
+    private static final String COLUMNS = BASE_COLUMNS + """
+            ,
+            (SELECT m.status FROM sign_in_email m WHERE m.provider_object_id = invitation.provider_invitation_id
+             ORDER BY m.created_at DESC LIMIT 1) AS email_delivery,
+            (SELECT m.last_error FROM sign_in_email m WHERE m.provider_object_id = invitation.provider_invitation_id
+             ORDER BY m.created_at DESC LIMIT 1) AS email_delivery_error
             """;
 
     private final JdbcTemplate jdbc;
@@ -222,7 +234,8 @@ public class InvitationService {
 
     record Row(UUID id, String email, InvitationStage stage, Instant expiresAt, @Nullable Instant sentAt,
                @Nullable Instant acceptedAt, @Nullable Instant revokedAt, Instant createdAt,
-               @Nullable Long invitedByUserId, String employeeDetails) {
+               @Nullable Long invitedByUserId, String employeeDetails, @Nullable String emailDelivery,
+               @Nullable String emailDeliveryError) {
     }
 
     private InvitationDto read(Long organization, UUID id) {
@@ -234,7 +247,8 @@ public class InvitationService {
     }
 
     private Row row(Long organization, UUID id, boolean lock) {
-        return jdbc.query("SELECT " + COLUMNS + " FROM invitation WHERE id = ? AND organization_id = ?"
+        String columns = lock ? BASE_COLUMNS + ", NULL AS email_delivery, NULL AS email_delivery_error" : COLUMNS;
+        return jdbc.query("SELECT " + columns + " FROM invitation WHERE id = ? AND organization_id = ?"
                         + (lock ? " FOR UPDATE" : ""), this::row, id, organization)
                 .stream().findFirst()
                 .orElseThrow(() -> new ResourceNotFoundException("Invitation " + id + " was not found in this organization"));
@@ -244,7 +258,8 @@ public class InvitationService {
         return new Row(rs.getObject("id", UUID.class), rs.getString("email"),
                 InvitationStage.valueOf(rs.getString("status")), instant(rs, "expires_at"), instant(rs, "sent_at"),
                 instant(rs, "accepted_at"), instant(rs, "revoked_at"), instant(rs, "created_at"),
-                rs.getObject("invited_by_user_id", Long.class), rs.getString("employee_details"));
+                rs.getObject("invited_by_user_id", Long.class), rs.getString("employee_details"),
+                rs.getString("email_delivery"), rs.getString("email_delivery_error"));
     }
 
     private List<InvitationDto> withRoles(Long organization, List<Row> rows) {
@@ -265,7 +280,8 @@ public class InvitationService {
                 }, arguments.toArray());
         return rows.stream().map(row -> new InvitationDto(row.id(), row.email(), effectiveStage(row), row.expiresAt(),
                 row.sentAt(), row.acceptedAt(), row.revokedAt(), row.createdAt(), row.invitedByUserId(),
-                List.copyOf(roles.get(row.id())), read(row.employeeDetails()))).toList();
+                List.copyOf(roles.get(row.id())), read(row.employeeDetails()), row.emailDelivery(),
+                row.emailDeliveryError())).toList();
     }
 
     /** A pending invitation past its expiry is expired, whether or not the sync has written that yet. */

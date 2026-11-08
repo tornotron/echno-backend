@@ -1,0 +1,10 @@
+[# th:if="${inviter != null and organization != null}"][(${inviter})] has invited you to join [(${organization})] on [(${product})].[/][# th:if="${inviter == null and organization != null}"]You have been invited to join [(${organization})] on [(${product})].[/][# th:if="${organization == null}"]You have been invited to [(${product})].[/]
+
+Accept the invitation to set up your account and sign in:
+
+[(${link})]
+[# th:if="${expires != null}"]
+The invitation expires on [(${expires})].[/]
+
+--
+This email was sent to [(${email})] by [(${product})]. [(${footer})]

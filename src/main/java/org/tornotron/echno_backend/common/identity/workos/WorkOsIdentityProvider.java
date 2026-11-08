@@ -34,7 +34,9 @@ import java.util.stream.Stream;
  *       and leaves the user alone.</li>
  *   <li>Membership counts only when {@code active}; WorkOS lists only those unless asked.</li>
  *   <li>Resending keeps the expiry. Renewing an invitation is a revoke and a new invite.</li>
- *   <li>WorkOS sends the invitation and password reset email itself.</li>
+ *   <li>WorkOS sends the invitation, password reset and verification email itself, unless the
+ *       environment has those emails switched off. Then {@link WorkOsSignInEmails}, reached through
+ *       {@link #capabilities()}, gives Echno what it needs to send them.</li>
  * </ul>
  */
 public class WorkOsIdentityProvider implements IdentityProvider {
@@ -53,11 +55,14 @@ public class WorkOsIdentityProvider implements IdentityProvider {
     private final WorkOsApi api;
     private final Clock clock;
     private final RetryAfterInterceptor.Pause pause;
+    private final IdentityCapabilities capabilities;
 
     WorkOsIdentityProvider(WorkOsApi api, Clock clock, RetryAfterInterceptor.Pause pause) {
         this.api = api;
         this.clock = clock;
         this.pause = pause;
+        this.capabilities = new IdentityCapabilities(Optional.empty(), Optional.empty(),
+                Optional.of(new WorkOsSignInEmails(api)));
     }
 
     @Override
@@ -175,7 +180,7 @@ public class WorkOsIdentityProvider implements IdentityProvider {
 
     @Override
     public IdentityCapabilities capabilities() {
-        return IdentityCapabilities.none();
+        return capabilities;
     }
 
     // --- Helpers ---------------------------------------------------------------------------------
