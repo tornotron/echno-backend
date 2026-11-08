@@ -41,7 +41,7 @@ public class IndentController {
     // ==================== Indent Endpoints ====================
 
     @PostMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @Operation(
             summary = "Create an indent",
             description = "Creates a material indent for a project, along with its requested items."
@@ -134,7 +134,7 @@ public class IndentController {
     }
 
     @PostMapping("/{indentId}/items")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @Operation(
             summary = "Add an item to an indent",
             description = "Adds a requested material item to an existing indent."
@@ -153,7 +153,7 @@ public class IndentController {
     }
 
     @PatchMapping("/{indentId}/items/{itemId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @Operation(
             summary = "Update an item on an indent",
             description = "Applies a partial update to a requested item's material, quantity or remarks."

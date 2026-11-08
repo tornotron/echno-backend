@@ -52,7 +52,7 @@ public class MaterialController {
     }
 
     @PostMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @Operation(
             summary = "Create a material",
             description = "Creates a material with its SKU, unit and reorder thresholds. If an opening "
@@ -194,7 +194,7 @@ public class MaterialController {
     }
 
     @PatchMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @Operation(
             summary = "Update a material",
             description = "Applies a partial update to a material's SKU, name, unit or reorder thresholds. "
