@@ -38,7 +38,8 @@ public interface ContractBoqPort {
     /**
      * Replaces one BOQ line's code, description, unit, quantity and rate in the caller's transaction, with
      * the update endpoint's rules: the same limits, the code unique on the contract, and a quantity no
-     * lower than what is already certified. The line keeps its schedule link and position.
+     * lower than what is already certified. The line keeps its schedule link and position, whatever
+     * {@code line.sortOrder()} says.
      *
      * @throws org.tornotron.echno_backend.common.exception.InvalidRequestException when a rule is broken
      * @throws org.tornotron.echno_backend.common.exception.ResourceNotFoundException when the line is not in

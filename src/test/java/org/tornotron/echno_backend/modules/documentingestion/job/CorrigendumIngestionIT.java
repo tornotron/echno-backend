@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.modules.documentingestion.job;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -36,6 +37,7 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.llm.ChatCompletionClient;
 import org.tornotron.echno_backend.common.llm.ChatCompletionOutcome;
 import org.tornotron.echno_backend.common.llm.ChatCompletionRequest;
@@ -352,25 +354,211 @@ class CorrigendumIngestionIT extends AbstractIntegrationTest {
         boqRow(tenderBoq, "1.03", "850", "9800", 14);
         boqRow(tenderBoq, "1.04", "100", "500", 15);
         boqRow(tenderBoq, "1.05", "10", "50", 16);
+        boqRow(tenderBoq, "PC-7", "3", "200", 17);
         UUID revisedFile = document("BOQ rev 1.xlsx", "XLSX");
         boqRow(revisedFile, "1.03", "920", "9800", 14);
         boqRow(revisedFile, "1.04", "100", "500", 15);
         boqRow(revisedFile, "1.06", "7", "70", 16);
+        boqRow(revisedFile, "pc-7", "3", "200", 17);
 
         revisions.markRevision(revisedFile, new RevisionRequest(tenderBoq, "R1"));
         RevisionDiffDto diff = revisions.diff(revisedFile);
 
-        assertThat(diff).isEqualTo(new RevisionDiffDto(2, 3, 1, 1));
+        assertThat(diff).as("an item code differing only in case is the same item").isEqualTo(new RevisionDiffDto(3, 3, 1, 1));
         Map<String, CandidateDto> changes = changes();
-        assertThat(changes.get("BOQ_ITEM:1.03:quantity").payload()).containsEntry(ChangeMatcher.MONEY_IMPACT, "686000")
+        CandidateDto rcc = changes.get("BOQ_ITEM:1.03:quantity");
+        assertThat(rcc.payload()).containsEntry(ChangeMatcher.MONEY_IMPACT, "686000")
                 .containsEntry(ChangeMatcher.ORIGIN, ChangeMatcher.ORIGIN_REVISED_FILE);
-        assertThat(changes.get("BOQ_ITEM:1.03:quantity").sources()).allSatisfy(s -> {
-            assertThat(s.documentId()).isEqualTo(revisedFile);
+        assertThat(rcc.sources()).allSatisfy(s -> assertThat(s.documentId()).isEqualTo(revisedFile));
+        assertThat(rcc.sources()).anySatisfy(s -> {
+            assertThat(s.field()).isEqualTo(ChangeMatcher.NEW_VALUE);
             assertThat(s.cell()).isEqualTo("D14");
+        }).anySatisfy(s -> {
+            assertThat(s.field()).isEqualTo(ChangeMatcher.TARGET);
+            assertThat(s.cell()).isEqualTo("A14");
         });
         assertThat(changes.get("BOQ_ITEM:1.06:").flags()).extracting(f -> f.code()).contains(ChangeMatcher.ITEM_ADDED);
-        assertThat(changes.get("BOQ_ITEM:1.05:").flags()).extracting(f -> f.code()).contains(ChangeMatcher.ITEM_REMOVED);
+        CandidateDto gone = changes.get("BOQ_ITEM:1.05:");
+        assertThat(gone.flags()).extracting(f -> f.code()).contains(ChangeMatcher.ITEM_REMOVED);
+        assertThat(gone.payload()).as("a removal is inferred, not read").doesNotContainKey(ChangeMatcher.NEW_VALUE);
+        assertThat(gone.sources()).extracting(s -> s.field()).containsExactly(ChangeMatcher.TARGET);
         assertThat(revisions.diff(revisedFile).changesProposed()).as("run again, it adds nothing").isZero();
+
+        accept(rcc);
+        assertThat(status(rcc.supersedesCandidateId())).isEqualTo("SUPERSEDED");
+        assertThat(revisions.diff(revisedFile).changesProposed()).as("accepting a change leaves the comparison as it was")
+                .isZero();
+    }
+
+    @Test
+    void theEarlierFileMustBeReadAndCannotBeChangedUnderChangesInReview() {
+        UUID revisedFile = document("BOQ rev 1.xlsx", "XLSX");
+        boqRow(revisedFile, "1.03", "920", "9800", 14);
+        UUID unread = document("BOQ draft.xlsx", "XLSX");
+
+        revisions.markRevision(revisedFile, new RevisionRequest(unread, "R1"));
+        assertThatThrownBy(() -> revisions.diff(revisedFile)).isInstanceOf(InvalidRequestException.class)
+                .hasMessageContaining("BOQ draft.xlsx");
+        assertThat(changes()).isEmpty();
+
+        boqRow(tenderBoq, "1.03", "850", "9800", 14);
+        revisions.markRevision(revisedFile, new RevisionRequest(tenderBoq, "R1"));
+        assertThat(revisions.diff(revisedFile).changesProposed()).isEqualTo(1);
+        UUID other = document("BOQ other.xlsx", "XLSX");
+        boqRow(other, "1.03", "900", "9800", 14);
+
+        assertThatThrownBy(() -> revisions.markRevision(revisedFile, new RevisionRequest(other, "R1")))
+                .isInstanceOf(InvalidRequestException.class).hasMessageContaining("still in review");
+
+        review.decide(packageId, List.of(new CandidateDecision(changes().get("BOQ_ITEM:1.03:quantity").id(),
+                CandidateDecision.Action.REJECT, null, List.of())));
+        revisions.markRevision(revisedFile, new RevisionRequest(other, "R1"));
+        assertThat(revisions.diff(revisedFile).changesProposed()).as("compared afresh against the new file").isEqualTo(1);
+    }
+
+    @Test
+    void aLaterCorrigendumChangesTheValueTheEarlierOneWroteToTheLine() {
+        UUID itemId = appliedBoqLine("1.03", "850", "9800");
+        readCorrigendum();
+        CandidateDto first = changesOf(null).get("BOQ_ITEM:1.03:quantity");
+        accept(first);
+        apply.apply(packageId, CandidateKind.CHANGE);
+        assertThat(quantity(itemId)).isEqualByComparingTo("920");
+
+        UUID second = readCorrigendum("Corrigendum 2.pdf", answer("1.03", "quantity", "920", "950 cum",
+                "Item 1.03 RCC M25: quantity revised from 920 cum to 950 cum"),
+                "Item 1.03 RCC M25: quantity revised from 920 cum to 950 cum");
+        CandidateDto next = changesOf(second).get("BOQ_ITEM:1.03:quantity");
+        assertThat(next.supersedesCandidateId()).as("the line's own row, though superseded").isEqualTo(first.supersedesCandidateId());
+        assertThat(next.payload()).containsEntry(ChangeMatcher.PRIOR_VALUE, "920")
+                .containsEntry(ChangeMatcher.QUANTITY_VARIANCE, "30").containsEntry(ChangeMatcher.MONEY_IMPACT, "294000");
+        assertThat(next.flags()).isEmpty();
+        accept(next);
+        assertThat(apply.apply(packageId, CandidateKind.CHANGE).applied()).isEqualTo(1);
+        assertThat(quantity(itemId)).as("the unit is not part of the number").isEqualByComparingTo("950");
+
+        UUID third = readCorrigendum("Corrigendum 3.pdf", answer("1.03", "quantity", "950", "1000",
+                "Item 1.03 RCC M25: quantity revised from 950 cum to 1000 cum"),
+                "Item 1.03 RCC M25: quantity revised from 950 cum to 1000 cum");
+        CandidateDto last = changesOf(third).get("BOQ_ITEM:1.03:quantity");
+        accept(last);
+        assertThat(apply.apply(packageId, CandidateKind.CHANGE).applied())
+                .as("950 cum applied and 950 on the line are the same value, so no hand edit is seen").isEqualTo(1);
+        assertThat(quantity(itemId)).isEqualByComparingTo("1000");
+    }
+
+    @Test
+    void aValueOnlyPartlyANumberIsNotApplied() {
+        UUID itemId = appliedBoqLine("1.03", "850", "9800");
+        UUID doc = readCorrigendum("Corrigendum 1.pdf", answer("1.03", "quantity", "850", "1/2",
+                "Item 1.03 RCC M25: quantity revised to 1/2 of 850 cum"),
+                "Item 1.03 RCC M25: quantity revised to 1/2 of 850 cum");
+        accept(changesOf(doc).get("BOQ_ITEM:1.03:quantity"));
+
+        assertThat(apply.apply(packageId, CandidateKind.CHANGE).failed()).isEqualTo(1);
+        assertThat(quantity(itemId)).isEqualByComparingTo("850");
+    }
+
+    @Test
+    void aChangeToTheAmountOfALiveLineIsRefusedForTheQuantityOrRate() {
+        UUID itemId = appliedBoqLine("1.03", "850", "9800");
+        UUID doc = readCorrigendum("Corrigendum 1.pdf", answer("1.03", "amount", null, "9016000",
+                "Item 1.03 RCC M25: amount to be read as 9016000"), "Item 1.03 RCC M25: amount to be read as 9016000");
+        CandidateDto amount = changesOf(doc).get("BOQ_ITEM:1.03:amount");
+        accept(amount);
+
+        assertThat(apply.apply(packageId, CandidateKind.CHANGE).failed()).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT apply_error FROM doc_ingest_candidate WHERE id = ?", String.class,
+                amount.id())).contains("quantity or the rate");
+        assertThat(quantity(itemId)).isEqualByComparingTo("850");
+    }
+
+    @Test
+    void twoChangesToARowNotYetAppliedGiveOneRevisedRowHoldingBoth() {
+        UUID prior = boqRow(tenderBoq, "1.03", "850", "9800", 14);
+        String quote = "Item 1.03 RCC M25: quantity revised to 920 cum and rate to 10000";
+        UUID doc = readCorrigendum("Corrigendum 1.pdf", "{\"changes\": [" + change("1.03", "quantity", "850", "920", quote)
+                + ", " + change("1.03", "rate", "9800", "10000", quote) + "]}", quote);
+        Map<String, CandidateDto> changes = changesOf(doc);
+        accept(changes.get("BOQ_ITEM:1.03:quantity"));
+        accept(changes.get("BOQ_ITEM:1.03:rate"));
+
+        assertThat(apply.apply(packageId, CandidateKind.CHANGE).applied()).isEqualTo(2);
+
+        List<CandidateDto> revised = review.list(packageId, CandidateKind.BOQ_ITEM, CandidateStatus.PROPOSED, null, 0, 50)
+                .getContent();
+        assertThat(revised).singleElement().satisfies(r -> {
+            assertThat(r.payload()).containsEntry("quantity", "920").containsEntry("rate", "10000");
+            assertThat(r.documentId()).isEqualTo(doc);
+            assertThat(r.segmentId()).as("the corrigendum's segment, with its document")
+                    .isEqualTo(changes.get("BOQ_ITEM:1.03:rate").segmentId());
+        });
+        assertThat(status(prior)).isEqualTo("SUPERSEDED");
+    }
+
+    @Test
+    void keepingTheRecordLeavesTheRowSupersededWhileAnotherChangeToItStands() {
+        UUID itemId = appliedBoqLine("1.03", "850", "9800");
+        String quote = "Item 1.03 RCC M25: quantity revised to 920 cum and rate to 10000";
+        UUID doc = readCorrigendum("Corrigendum 1.pdf", "{\"changes\": [" + change("1.03", "quantity", "850", "920", quote)
+                + ", " + change("1.03", "rate", "9800", "10000", quote) + "]}", quote);
+        Map<String, CandidateDto> changes = changesOf(doc);
+        accept(changes.get("BOQ_ITEM:1.03:quantity"));
+        accept(changes.get("BOQ_ITEM:1.03:rate"));
+        jdbc.update("UPDATE contract_boq_item SET rate = 9900, amount = contract_quantity * 9900 WHERE id = ?", itemId);
+
+        ApplyResultDto result = apply.apply(packageId, CandidateKind.CHANGE);
+        assertThat(result.applied()).isEqualTo(1);
+        assertThat(result.failed()).isEqualTo(1);
+        CandidateDto rate = changes.get("BOQ_ITEM:1.03:rate");
+        conflicts.choose(rate.id(), new ConflictChoiceRequest(ConflictChoiceRequest.Choice.KEEP_RECORD));
+
+        assertThat(status(rate.supersedesCandidateId())).as("the applied quantity change still stands over it")
+                .isEqualTo("SUPERSEDED");
+        assertThat(quantity(itemId)).isEqualByComparingTo("920");
+    }
+
+    @Test
+    void aChoiceToWriteOverTheRecordHoldsOnlyForTheValueItWasMadeOn() {
+        UUID itemId = appliedBoqLine("1.03", "850", "9800");
+        readCorrigendum();
+        CandidateDto rcc = changes().get("BOQ_ITEM:1.03:quantity");
+        accept(rcc);
+        jdbc.update("UPDATE contract_boq_item SET contract_quantity = 900, amount = 900 * rate WHERE id = ?", itemId);
+        apply.apply(packageId, CandidateKind.CHANGE);
+        conflicts.choose(rcc.id(), new ConflictChoiceRequest(ConflictChoiceRequest.Choice.APPLY_CHANGE));
+        jdbc.update("UPDATE contract_boq_item SET contract_quantity = 910, amount = 910 * rate WHERE id = ?", itemId);
+
+        assertThat(apply.apply(packageId, CandidateKind.CHANGE).failed()).isEqualTo(1);
+        assertThat(quantity(itemId)).as("edited again after the choice, so not overwritten").isEqualByComparingTo("910");
+        assertThat(jdbc.queryForObject("SELECT apply_error FROM doc_ingest_candidate WHERE id = ?", String.class, rcc.id()))
+                .contains("910");
+
+        conflicts.choose(rcc.id(), new ConflictChoiceRequest(ConflictChoiceRequest.Choice.APPLY_CHANGE));
+        assertThat(apply.apply(packageId, CandidateKind.CHANGE).applied()).isEqualTo(1);
+        assertThat(quantity(itemId)).isEqualByComparingTo("920");
+    }
+
+    @Test
+    void aProjectFieldChangeWithNoFieldProposesTheRevisedValue() {
+        UUID due = retry.execute("test.projectField", () -> writer.propose(new ProposedCandidate(packageId, tenderBoq, null,
+                CandidateKind.PROJECT_FIELD, "bid_due_date", new LinkedHashMap<>(Map.of("value", "2026-12-01")), List.of(),
+                ExtractionMethod.LLM, List.of(new ProposedCandidate.ProposedSource("value", tenderBoq, "d".repeat(64), 1,
+                        null, null, null, null, null, "Last date for bids: 2026-12-01", true)), null)));
+        String quote = "Bid due date extended from 2026-12-01 to 2026-12-15";
+        UUID doc = readCorrigendum("Corrigendum 1.pdf", "{\"changes\": [{\"kind\": \"PROJECT_FIELD\", \"target\": "
+                + "\"bid_due_date\", \"old_value\": \"2026-12-01\", \"new_value\": \"2026-12-15\", \"page\": 1, "
+                + "\"quote\": \"" + quote + "\"}]}", quote);
+        CandidateDto change = changesOf(doc).get("PROJECT_FIELD:bid_due_date:");
+        assertThat(change.supersedesCandidateId()).isEqualTo(due);
+        assertThat(change.payload()).containsEntry(ChangeMatcher.PRIOR_VALUE, "2026-12-01");
+        assertThat(change.flags()).isEmpty();
+        accept(change);
+
+        assertThat(apply.apply(packageId, CandidateKind.CHANGE).applied()).isEqualTo(1);
+
+        assertThat(review.list(packageId, CandidateKind.PROJECT_FIELD, CandidateStatus.PROPOSED, null, 0, 50).getContent())
+                .singleElement().satisfies(r -> assertThat(r.payload()).containsEntry("value", "2026-12-15"));
     }
 
     // --------------------------------------------------------------------------------------------
@@ -378,15 +566,26 @@ class CorrigendumIngestionIT extends AbstractIntegrationTest {
     // --------------------------------------------------------------------------------------------
 
     void readCorrigendum() {
-        UUID doc = document("Corrigendum 1.pdf", "PDF");
+        readCorrigendum("Corrigendum 1.pdf", ANSWER, "Item 1.03 RCC M25: quantity revised from 850 cum to 920 cum",
+                "Item 4.12 Plastering: rate to be read as Rs. 640 per sqm");
+    }
+
+    /** Reads a one-page corrigendum holding these lines, the model giving this answer. */
+    UUID readCorrigendum(String name, String answer, String... lines) {
+        when(client.complete(any())).thenAnswer(inv -> ok(answer));
+        UUID doc = document(name, "PDF");
         String prefix = DocumentIngestionStorageLayout.outputPrefix(ORG, packageId, doc);
         objects.put(prefix + "meta.json", "{\"fileType\": \"PDF\", \"pageCount\": 1, \"warnings\": []}"
                 .getBytes(StandardCharsets.UTF_8));
-        objects.put(prefix + "pages.jsonl", ("{\"page\": 1, \"method\": \"TEXT\", \"lines\": ["
-                + "{\"text\": \"CORRIGENDUM 1\", \"box\": [0.1, 0.1, 0.9, 0.14]},"
-                + "{\"text\": \"Item 1.03 RCC M25: quantity revised from 850 cum to 920 cum\", \"box\": [0.1, 0.2, 0.9, 0.24]},"
-                + "{\"text\": \"Item 4.12 Plastering: rate to be read as Rs. 640 per sqm\", \"box\": [0.1, 0.3, 0.9, 0.34]}"
-                + "], \"status\": \"OK\", \"reason\": null, \"script\": \"LATIN\"}").getBytes(StandardCharsets.UTF_8));
+        StringBuilder page = new StringBuilder("{\"page\": 1, \"method\": \"TEXT\", \"lines\": ["
+                + "{\"text\": \"CORRIGENDUM\", \"box\": [0.1, 0.1, 0.9, 0.14]}");
+        for (int i = 0; i < lines.length; i++) {
+            double top = 0.2 + 0.1 * i;
+            page.append(", {\"text\": \"").append(lines[i]).append("\", \"box\": [0.1, ").append(top).append(", 0.9, ")
+                    .append(top + 0.04).append("]}");
+        }
+        page.append("], \"status\": \"OK\", \"reason\": null, \"script\": \"LATIN\"}");
+        objects.put(prefix + "pages.jsonl", page.toString().getBytes(StandardCharsets.UTF_8));
         UUID segment = UUID.randomUUID();
         jdbc.update("INSERT INTO doc_ingest_segment (id, organization_id, document_id, doc_class, page_from, page_to, "
                 + "status, confirmed_at, created_at, updated_at) VALUES (?, ?, ?, 'CORRIGENDUM', 1, 1, 'CONFIRMED', now(), "
@@ -398,6 +597,17 @@ class CorrigendumIngestionIT extends AbstractIntegrationTest {
         }
         assertThat(jdbc.queryForObject("SELECT status FROM doc_ingest_extract_job WHERE document_id = ?", String.class, doc))
                 .isEqualTo("DONE");
+        return doc;
+    }
+
+    static String change(String target, String field, String oldValue, String newValue, String quote) {
+        return "{\"kind\": \"BOQ_ITEM\", \"target\": \"" + target + "\", \"field\": \"" + field + "\", \"old_value\": "
+                + (oldValue == null ? "null" : "\"" + oldValue + "\"") + ", \"new_value\": \"" + newValue
+                + "\", \"page\": 1, \"quote\": \"" + quote + "\"}";
+    }
+
+    static String answer(String target, String field, String oldValue, String newValue, String quote) {
+        return "{\"changes\": [" + change(target, field, oldValue, newValue, quote) + "]}";
     }
 
     UUID document(String name, String type) {
@@ -446,8 +656,14 @@ class CorrigendumIngestionIT extends AbstractIntegrationTest {
     }
 
     Map<String, CandidateDto> changes() {
+        return changesOf(null);
+    }
+
+    /** The changes read from one document, or from any when it is null, by natural key. */
+    Map<String, CandidateDto> changesOf(UUID document) {
         Map<String, CandidateDto> out = new HashMap<>();
-        review.list(packageId, CandidateKind.CHANGE, null, null, 0, 50).getContent().forEach(c -> out.put(c.naturalKey(), c));
+        review.list(packageId, CandidateKind.CHANGE, null, null, 0, 50).getContent().stream()
+                .filter(c -> document == null || document.equals(c.documentId())).forEach(c -> out.put(c.naturalKey(), c));
         return out;
     }
 

@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.modules.documentingestion.review;
 
 import java.time.LocalDateTime;
+import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -8,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.retry.TransactionRetryTemplate;
+import org.tornotron.echno_backend.modules.documentingestion.apply.ChangeApplier;
 import org.tornotron.echno_backend.modules.documentingestion.domain.Candidate;
 import org.tornotron.echno_backend.modules.documentingestion.domain.CandidateKind;
 import org.tornotron.echno_backend.modules.documentingestion.domain.CandidateStatus;
@@ -21,27 +23,31 @@ import org.tornotron.echno_backend.user.UserContextService;
 /**
  * A person's choice when a change could not be applied because its target was edited by hand since the
  * value was applied (design section 4.8): the apply step refused it and named all three values, and nothing
- * was overwritten. Applying the change marks it so the next apply writes it over the record; keeping the
- * record rejects the change and puts the earlier value back as the one in force. Either way the choice is
- * recorded by name.
+ * was overwritten. Applying the change marks it so the next apply writes it over the record, as long as the
+ * record still holds the value it held when the person chose; keeping the record rejects the change and puts
+ * the earlier value back as the one in force, unless another change to it still stands. Either way the choice
+ * is recorded by name.
  */
 @Service
 public class ConflictService {
 
-    /** On an accepted change: the person chose to write it over a record edited by hand. */
-    public static final String OVERRIDE_RECORD = "overrideRecord";
+    /** A change in one of these states still stands over the row it supersedes. */
+    private static final java.util.Set<CandidateStatus> STANDING = EnumSet.of(CandidateStatus.ACCEPTED,
+            CandidateStatus.APPLIED, CandidateStatus.APPLY_FAILED);
 
     private final CandidateRepository candidates;
     private final SourceRefRepository sources;
     private final TransactionRetryTemplate retry;
     private final UserContextService userContextService;
+    private final ChangeApplier changes;
 
     public ConflictService(CandidateRepository candidates, SourceRefRepository sources, TransactionRetryTemplate retry,
-                           UserContextService userContextService) {
+                           UserContextService userContextService, ChangeApplier changes) {
         this.candidates = candidates;
         this.sources = sources;
         this.retry = retry;
         this.userContextService = userContextService;
+        this.changes = changes;
     }
 
     public CandidateDto choose(UUID candidateId, ConflictChoiceRequest req) {
@@ -56,7 +62,13 @@ public class ConflictService {
             if (req.choice() == ConflictChoiceRequest.Choice.APPLY_CHANGE) {
                 Map<String, Object> accepted = new LinkedHashMap<>(c.getAcceptedPayload() == null ? c.getPayload()
                         : c.getAcceptedPayload());
-                accepted.put(OVERRIDE_RECORD, true);
+                accepted.put(ChangeApplier.OVERRIDE_RECORD, true);
+                String onRecord = changes.recordValue(c);
+                if (onRecord == null) {
+                    accepted.remove(ChangeApplier.OVERRIDE_RECORD_VALUE);
+                } else {
+                    accepted.put(ChangeApplier.OVERRIDE_RECORD_VALUE, onRecord);
+                }
                 c.setAcceptedPayload(accepted);
                 c.setStatus(CandidateStatus.ACCEPTED);
             } else {
@@ -64,6 +76,9 @@ public class ConflictService {
                 if (c.getSupersedesCandidateId() != null) {
                     candidates.findByIdScoped(c.getSupersedesCandidateId())
                             .filter(prior -> prior.getStatus() == CandidateStatus.SUPERSEDED)
+                            .filter(prior -> candidates.findSuccessors(prior.getId(), CandidateKind.CHANGE).stream()
+                                    .noneMatch(other -> !other.getId().equals(c.getId())
+                                            && STANDING.contains(other.getStatus())))
                             .ifPresent(prior -> {
                                 prior.setStatus(prior.getAppliedAt() != null ? CandidateStatus.APPLIED
                                         : prior.getReviewedAt() != null ? CandidateStatus.ACCEPTED : CandidateStatus.PROPOSED);

@@ -6,12 +6,14 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.modules.documentingestion.domain.Candidate;
 import org.tornotron.echno_backend.modules.documentingestion.domain.CandidateFlag;
 import org.tornotron.echno_backend.modules.documentingestion.domain.CandidateKind;
+import org.tornotron.echno_backend.modules.documentingestion.domain.CandidateStatus;
 import org.tornotron.echno_backend.modules.documentingestion.domain.PackageStage;
 import org.tornotron.echno_backend.modules.documentingestion.repository.CandidateRepository;
 import org.tornotron.echno_backend.modules.documentingestion.repository.IngestPackageRepository;
@@ -23,8 +25,8 @@ import org.tornotron.echno_backend.modules.documentingestion.repository.IngestPa
 @Component
 public class ChangeLinker {
 
-    /** The most earlier candidates of one kind read to match against; a package's BOQ fits well within. */
-    static final int MAX_PRIORS = 20_000;
+    /** How many earlier candidates are read at a time; every page is read before matching. */
+    static final int PAGE = 5_000;
 
     private final CandidateRepository candidates;
     private final IngestPackageRepository packages;
@@ -34,7 +36,10 @@ public class ChangeLinker {
         this.packages = packages;
     }
 
-    /** Links every change a job proposed. */
+    /**
+     * Links every change a job proposed. Only rows nobody has decided on are linked, so a job read again
+     * never moves the link of a change a person has already accepted or rejected.
+     */
     @Transactional
     public void linkJob(UUID jobId, UUID packageId) {
         link(candidates.findProposedOfJob(jobId, CandidateKind.CHANGE), packageId);
@@ -50,11 +55,11 @@ public class ChangeLinker {
         Map<CandidateKind, List<Candidate>> priors = new EnumMap<>(CandidateKind.class);
         for (Candidate change : changes) {
             ChangeMatcher.kind(change.getPayload().get(ChangeMatcher.TARGET_KIND), change.getPayload().get(ChangeMatcher.FIELD))
-                    .ifPresent(k -> priors.computeIfAbsent(k, kind -> candidates.findForReview(packageId, kind, null, null,
-                            PageRequest.of(0, MAX_PRIORS)).getContent()));
+                    .ifPresent(k -> priors.computeIfAbsent(k, kind -> all(packageId, kind)));
             List<Candidate> pool = new ArrayList<>();
             priors.values().forEach(pool::addAll);
-            ChangeMatcher.Match match = ChangeMatcher.match(change.getPayload(), change.getDocumentId(), pool, tender);
+            ChangeMatcher.Match match = ChangeMatcher.match(change.getPayload(), change.getDocumentId(), pool, tender,
+                    this::current);
             Map<String, Object> payload = new LinkedHashMap<>(change.getPayload());
             payload.putAll(match.additions());
             change.setPayload(payload);
@@ -68,5 +73,42 @@ public class ChangeLinker {
             change.setSupersedesCandidateId(match.priorId());
             candidates.save(change);
         }
+    }
+
+    private List<Candidate> all(UUID packageId, CandidateKind kind) {
+        List<Candidate> out = new ArrayList<>();
+        Page<Candidate> page = candidates.findForReview(packageId, kind, null, null, PageRequest.of(0, PAGE));
+        out.addAll(page.getContent());
+        while (page.hasNext()) {
+            page = candidates.findForReview(packageId, kind, null, null, page.nextPageable());
+            out.addAll(page.getContent());
+        }
+        return out;
+    }
+
+    /**
+     * What a prior holds now. A row on a live record that changes have been applied to holds what they wrote,
+     * in the order they were applied, so the next change is compared with the value on the record.
+     */
+    private Map<String, Object> current(Candidate prior) {
+        Map<String, Object> values = ChangeMatcher.values(prior);
+        if (prior.getStatus() != CandidateStatus.SUPERSEDED || prior.getAppliedTargetId() == null) {
+            return values;
+        }
+        Map<String, Object> out = new LinkedHashMap<>(values);
+        candidates.findSuccessors(prior.getId(), CandidateKind.CHANGE).stream()
+                .filter(c -> c.getStatus() == CandidateStatus.APPLIED)
+                .sorted(java.util.Comparator.comparing(Candidate::getAppliedAt,
+                        java.util.Comparator.nullsFirst(java.util.Comparator.naturalOrder())))
+                .forEach(c -> {
+                    Map<String, Object> applied = ChangeMatcher.values(c);
+                    Object field = applied.get(ChangeMatcher.FIELD);
+                    String key = ChangeMatcher.payloadField(prior.getKind(), field == null ? null : field.toString());
+                    Object value = applied.get(ChangeMatcher.NEW_VALUE);
+                    if (key != null && value != null) {
+                        out.put(key, value);
+                    }
+                });
+        return out;
     }
 }
