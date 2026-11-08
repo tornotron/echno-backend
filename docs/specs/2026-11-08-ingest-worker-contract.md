@@ -174,7 +174,9 @@ a sentence saying what to upload instead.
 
 ## 7. JSON shapes
 
-Keys are camelCase. A reader ignores keys it does not know, so a new key is not a breaking change.
+Keys are camelCase. A reader ignores keys it does not know, so a new key is not a breaking change. Keys
+added since the first version are marked with the worker version that writes them; the backend reads all
+of them and still accepts outputs without them.
 
 ### `meta.json`
 
@@ -205,6 +207,11 @@ One object per non-empty row of a sheet, or per row of a table on a PDF page, in
   calculated. `noCachedValue` true means there is no cached result and `value` is null.
 - `mergeOrigin` names the top-left cell of a merged range for a covered cell, and is null otherwise.
 - A hidden row or a row on a hidden sheet is written with `hidden` true, never dropped.
+- On a row of a table on a PDF page (worker 0.2.0), `sheet` and `sheetIndex` are null, `page` is the page,
+  and the additive key `table` is the 1-based index of the table on that page, so two tables on one page do
+  not share row numbers. PDF cells are `TEXT` or `EMPTY` (a covered cell of a merged range, with
+  `mergeOrigin`), and each carries the additive key `box`: the cell's `[x0, y0, x1, y1]`, normalized as the
+  line boxes of `pages.jsonl` are, or null on a covered cell. Sheet cells have no `box`.
 
 ### `pages.jsonl`
 
@@ -212,6 +219,24 @@ One object per page: `page`, `method` (`TEXT`, `OCR`, `NONE`), `width`, `height`
 `box` as `[x0, y0, x1, y1]` normalized 0 to 1, and `ocrConfidence` or null), `status` (`OK` or `FAILED`) and
 `reason`. Produced from plan step 11; a worker that does not parse PDF yet closes a PDF job FAILED and says
 so, and a person can retry after upgrading.
+
+```json
+{"page": 3, "method": "TEXT", "width": 595.28, "height": 841.89,
+ "lines": [{"text": "GENERAL CONDITIONS OF CONTRACT", "box": [0.21, 0.08, 0.79, 0.1], "ocrConfidence": null}],
+ "status": "OK", "reason": null, "script": "LATIN"}
+```
+
+- `width` and `height` are in PDF points. A box has its origin at the top left of the page, so `y0` is
+  above `y1`. Lines are in reading order.
+- `ocrConfidence` is the mean confidence of the line's words on a 0 to 1 scale, on `OCR` pages only.
+- `method` `NONE` with `status` `OK` is a blank page (no text layer and nothing to read by OCR); `reason`
+  says so.
+- **`script`** (worker 0.2.0, additive): the Unicode script most letters of the page's text layer belong to,
+  as the Unicode script name in capitals (`LATIN`, `DEVANAGARI`, `TAMIL`, ...). Null on `OCR` pages (English
+  OCR cannot tell) and on pages with fewer than 20 letters. Every page that is not `LATIN` is also named in
+  `meta.json` `warnings` as stored and not sent for reading. The backend sends no page whose `script` is not
+  `LATIN` to the LLM (design section 7.4, English only); a reader of an older output with no `script` key
+  works the script out from the text itself.
 
 ### `manifest.json` (`UNPACK`)
 
