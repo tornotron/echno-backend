@@ -26,6 +26,7 @@ import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.support.AbstractIntegrationTest;
+import org.tornotron.echno_backend.project.ProjectAccessStubs;
 
 /**
  * Work sub-categories on the real migration: the seeder a new organization runs, the backfill
@@ -34,7 +35,8 @@ import org.tornotron.echno_backend.support.AbstractIntegrationTest;
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import({CategoryService.class, CategoryMapperImpl.class, TenantEntityHelper.class, WorkCategorySeeder.class})
+@Import({CategoryService.class, CategoryMapperImpl.class, TenantEntityHelper.class, WorkCategorySeeder.class,
+        ProjectAccessStubs.AllowingEverything.class})
 class WorkSubcategoryIT extends AbstractIntegrationTest {
 
     private static final int STANDARD_TOTAL = 215;

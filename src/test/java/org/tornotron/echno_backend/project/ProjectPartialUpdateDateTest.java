@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.project;
 
 import jakarta.validation.Validator;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -58,7 +59,14 @@ class ProjectPartialUpdateDateTest {
     @Mock
     private StatusTransitionRecorder statusTransitionRecorder;
 
+    @Mock private ProjectAccess projectAccess;
+
     @InjectMocks private ProjectService service;
+
+    @BeforeEach
+    void allowEverything() {
+        ProjectAccessStubs.allowEverything(projectAccess);
+    }
 
     private Project updateWith(Map<String, Object> updates) {
         Project project = new Project();

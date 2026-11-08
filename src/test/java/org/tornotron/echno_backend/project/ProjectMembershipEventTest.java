@@ -52,7 +52,8 @@ class ProjectMembershipEventTest {
                 mock(AttachmentService.class), mock(ProjectMapper.class), mock(EmployeeMapper.class), events,
                 mock(CustomerRepository.class), new PayloadValidator(validators.getValidator()),
                 mock(UserContextService.class), mock(StatusTransitionRecorder.class),
-                mock(StatusTransitionRepository.class), mock(StatusTransitionMapper.class));
+                mock(StatusTransitionRepository.class), mock(StatusTransitionMapper.class),
+                ProjectAccessStubs.allowingEverything());
         TenantContext.setCurrentOrgId(ORG);
         project = new Project();
         project.setEmployees(new ArrayList<>());

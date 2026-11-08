@@ -152,7 +152,7 @@ public class CategoryController {
      * @return Its sub-categories in dropdown order.
      */
     @GetMapping("{id}/subcategories")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('projects', 'read')")
     @Operation(
             summary = "List a category's sub-categories",
             description = "Returns the sub-categories of a work category in dropdown order, such as "
@@ -161,7 +161,7 @@ public class CategoryController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Sub-categories returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read categories"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No category with the given id")
     })
     public ResponseEntity<List<WorkSubcategoryDto>> readSubcategories(@PathVariable Long id) {

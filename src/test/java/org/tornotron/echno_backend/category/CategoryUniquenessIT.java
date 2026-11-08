@@ -15,6 +15,7 @@ import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.support.AbstractIntegrationTest;
+import org.tornotron.echno_backend.project.ProjectAccessStubs;
 
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.assertThatNoException;
@@ -35,7 +36,8 @@ import static org.assertj.core.api.Assertions.assertThatNoException;
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import({CategoryService.class, CategoryMapperImpl.class, TenantEntityHelper.class})
+@Import({CategoryService.class, CategoryMapperImpl.class, TenantEntityHelper.class,
+        ProjectAccessStubs.AllowingEverything.class})
 class CategoryUniquenessIT extends AbstractIntegrationTest {
 
     private static final String SHARED_NAME = "Civil Works";
