@@ -283,7 +283,7 @@ backend poller reads outputs --> classify --> PERSON confirms classes and page s
    v
 extract job row (backend replicas claim, compliance pattern)
    |   deterministic extractors: no LLM
-   |   LLM extractors: 8-page chunks through common/llm, needs org consent
+   |   LLM extractors: 8-page chunks through common/llm, unless the org's admin turned LLM reading off
    v
 candidates + source references --> PERSON accepts, edits or rejects --> apply --> live tables + provenance
 ```
@@ -301,7 +301,7 @@ columns, changesets in `db/changelog/modules/document-ingestion/`. Timestamps in
 
 | Table | Holds |
 |---|---|
-| `doc_ingest_org_settings` | LLM consent with who and when, monthly budget. A missing row means off |
+| `doc_ingest_org_settings` | Whether LLM reading is on, with who changed it and when, monthly budget. A missing row means on |
 | `doc_ingest_package` | Name, `project_id` null, `sub_contract_id` null, stage (`TENDER`, `AWARDED`), status, spend counters, created by |
 | `doc_ingest_document` | Package, parent ZIP document, `attachment_id`, `sha256`, file name, type, size, class and who set it, revision label, issue date, `supersedes_document_id`, page count, pages OCRed, failed pages |
 | `doc_ingest_segment` | Document, class, page range or sheet name, confirmed by. One document can hold several |
@@ -406,7 +406,7 @@ Vocabulary `<module>:<action>`, as other modules:
 | `document-ingestion:upload` | `system-admin`, `project-manager`, `qa-engineer`, `site-engineer` | Create packages, confirm classes |
 | `document-ingestion:review` | `system-admin`, `project-manager`; plus `qa-engineer` for quality kinds, `site-engineer` for drawings | Accept, reject, edit |
 | `document-ingestion:apply` | `system-admin`, `project-manager`, plus the target's own guard | Write to live tables |
-| `document-ingestion:admin` | `system-admin` | Give LLM consent, set the budget, edit the company profile |
+| `document-ingestion:admin` | `system-admin` | Turn LLM reading off or on, set the budget, edit the company profile |
 
 Guard strings live as one constant each on the manifest, using `@orgSecurity`. When the access matrix on
 `auth-workos` (#948) reaches `development` they move to `@access` with the rest of the codebase.
@@ -438,8 +438,10 @@ It takes all of these, in this order:
 2. **Organization allow-list, default empty.** `echno.modules.document-ingestion.allowed-org-ids`. Needed
    because with step 1 on, `advisory` mode would otherwise open the module and its spend to every tenant.
 3. **Feature key**, seeded on the internal plan only, as `MODULE_VISION`. It counts only in `enforce` mode.
-4. **LLM consent per organization**, default off, on `doc_ingest_org_settings`, set by `system-admin` with
-   name and time recorded. Without it, deterministic paths still run and LLM extraction stays waiting.
+4. **LLM reading per organization**, default on (product owner, 8 Nov 2026), on `doc_ingest_org_settings`.
+   A `system-admin` can turn it off, and each change is recorded with name and time. With it off,
+   deterministic paths still run and LLM extraction stays waiting. Items 1 and 2 still keep every LLM call
+   from happening until an operator opens the module for the organization.
 5. **Budget** per package and per month (section 7.3). Hitting it pauses a job.
 
 **Endpoint gate.** Until the platform gate in `2026-10-31-module-tiers-and-independence.md` (#927) lands, a
@@ -529,8 +531,18 @@ assistant note does; rates at 0 mean tokens are recorded with no cost figure, an
 - **Outside the company.** Tender and contract text leaves Echno for the configured endpoint. DigitalOcean states that
   for its hosted models it does not store inputs or outputs and does not train on them
   ([data privacy](https://docs.digitalocean.com/products/inference/details/data-privacy/), "last verified 12 Oct 2026").
-  The same page treats third-party models differently, so the model slug matters here too. This is why consent is per
-  organization (Q2).
+  The same page treats third-party models differently, so the model slug matters here too.
+- **On by default, off at the admin's word.** By the product owner's decision of 8 Nov 2026 (Q2), an organization
+  the module is open to has LLM reading on, and its `system-admin` can turn it off at any time. The switch is per
+  organization, each change is recorded with who made it and when, and turning it off stops new calls at once:
+  queued chunks wait as `WAITING_LLM`. The review screen and the admin setting both say, in plain words, that the
+  text of tender files is sent to an outside AI service to be read, which service that is, and that the service
+  states it does not keep or train on it.
+- **Audit of what was sent.** Every call has a row in `doc_ingest_llm_call`: package, document, chunk and its pages,
+  model, prompt version, tokens, cost, outcome, and when. The ledger holds no document text, so an admin can see
+  exactly which pages of which file left Echno without the ledger becoming a second copy of them.
+- **English only in this version.** Pages in other languages are stored and shown as "not read" and are not sent.
+  Regional languages come in the next version.
 - **Prompt injection.** Document text is untrusted. The model has no tools. Its output goes only to candidates, passes the
   quote check, and reaches live data only through a person. The web app renders it as text.
 
@@ -620,7 +632,7 @@ which a reviewer can see in one glance.
 | LLM 429, 5xx, timeout | Per call: backoff 2, 8, 30 s. Then the chunk is marked failed and the job continues with others |
 | `finish_reason = length` | Chunk split in half and sent again, down to one page. Never read as complete |
 | Invalid JSON | One retry, then chunk failed |
-| LLM not configured or consent off | Job stays `WAITING_LLM` and resumes when it clears. Never reported as "nothing found" |
+| LLM not configured or LLM reading turned off | Job stays `WAITING_LLM` and resumes when it clears. Never reported as "nothing found" |
 | Job retried | Chunks with a ledger row of outcome `OK` are skipped; candidates are upserted on job, chunk and natural key |
 | Module switched off with work queued | Rows wait. When the switch returns, jobs resume. An organization removed from the allow-list has its queued rows closed `FAILED` |
 
@@ -670,7 +682,7 @@ Each step is one PR with its tests. **S** about a day, **M** a few days, **L** a
 | 9 | **Web: BOQ upload, column mapping, review grid with source cell, apply. FIRST USEFUL THING TO SHOW** | W | M | 8 | Component tests; browser run with the switch on for a test org |
 | 10 | Shared LLM client from compliance, keeping token counts | B | S | 2 | All compliance tests unchanged; usage and `finish_reason` parsing |
 | 11 | Worker: PDF text and tables, OCR per page, page images, ZIP, OCR bake-off recorded | K | L | 5 | Golden PDFs, mixed PDF, encrypted, corrupt, 2,000 pages, traversal, ratio limit, licence gate |
-| 12 | Extract queue, ledger, quote check, budget, consent, classification and page splits | B | L | 4, 10, 11 | Chunk retry and split on truncation, partial state, budget pause, consent off, invented quote refused, class gate on corpus |
+| 12 | Extract queue, ledger, quote check, budget, LLM switch, classification and page splits | B | L | 4, 10, 11 | Chunk retry and split on truncation, partial state, budget pause, LLM reading turned off, invented quote refused, class gate on corpus |
 | 13 | Project setup and milestone extractors, tender profile, appliers | B | M | 12 | Done-when lines of 4.1 and 4.6, corpus gates |
 | 14 | Corrigendum: change candidates, revised-file diff, prose matching, safe apply | B | M | 12, 7 | Done-when lines of 4.8, three-value conflict |
 | 15 | Core client: package, classes, change sets, new kinds | C | S | 13, 14 | As step 8 |
@@ -714,8 +726,8 @@ source links, for viewing and for spotting corrigendum changes. Billing the clie
 
 **Q2. May tender and contract text be sent to the outside AI service?** Each file's text would go to that service to be read.
 The service says it does not keep the text or train on it.
-*Default:* off for each company until its admin turns it on, and the choice is recorded. Excel BOQs, milestones in Excel, and
-the document list work with it off.
+*Decided 8 Nov 2026 by the product owner:* on for each company, and its admin can turn it off; each change is recorded, and
+every call is in the ledger of section 7.4. Excel BOQs, milestones in Excel, and the document list work with it off.
 
 **Q3. Can you give us 3 to 5 real tender packages, including a private project's?** We have none. Results on real files are the
 only honest test, and private tenders may look different.
@@ -723,7 +735,8 @@ only honest test, and private tenders may look different.
 samples arrive.
 
 **Q4. Do we need Hindi or other languages in this version?** Many government tenders have Hindi sections.
-*Default:* English only. Other-language pages are stored and shown as "not read".
+*Decided 8 Nov 2026:* English only in this version; regional languages come in the next. Other-language pages are stored and
+shown as "not read".
 
 **Q5. Is the bid or no-bid matrix needed for this version?** It helps only before a project is won, and it needs a company
 profile typed in by hand.
