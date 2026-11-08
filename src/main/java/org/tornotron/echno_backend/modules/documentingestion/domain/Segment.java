@@ -2,6 +2,8 @@ package org.tornotron.echno_backend.modules.documentingestion.domain;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -10,13 +12,16 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.Filter;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.type.SqlTypes;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedEntity;
 import org.tornotron.echno_backend.organization.Organization;
 
@@ -57,6 +62,28 @@ public class Segment implements TenantScopedEntity {
 
     @Column(name = "confirmed_at")
     private LocalDateTime confirmedAt;
+
+    /** Null on a segment made before classification existed, which was confirmed when it was made. */
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20)
+    private SegmentStatus status;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20)
+    private ClassMethod method;
+
+    /** What the class was read from, such as the heading that named it, in one plain sentence. */
+    @Column(length = 300)
+    private String reason;
+
+    /** Pages of the segment that were not read: not in English, not parsed, or no answer after retries. */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "unread_pages", columnDefinition = "jsonb")
+    private List<UnreadPage> unreadPages;
+
+    public boolean isConfirmed() {
+        return confirmedAt != null;
+    }
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
