@@ -22,7 +22,8 @@ import org.tornotron.echno_backend.modules.documentingestion.parsing.TableRow;
  * Finds milestone tables among a document's table rows, a workbook's sheets or the tables of a PDF, and
  * reads each row with no LLM: a header row names the columns (milestone, time or date, percentage,
  * amount), and every row under it with a name is one milestone, with the cell each value came from. A
- * PDF table that runs on to the next page with no header of its own keeps the columns of the one before.
+ * PDF table that runs on to the next page keeps the columns of the one before, whether that page repeats
+ * the header or not. A header further down a table starts a new schedule with its own columns.
  */
 public final class MilestoneTables {
 
@@ -41,6 +42,8 @@ public final class MilestoneTables {
     static final int MAX_NAME_LENGTH = 255;
 
     private static final Pattern SERIAL = Pattern.compile("^(s\\.?\\s*no|sl|sr|serial|no\\.?|#|item\\s*no)\\b.*");
+    private static final Pattern DIGIT = Pattern.compile("\\d");
+    private static final Pattern PAYMENT_LAST = Pattern.compile(".*\\bpayments?$");
     private static final Pattern TOTAL = Pattern.compile("^(grand\\s+)?total\\b.*", Pattern.CASE_INSENSITIVE);
 
     private MilestoneTables() {
@@ -76,8 +79,11 @@ public final class MilestoneTables {
                     break;
                 }
             }
-            boolean continuation = mapping == null && carried != null && first.page() != null && carriedPage != null
-                    && first.page() == carriedPage + 1 && width(first) == carried.width();
+            boolean nextPage = carried != null && first.page() != null && carriedPage != null
+                    && first.page() == carriedPage + 1;
+            // A page that goes on with the table, with no header or with the same header repeated at its top.
+            boolean continuation = nextPage && (mapping == null ? width(first) == carried.width()
+                    : headerIndex == 0 && mapping.equals(carried));
             if (mapping == null && !continuation) {
                 carried = null;
                 continue;
@@ -91,6 +97,13 @@ public final class MilestoneTables {
                 logical.add(rows);
             }
             for (int i = headerIndex + 1; i < table.size(); i++) {
+                Optional<Mapping> later = header(table.get(i), needMilestoneWord);
+                if (later.isPresent()) {
+                    mapping = later.get();
+                    rows = new ArrayList<>();
+                    logical.add(rows);
+                    continue;
+                }
                 Row r = row(table.get(i), mapping);
                 if (r != null) {
                     rows.add(r);
@@ -151,6 +164,10 @@ public final class MilestoneTables {
                 || TenderValues.span(time.toString()).isEmpty()) {
             return Optional.empty();
         }
+        if (TenderValues.spanFromStart(time.toString()).isEmpty()) {
+            return Optional.of(new CandidateFlag(RELATIVE_TIME, "\"" + time + "\" is counted from an event other than "
+                    + "the start, whose date is not known here, so the date is left empty when this is applied."));
+        }
         return Optional.of(new CandidateFlag(RELATIVE_TIME, "\"" + time + "\" is counted from the project's start "
                 + "date when this is applied. With no start date the date is left empty."));
     }
@@ -175,6 +192,10 @@ public final class MilestoneTables {
         return TenderValues.span(time.toString()).map(TenderValues.Span::approximateDays).orElse(null);
     }
 
+    /**
+     * The columns a header row names. A row holding a digit is a row of values, never a header, so a
+     * milestone such as "Completion of work, Month 4, 20%" is not taken for one.
+     */
     private static Optional<Mapping> header(TableRow row, boolean needMilestoneWord) {
         Map<Column, Integer> columns = new LinkedHashMap<>();
         StringBuilder all = new StringBuilder();
@@ -182,6 +203,9 @@ public final class MilestoneTables {
             String h = cell.shownText().toLowerCase(Locale.ROOT).replaceAll("\\s+", " ").strip();
             if (h.isEmpty()) {
                 continue;
+            }
+            if (DIGIT.matcher(h).find()) {
+                return Optional.empty();
             }
             all.append(h).append(' ');
             if (SERIAL.matcher(h).matches()) {
@@ -205,6 +229,11 @@ public final class MilestoneTables {
         }
         if (containsAny(h, "date", "time", "month", "period", "days", "schedule", "due", "target", "week")) {
             return Column.TIME;
+        }
+        // "Payment milestone" names the milestone; "Milestone payment" and "Milestone amount" are amounts.
+        if (h.contains("milestone") && !PAYMENT_LAST.matcher(h).matches()
+                && !containsAny(h, "amount", "value", "withheld", "sum", "rs.", "inr")) {
+            return Column.NAME;
         }
         if (containsAny(h, "amount", "value", "payment", "withheld", "sum", "rs.", "inr")) {
             return Column.AMOUNT;

@@ -73,22 +73,29 @@ public class CandidateWriter {
     }
 
     /**
-     * Runs a check over everything one job proposed of a kind, such as payment percentages that must
-     * add up to 100 across all its chunks, and adds the flag it returns to each of those rows. A row a
-     * person has decided on is left as it is.
+     * Runs a check over everything one job read of a kind, such as payment percentages that must add up
+     * to 100 across all its chunks, and sets the flag it returns, under {@code code}, on each row of the
+     * job nobody has decided on yet. The check sees every row but a rejected one, with a reviewer's
+     * correction, because the schedule is the whole of what was read. Run again after a retry, it
+     * replaces the flag, or removes it when the check now passes. A row a person has decided on is left
+     * as it is.
      */
     @Transactional
-    public void flagJob(UUID jobId, CandidateKind kind,
+    public void flagJob(UUID jobId, CandidateKind kind, String code,
                         java.util.function.Function<List<Map<String, Object>>, CandidateFlag> check) {
-        List<Candidate> rows = candidates.findProposedOfJob(jobId, kind);
-        CandidateFlag flag = rows.isEmpty() ? null : check.apply(rows.stream().map(Candidate::getPayload).toList());
-        if (flag == null) {
-            return;
-        }
-        for (Candidate c : rows) {
-            if (c.getFlags().stream().noneMatch(f -> f.code().equals(flag.code()))) {
-                List<CandidateFlag> flags = new ArrayList<>(c.getFlags());
+        List<Candidate> all = candidates.findOfJob(jobId, kind);
+        List<Map<String, Object>> read = all.stream().filter(c -> c.getStatus() != CandidateStatus.REJECTED)
+                .map(c -> c.getAcceptedPayload() != null ? c.getAcceptedPayload() : c.getPayload()).toList();
+        CandidateFlag flag = read.isEmpty() ? null : check.apply(read);
+        for (Candidate c : all) {
+            if (c.getStatus() != CandidateStatus.PROPOSED) {
+                continue;
+            }
+            List<CandidateFlag> flags = new ArrayList<>(c.getFlags().stream().filter(f -> !f.code().equals(code)).toList());
+            if (flag != null) {
                 flags.add(flag);
+            }
+            if (!flags.equals(c.getFlags())) {
                 c.setFlags(flags);
                 candidates.save(c);
             }

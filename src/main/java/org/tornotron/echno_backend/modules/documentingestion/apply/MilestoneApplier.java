@@ -20,6 +20,7 @@ import org.tornotron.echno_backend.modules.documentingestion.extraction.values.T
 import org.tornotron.echno_backend.modules.documentingestion.repository.IngestPackageRepository;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.ProjectRepository;
+import org.tornotron.echno_backend.subcontract.SubContract;
 import org.tornotron.echno_backend.subcontract.SubContractRepository;
 import org.tornotron.echno_backend.subcontract.SubContractService;
 import org.tornotron.echno_backend.subcontract.dto.ContractMilestoneDto;
@@ -84,9 +85,15 @@ public class MilestoneApplier implements IngestionApplier {
                     + "create the package on a project.");
         }
         requireProject(p.getProjectId());
-        if (p.getSubContractId() != null
-                && subContracts.findByIdAndOrganization_Id(p.getSubContractId(), TenantContext.getCurrentOrgId()).isEmpty()) {
-            throw new ResourceNotFoundException("The package's sub-contract " + p.getSubContractId() + " no longer exists");
+        if (p.getSubContractId() != null) {
+            SubContract contract = subContracts.findByIdAndOrganization_Id(p.getSubContractId(),
+                    TenantContext.getCurrentOrgId()).orElseThrow(() -> new ResourceNotFoundException(
+                    "The package's sub-contract " + p.getSubContractId() + " no longer exists"));
+            // The sub-contract can be picked before the project is made from the package, so check it here.
+            if (!p.getProjectId().equals(contract.getProjectId())) {
+                throw new InvalidRequestException("Sub-contract " + contract.getContractName() + " is not on the package's project, "
+                        + "so no milestone is written. Pick a sub-contract of the package's project.");
+            }
         }
     }
 
@@ -153,7 +160,10 @@ public class MilestoneApplier implements IngestionApplier {
         return new AppliedTarget(TARGET_WBS, element.getId().toString(), wbsFields, also);
     }
 
-    /** A printed date, or a time from the project's start counted from its start date; else empty. */
+    /**
+     * A printed date, or a time from the project's start counted from its start date; else empty, as for
+     * a time counted from another event ("3 months from the date of LOA") whose date is not known here.
+     */
     static Optional<LocalDate> targetDate(String time, Project project) {
         if (time == null) {
             return Optional.empty();
@@ -165,7 +175,7 @@ public class MilestoneApplier implements IngestionApplier {
         if (project.getStartDate() == null) {
             return Optional.empty();
         }
-        return TenderValues.span(time).map(s -> s.from(project.getStartDate().toLocalDate()));
+        return TenderValues.spanFromStart(time).map(s -> s.from(project.getStartDate().toLocalDate()));
     }
 
     private static Integer order(Map<String, Object> payload) {

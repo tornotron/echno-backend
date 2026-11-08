@@ -73,6 +73,7 @@ import org.tornotron.echno_backend.modules.documentingestion.domain.CandidateKin
 import org.tornotron.echno_backend.modules.documentingestion.domain.CandidateStatus;
 import org.tornotron.echno_backend.modules.documentingestion.domain.DocClass;
 import org.tornotron.echno_backend.modules.documentingestion.dto.ApplyResultDto;
+import org.tornotron.echno_backend.modules.documentingestion.dto.BoqTargetRequest;
 import org.tornotron.echno_backend.modules.documentingestion.dto.CandidateDecision;
 import org.tornotron.echno_backend.modules.documentingestion.dto.CandidateDto;
 import org.tornotron.echno_backend.modules.documentingestion.dto.ClassificationRequest;
@@ -247,6 +248,8 @@ class ProjectAndMilestoneIngestionIT extends AbstractIntegrationTest {
                 .map(b -> new FileStorageService.StoredObject(inv.getArgument(0), "application/json", b)));
         when(storage.objectExists(argThat(k -> k != null && k.endsWith(DocumentIngestionStorageLayout.META_FILE))))
                 .thenReturn(true);
+        when(storage.objectExists(argThat(k -> k != null && k.endsWith(DocumentIngestionStorageLayout.TABLES_FILE))))
+                .thenAnswer(inv -> objects.containsKey(inv.<String>getArgument(0)));
         when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(true);
         when(projectMapper.toSimpleDto(any())).thenAnswer(inv -> {
             ProjectSimpleDto dto = new ProjectSimpleDto();
@@ -396,6 +399,29 @@ class ProjectAndMilestoneIngestionIT extends AbstractIntegrationTest {
                 + "'ACCEPTED'", Long.class, ORG)).isEqualTo(1);
     }
 
+    @Test
+    void aProfileValueLongerThanItsColumnFailsItsRowAndIsNeverCut() {
+        UUID nit = pdf("Tender notice.pdf",
+                page(1, "NOTICE INVITING TENDER", "Name of Work: Library block, Hillview",
+                        "Location: Hillview Campus, Northfield", "Estimated Cost: Rs. 4,20,00,000"),
+                page(2, "Earnest Money Deposit: Rs. 8,40,000"));
+        classifyAll(nit);
+        classification.confirmAll(packageId);
+        runAll();
+        CandidateDto value = candidates(CandidateKind.PROJECT_FIELD).stream()
+                .filter(c -> c.naturalKey().equals("estimated_value")).findFirst().orElseThrow();
+        review.decide(packageId, List.of(new CandidateDecision(value.id(), CandidateDecision.Action.EDIT,
+                Map.of("value", "Rs. 4,20,00,000 " + "x".repeat(500)), null)));
+
+        ApplyResultDto result = apply.apply(packageId, CandidateKind.PROJECT_FIELD);
+
+        assertThat(result.failed()).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT apply_error FROM doc_ingest_candidate WHERE id = ?", String.class, value.id()))
+                .contains("longer than 500");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM doc_ingest_tender_profile WHERE organization_id = ?",
+                Long.class, ORG)).isZero();
+    }
+
     // --------------------------------------------------------------------------------------------
     // Section 4.6: milestone intelligence
     // --------------------------------------------------------------------------------------------
@@ -445,6 +471,47 @@ class ProjectAndMilestoneIngestionIT extends AbstractIntegrationTest {
                 + "name = ?", String.class, contractId, "Mobilisation and site set-up");
         assertThat(provenance.forTarget(MilestoneApplier.TARGET_CONTRACT_MILESTONE, milestoneId))
                 .extracting(ProvenanceDto::targetField).containsExactlyInAnyOrder("name", "targetDate", "paymentPercentage");
+
+        Long otherContract = contract(projectId, "Finishing works");
+        when(contractBoq.findContract(otherContract)).thenReturn(Optional.of(
+                new ContractBoqPort.ContractRef(otherContract, projectId, "Finishing works")));
+        assertThatThrownBy(() -> packages.setBoqTarget(packageId, new BoqTargetRequest(otherContract)))
+                .as("payment milestones on a contract hold the package's target")
+                .isInstanceOf(InvalidRequestException.class).hasMessageContaining("Payment milestones");
+    }
+
+    @Test
+    void aSubContractOfAnotherProjectIsRefusedBeforeAnyMilestoneIsWritten() {
+        Long projectId = project("Hillview library", LocalDateTime.of(2027, 1, 1, 0, 0));
+        Long elsewhere = project("Riverside depot", LocalDateTime.of(2027, 1, 1, 0, 0));
+        Long contractId = contract(elsewhere, "Depot civil works");
+        jdbc.update("UPDATE doc_ingest_package SET project_id = ?, target_sub_contract_id = ? WHERE id = ?", projectId,
+                contractId, packageId);
+        UUID schedule = workbook("Payment schedule.xlsx", "Milestones", fiveRows("15%"));
+        classifyAll(schedule);
+        classification.confirm(schedule, new ClassificationRequest(DocClass.MILESTONE_SCHEDULE, List.of()));
+        runAll();
+        List<CandidateDto> milestones = candidates(CandidateKind.MILESTONE);
+        review.decide(packageId, milestones.stream().map(m -> new CandidateDecision(m.id(), CandidateDecision.Action.ACCEPT,
+                null, m.flags().stream().map(f -> f.code()).toList())).toList());
+
+        assertThatThrownBy(() -> apply.apply(packageId, CandidateKind.MILESTONE))
+                .isInstanceOf(InvalidRequestException.class).hasMessageContaining("not on the package's project");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM wbs_element WHERE project_id = ?", Long.class, projectId))
+                .isZero();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM contract_milestone WHERE sub_contract_id = ?", Long.class,
+                contractId)).isZero();
+    }
+
+    @Test
+    void aWorkbookConfirmedAsANoticeQueuesNoPageReader() {
+        UUID sheet = workbook("Tender notice.xlsx", "NIT", new String[] {"Name of Work", "Library block"});
+        classifyAll(sheet);
+        classification.confirm(sheet, new ClassificationRequest(DocClass.NIT, List.of()));
+
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM doc_ingest_extract_job WHERE document_id = ? AND "
+                + "extractor_key = ?", Long.class, sheet, ProjectSetupExtractor.KEY))
+                .as("the project reader reads pages, and a workbook has none").isZero();
     }
 
     @Test

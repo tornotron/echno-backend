@@ -9,6 +9,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.stereotype.Component;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.service.FileStorageService;
@@ -48,6 +49,18 @@ public class ParsedOutputReader {
     public List<TableRow> tables(String outputPrefix) {
         byte[] bytes = read(outputPrefix + DocumentIngestionStorageLayout.TABLES_FILE, MAX_TABLES_BYTES);
         return parseTables(bytes, objectMapper);
+    }
+
+    /**
+     * The document's {@code tables.jsonl}, or empty when the worker wrote none, as a worker before 0.2.0
+     * did for a PDF. A file that is there and cannot be read, or storage that cannot be reached, throws,
+     * so the job is retried or fails instead of reading as a file with no tables.
+     */
+    public Optional<List<TableRow>> tablesIfWritten(String outputPrefix) {
+        if (!storage.objectExists(outputPrefix + DocumentIngestionStorageLayout.TABLES_FILE)) {
+            return Optional.empty();
+        }
+        return Optional.of(tables(outputPrefix));
     }
 
     /** The document's {@code pages.jsonl}, in page order. */

@@ -30,10 +30,18 @@ public final class TenderValues {
             "([A-Za-z]{3,9})\\s+(\\d{1,2})(?:st|nd|rd|th)?,?\\s+(\\d{4})", Pattern.CASE_INSENSITIVE);
     private static final Pattern TIME = Pattern.compile("(\\d{1,2})[:.](\\d{2})\\s*(am|pm|a\\.m\\.|p\\.m\\.|hrs|hours)?",
             Pattern.CASE_INSENSITIVE);
+    /** An hour with no minutes, read only with its AM or PM, as in {@code 3 PM}. */
+    private static final Pattern HOUR = Pattern.compile("\\b(\\d{1,2})\\s*(am|pm|a\\.m\\.|p\\.m\\.)(?![a-z])",
+            Pattern.CASE_INSENSITIVE);
     private static final Pattern SPAN_AFTER = Pattern.compile(
             "(\\d+(?:\\.\\d+)?)\\s*(?:\\(\\s*[A-Za-z ]+\\s*\\)\\s*)?(day|week|month|year)s?\\b", Pattern.CASE_INSENSITIVE);
-    private static final Pattern SPAN_BEFORE = Pattern.compile("\\b(day|week|month|year)\\s*(\\d+)\\b",
+    private static final Pattern SPAN_BEFORE = Pattern.compile("\\b(day|week|month|year)\\s*(\\d+)(?![.,]?\\d)\\b",
             Pattern.CASE_INSENSITIVE);
+    /** What a span is counted from, when the text names it: "from the date of LOA", "of the start". */
+    private static final Pattern ANCHOR = Pattern.compile("^[\\s,)]*(?:from|after|of|since|following)\\b(.*)",
+            Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+    /** A span longer than this many units is not a time in a contract, and is not read. */
+    static final int MAX_SPAN = 100_000;
 
     private TenderValues() {
     }
@@ -83,7 +91,7 @@ public final class TenderValues {
         BigDecimal found = null;
         int end = -1;
         while (m.find()) {
-            if (found != null) {
+            if (found != null || negative(t, m.start())) {
                 return Optional.empty();
             }
             found = new BigDecimal(m.group(1).replace(",", "") + (m.group(2) == null ? "" : m.group(2)));
@@ -93,6 +101,9 @@ public final class TenderValues {
             return Optional.empty();
         }
         String after = t.substring(end).toLowerCase(Locale.ROOT).stripLeading();
+        if (after.startsWith("%") || after.startsWith("per cent") || after.startsWith("percent")) {
+            return Optional.empty();
+        }
         if (after.startsWith("crore") || after.startsWith("cr")) {
             found = found.multiply(BigDecimal.valueOf(10_000_000L));
         } else if (after.startsWith("lakh") || after.startsWith("lac")) {
@@ -107,7 +118,7 @@ public final class TenderValues {
             return Optional.empty();
         }
         Matcher m = PERCENT.matcher(text);
-        return m.find() ? Optional.of(new BigDecimal(m.group(1))) : Optional.empty();
+        return m.find() && !negative(text, m.start()) ? Optional.of(new BigDecimal(m.group(1))) : Optional.empty();
     }
 
     /** A plain number such as {@code 20} or {@code 20.5}, or a percentage; for a percent column. */
@@ -171,6 +182,14 @@ public final class TenderValues {
                 return Optional.of(day.get().atTime(hour, minute));
             }
         }
+        Matcher h = HOUR.matcher(text.replaceAll("\\d{1,2}[./-]\\d{1,2}[./-]\\d{2,4}", " "));
+        if (h.find()) {
+            int hour = Integer.parseInt(h.group(1));
+            boolean pm = h.group(2).toLowerCase(Locale.ROOT).startsWith("p");
+            if (hour >= 1 && hour <= 12) {
+                return Optional.of(day.get().atTime(hour % 12 + (pm ? 12 : 0), 0));
+            }
+        }
         return Optional.of(day.get().atTime(LocalTime.of(23, 59)));
     }
 
@@ -182,24 +201,73 @@ public final class TenderValues {
         if (text == null || text.isBlank()) {
             return Optional.empty();
         }
-        Matcher before = SPAN_BEFORE.matcher(text);
-        if (before.find()) {
-            return Optional.of(new Span(Integer.parseInt(before.group(2)), unit(before.group(1))));
-        }
-        Matcher after = SPAN_AFTER.matcher(text);
-        if (after.find()) {
-            BigDecimal amount = new BigDecimal(after.group(1));
-            if (amount.stripTrailingZeros().scale() > 0) {
-                return Optional.empty();
-            }
-            return Optional.of(new Span(amount.intValueExact(), unit(after.group(2))));
-        }
-        return Optional.empty();
+        return spanMatch(text).map(SpanMatch::span);
+    }
+
+    /**
+     * A span counted from the project's start: as {@link #span}, but empty when the text counts it from
+     * another event, such as "3 months from the date of LOA", whose date is not known here.
+     */
+    public static Optional<Span> spanFromStart(String text) {
+        return spanMatch(text).filter(m -> fromStart(m.rest())).map(SpanMatch::span);
     }
 
     /** Days, from a span or a bare number of days, for a period such as bid validity. */
     public static Optional<Integer> days(String text) {
+        if (text != null && text.strip().matches("\\d{1,6}")) {
+            int n = Integer.parseInt(text.strip());
+            return n <= MAX_SPAN ? Optional.of(n) : Optional.empty();
+        }
         return span(text).map(s -> s.unit() == Unit.DAY ? s.amount() : s.approximateDays());
+    }
+
+    private record SpanMatch(Span span, String rest) {
+    }
+
+    private static Optional<SpanMatch> spanMatch(String text) {
+        if (text == null || text.isBlank()) {
+            return Optional.empty();
+        }
+        Matcher before = SPAN_BEFORE.matcher(text);
+        if (before.find()) {
+            return whole(new BigDecimal(before.group(2)), before.group(1), text.substring(before.end()));
+        }
+        Matcher after = SPAN_AFTER.matcher(text);
+        if (after.find()) {
+            return whole(new BigDecimal(after.group(1)), after.group(2), text.substring(after.end()));
+        }
+        return Optional.empty();
+    }
+
+    /** A span of whole units within {@link #MAX_SPAN}; a fraction or an absurd count is not read. */
+    private static Optional<SpanMatch> whole(BigDecimal amount, String unit, String rest) {
+        if (amount.stripTrailingZeros().scale() > 0 || amount.compareTo(BigDecimal.valueOf(MAX_SPAN)) > 0) {
+            return Optional.empty();
+        }
+        return Optional.of(new SpanMatch(new Span(amount.intValueExact(), unit(unit)), rest));
+    }
+
+    /** Whether the words after a span leave it counted from the start: no event named, or the start. */
+    private static boolean fromStart(String rest) {
+        Matcher m = ANCHOR.matcher(rest);
+        if (!m.find()) {
+            return true;
+        }
+        String event = m.group(1).toLowerCase(Locale.ROOT);
+        return event.isBlank() || event.contains("start") || event.contains("commence");
+    }
+
+    /** Whether the number at {@code at} carries a minus sign, so reading it as positive would be wrong. */
+    private static boolean negative(String text, int at) {
+        int i = at - 1;
+        while (i >= 0 && text.charAt(i) == ' ') {
+            i--;
+        }
+        if (i < 0 || (text.charAt(i) != '-' && text.charAt(i) != '\u2212')) {
+            return false;
+        }
+        // A dash after a letter or a dot, as in "Rs.-5000", is still a sign; one after a digit is a range.
+        return i == 0 || !Character.isDigit(text.charAt(i - 1));
     }
 
     private static Unit unit(String raw) {
