@@ -48,6 +48,11 @@ import org.tornotron.echno_backend.modules.documentingestion.dto.DocumentDto;
 import org.tornotron.echno_backend.modules.documentingestion.dto.DocumentUploadDto;
 import org.tornotron.echno_backend.modules.documentingestion.dto.PresignDocumentRequest;
 import org.tornotron.echno_backend.modules.documentingestion.dto.RegisterDocumentRequest;
+import org.tornotron.echno_backend.modules.documentingestion.extraction.ClassificationWriter;
+import org.tornotron.echno_backend.modules.documentingestion.extraction.classify.ClassificationExtractor;
+import org.tornotron.echno_backend.modules.documentingestion.extraction.llm.ExtractorRegistry;
+import org.tornotron.echno_backend.modules.documentingestion.extraction.llm.IngestLlmProperties;
+import org.tornotron.echno_backend.modules.documentingestion.job.ExtractJobQueue;
 import org.tornotron.echno_backend.modules.documentingestion.job.ParseJobIngestor;
 import org.tornotron.echno_backend.modules.documentingestion.repository.ParseJobRepository;
 import org.tornotron.echno_backend.modules.documentingestion.service.DocumentIngestionLimits;
@@ -67,7 +72,9 @@ import org.tornotron.echno_backend.user.UserContextService;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @ImportAutoConfiguration(JacksonAutoConfiguration.class)
 @Import({IngestPackageService.class, IngestDocumentService.class, ParseJobIngestor.class,
-        DocumentIngestionLimits.class, UserContextService.class, TenantEntityHelper.class})
+        DocumentIngestionLimits.class, UserContextService.class, TenantEntityHelper.class,
+        ExtractorRegistry.class, ExtractJobQueue.class, IngestLlmProperties.class, ClassificationExtractor.class,
+        ClassificationWriter.class})
 class DocumentIngestionUploadIT extends AbstractIntegrationTest {
 
     private static final long MB = 1024L * 1024;

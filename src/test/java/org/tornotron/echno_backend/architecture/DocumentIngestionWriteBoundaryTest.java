@@ -101,7 +101,7 @@ class DocumentIngestionWriteBoundaryTest {
 
         EvaluationResult reach = extractionReachesNoLiveWriter(violating).evaluate(violatingClasses);
         assertThat(reach.getFailureReport().toString())
-                .contains("ExtractorThatWritesAProject", "JobThatCallsAnApiPort")
+                .contains("ExtractorThatWritesAProject", "JobThatCallsAnApiPort", "ChunkReaderThatWritesAProject")
                 .doesNotContain("ExtractorThatReadsAFile");
         assertThat(everyApplyBeanNeedsASignedInCaller(violating).evaluate(violatingClasses).getFailureReport().toString())
                 .contains("UnguardedApplier");

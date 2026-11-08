@@ -33,6 +33,8 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.mvc.method.RequestMappingInfo;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
+import org.tornotron.echno_backend.modules.documentingestion.extraction.llm.ChunkReader;
+import org.tornotron.echno_backend.modules.documentingestion.job.ExtractJobWorker;
 import org.tornotron.echno_backend.support.AbstractIntegrationTest;
 
 /**
@@ -125,6 +127,8 @@ class DocumentIngestionOffByDefaultIT extends AbstractIntegrationTest {
     @Test
     void noPollerOrListenerBeanExists() {
         assertThat(moduleBeansThatRunWithoutARequest()).isEmpty();
+        assertThat(context.getBeanNamesForType(ChunkReader.class)).as("no bean that can send an LLM call").isEmpty();
+        assertThat(context.getBeanNamesForType(ExtractJobWorker.class)).isEmpty();
     }
 
     /** Beans of this module holding a scheduled method or an event listener. */
