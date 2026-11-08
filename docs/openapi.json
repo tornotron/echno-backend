@@ -84785,7 +84785,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read indents"
           },
           "404": {
             "content": {
@@ -84895,7 +84895,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to indents"
           },
           "404": {
             "content": {
@@ -85034,7 +85034,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read indents"
           },
           "404": {
             "content": {
@@ -85174,7 +85174,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read indents"
           },
           "404": {
             "content": {
@@ -85314,7 +85314,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read indents"
           },
           "404": {
             "content": {
@@ -85445,7 +85445,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read indents"
           },
           "404": {
             "content": {
@@ -85550,7 +85550,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read indents"
           },
           "404": {
             "content": {
@@ -85660,7 +85660,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to indents"
           },
           "404": {
             "content": {
@@ -85775,7 +85775,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read indents"
           },
           "404": {
             "content": {
@@ -85891,7 +85891,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read indents"
           },
           "404": {
             "content": {
@@ -86007,7 +86007,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read indents"
           },
           "404": {
             "content": {
@@ -86138,7 +86138,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read indents"
           },
           "404": {
             "content": {
@@ -86362,7 +86362,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read indents"
           },
           "404": {
             "content": {
@@ -86483,7 +86483,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to indents"
           },
           "404": {
             "content": {
@@ -86604,7 +86604,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to indents"
           },
           "404": {
             "content": {
@@ -86828,7 +86828,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read indents"
           },
           "404": {
             "content": {
@@ -86949,7 +86949,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to indents"
           },
           "404": {
             "content": {
@@ -87070,7 +87070,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to indents"
           },
           "404": {
             "content": {
@@ -87285,7 +87285,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to indents"
           },
           "404": {
             "content": {
@@ -87631,7 +87631,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to indents"
           },
           "404": {
             "content": {
@@ -88241,7 +88241,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to indents"
           },
           "404": {
             "content": {
@@ -88478,7 +88478,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to indents"
           },
           "404": {
             "content": {
@@ -88730,7 +88730,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to indents"
           },
           "404": {
             "content": {
@@ -89191,7 +89191,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to indents"
           },
           "404": {
             "content": {
@@ -89443,7 +89443,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to indents"
           },
           "404": {
             "content": {
@@ -169415,19 +169415,19 @@
       "name": "Holidays (Web)"
     },
     {
-      "description": "Requested material items belonging to an indent: material, quantity requested and ordered, and whether the item has been converted into a purchase order line. Items can be looked up by indent, by material, or by conversion status. Access follows the organization roles of the /web twin, endpoint for endpoint.",
+      "description": "Requested material items belonging to an indent: material, quantity requested and ordered, and whether the item has been converted into a purchase order line. Items can be looked up by indent, by material, or by conversion status. Access follows the /web twin, endpoint for endpoint: the indents permission named for each action.",
       "name": "Indent Items"
     },
     {
-      "description": "Web-console mirror of the indent item endpoints. Same requested-item operations as the mobile API, gated by the web app's org-role check instead of point authorities, except deletion, which needs the indents delete permission. Every operation is limited to the lines of indents the caller may read, and a line outside that scope reads as not found.",
+      "description": "Web-console mirror of the indent item endpoints. Same requested-item operations as the mobile API. Each endpoint needs the indents permission named for its action (read, create, edit or delete), on the line's indent: a line of an indent outside the caller's scope reads as not found.",
       "name": "Indent Items (Web)"
     },
     {
-      "description": "Material indents raised on a project, the request that a purchase order is later converted from. An indent carries a status and a list of requested material items. Access follows the organization roles of the /web twin, endpoint for endpoint.",
+      "description": "Material indents raised on a project, the request that a purchase order is later converted from. An indent carries a status and a list of requested material items. Access follows the /web twin, endpoint for endpoint: the indents permission named for each action.",
       "name": "Indents"
     },
     {
-      "description": "Web-console mirror of the indent endpoints, with an additional partial-update operation not exposed on the mobile API. Reads and deletions need the indents permission named for their action (read or delete), and an indent outside the caller's scope reads as not found; raising and changing an indent or its lines are gated by the web app's org-role check.",
+      "description": "Web-console mirror of the indent endpoints, with an additional partial-update operation not exposed on the mobile API. Each endpoint needs the indents permission named for its action (read, create, edit or delete), and an indent outside the caller's scope reads as not found.",
       "name": "Indents (Web)"
     },
     {
