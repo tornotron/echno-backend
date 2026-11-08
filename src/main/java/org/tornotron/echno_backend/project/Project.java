@@ -144,6 +144,16 @@ public class Project implements TenantScopedEntity {
     private Double progress;
 
     /**
+     * Whether a system admin marked the project completed by hand while some of its tasks were not
+     * complete. False for a project that completed because its tasks did, and for every project
+     * that is not completed. A project completed by hand is left alone when its tasks change; one
+     * completed by its tasks goes back to open when a task stops being complete. See
+     * {@link ProjectCompletion}.
+     */
+    @Column(name = "completed_manually", nullable = false)
+    private Boolean completedManually = false;
+
+    /**
      * Per-project override of the finance auto-approval threshold. When set, a construction invoice
      * on this project below this amount is auto-approved on submit; null falls back to the
      * organization-level finance setting.

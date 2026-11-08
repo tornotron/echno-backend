@@ -84,7 +84,8 @@ class ProjectDescriptionTest {
         service = new ProjectService(repository, organizationRepository, employeeRepository,
                 attachmentService, projectMapper, employeeMapper, eventPublisher,
                 customerRepository, new PayloadValidator(validator), userContextService,
-                statusTransitionRecorder, statusTransitionRepository, statusTransitionMapper);
+                statusTransitionRecorder, statusTransitionRepository, statusTransitionMapper,
+                org.mockito.Mockito.mock(org.tornotron.echno_backend.common.service.OrganizationSecurityService.class));
 
         TenantContext.setCurrentOrgId(1L);
         Organization organization = new Organization();

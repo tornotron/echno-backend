@@ -21768,6 +21768,11 @@
             },
             "type": "array"
           },
+          "completedManually": {
+            "description": "True when a system admin marked the project completed by hand while some of its tasks were not complete. False for a project that completed because every task did, and for any project that is not completed.",
+            "example": false,
+            "type": "boolean"
+          },
           "createdAt": {
             "description": "Creation timestamp.",
             "example": "2026-08-01T09:00:00",

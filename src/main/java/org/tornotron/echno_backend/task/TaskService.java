@@ -29,6 +29,7 @@ import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.project.Project;
+import org.tornotron.echno_backend.project.ProjectCompletion;
 import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.task.dto.TaskCreationDto;
 import org.tornotron.echno_backend.task.dto.TaskDto;
@@ -77,6 +78,7 @@ public class TaskService {
     private final CurrentEmployeeService currentEmployeeService;
     private final TaskMapper taskMapper;
     private final PayloadValidator payloadValidator;
+    private final ProjectCompletion projectCompletion;
 
     /**
      * Constructs a TaskService with the necessary repositories.
@@ -90,6 +92,7 @@ public class TaskService {
      *                           having been created by.
      * @param taskMapper         The mapper between tasks and their DTOs.
      * @param payloadValidator   Runs the create payload's own constraints.
+     * @param projectCompletion  Completes or reopens the project when its tasks change.
      */
     public TaskService(TaskRepository taskRepository,
                        EmployeeRepository employeeRepository,
@@ -98,7 +101,8 @@ public class TaskService {
                        AttachmentService attachmentService,
                        CurrentEmployeeService currentEmployeeService,
                        TaskMapper taskMapper,
-                       PayloadValidator payloadValidator) {
+                       PayloadValidator payloadValidator,
+                       ProjectCompletion projectCompletion) {
         this.taskRepository = taskRepository;
         this.employeeRepository = employeeRepository;
         this.projectRepository = projectRepository;
@@ -107,6 +111,7 @@ public class TaskService {
         this.currentEmployeeService = currentEmployeeService;
         this.taskMapper = taskMapper;
         this.payloadValidator = payloadValidator;
+        this.projectCompletion = projectCompletion;
     }
 
     /**
@@ -558,10 +563,15 @@ public class TaskService {
         updateProjectProgress(project);
     }
 
+    /**
+     * Brings the project in line with its tasks after one of them changed: its progress, and
+     * whether it is completed (see {@link ProjectCompletion}).
+     */
     private void updateProjectProgress(Project project) {
         List<Task> tasks = taskRepository.findByProject_Id(project.getId());
         Double progress = ProjectProgressCalculator.calculate(tasks);
         project.setProgress(progress);
+        projectCompletion.reconcile(project, tasks);
         projectRepository.save(project);
     }
 

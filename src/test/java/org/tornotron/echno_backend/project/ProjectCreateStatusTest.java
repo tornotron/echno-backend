@@ -92,7 +92,8 @@ class ProjectCreateStatusTest {
         service = new ProjectService(repository, organizationRepository, employeeRepository,
                 attachmentService, projectMapper, employeeMapper, eventPublisher,
                 customerRepository, new PayloadValidator(validator), userContextService,
-                statusTransitionRecorder, statusTransitionRepository, statusTransitionMapper);
+                statusTransitionRecorder, statusTransitionRepository, statusTransitionMapper,
+                org.mockito.Mockito.mock(org.tornotron.echno_backend.common.service.OrganizationSecurityService.class));
 
         TenantContext.setCurrentOrgId(1L);
         Organization organization = new Organization();
@@ -151,9 +152,10 @@ class ProjectCreateStatusTest {
     @Test
     void addProject_keepsEveryStatusThatCarriesNoTransitionBehindIt() {
         // Only approved has a check and an event behind it, so narrowing further would refuse
-        // what the create form offers today for no gain.
+        // what the create form offers today for no gain. Completed is the other exception: it is
+        // a system admin's alone (ClickUp 14zdkkvzzwg), covered in ProjectStatusHistoryTest.
         for (ProjectCreationStatus status : ProjectCreationStatus.values()) {
-            if (status == ProjectCreationStatus.approved) {
+            if (status == ProjectCreationStatus.approved || status == ProjectCreationStatus.completed) {
                 continue;
             }
             ProjectCreationDto dto = validDto();
