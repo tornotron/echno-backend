@@ -29,6 +29,7 @@ import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.springframework.core.io.ClassPathResource;
 import org.tornotron.echno_backend.modules.vision.web.VisionModelAdminController;
 import org.tornotron.echno_backend.modules.vision.web.VisionModelController;
+import org.tornotron.echno_backend.modules.vision.web.VisionWebController;
 
 /**
  * Off under the default configuration means the endpoints are not there, in every entitlement mode:
@@ -37,7 +38,7 @@ import org.tornotron.echno_backend.modules.vision.web.VisionModelController;
  * and, off, only the manifest may be left. A new bean that forgets {@link VisionModuleEnabled} fails
  * here.
  */
-@WebMvcTest({VisionModelController.class, VisionModelAdminController.class})
+@WebMvcTest({VisionModelController.class, VisionModelAdminController.class, VisionWebController.class})
 @Import(VisionModuleDarkWebTest.TestSecurityConfig.class)
 class VisionModuleDarkWebTest {
 
@@ -54,6 +55,10 @@ class VisionModuleDarkWebTest {
     void theEndpointsAreNotThereUnderTheDefaultConfiguration() throws Exception {
         mockMvc.perform(get("/api/v1/vision/models").with(platformAdmin())).andExpect(status().isNotFound());
         mockMvc.perform(post("/api/v1/vision/admin/models").with(platformAdmin())
+                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/v1/vision/web/settings").with(platformAdmin())).andExpect(status().isNotFound());
+        mockMvc.perform(post("/api/v1/vision/web/runs").with(platformAdmin())
                         .contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isNotFound());
     }

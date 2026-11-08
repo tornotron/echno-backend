@@ -20,4 +20,7 @@ public class VisionProperties {
 
     /** Whether a producer may post against a DRAFT version. Staging only. */
     private boolean acceptDraftModels = false;
+
+    /** At most this many detections of one job become observations, best score first. */
+    private int maxObservationsPerImage = 50;
 }
