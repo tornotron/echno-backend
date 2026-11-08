@@ -121,7 +121,9 @@ import org.tornotron.echno_backend.user.UserContextService;
 @RecordApplicationEvents
 @TestPropertySource(properties = {
         "echno.modules.document-ingestion.enabled=true",
-        "echno.modules.document-ingestion.allowed-org-ids=" + ExtractQueueIT.ORG_A + "," + ExtractQueueIT.ORG_B
+        "echno.modules.document-ingestion.allowed-org-ids=" + ExtractQueueIT.ORG_A + "," + ExtractQueueIT.ORG_B,
+        // Passes run by hand: the schedule would otherwise poll behind the test.
+        "echno.modules.document-ingestion.llm.initial-delay-millis=86400000"
 })
 @Import({ExtractJobDispatcher.class, ExtractJobWorker.class, ExtractJobQueue.class, ChunkReader.class,
         ChunkRecorder.class, LlmGate.class, LlmBudget.class, IngestLlmProperties.class, LlmEndpointProperties.class,

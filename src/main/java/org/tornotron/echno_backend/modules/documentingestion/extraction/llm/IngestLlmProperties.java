@@ -33,6 +33,13 @@ public class IngestLlmProperties {
     /** How often each replica looks for work, in milliseconds (read by {@code @Scheduled} too). */
     private long pollIntervalMillis = 5000;
 
+    /**
+     * Wait before the first poll after start-up, in milliseconds (read by {@code @Scheduled}). A test
+     * that runs passes by hand sets it beyond the test's length, since a slice test picks up the
+     * application's scheduling and would otherwise poll the shared database behind the test's back.
+     */
+    private long initialDelayMillis = 5000;
+
     /** How far ahead a claim holds; moved after every chunk, so it only has to outlast one chunk with its backoff. */
     private Duration leaseDuration = Duration.ofMinutes(10);
 
