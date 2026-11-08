@@ -126,6 +126,32 @@ dashboard's authentication section, per environment.
    How is a domain classed as corporate, does hosted AuthKit apply the same check, and can exact matching
    be required?
 
+### 2.1.1 Step 26 results (2026-11-08)
+
+Run against the same WorkOS staging environment through the API, with the backend from `auth-workos`
+on a fresh database and no Keycloak container. The JWT template now sets `aud` to `echno-api`. All objects
+created were deleted afterwards and the environment's counts matched before and after. 17 of 18 checks
+passed.
+
+| Check | Result |
+| --- | --- |
+| Bootstrap creates the organization, its WorkOS organization and the first administrator's invitation | PASSED |
+| A token carries `aud: echno-api` | PASSED |
+| The first administrator is linked at first sign-in and holds System Admin | PASSED |
+| A second invitation from `POST /invitations/web` is sent by the task queue, accepted, and linked at first sign-in; the record shows `ACCEPTED` | PASSED |
+| A role given to the second person is seen on the next request with the same token; an HR Admin cannot make anyone System Admin | PASSED |
+| Setting the second person inactive is seen on the next request with the same token | PASSED |
+| WorkOS refuses an invitation used by another same-domain address | FAILED, see below |
+| That other address, signing in, is linked to nothing (`GET /user/web` answers 404) | PASSED |
+
+**Same-domain behaviour.** Through the password grant with the invitation token, WorkOS let a different
+`example.org` address use an invitation, which F10's earlier `example.com` run had refused. WorkOS then
+recorded that address as `accepted_user_id`, set the invitation to `revoked`, deleted the user it had made for
+the invited address, and gave the other address no membership. Echno linked nothing, and the sync job then
+showed the invitation as `REVOKED`. The exact-address check at linking is what made this safe, so it stays;
+the screen shows such an invitation as revoked, not as accepted by another address. Hosted AuthKit was not
+tried and still needs a person with a browser.
+
 ### 2.2 What step 0 changed
 
 | Step | Change |
