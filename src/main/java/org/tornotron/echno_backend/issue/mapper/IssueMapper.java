@@ -23,12 +23,19 @@ public interface IssueMapper {
     @Mapping(source = "createdBy.employeeName", target = "createdByName")
     @Mapping(source = "assignedTo.id", target = "assignedToId")
     @Mapping(source = "assignedTo.employeeName", target = "assignedToName")
+    @Mapping(source = "project.id", target = "projectId")
+    @Mapping(source = "project.projectName", target = "projectName")
+    @Mapping(source = "category.id", target = "categoryId")
+    @Mapping(source = "category.name", target = "categoryName")
     IssueDto toDto(Issue issue);
 
     @Mapping(source = "createdBy.id", target = "createdById")
     @Mapping(source = "createdBy.employeeName", target = "createdByName")
     @Mapping(source = "assignedTo.id", target = "assignedToId")
     @Mapping(source = "assignedTo.employeeName", target = "assignedToName")
+    @Mapping(source = "task.id", target = "taskId")
+    @Mapping(source = "project.id", target = "projectId")
+    @Mapping(source = "category.id", target = "categoryId")
     IssueSimpleDto toSimpleDto(Issue issue);
 
     IssueCommentDto toCommentDto(IssueComment comment);

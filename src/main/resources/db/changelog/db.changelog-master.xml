@@ -484,6 +484,9 @@
     <!-- v4.0 - Leave: one approver per request, the immediate manager (ClickUp 14zdkkvzx68) -->
     <include file="db/changelog/v4.0/135-leave-single-approver.xml"/>
 
+    <!-- v4.0 - Issues: a project or a domain (work category), the task optional (ClickUp 14zdkkvzx60) -->
+    <include file="db/changelog/v4.0/136-issue-project-and-domain.xml"/>
+
     <!-- ============================================================== -->
     <!-- Modules: one directory per module under db/changelog/modules/  -->
     <!-- (#749). Files run in path order; a module's pre-move changesets -->

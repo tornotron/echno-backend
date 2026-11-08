@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        An issue can be raised without a task, but it has to belong to a project or a domain
+        (ClickUp 14zdkkvzx60). The domain is a work category, the same per-organization list a
+        task is classified under (Concrete Works, Masonry Works, and so on).
+
+        One change per changeset: CockroachDB runs each schema change as its own job and refuses
+        a write after a schema change in the same transaction. Every step is guarded or
+        re-runnable, and nothing here can leave an existing issue invalid.
+    -->
+
+    <changeSet id="136-issue-project-and-domain-columns" author="abhijith">
+        <preConditions onFail="MARK_RAN" onError="MARK_RAN">
+            <tableExists tableName="issue"/>
+            <not>
+                <columnExists tableName="issue" columnName="project_id"/>
+            </not>
+        </preConditions>
+        <comment>Nullable: an issue on a task reaches its project through the task as well.</comment>
+        <addColumn tableName="issue">
+            <column name="project_id" type="BIGINT"/>
+            <column name="category_id" type="BIGINT"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="136-issue-project-fk" author="abhijith">
+        <preConditions onFail="MARK_RAN" onError="MARK_RAN">
+            <columnExists tableName="issue" columnName="project_id"/>
+            <not>
+                <foreignKeyConstraintExists foreignKeyName="fk_issue_project"/>
+            </not>
+        </preConditions>
+        <comment>Deleting a project deletes its issues, as deleting a task already does.</comment>
+        <addForeignKeyConstraint baseTableName="issue" baseColumnNames="project_id"
+                                 constraintName="fk_issue_project" referencedTableName="project"
+                                 referencedColumnNames="id" onDelete="CASCADE"/>
+    </changeSet>
+
+    <changeSet id="136-issue-category-fk" author="abhijith">
+        <preConditions onFail="MARK_RAN" onError="MARK_RAN">
+            <columnExists tableName="issue" columnName="category_id"/>
+            <not>
+                <foreignKeyConstraintExists foreignKeyName="fk_issue_category"/>
+            </not>
+        </preConditions>
+        <comment>Deleting a work category clears it from issues, as it does from tasks.</comment>
+        <addForeignKeyConstraint baseTableName="issue" baseColumnNames="category_id"
+                                 constraintName="fk_issue_category" referencedTableName="category"
+                                 referencedColumnNames="id" onDelete="SET NULL"/>
+    </changeSet>
+
+    <changeSet id="136-issue-project-index" author="abhijith">
+        <preConditions onFail="MARK_RAN" onError="MARK_RAN">
+            <columnExists tableName="issue" columnName="project_id"/>
+            <not>
+                <indexExists tableName="issue" indexName="idx_issue_project"/>
+            </not>
+        </preConditions>
+        <createIndex tableName="issue" indexName="idx_issue_project">
+            <column name="project_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="136-issue-category-index" author="abhijith">
+        <preConditions onFail="MARK_RAN" onError="MARK_RAN">
+            <columnExists tableName="issue" columnName="category_id"/>
+            <not>
+                <indexExists tableName="issue" indexName="idx_issue_category"/>
+            </not>
+        </preConditions>
+        <createIndex tableName="issue" indexName="idx_issue_category">
+            <column name="category_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="136-issue-project-and-domain-backfill" author="abhijith">
+        <preConditions onFail="MARK_RAN" onError="MARK_RAN">
+            <columnExists tableName="issue" columnName="project_id"/>
+            <columnExists tableName="issue" columnName="category_id"/>
+        </preConditions>
+        <comment>
+            Every issue raised on a task takes that task's project, and its work category as its
+            domain, which is what raising it on the task now records. Only empty values are
+            filled, so a re-run changes nothing. An issue with no task keeps both empty: none can
+            have been raised through the application, which refused an issue without a task, so
+            any such row predates that check, and it is left valid as it is (grandfathered). The
+            rule is enforced when an issue is raised and when its links are changed.
+        </comment>
+        <sql>
+            UPDATE issue SET project_id = (SELECT t.project_id FROM task t WHERE t.id = issue.task_id)
+            WHERE task_id IS NOT NULL AND project_id IS NULL;
+
+            UPDATE issue SET category_id = (SELECT t.category_id FROM task t WHERE t.id = issue.task_id)
+            WHERE task_id IS NOT NULL AND category_id IS NULL;
+        </sql>
+        <rollback>
+            <comment>The columns are dropped with the first changeset's rollback.</comment>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

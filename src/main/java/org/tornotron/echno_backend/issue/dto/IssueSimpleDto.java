@@ -21,4 +21,7 @@ public class IssueSimpleDto {
     private String createdByName;
     private Long assignedToId;
     private String assignedToName;
+    private Long taskId;
+    private Long projectId;
+    private Long categoryId;
 }
