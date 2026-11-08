@@ -24,7 +24,8 @@ public class LeaveApprovalActionDto {
     @Size(max = 1000, message = "Comments must not exceed 1000 characters")
     private String comments;
 
-    @Schema(description = "Id of the employee to delegate the approval to. Required for a delegate action, "
-            + "ignored otherwise.", example = "9")
+    @Schema(description = "Id of the employee to transfer the approval to. Required for a delegate "
+            + "(transfer) action, ignored otherwise. Must be a manager above the current approver in "
+            + "their reporting line.", example = "9")
     private Long delegateToId;
 }

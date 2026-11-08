@@ -13775,7 +13775,7 @@
             "type": "string"
           },
           "delegateToId": {
-            "description": "Id of the employee to delegate the approval to. Required for a delegate action, ignored otherwise.",
+            "description": "Id of the employee to transfer the approval to. Required for a delegate (transfer) action, ignored otherwise. Must be a manager above the current approver in their reporting line.",
             "example": 9,
             "format": "int64",
             "type": "integer"
@@ -14346,11 +14346,6 @@
             "format": "int32",
             "type": "integer"
           },
-          "multiLevelApprovalEnabled": {
-            "description": "Whether leave requests under this policy go through the full multi-level approval chain (the employee's management line). Set false to opt out and let a single approval by the direct approver finalize the request.",
-            "example": true,
-            "type": "boolean"
-          },
           "organizationId": {
             "description": "Id of the organization the policy belongs to.",
             "example": 2,
@@ -14555,11 +14550,6 @@
               "integer",
               "null"
             ]
-          },
-          "multiLevelApprovalEnabled": {
-            "description": "Whether leave requests under this policy go through the full multi-level approval chain (the employee's management line). When false, a single approval by the direct approver finalizes the request.",
-            "example": true,
-            "type": "boolean"
           },
           "organizationId": {
             "description": "Id of the organization the policy belongs to.",
@@ -14805,14 +14795,6 @@
             "format": "int32",
             "type": [
               "integer",
-              "null"
-            ]
-          },
-          "multiLevelApprovalEnabled": {
-            "description": "Whether requests go through the full multi-level approval chain.",
-            "example": true,
-            "type": [
-              "boolean",
               "null"
             ]
           },
@@ -15081,8 +15063,8 @@
             "description": "Leave policy the request is raised under."
           },
           "maxApprovalLevel": {
-            "description": "The highest approval level configured for this request. Written alongside currentApprovalLevel when the chain is built, and null wherever that one is.",
-            "example": 2,
+            "description": "The highest approval level configured for this request. Written alongside currentApprovalLevel when the request is routed, and null wherever that one is. A request has one approver, so this is 1; only a request raised before single approval reads higher.",
+            "example": 1,
             "format": "int32",
             "type": [
               "integer",
@@ -102774,7 +102756,7 @@
     },
     "/api/v1/leave-approvals/web/approve": {
       "post": {
-        "description": "Records an approval for the given request at its current approval level and advances the workflow. The approval is recorded against the signed-in caller, who must be the request's current approver. Returns the request with its updated status and approval trail.",
+        "description": "Records an approval for the given request and approves it: a request has one approver, and their approval decides it. The approval is recorded against the signed-in caller, who must be the request's current approver. Returns the request with its updated status and approval trail.",
         "operationId": "LeaveApprovalControllerWeb_approve",
         "parameters": [
           {
@@ -103129,7 +103111,7 @@
     },
     "/api/v1/leave-approvals/web/delegate": {
       "post": {
-        "description": "Reassigns the current approval step for the given request to the delegate named in the payload, recording who handed it over. Only the request's current approver may delegate it. Returns the request with its updated approver and approval trail.",
+        "description": "Hands the request to the employee named in the payload, who then decides it, recording who handed it over. Only the request's current approver may transfer it, and only to a manager above them in their own reporting line (their manager, that manager's manager, and so on). Returns the request with its updated approver and approval trail.",
         "operationId": "LeaveApprovalControllerWeb_delegate",
         "parameters": [
           {
@@ -103171,7 +103153,7 @@
                 }
               }
             },
-            "description": "The approval action payload failed validation, no delegate was given, or the caller is not the request's current approver"
+            "description": "The approval action payload failed validation, no target was given, the caller is not the request's current approver, or the target is not above them in their reporting line"
           },
           "402": {
             "content": {
@@ -103244,7 +103226,7 @@
             "description": "Bad Gateway"
           }
         },
-        "summary": "Delegate a pending approval",
+        "summary": "Transfer a pending approval to a more senior manager",
         "tags": [
           "Leave Approvals (Web)"
         ]

@@ -112,11 +112,6 @@ public class LeavePolicyDto {
     @Schema(description = "Whether the policy is currently active.", example = "true")
     private Boolean isActive;
 
-    @Schema(description = "Whether leave requests under this policy go through the full multi-level approval "
-            + "chain (the employee's management line). When false, a single approval by the direct approver "
-            + "finalizes the request.", example = "true")
-    private Boolean multiLevelApprovalEnabled;
-
     @Schema(nullable = true, description = "Order this policy is shown in, relative to the organization's "
             + "other policies. Defaults to 0 when the create payload omits the field; the nullable column "
             + "keeps an explicit null.", example = "1")

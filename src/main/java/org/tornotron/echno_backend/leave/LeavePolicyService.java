@@ -26,6 +26,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -41,6 +42,12 @@ import java.util.stream.Collectors;
 @Validated
 @Slf4j
 public class LeavePolicyService {
+
+    /**
+     * Patch keys accepted and dropped without a warning: fields that have been retired but that
+     * clients built before the retirement still send.
+     */
+    private static final Set<String> RETIRED_UPDATE_KEYS = Set.of("multiLevelApprovalEnabled");
 
     private final LeavePolicyRepository policyRepository;
     private final OrganizationRepository organizationRepository;
@@ -120,8 +127,7 @@ public class LeavePolicyService {
         // below carry a declared default, and setting those from an absent payload value is what
         // this repair is: the setter ran whatever arrived, so a request that omitted the field
         // overwrote the initialiser with null and Hibernate wrote NULL into a column whose default
-        // then never applied either. multiLevelApprovalEnabled already had this guard, spelled out
-        // as an if; the other eight did not.
+        // then never applied either.
         //
         // Nothing complained, because LeaveRequestValidator is null-safe by construction. A null
         // allowHalfDay makes Boolean.TRUE.equals(...) false, so a policy created to allow half days
@@ -136,7 +142,6 @@ public class LeavePolicyService {
         applyIfPresent(dto.getAllowHalfDay(), policy::setAllowHalfDay);
         applyIfPresent(dto.getIsPaid(), policy::setIsPaid);
         applyIfPresent(dto.getDisplayOrder(), policy::setDisplayOrder);
-        applyIfPresent(dto.getMultiLevelApprovalEnabled(), policy::setMultiLevelApprovalEnabled);
         applyIfPresent(dto.getAccrualMethod(), policy::setAccrualMethod);
         applyIfPresent(dto.getWeekendHolidayTreatment(), policy::setWeekendHolidayTreatment);
         applyIfPresent(dto.getApproverRole(), policy::setApproverRole);
@@ -306,12 +311,13 @@ public class LeavePolicyService {
                 case "allowHalfDay" -> policy.setAllowHalfDay((Boolean) value);
                 case "isPaid" -> policy.setIsPaid((Boolean) value);
                 case "isActive" -> policy.setIsActive((Boolean) value);
-                case "multiLevelApprovalEnabled" -> policy.setMultiLevelApprovalEnabled((Boolean) value);
                 case "displayOrder" -> policy.setDisplayOrder(
                         value != null ? ((Number) value).intValue() : null);
-                // Nothing is dropped on purpose here: echno-core sends this endpoint no key it
-                // does not declare. See echno-core#57.
-                default -> PartialUpdateKeys.reportUnknown(log, "leave policy", policyId, key);
+                // multiLevelApprovalEnabled is dropped on purpose: the toggle is gone (ClickUp
+                // 14zdkkvzx68, every request has one approver), but clients built before that
+                // still send it. Nothing else is. See echno-core#57.
+                default -> PartialUpdateKeys.reportUnknown(log, "leave policy", policyId, key,
+                        RETIRED_UPDATE_KEYS);
             }
         });
 
@@ -491,7 +497,6 @@ public class LeavePolicyService {
         applyIfPresent(source.getAllowHalfDay(), duplicate::setAllowHalfDay);
         applyIfPresent(source.getIsPaid(), duplicate::setIsPaid);
         applyIfPresent(source.getDisplayOrder(), duplicate::setDisplayOrder);
-        applyIfPresent(source.getMultiLevelApprovalEnabled(), duplicate::setMultiLevelApprovalEnabled);
         applyIfPresent(source.getAccrualMethod(), duplicate::setAccrualMethod);
         applyIfPresent(source.getWeekendHolidayTreatment(), duplicate::setWeekendHolidayTreatment);
         applyIfPresent(source.getApproverRole(), duplicate::setApproverRole);

@@ -81,8 +81,9 @@ public class LeaveRequestDto {
     private Integer currentApprovalLevel;
 
     @Schema(nullable = true, description = "The highest approval level configured for this request. "
-            + "Written alongside currentApprovalLevel when the chain is built, and null wherever that one "
-            + "is.", example = "2")
+            + "Written alongside currentApprovalLevel when the request is routed, and null wherever that "
+            + "one is. A request has one approver, so this is 1; only a request raised before single "
+            + "approval reads higher.", example = "1")
     private Integer maxApprovalLevel;
 
     @Schema(nullable = true, description = "Contact number or address reachable during the leave. Null "
