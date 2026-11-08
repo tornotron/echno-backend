@@ -27,8 +27,8 @@ import java.util.UUID;
         name = "Cost Categories",
         description = "Budget heads (cost categories) that a project budget is broken down by and that "
                 + "construction invoice lines are tagged to. An org-level master list, optionally aligned "
-                + "to a ledger expense account. All endpoints are tenant scoped and limited to system "
-                + "administrators and project managers, apart from the default seed, which is admin only."
+                + "to a ledger expense account. All endpoints are tenant scoped. Each needs the finance permission "
+                + "named for its action (read, create or edit), and the default seed needs finance configure."
 )
 public class CostCategoryControllerWeb {
 
@@ -36,7 +36,7 @@ public class CostCategoryControllerWeb {
     private final CostCategorySeeder seeder;
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('finance', 'read')")
     @Operation(
             summary = "List cost categories",
             description = "Returns the budget heads in the current tenant. By default only active heads are "
@@ -44,21 +44,21 @@ public class CostCategoryControllerWeb {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "List of cost categories"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read finance records")
     })
     public List<CostCategoryDto> list(@RequestParam(defaultValue = "true") boolean activeOnly) {
         return service.findAll(activeOnly);
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('finance', 'read')")
     @Operation(
             summary = "Get a cost category by id",
             description = "Returns a single budget head by its unique id."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Cost category found"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not read finance records"),
             @ApiResponse(responseCode = "404", description = "No cost category with the given id in the current tenant")
     })
     public CostCategoryDto get(@PathVariable UUID id) {
@@ -66,7 +66,7 @@ public class CostCategoryControllerWeb {
     }
 
     @PostMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('finance', 'create')")
     @Operation(
             summary = "Create a cost category",
             description = "Creates a budget head. The name must be unique within the tenant; an optional "
@@ -75,7 +75,7 @@ public class CostCategoryControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Cost category created"),
             @ApiResponse(responseCode = "400", description = "Validation failed or the name is already in use"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change in finance"),
             @ApiResponse(responseCode = "404", description = "The referenced expense account does not exist")
     })
     public ResponseEntity<CostCategoryDto> create(@Valid @RequestBody CreateCostCategoryRequest req) {
@@ -83,7 +83,7 @@ public class CostCategoryControllerWeb {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('finance', 'edit')")
     @Operation(
             summary = "Update a cost category",
             description = "Edits a budget head's name, code, expense-account mapping and active flag. The "
@@ -92,7 +92,7 @@ public class CostCategoryControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Cost category updated"),
             @ApiResponse(responseCode = "400", description = "Validation failed or the name clashes"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change in finance"),
             @ApiResponse(responseCode = "404", description = "No cost category, or no such expense account, in the current tenant")
     })
     public CostCategoryDto update(@PathVariable UUID id, @Valid @RequestBody UpdateCostCategoryRequest req) {
@@ -100,7 +100,7 @@ public class CostCategoryControllerWeb {
     }
 
     @PostMapping("/{id}/deactivate")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('finance', 'edit')")
     @Operation(
             summary = "Deactivate a cost category",
             description = "Marks a budget head inactive so it can no longer be tagged on new invoice lines "
@@ -108,7 +108,7 @@ public class CostCategoryControllerWeb {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Cost category deactivated"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change in finance"),
             @ApiResponse(responseCode = "404", description = "No cost category with the given id in the current tenant")
     })
     public CostCategoryDto deactivate(@PathVariable UUID id) {
@@ -116,17 +116,17 @@ public class CostCategoryControllerWeb {
     }
 
     @PostMapping("/seed-defaults")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@access.can('finance', 'configure')")
     @Operation(
             summary = "Seed the default cost categories",
             description = "Creates a default set of budget heads (Materials, Subcontractor, Labour, Plant "
                     + "and Equipment, Other) mapped to the seeded expense accounts. The operation is "
                     + "idempotent: a tenant that already has any cost category is left untouched. Returns "
-                    + "the number of categories created. Restricted to system administrators."
+                    + "the number of categories created. Needs finance configure."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Seed complete, returns the count of categories created"),
-            @ApiResponse(responseCode = "403", description = "Caller is not a system administrator in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not configure finance")
     })
     public Map<String, Integer> seedDefaults() {
         return Map.of("created", seeder.seedDefaults());

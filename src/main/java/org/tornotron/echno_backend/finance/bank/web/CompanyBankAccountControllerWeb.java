@@ -24,15 +24,15 @@ import java.util.UUID;
         name = "Company Bank Accounts",
         description = "The organization's own bank accounts used to receive and pay funds, each linked to "
                 + "a ledger account for reconciliation. Endpoints cover listing, reading, creating and "
-                + "deactivating accounts. All endpoints are tenant scoped and limited to system "
-                + "administrators and project managers."
+                + "deactivating accounts. All endpoints are tenant scoped. Each needs the finance permission "
+                + "named for its action (read, create or edit)."
 )
 public class CompanyBankAccountControllerWeb {
 
     private final CompanyBankAccountService service;
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('finance', 'read')")
     @Operation(
             summary = "List company bank accounts",
             description = "Returns the organization's bank accounts. By default only active accounts are "
@@ -40,21 +40,21 @@ public class CompanyBankAccountControllerWeb {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "List of matching bank accounts"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read finance records")
     })
     public List<CompanyBankAccountDto> list(@RequestParam(defaultValue = "true") boolean activeOnly) {
         return activeOnly ? service.findAllActive() : service.findAll();
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('finance', 'read')")
     @Operation(
             summary = "Get a company bank account by id",
             description = "Returns a single company bank account, including the linked ledger account."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Bank account found"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not read finance records"),
             @ApiResponse(responseCode = "404", description = "No bank account with the given id in the current tenant")
     })
     public CompanyBankAccountDto get(@PathVariable UUID id) {
@@ -62,7 +62,7 @@ public class CompanyBankAccountControllerWeb {
     }
 
     @PostMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('finance', 'create')")
     @Operation(
             summary = "Create a company bank account",
             description = "Registers a new company bank account, linked to an existing ledger account for "
@@ -71,7 +71,7 @@ public class CompanyBankAccountControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Bank account created"),
             @ApiResponse(responseCode = "400", description = "Validation failed on the request body"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change in finance"),
             @ApiResponse(responseCode = "404", description = "No ledger account with the given id")
     })
     public ResponseEntity<CompanyBankAccountDto> create(@Valid @RequestBody CreateCompanyBankAccountRequest req) {
@@ -79,7 +79,7 @@ public class CompanyBankAccountControllerWeb {
     }
 
     @PostMapping("/{id}/deactivate")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('finance', 'edit')")
     @Operation(
             summary = "Deactivate a company bank account",
             description = "Marks a bank account inactive so it can no longer be selected on new "
@@ -87,7 +87,7 @@ public class CompanyBankAccountControllerWeb {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Bank account deactivated"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change in finance"),
             @ApiResponse(responseCode = "404", description = "No bank account with the given id in the current tenant")
     })
     public CompanyBankAccountDto deactivate(@PathVariable UUID id) {
