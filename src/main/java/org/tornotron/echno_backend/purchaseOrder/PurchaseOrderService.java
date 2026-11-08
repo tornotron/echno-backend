@@ -275,6 +275,21 @@ public class PurchaseOrderService {
     }
 
     /**
+     * One page of the same rows, newest order first, with the id as tie-break.
+     *
+     * @param pageNo   Zero-based page index.
+     * @param pageSize Rows per page.
+     * @return The requested page.
+     */
+    @Transactional(readOnly = true)
+    public Page<PurchaseOrderDto> getPurchaseOrdersByVendor(Long vendorId, int pageNo, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNo, pageSize,
+                Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id")));
+        return purchaseOrderRepository.findByVendorId(vendorId, pageable)
+                .map(po -> purchaseOrderMapper.toDto(po));
+    }
+
+    /**
      * Lists purchase orders raised from a given indent.
      *
      * @param indentId The indent whose purchase orders to return.
@@ -288,6 +303,21 @@ public class PurchaseOrderService {
     }
 
     /**
+     * One page of the same rows, newest order first, with the id as tie-break.
+     *
+     * @param pageNo   Zero-based page index.
+     * @param pageSize Rows per page.
+     * @return The requested page.
+     */
+    @Transactional(readOnly = true)
+    public Page<PurchaseOrderDto> getPurchaseOrdersByIndent(Long indentId, int pageNo, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNo, pageSize,
+                Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id")));
+        return purchaseOrderRepository.findByIndentId(indentId, pageable)
+                .map(po -> purchaseOrderMapper.toDto(po));
+    }
+
+    /**
      * Lists purchase orders in a given status.
      *
      * @param status The status to filter by.
@@ -298,6 +328,21 @@ public class PurchaseOrderService {
         return purchaseOrderRepository.findByStatus(status).stream()
                 .map(po -> purchaseOrderMapper.toDto(po))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * One page of the same rows, newest order first, with the id as tie-break.
+     *
+     * @param pageNo   Zero-based page index.
+     * @param pageSize Rows per page.
+     * @return The requested page.
+     */
+    @Transactional(readOnly = true)
+    public Page<PurchaseOrderDto> getPurchaseOrdersByStatus(PurchaseOrderStatus status, int pageNo, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNo, pageSize,
+                Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id")));
+        return purchaseOrderRepository.findByStatus(status, pageable)
+                .map(po -> purchaseOrderMapper.toDto(po));
     }
 
     /**

@@ -6,12 +6,16 @@ import org.tornotron.echno_backend.vendor.enums.VendorType;
 
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 public interface VendorRepository extends JpaRepository<Vendor, Long> {
 
     Optional<Vendor> findByVendorEmail(String vendorEmail);
 
     List<Vendor> findByVendorNameContainingIgnoreCase(String vendorName);
+
+    Page<Vendor> findByVendorNameContainingIgnoreCase(String vendorName, Pageable pageable);
 
     boolean existsByVendorEmailAndOrganization_Id(String vendorEmail, Long organizationId);
 

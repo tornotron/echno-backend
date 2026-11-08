@@ -51,6 +51,10 @@ import java.util.stream.Collectors;
 @Validated
 public class EmployeeService {
 
+    /** Name order with the id as tie-break, so two people of the same name never swap pages. */
+    private static final Sort BY_NAME =
+            Sort.by(Sort.Direction.ASC, "employeeName").and(Sort.by(Sort.Direction.ASC, "id"));
+
     private final EmployeeRepository employeeRepository;
     private final OrganizationRepository organizationRepository;
     private final UserRepository userRepository;
@@ -307,7 +311,7 @@ public class EmployeeService {
      */
     @Transactional(readOnly = true)
     public Page<EmployeeDto> displayAllEmployees(int pageNo, int pageSize, String search, String status, String department) {
-        Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.ASC, "employeeName"));
+        Pageable pageable = PageRequest.of(pageNo, pageSize, BY_NAME);
         String searchTerm = (search == null || search.isBlank()) ? null : "%" + search.trim().toLowerCase(Locale.ROOT) + "%";
         String departmentTerm = (department == null || department.isBlank()) ? null : department;
         EmployeeStatus statusTerm = (status == null || status.isBlank()) ? null : EmployeeStatus.valueOf(status);
@@ -338,13 +342,15 @@ public class EmployeeService {
      * Retrieves all employees for a given organization.
      *
      * @param organizationId The ID of the organization.
-     * @return A list of employee DTOs belonging to the specified organization.
+     * @param pageNo         Zero-based page index.
+     * @param pageSize       Rows per page.
+     * @return A page of employee DTOs belonging to the specified organization, ordered by name.
      */
     @Transactional(readOnly = true)
-    public List<EmployeeDto> displayEmployeesByOrganization(Long organizationId) {
-        return employeeRepository.findEmployeesByOrganization_Id(organizationId).stream()
-                .map(employee -> employeeMapper.toDto(employee))
-                .collect(Collectors.toList());
+    public Page<EmployeeDto> displayEmployeesByOrganization(Long organizationId, int pageNo, int pageSize) {
+        return employeeRepository.findEmployeesByOrganization_Id(organizationId,
+                        PageRequest.of(pageNo, pageSize, BY_NAME))
+                .map(employee -> employeeMapper.toDto(employee));
     }
 
     /**

@@ -159,8 +159,11 @@ public class MaterialController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Matching materials returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public ResponseEntity<List<MaterialDto>> searchMaterials(@RequestParam String name) {
-        List<MaterialDto> materials = materialService.searchMaterialsByName(name);
+    public ResponseEntity<Page<MaterialDto>> searchMaterials(
+            @RequestParam String name,
+            @Valid @ParameterObject PageQuery pageQuery) {
+        Page<MaterialDto> materials = materialService.searchMaterialsByName(
+                name, pageQuery.getPageNo(), pageQuery.getPageSize());
         return ResponseEntity.ok(materials);
     }
 

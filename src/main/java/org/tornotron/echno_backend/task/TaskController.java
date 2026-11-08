@@ -106,10 +106,10 @@ public class TaskController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of tasks returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public ResponseEntity<List<TaskDto>> readAllTasks(@Valid @ParameterObject PageQuery pageQuery) {
+    public ResponseEntity<Page<TaskDto>> readAllTasks(@Valid @ParameterObject PageQuery pageQuery) {
         Page<TaskDto> tasks = service.getAllTasks(pageQuery.getPageNo(), pageQuery.getPageSize());
         logger.info("All Tasks Retrieved Successfully");
-        return new ResponseEntity<>(tasks.getContent(), HttpStatus.OK);
+        return new ResponseEntity<>(tasks, HttpStatus.OK);
     }
 
     /**

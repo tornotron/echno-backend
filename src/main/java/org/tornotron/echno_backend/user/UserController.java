@@ -69,9 +69,9 @@ public class UserController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of users returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public ResponseEntity<List<UserDto>> readAllUsers(@Valid @ParameterObject PageQuery pageQuery) {
+    public ResponseEntity<Page<UserDto>> readAllUsers(@Valid @ParameterObject PageQuery pageQuery) {
         Page<UserDto> users = userService.getAllUsers(pageQuery.getPageNo(),pageQuery.getPageSize());
-        return new ResponseEntity<>(users.getContent(), HttpStatus.OK);
+        return new ResponseEntity<>(users, HttpStatus.OK);
     }
 
     /**

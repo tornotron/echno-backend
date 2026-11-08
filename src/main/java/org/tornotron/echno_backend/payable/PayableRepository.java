@@ -8,6 +8,8 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 public interface PayableRepository extends JpaRepository<Payable, Long> {
 
@@ -27,11 +29,16 @@ public interface PayableRepository extends JpaRepository<Payable, Long> {
 
     List<Payable> findByVendorIdAndOrganization_id(Long vendorId, Long organizationId);
 
+    Page<Payable> findByVendorIdAndOrganization_id(Long vendorId, Long organizationId, Pageable pageable);
+
     /** Whether any payable stands against the goods receipt, which blocks reversing the receipt. */
     boolean existsByGoodsReceivedNote_IdAndOrganization_Id(Long goodsReceivedNoteId, Long organizationId);
 
     @Query("SELECT p FROM Payable p WHERE p.amountRecorded > p.amountPaid")
     List<Payable> findOutstandingPayables();
+
+    @Query("SELECT p FROM Payable p WHERE p.amountRecorded > p.amountPaid")
+    Page<Payable> findOutstandingPayables(Pageable pageable);
 
     boolean existsByPayableNumberAndOrganization_Id(String payableNumber, Long organizationId);
 }

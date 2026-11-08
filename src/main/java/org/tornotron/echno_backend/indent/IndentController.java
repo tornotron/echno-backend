@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -65,10 +66,10 @@ public class IndentController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of indents returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
     })
-    public ResponseEntity<List<IndentDto>> getAllIndents(
+    public ResponseEntity<Page<IndentDto>> getAllIndents(
             @Valid @ParameterObject PageQuery pageQuery
     ) {
-        return new ResponseEntity<>(indentService.getAllIndents(pageQuery.getPageNo(), pageQuery.getPageSize()).getContent(), HttpStatus.OK);
+        return new ResponseEntity<>(indentService.getAllIndents(pageQuery.getPageNo(), pageQuery.getPageSize()), HttpStatus.OK);
     }
 
     @GetMapping

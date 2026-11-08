@@ -31,6 +31,8 @@ import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 /**
  * Manages the leave request lifecycle from draft through submission, cancellation, and withdrawal.
@@ -245,6 +247,61 @@ public class LeaveRequestService {
     @Transactional(readOnly = true)
     public Page<LeaveRequestDto> getRequestsByEmployee(Long employeeId, Pageable pageable) {
         return requestRepository.findByEmployeeId(employeeId, pageable)
+                .map(leaveRequestMapper::toDto);
+    }
+
+    /** Newest request first, with the id as tie-break, so a page never reshuffles. */
+    private static PageRequest newestFirst(int pageNo, int pageSize) {
+        return PageRequest.of(pageNo, pageSize,
+                Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id")));
+    }
+
+    /**
+     * One page of an employee's leave requests, newest first.
+     *
+     * @param employeeId The employee who raised the requests.
+     * @param pageNo     Zero-based page index.
+     * @param pageSize   Rows per page.
+     * @return The page of requests.
+     */
+    @Transactional(readOnly = true)
+    public Page<LeaveRequestDto> getRequestsByEmployee(Long employeeId, int pageNo, int pageSize) {
+        return getRequestsByEmployee(employeeId, newestFirst(pageNo, pageSize));
+    }
+
+    /**
+     * One page of an employee's leave requests in one status, newest first.
+     *
+     * @return The page of requests.
+     */
+    @Transactional(readOnly = true)
+    public Page<LeaveRequestDto> getRequestsByEmployeeAndStatus(Long employeeId, LeaveStatus status,
+                                                                int pageNo, int pageSize) {
+        return requestRepository.findByEmployeeIdAndStatus(employeeId, status, newestFirst(pageNo, pageSize))
+                .map(leaveRequestMapper::toDto);
+    }
+
+    /**
+     * One page of the current organization's leave requests, newest first.
+     *
+     * @return The page of requests.
+     */
+    @Transactional(readOnly = true)
+    public Page<LeaveRequestDto> getRequestsByOrganization(int pageNo, int pageSize) {
+        return requestRepository.findByOrganizationId(TenantContext.getCurrentOrgId(), newestFirst(pageNo, pageSize))
+                .map(leaveRequestMapper::toDto);
+    }
+
+    /**
+     * One page of the requests waiting on the signed-in caller, newest first.
+     *
+     * @return The page of requests.
+     */
+    @Transactional(readOnly = true)
+    public Page<LeaveRequestDto> getPendingApprovals(int pageNo, int pageSize) {
+        return requestRepository.findByCurrentApproverIdAndStatus(
+                        callerEmployeeId("read your approval queue"), LeaveStatus.PENDING_APPROVAL,
+                        newestFirst(pageNo, pageSize))
                 .map(leaveRequestMapper::toDto);
     }
 

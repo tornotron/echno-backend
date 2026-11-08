@@ -144,6 +144,21 @@ public class VendorService {
     }
 
     /**
+     * One page of the same rows, ordered by name, with the id as tie-break.
+     *
+     * @param pageNo   Zero-based page index.
+     * @param pageSize Rows per page.
+     * @return The requested page.
+     */
+    @Transactional(readOnly = true)
+    public Page<VendorDto> searchVendorsByName(String name, int pageNo, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNo, pageSize,
+                Sort.by(Sort.Direction.ASC, "vendorName").and(Sort.by(Sort.Direction.ASC, "id")));
+        return vendorRepository.findByVendorNameContainingIgnoreCase(name, pageable)
+                .map(vendor -> vendorMapper.toDto(vendor));
+    }
+
+    /**
      * Updates a vendor's own fields (child entities are managed separately).
      *
      * @param id The ID of the vendor to update.

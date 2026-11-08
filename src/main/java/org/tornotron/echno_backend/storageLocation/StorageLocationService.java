@@ -22,6 +22,7 @@ import org.tornotron.echno_backend.storageLocation.enums.StorageLocationType;
 
 import java.util.Collection;
 import java.util.List;
+import org.springframework.data.domain.PageImpl;
 
 @Service
 public class StorageLocationService {
@@ -100,9 +101,39 @@ public class StorageLocationService {
         return toDtos(storageLocationRepository.findByProjectId(projectId));
     }
 
+    /**
+     * One page of the same rows, ordered by name, with the id as tie-break.
+     *
+     * @param pageNo   Zero-based page index.
+     * @param pageSize Rows per page.
+     * @return The requested page.
+     */
+    @Transactional(readOnly = true)
+    public Page<StorageLocationDto> getStorageLocationsByProject(Long projectId, int pageNo, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNo, pageSize,
+                Sort.by(Sort.Direction.ASC, "locationName").and(Sort.by(Sort.Direction.ASC, "id")));
+        Page<StorageLocation> rows = storageLocationRepository.findByProjectId(projectId, pageable);
+        return new PageImpl<>(toDtos(rows.getContent()), rows.getPageable(), rows.getTotalElements());
+    }
+
     @Transactional(readOnly = true)
     public List<StorageLocationDto> getStorageLocationsByType(StorageLocationType locationType) {
         return toDtos(storageLocationRepository.findByLocationType(locationType));
+    }
+
+    /**
+     * One page of the same rows, ordered by name, with the id as tie-break.
+     *
+     * @param pageNo   Zero-based page index.
+     * @param pageSize Rows per page.
+     * @return The requested page.
+     */
+    @Transactional(readOnly = true)
+    public Page<StorageLocationDto> getStorageLocationsByType(StorageLocationType locationType, int pageNo, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNo, pageSize,
+                Sort.by(Sort.Direction.ASC, "locationName").and(Sort.by(Sort.Direction.ASC, "id")));
+        Page<StorageLocation> rows = storageLocationRepository.findByLocationType(locationType, pageable);
+        return new PageImpl<>(toDtos(rows.getContent()), rows.getPageable(), rows.getTotalElements());
     }
 
     @Transactional

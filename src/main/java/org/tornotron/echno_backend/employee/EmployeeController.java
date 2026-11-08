@@ -21,6 +21,9 @@ import java.util.List;
 import java.util.Map;
 import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 import org.tornotron.echno_backend.employee.dto.EmployeeUpdateFieldsDto;
+import org.springframework.data.domain.Page;
+import org.springdoc.core.annotations.ParameterObject;
+import org.tornotron.echno_backend.common.pagination.PageQuery;
 
 /**
  * REST controller for managing employees.
@@ -172,15 +175,15 @@ public class EmployeeController {
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin','project-manager')")
     @Operation(
             summary = "List all employees",
-            description = "Returns at most 500 rows of the caller's own organization. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
+            description = "Returns one page of the caller's own organization's employees, ordered by name."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Employees returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a system admin, HR admin or project manager in the current organization")
     })
-    public ResponseEntity<List<EmployeeDto>> readAllEmployees() {
-        return UnpagedResultCap.respond(employeeService.displayAllEmployees(
-                0, UnpagedResultCap.MAX_ROWS, null, null, null));
+    public ResponseEntity<Page<EmployeeDto>> readAllEmployees(@Valid @ParameterObject PageQuery pageQuery) {
+        return ResponseEntity.ok(employeeService.displayAllEmployees(
+                pageQuery.getPageNo(), pageQuery.getPageSize(), null, null, null));
     }
 
     /**
@@ -242,15 +245,17 @@ public class EmployeeController {
     @Operation(
             summary = "List employees in an organization",
             description = "Returns the employees belonging to the given organization, which must be the "
-                    + "organization the caller's session is scoped to."
+                    + "organization the caller's session is scoped to, one page at a time, ordered by name."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Employees returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller named an organization that is not the current tenant, or is not a system admin, HR admin or project manager in it"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No organization with the given id")
     })
-    public ResponseEntity<List<EmployeeDto>> readEmployeesByOrganizationId(@PathVariable Long id) {
-        return ResponseEntity.status(HttpStatus.OK).body(employeeService.displayEmployeesByOrganization(id));
+    public ResponseEntity<Page<EmployeeDto>> readEmployeesByOrganizationId(
+            @PathVariable Long id, @Valid @ParameterObject PageQuery pageQuery) {
+        return ResponseEntity.status(HttpStatus.OK).body(employeeService.displayEmployeesByOrganization(
+                id, pageQuery.getPageNo(), pageQuery.getPageSize()));
     }
 
     /**

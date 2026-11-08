@@ -215,6 +215,21 @@ public class MaterialConsumptionService {
     }
 
     /**
+     * One page of the same rows, latest consumption first, with the id as tie-break.
+     *
+     * @param pageNo   Zero-based page index.
+     * @param pageSize Rows per page.
+     * @return The requested page.
+     */
+    @Transactional(readOnly = true)
+    public Page<MaterialConsumptionDto> getConsumptionsByMaterial(Long materialId, int pageNo, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNo, pageSize,
+                Sort.by(Sort.Direction.DESC, "consumptionDate").and(Sort.by(Sort.Direction.DESC, "id")));
+        return materialConsumptionRepository.findByMaterialId(materialId, pageable)
+                .map(consumption -> materialConsumptionMapper.toDto(consumption));
+    }
+
+    /**
      * Lists consumption records of a given consumption type.
      *
      * @param consumptionType The consumption type to filter by.
@@ -225,6 +240,21 @@ public class MaterialConsumptionService {
         return materialConsumptionRepository.findByConsumptionType(consumptionType).stream()
                 .map(consumption -> materialConsumptionMapper.toDto(consumption))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * One page of the same rows, latest consumption first, with the id as tie-break.
+     *
+     * @param pageNo   Zero-based page index.
+     * @param pageSize Rows per page.
+     * @return The requested page.
+     */
+    @Transactional(readOnly = true)
+    public Page<MaterialConsumptionDto> getConsumptionsByType(MaterialConsumptionType consumptionType, int pageNo, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNo, pageSize,
+                Sort.by(Sort.Direction.DESC, "consumptionDate").and(Sort.by(Sort.Direction.DESC, "id")));
+        return materialConsumptionRepository.findByConsumptionType(consumptionType, pageable)
+                .map(consumption -> materialConsumptionMapper.toDto(consumption));
     }
 
     /**
@@ -242,6 +272,21 @@ public class MaterialConsumptionService {
     }
 
     /**
+     * One page of the same rows, latest consumption first, with the id as tie-break.
+     *
+     * @param pageNo   Zero-based page index.
+     * @param pageSize Rows per page.
+     * @return The requested page.
+     */
+    @Transactional(readOnly = true)
+    public Page<MaterialConsumptionDto> getConsumptionsByDateRange(LocalDateTime startDate, LocalDateTime endDate, int pageNo, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNo, pageSize,
+                Sort.by(Sort.Direction.DESC, "consumptionDate").and(Sort.by(Sort.Direction.DESC, "id")));
+        return materialConsumptionRepository.findByConsumptionDateBetween(startDate, endDate, pageable)
+                .map(consumption -> materialConsumptionMapper.toDto(consumption));
+    }
+
+    /**
      * Lists consumption records attributed to a given task.
      *
      * @param taskId The task whose consumptions to return.
@@ -252,5 +297,20 @@ public class MaterialConsumptionService {
         return materialConsumptionRepository.findByTaskId(taskId).stream()
                 .map(consumption -> materialConsumptionMapper.toDto(consumption))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * One page of the same rows, latest consumption first, with the id as tie-break.
+     *
+     * @param pageNo   Zero-based page index.
+     * @param pageSize Rows per page.
+     * @return The requested page.
+     */
+    @Transactional(readOnly = true)
+    public Page<MaterialConsumptionDto> getConsumptionsByTask(Long taskId, int pageNo, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNo, pageSize,
+                Sort.by(Sort.Direction.DESC, "consumptionDate").and(Sort.by(Sort.Direction.DESC, "id")));
+        return materialConsumptionRepository.findByTaskId(taskId, pageable)
+                .map(consumption -> materialConsumptionMapper.toDto(consumption));
     }
 }

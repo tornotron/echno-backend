@@ -106,16 +106,21 @@ class CappedWebListingTest {
                 .getPendingRegularizations(0, UnpagedResultCap.MAX_ROWS);
     }
 
-    /** The mobile register reads the same capped page, through the same service method. */
+    /**
+     * The mobile register is paged now (#999), so it reads the page the caller asked for and
+     * answers with the page itself, through the same service method.
+     */
     @Test
-    void theMobilePendingRegularizationRegisterReadsTheFirstCappedPage() {
+    void theMobilePendingRegularizationRegisterReadsTheAskedPage() {
         when(attendanceRegularizationService.getPendingRegularizations(anyInt(), anyInt()))
                 .thenReturn(Page.empty());
+        PageQuery pageQuery = new PageQuery();
+        pageQuery.setPageNo(3);
+        pageQuery.setPageSize(25);
 
-        new AttendanceRegularizationController(attendanceRegularizationService, null).getPending();
+        new AttendanceRegularizationController(attendanceRegularizationService, null).getPending(pageQuery);
 
-        verify(attendanceRegularizationService)
-                .getPendingRegularizations(0, UnpagedResultCap.MAX_ROWS);
+        verify(attendanceRegularizationService).getPendingRegularizations(3, 25);
     }
 
     @Test

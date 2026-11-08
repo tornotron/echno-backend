@@ -107,10 +107,10 @@ public class ProjectController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of projects returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant")
     })
-    public ResponseEntity<List<ProjectDto>> readAllProjects(@Valid @ParameterObject PageQuery pageQuery) {
+    public ResponseEntity<Page<ProjectDto>> readAllProjects(@Valid @ParameterObject PageQuery pageQuery) {
           Page<ProjectDto> projects = service.getAllProjects(pageQuery.getPageNo(),pageQuery.getPageSize());
           logger.info("All Projects Retrieved Successfully");
-        return new ResponseEntity<>(projects.getContent(),HttpStatus.OK);
+        return new ResponseEntity<>(projects,HttpStatus.OK);
     }
 
     /**
@@ -254,14 +254,17 @@ public class ProjectController {
     @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
     @Operation(
             summary = "List the employees on a project",
-            description = "Returns the employees currently assigned to the given project."
+            description = "Returns the employees currently assigned to the given project, one page at a "
+                    + "time, ordered by name."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Assigned employees returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No project with the given id")
     })
-    public ResponseEntity<List<EmployeeDto>> getEmployeesByProjectId(@PathVariable Long projectId) {
-        return ResponseEntity.status(HttpStatus.OK).body(service.getEmployeesByProjectId(projectId));
+    public ResponseEntity<Page<EmployeeDto>> getEmployeesByProjectId(
+            @PathVariable Long projectId, @Valid @ParameterObject PageQuery pageQuery) {
+        return ResponseEntity.status(HttpStatus.OK).body(service.getEmployeesByProjectId(
+                projectId, pageQuery.getPageNo(), pageQuery.getPageSize()));
     }
 }

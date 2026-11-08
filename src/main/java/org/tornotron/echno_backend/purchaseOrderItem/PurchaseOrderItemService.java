@@ -151,11 +151,39 @@ public class PurchaseOrderItemService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * One page of the same rows, in the order the lines were added.
+     *
+     * @param pageNo   Zero-based page index.
+     * @param pageSize Rows per page.
+     * @return The requested page.
+     */
+    @Transactional(readOnly = true)
+    public Page<PurchaseOrderItemResponseDto> getItemsByPurchaseOrderId(Long purchaseOrderId, int pageNo, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.ASC, "id"));
+        return purchaseOrderItemRepository.findByPurchaseOrderId(purchaseOrderId, pageable)
+                .map(this::convertToResponseDto);
+    }
+
     @Transactional(readOnly = true)
     public List<PurchaseOrderItemResponseDto> getItemsByMaterialId(Long materialId) {
         return purchaseOrderItemRepository.findByMaterialId(materialId).stream()
                 .map(this::convertToResponseDto)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * One page of the same rows, in the order the lines were added.
+     *
+     * @param pageNo   Zero-based page index.
+     * @param pageSize Rows per page.
+     * @return The requested page.
+     */
+    @Transactional(readOnly = true)
+    public Page<PurchaseOrderItemResponseDto> getItemsByMaterialId(Long materialId, int pageNo, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.ASC, "id"));
+        return purchaseOrderItemRepository.findByMaterialId(materialId, pageable)
+                .map(this::convertToResponseDto);
     }
 
     /**

@@ -22,7 +22,9 @@ import org.springframework.web.multipart.MultipartFile;
 import org.tornotron.echno_backend.attendance.dto.*;
 import org.tornotron.echno_backend.attendance.enums.ApprovalStatus;
 import org.tornotron.echno_backend.attendance.enums.AttendanceStatus;
-import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
+import org.springdoc.core.annotations.ParameterObject;
+import org.tornotron.echno_backend.common.pagination.PageQuery;
+import org.tornotron.echno_backend.common.pagination.PageQuery20;
 import org.tornotron.echno_backend.common.response.ApiResponse;
 
 import java.time.LocalDate;
@@ -122,18 +124,20 @@ public class AttendanceController {
     @Operation(
             summary = "List an employee's attendance in a date range",
             description = "Returns the attendance records for one employee between startDate and endDate, "
-                    + "inclusive."
+                    + "inclusive, one page at a time, latest day first."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Attendance records returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks permission to view this employee's attendance records"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No employee with the given id")
     })
-    public ResponseEntity<List<AttendanceResponseDto>> getByEmployee(
+    public ResponseEntity<Page<AttendanceResponseDto>> getByEmployee(
             @PathVariable Long employeeId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
-        return ResponseEntity.ok(attendanceService.getAttendanceByEmployee(employeeId, startDate, endDate));
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @Valid @ParameterObject PageQuery pageQuery) {
+        return ResponseEntity.ok(attendanceService.getAttendanceByEmployee(
+                employeeId, startDate, endDate, pageQuery.getPageNo(), pageQuery.getPageSize()));
     }
 
     @GetMapping("/project/{projectId}")
@@ -153,18 +157,18 @@ public class AttendanceController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks permission to manage attendance records"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No project with the given id")
     })
-    public ResponseEntity<List<AttendanceResponseDto>> getByProject(
+    public ResponseEntity<Page<AttendanceResponseDto>> getByProject(
             @PathVariable Long projectId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @RequestParam(required = false) AttendanceStatus status,
             @RequestParam(required = false) ApprovalStatus approvalStatus,
             @RequestParam(required = false) Boolean requiresApproval,
             @RequestParam(required = false) String search,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(attendanceService.getAttendanceByProject(
+            @Valid @ParameterObject PageQuery20 pageQuery) {
+        return ResponseEntity.ok(attendanceService.getAttendancePageByProject(
                 projectId, date, status, approvalStatus, requiresApproval, search,
-                PageRequest.of(page, size, Sort.by("employeeName"))));
+                PageRequest.of(pageQuery.getPageNo(), pageQuery.getPageSize(),
+                        Sort.by("employeeName").and(Sort.by("id")))));
     }
 
     // Tenant membership is all the annotation can check, because who may decide this record is a
@@ -207,17 +211,17 @@ public class AttendanceController {
                     + "attendance record-management roles, every other held day in the tenant, which is "
                     + "how the days no approver could be resolved for are reached. A caller's own days "
                     + "are never in it, because nobody approves their own absence from site whatever "
-                    + "roles they hold. Newest day first, up to a fixed ceiling; the response carries "
-                    + "X-Total-Count with the true number waiting, and X-Result-Capped when there were "
-                    + "more than one response can hold."
+                    + "roles they hold. Newest day first, one page at a time; totalElements is the "
+                    + "number waiting."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Records waiting on the caller returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant, or has no employee record in it, so there is no queue to serve")
     })
-    public ResponseEntity<List<AttendanceResponseDto>> getPendingApprovals() {
-        return UnpagedResultCap.respond(
-                attendanceService.getPendingApprovals(0, UnpagedResultCap.MAX_ROWS));
+    public ResponseEntity<Page<AttendanceResponseDto>> getPendingApprovals(
+            @Valid @ParameterObject PageQuery pageQuery) {
+        return ResponseEntity.ok(
+                attendanceService.getPendingApprovals(pageQuery.getPageNo(), pageQuery.getPageSize()));
     }
 
     @GetMapping("/pending-approvals/count")
