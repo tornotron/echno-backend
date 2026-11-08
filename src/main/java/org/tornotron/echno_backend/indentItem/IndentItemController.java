@@ -28,7 +28,7 @@ import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
         description = "Requested material items belonging to an indent: material, quantity requested and "
                 + "ordered, and whether the item has been converted into a purchase order line. Items can "
                 + "be looked up by indent, by material, or by conversion status. Access follows the "
-                + "organization roles of the /web twin, endpoint for endpoint."
+                + "/web twin, endpoint for endpoint: the indents permission named for each action."
 )
 public class IndentItemController {
 
@@ -39,7 +39,7 @@ public class IndentItemController {
     }
 
     @PostMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('indents', 'create')")
     @Operation(
             summary = "Create an indent item",
             description = "Adds a requested material item to an indent, independently of the indent create call."
@@ -47,7 +47,7 @@ public class IndentItemController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Indent item created"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A required field is missing or failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to indents")
     })
     public ResponseEntity<IndentItemDto> createIndentItem(@Valid @RequestBody IndentItemCreationDto creationDto) {
         IndentItemDto created = indentItemService.createIndentItem(creationDto);
@@ -55,14 +55,14 @@ public class IndentItemController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
+    @PreAuthorize("@access.can('indents', 'read')")
     @Operation(
             summary = "Get an indent item by id",
             description = "Returns a single indent item, including its material and conversion status."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Indent item found"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read indents"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No indent item with the given id")
     })
     public ResponseEntity<IndentItemDto> getIndentItemById(@PathVariable Long id) {
@@ -71,14 +71,14 @@ public class IndentItemController {
     }
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
+    @PreAuthorize("@access.can('indents', 'read')")
     @Operation(
             summary = "List all indent items",
             description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Indent items returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read indents")
     })
     public ResponseEntity<List<IndentItemDto>> getAllIndentItems() {
         return UnpagedResultCap.respond(
@@ -97,7 +97,7 @@ public class IndentItemController {
      * @return A {@link ResponseEntity} containing the page of indent items.
      */
     @GetMapping("/paginated")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
+    @PreAuthorize("@access.can('indents', 'read')")
     @Operation(
             summary = "List indent items, paginated",
             description = "Returns a single page of indent items with the paging metadata included. "
@@ -105,7 +105,7 @@ public class IndentItemController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of indent items returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read indents")
     })
     public ResponseEntity<Page<IndentItemDto>> getIndentItemsPaginated(
             @Valid @ParameterObject PageQuery20 pageQuery) {
@@ -113,14 +113,14 @@ public class IndentItemController {
     }
 
     @GetMapping("/indent/{indentId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
+    @PreAuthorize("@access.can('indents', 'read')")
     @Operation(
             summary = "List items for an indent",
             description = "Returns, one page at a time, every item belonging to the given indent."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Indent items returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read indents")
     })
     public ResponseEntity<Page<IndentItemDto>> getIndentItemsByIndentId(
             @PathVariable Long indentId,
@@ -131,14 +131,14 @@ public class IndentItemController {
     }
 
     @GetMapping("/material/{materialId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
+    @PreAuthorize("@access.can('indents', 'read')")
     @Operation(
             summary = "List items for a material",
             description = "Returns, one page at a time, every indent item that requests the given material, across all indents."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Indent items returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read indents")
     })
     public ResponseEntity<Page<IndentItemDto>> getIndentItemsByMaterialId(
             @PathVariable Long materialId,
@@ -149,7 +149,7 @@ public class IndentItemController {
     }
 
     @GetMapping("/conversion-status")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
+    @PreAuthorize("@access.can('indents', 'read')")
     @Operation(
             summary = "List items by conversion status",
             description = "Returns, one page at a time, every indent item whose converted-to-purchase-order flag matches the "
@@ -157,7 +157,7 @@ public class IndentItemController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Indent items returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read indents")
     })
     public ResponseEntity<Page<IndentItemDto>> getIndentItemsByConversionStatus(
             @RequestParam Boolean converted,
@@ -168,7 +168,7 @@ public class IndentItemController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('indents', 'edit')")
     @Operation(
             summary = "Update an indent item",
             description = "Replaces an indent item's material, quantities and remarks."
@@ -176,7 +176,7 @@ public class IndentItemController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Indent item updated"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to indents"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No indent item with the given id")
     })
     public ResponseEntity<IndentItemDto> updateIndentItem(
@@ -188,7 +188,7 @@ public class IndentItemController {
     }
 
     @PutMapping("/{id}/mark-converted")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('indents', 'edit')")
     @Operation(
             summary = "Mark an indent item as converted",
             description = "Marks an indent item as converted to a purchase order and records the linked "
@@ -196,7 +196,7 @@ public class IndentItemController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Indent item marked converted"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to indents"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No indent item with the given id"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "The indent item is already marked as converted")
     })

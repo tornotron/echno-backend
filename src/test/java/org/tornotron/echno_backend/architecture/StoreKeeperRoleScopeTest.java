@@ -142,18 +142,6 @@ class StoreKeeperRoleScopeTest {
             // procurement's, and the receiving end must not be able to alter the figures it is
             // being measured against.
 
-            // What has been requisitioned, so the store knows what a delivery answers and what is
-            // still outstanding. Raising a requisition is not on this list. The indent reads on
-            // IndentControllerWeb moved onto the access matrix, where the store keeper's starting
-            // role holds indents read and IndentAccessEquivalenceIT pins it; the line reads below
-            // still carry the role name.
-            "IndentItemControllerWeb.getIndentItemById GET /{id}",
-            "IndentItemControllerWeb.getAllIndentItems GET",
-            "IndentItemControllerWeb.getIndentItemsPaginated GET /paginated",
-            "IndentItemControllerWeb.getIndentItemsByIndentId GET /indent/{indentId}",
-            "IndentItemControllerWeb.getIndentItemsByMaterialId GET /material/{materialId}",
-            "IndentItemControllerWeb.getIndentItemsByConversionStatus GET /conversion-status",
-
             // Who brought the delivery, and how to reach them about it. The vendor summary, bank
             // accounts, tax identifiers and payment terms are commercial rather than stores
             // information and are deliberately absent.
@@ -165,8 +153,10 @@ class StoreKeeperRoleScopeTest {
 
             // The mobile twins of the grants above, for the Android app on the tenant API. They
             // carry their web twin's guard expression for expression (MobileWebGuardParityTest), so
-            // each entry here mirrors one above and none widens what the role reaches. The indent
-            // reads on IndentController follow their web twins onto the access matrix.
+            // each entry here mirrors one above and none widens what the role reaches. What the
+            // store reads of indents and their lines, on both twins, is on the access matrix now:
+            // the store keeper's starting role holds indents read and IndentAccessEquivalenceIT
+            // pins it.
             "GoodsReceivedNoteController.createGrn POST",
             "GoodsReceivedNoteController.getGrnById GET /{id}",
             "GoodsReceivedNoteController.getAllGrns GET",
@@ -174,12 +164,6 @@ class StoreKeeperRoleScopeTest {
             "GoodsReceivedNoteController.getGrnsByVendor GET /vendor/{vendorId}",
             "GoodsReceivedNoteController.updateGrn PATCH",
             "GoodsReceivedNoteController.getGrnsByDateRange GET /date-range",
-            "IndentItemController.getIndentItemById GET /{id}",
-            "IndentItemController.getAllIndentItems GET",
-            "IndentItemController.getIndentItemsPaginated GET /paginated",
-            "IndentItemController.getIndentItemsByIndentId GET /indent/{indentId}",
-            "IndentItemController.getIndentItemsByMaterialId GET /material/{materialId}",
-            "IndentItemController.getIndentItemsByConversionStatus GET /conversion-status",
             "InventoryTransactionController.getTransactionById GET /{id}",
             "InventoryTransactionController.getAllTransactions GET",
             "InventoryTransactionController.getAllTransactionsPaginated GET /all",

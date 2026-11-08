@@ -22,20 +22,15 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.tornotron.echno_backend.indentItem.IndentItemControllerWeb;
 
 /**
- * Every web indent handler carries exactly the guard named here. The ones on the access matrix ask for
- * the action they perform: reads need read and deletions need delete. The rest still carry their
- * org-role guard, because the matrix would let a role through that the guard refuses today (see
- * {@link IndentAccessEquivalenceIT}). A new handler fails here until it is given its row.
+ * Every web indent handler asks the access matrix for the action it performs, and nothing else: reads
+ * need read, raising an indent or adding a line needs create, a change needs edit and a removal needs
+ * delete. A new handler fails here until it is given its row.
  *
  * <p>Handlers are keyed by controller, method and mapping, since {@code getAllIndents} is two endpoints.
  */
 class IndentGuardsTest {
 
-    private static final String ADMIN = "@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')";
-    private static final String ADMIN_OR_STORE_KEEPER =
-            "@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')";
-
-    /** The handlers on the matrix, by the action they ask for. */
+    /** Every handler, by the action it asks for. */
     static final Map<String, String> ACTION_BY_HANDLER = Map.ofEntries(
             entry("IndentControllerWeb.getAllIndents GET /all", "read"),
             entry("IndentControllerWeb.getAllIndentSummaries GET /summary", "read"),
@@ -44,28 +39,20 @@ class IndentGuardsTest {
             entry("IndentControllerWeb.getItems GET /{indentId}/items", "read"),
             entry("IndentControllerWeb.deleteIndent DELETE /{id}", "delete"),
             entry("IndentControllerWeb.deleteItem DELETE /{indentId}/items/{itemId}", "delete"),
-            entry("IndentItemControllerWeb.deleteIndentItem DELETE /{id}", "delete"));
-
-    /**
-     * The handlers still on their org-role guard: the system admin and project manager write, and
-     * the stores tier reads the lines (#855).
-     */
-    static final Map<String, String> LEFT_ON_OLD_GUARD = Map.ofEntries(
-            entry("IndentControllerWeb.createIndent POST", ADMIN),
-            entry("IndentControllerWeb.UpdateAnIndent PATCH /{id}", ADMIN),
-            entry("IndentControllerWeb.addItem POST /{indentId}/items", ADMIN),
-            entry("IndentControllerWeb.updateItem PATCH /{indentId}/items/{itemId}", ADMIN),
-            entry("IndentItemControllerWeb.createIndentItem POST", ADMIN),
-            entry("IndentItemControllerWeb.updateIndentItem PUT /{id}", ADMIN),
-            entry("IndentItemControllerWeb.markAsConverted PUT /{id}/mark-converted", ADMIN),
-            entry("IndentItemControllerWeb.getIndentItemById GET /{id}", ADMIN_OR_STORE_KEEPER),
-            entry("IndentItemControllerWeb.getAllIndentItems GET", ADMIN_OR_STORE_KEEPER),
-            entry("IndentItemControllerWeb.getIndentItemsPaginated GET /paginated", ADMIN_OR_STORE_KEEPER),
-            entry("IndentItemControllerWeb.getIndentItemsByIndentId GET /indent/{indentId}", ADMIN_OR_STORE_KEEPER),
-            entry("IndentItemControllerWeb.getIndentItemsByMaterialId GET /material/{materialId}",
-                    ADMIN_OR_STORE_KEEPER),
-            entry("IndentItemControllerWeb.getIndentItemsByConversionStatus GET /conversion-status",
-                    ADMIN_OR_STORE_KEEPER));
+            entry("IndentItemControllerWeb.deleteIndentItem DELETE /{id}", "delete"),
+            entry("IndentControllerWeb.createIndent POST", "create"),
+            entry("IndentControllerWeb.UpdateAnIndent PATCH /{id}", "edit"),
+            entry("IndentControllerWeb.addItem POST /{indentId}/items", "create"),
+            entry("IndentControllerWeb.updateItem PATCH /{indentId}/items/{itemId}", "edit"),
+            entry("IndentItemControllerWeb.createIndentItem POST", "create"),
+            entry("IndentItemControllerWeb.updateIndentItem PUT /{id}", "edit"),
+            entry("IndentItemControllerWeb.markAsConverted PUT /{id}/mark-converted", "edit"),
+            entry("IndentItemControllerWeb.getIndentItemById GET /{id}", "read"),
+            entry("IndentItemControllerWeb.getAllIndentItems GET", "read"),
+            entry("IndentItemControllerWeb.getIndentItemsPaginated GET /paginated", "read"),
+            entry("IndentItemControllerWeb.getIndentItemsByIndentId GET /indent/{indentId}", "read"),
+            entry("IndentItemControllerWeb.getIndentItemsByMaterialId GET /material/{materialId}", "read"),
+            entry("IndentItemControllerWeb.getIndentItemsByConversionStatus GET /conversion-status", "read"));
 
     @Test
     void everyHandlerCarriesItsGuard() {
@@ -75,16 +62,8 @@ class IndentGuardsTest {
         Map<String, String> expected = new LinkedHashMap<>();
         ACTION_BY_HANDLER.forEach((handler, action) ->
                 expected.put(handler, "@access.can('indents', '" + action + "')"));
-        expected.putAll(LEFT_ON_OLD_GUARD);
 
         assertThat(guards).containsExactlyInAnyOrderEntriesOf(expected);
-    }
-
-    /** The matrix handlers, by signature. */
-    static Map<String, Method> convertedHandlers() {
-        Map<String, Method> converted = new LinkedHashMap<>(handlers());
-        converted.keySet().retainAll(ACTION_BY_HANDLER.keySet());
-        return converted;
     }
 
     /** Every request handler on the two web controllers, by signature. */

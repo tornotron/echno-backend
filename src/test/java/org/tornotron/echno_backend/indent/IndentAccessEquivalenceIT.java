@@ -26,7 +26,7 @@ import org.tornotron.echno_backend.project.Project;
 
 /**
  * Moving the indent handlers onto the access matrix changes nobody's access (design note 2.5): for every
- * converted handler, a starting role reaches it exactly when its old role did, and a role with no old
+ * web indent handler, a starting role reaches it exactly when its old role did, and a role with no old
  * counterpart, like the baseline alone, reaches exactly what any member did, which here is nothing.
  *
  * <p>Roles are given the way the old screens give them, through the assignment writer, so its legacy
@@ -37,9 +37,10 @@ import org.tornotron.echno_backend.project.Project;
 class IndentAccessEquivalenceIT extends RoleAssignmentITSupport {
 
     private static final Set<String> STORES_TIER = Set.of("system-admin", "store-keeper", "project-manager");
+    private static final Set<String> ADMIN_OR_PM = Set.of("system-admin", "project-manager");
     private static final Set<String> SYSTEM_ADMIN = Set.of("system-admin");
 
-    /** Each converted handler's guard before the move: one of these old roles. */
+    /** Each handler's guard before the move: one of these old roles. */
     private static final Map<String, Set<String>> OLD_GUARDS = Map.ofEntries(
             entry("IndentControllerWeb.getAllIndents GET /all", STORES_TIER),
             entry("IndentControllerWeb.getAllIndentSummaries GET /summary", STORES_TIER),
@@ -48,7 +49,20 @@ class IndentAccessEquivalenceIT extends RoleAssignmentITSupport {
             entry("IndentControllerWeb.getItems GET /{indentId}/items", STORES_TIER),
             entry("IndentControllerWeb.deleteIndent DELETE /{id}", SYSTEM_ADMIN),
             entry("IndentControllerWeb.deleteItem DELETE /{indentId}/items/{itemId}", SYSTEM_ADMIN),
-            entry("IndentItemControllerWeb.deleteIndentItem DELETE /{id}", SYSTEM_ADMIN));
+            entry("IndentItemControllerWeb.deleteIndentItem DELETE /{id}", SYSTEM_ADMIN),
+            entry("IndentControllerWeb.createIndent POST", ADMIN_OR_PM),
+            entry("IndentControllerWeb.UpdateAnIndent PATCH /{id}", ADMIN_OR_PM),
+            entry("IndentControllerWeb.addItem POST /{indentId}/items", ADMIN_OR_PM),
+            entry("IndentControllerWeb.updateItem PATCH /{indentId}/items/{itemId}", ADMIN_OR_PM),
+            entry("IndentItemControllerWeb.createIndentItem POST", ADMIN_OR_PM),
+            entry("IndentItemControllerWeb.updateIndentItem PUT /{id}", ADMIN_OR_PM),
+            entry("IndentItemControllerWeb.markAsConverted PUT /{id}/mark-converted", ADMIN_OR_PM),
+            entry("IndentItemControllerWeb.getIndentItemById GET /{id}", STORES_TIER),
+            entry("IndentItemControllerWeb.getAllIndentItems GET", STORES_TIER),
+            entry("IndentItemControllerWeb.getIndentItemsPaginated GET /paginated", STORES_TIER),
+            entry("IndentItemControllerWeb.getIndentItemsByIndentId GET /indent/{indentId}", STORES_TIER),
+            entry("IndentItemControllerWeb.getIndentItemsByMaterialId GET /material/{materialId}", STORES_TIER),
+            entry("IndentItemControllerWeb.getIndentItemsByConversionStatus GET /conversion-status", STORES_TIER));
 
     @Autowired
     private AccessService access;
@@ -65,8 +79,8 @@ class IndentAccessEquivalenceIT extends RoleAssignmentITSupport {
     }
 
     @Test
-    void everyConvertedHandlerHasItsOldGuardRecorded() {
-        assertThat(IndentGuardsTest.convertedHandlers().keySet())
+    void everyHandlerHasItsOldGuardRecorded() {
+        assertThat(IndentGuardsTest.handlers().keySet())
                 .containsExactlyInAnyOrderElementsOf(OLD_GUARDS.keySet());
     }
 
@@ -105,7 +119,7 @@ class IndentAccessEquivalenceIT extends RoleAssignmentITSupport {
         flush();
         AccessSubject subject = new AccessSubject(organization.getId(), person.getId(), person.getUser().getId());
         RecordFacts onAProject = IndentAccess.facts(organization.getId(), project.getId(), raiser.getId());
-        IndentGuardsTest.convertedHandlers().forEach((signature, handler) -> {
+        IndentGuardsTest.handlers().forEach((signature, handler) -> {
             boolean before = OLD_GUARDS.get(signature).stream().anyMatch(oldRoles::contains);
             AccessPermission permission = permissionOf(handler);
 

@@ -28,10 +28,9 @@ import java.util.List;
 @Tag(
         name = "Indents (Web)",
         description = "Web-console mirror of the indent endpoints, with an additional partial-update "
-                + "operation not exposed on the mobile API. Reads and deletions need the indents "
-                + "permission named for their action (read or delete), and an indent outside the "
-                + "caller's scope reads as not found; raising and changing an indent or its lines are "
-                + "gated by the web app's org-role check."
+                + "operation not exposed on the mobile API. Each endpoint needs the indents permission "
+                + "named for its action (read, create, edit or delete), and an indent outside the "
+                + "caller's scope reads as not found."
 )
 public class IndentControllerWeb {
 
@@ -44,7 +43,7 @@ public class IndentControllerWeb {
     // ==================== Indent Endpoints ====================
 
     @PostMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('indents', 'create')")
     @Operation(
             summary = "Create an indent",
             description = "Creates a material indent for a project, along with its requested items."
@@ -52,7 +51,7 @@ public class IndentControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Indent created"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A required field is missing or failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to indents")
     })
     public ResponseEntity<IndentDto> createIndent(@Valid @RequestBody IndentCreationDto indentCreationDto) {
         return new ResponseEntity<>(indentService.addIndent(indentCreationDto), HttpStatus.CREATED);
@@ -139,7 +138,7 @@ public class IndentControllerWeb {
     }
 
     @PatchMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('indents', 'edit')")
     @Operation(
             summary = "Update an indent",
             description = "Applies a partial update to an indent's number, project, status, expected date "
@@ -148,7 +147,7 @@ public class IndentControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Indent updated"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to indents"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No indent with the given id")
     })
     public ResponseEntity<IndentDto> UpdateAnIndent(
@@ -193,7 +192,7 @@ public class IndentControllerWeb {
     }
 
     @PostMapping("/{indentId}/items")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('indents', 'create')")
     @Operation(
             summary = "Add an item to an indent",
             description = "Adds a requested material item to an existing indent."
@@ -201,7 +200,7 @@ public class IndentControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Indent item added"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A required field is missing or failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to indents"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No indent with the given id")
     })
     public ResponseEntity<IndentItemDto> addItem(
@@ -212,7 +211,7 @@ public class IndentControllerWeb {
     }
 
     @PatchMapping("/{indentId}/items/{itemId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('indents', 'edit')")
     @Operation(
             summary = "Update an item on an indent",
             description = "Applies a partial update to a requested item's material, quantity or remarks."
@@ -220,7 +219,7 @@ public class IndentControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Indent item updated"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to indents"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No indent or indent item with the given id")
     })
     public ResponseEntity<IndentItemDto> updateItem(

@@ -18,10 +18,6 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
 import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
-import org.tornotron.echno_backend.indent.IndentControllerWeb;
-import org.tornotron.echno_backend.indent.IndentService;
-import org.tornotron.echno_backend.indentItem.IndentItemControllerWeb;
-import org.tornotron.echno_backend.indentItem.IndentItemService;
 import org.tornotron.echno_backend.material.MaterialControllerWeb;
 import org.tornotron.echno_backend.material.MaterialService;
 import org.tornotron.echno_backend.material.lowstock.LowStockService;
@@ -50,20 +46,18 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * <p>The mobile material and indent twins still carry {@code resource:scope} guards that the realm
  * cannot satisfy, for any role; aligning them with these guards is #1002, so they are not here.
  *
- * <p>The purchase order controllers moved onto the access matrix, where
- * {@code PurchaseOrderAccessEquivalenceIT} holds every role to the purchase order access it had, so
- * they are not in this slice.
+ * <p>The indent and purchase order controllers moved onto the access matrix, where
+ * {@code IndentAccessEquivalenceIT} and {@code PurchaseOrderAccessEquivalenceIT} hold every role to
+ * the access it had, so only the material catalogue is left in this slice.
  *
- * <p>One slice over three controllers, as in {@link ProcurementDocumentReadAuthzTest}, because
+ * <p>One slice, as in {@link ProcurementDocumentReadAuthzTest}, because
  * Spring caches a context per distinct slice. {@code @orgSecurity} is mocked with exact role
  * arguments, so what is pinned is the role list each guard asks for. The services are mocks that
  * answer null, which the controllers wrap without looking at, so a write that is let through answers
  * 2xx and a refused one 403.
  */
 @WebMvcTest({
-        MaterialControllerWeb.class,
-        IndentControllerWeb.class,
-        IndentItemControllerWeb.class
+        MaterialControllerWeb.class
 })
 @Import(ProcurementProjectManagerWriteAuthzTest.TestSecurityConfig.class)
 class ProcurementProjectManagerWriteAuthzTest {
@@ -75,8 +69,6 @@ class ProcurementProjectManagerWriteAuthzTest {
     @MockitoBean private MaterialLocationThresholdService thresholdService;
     @MockitoBean private LowStockService lowStockService;
     @MockitoBean private MaterialStockSummaryService stockSummaryService;
-    @MockitoBean private IndentService indentService;
-    @MockitoBean private IndentItemService indentItemService;
 
     // Named to match the @orgSecurity bean the @PreAuthorize SpEL references.
     @MockitoBean(name = "orgSecurity")
@@ -111,17 +103,7 @@ class ProcurementProjectManagerWriteAuthzTest {
     @CsvSource(delimiter = '|', quoteCharacter = '`', value = {
             // Materials: the catalogue entries a purchase names.
             "POST  | /api/v1/materials/web | `{\"materialName\":\"OPC 53 Grade Cement\",\"unit\":\"bags\",\"createdBy\":5}`",
-            "PATCH | /api/v1/materials/web/7 | `{\"materialName\":\"OPC 53 Grade Cement\"}`",
-            // Indents, and their lines through both routes the web uses.
-            "POST  | /api/v1/indents/web | `{\"projectId\":4,\"createdByEmployeeId\":5,\"status\":\"PENDING\"}`",
-            "PATCH | /api/v1/indents/web/31 | `{\"remarks\":\"Needed before the slab pour\"}`",
-            "POST  | /api/v1/indents/web/31/items | `{\"materialId\":7,\"requestedQuantity\":40}`",
-            "PATCH | /api/v1/indents/web/31/items/84 | `{\"requestedQuantity\":45}`",
-            "POST  | /api/v1/indent-items/web | `{\"indentId\":31,\"materialId\":7,\"requestedQuantity\":40}`",
-            "PUT   | /api/v1/indent-items/web/84 | `{\"materialId\":7,\"requestedQuantity\":45}`",
-            "PUT   | /api/v1/indent-items/web/84/mark-converted?purchaseOrderNumber=PO-0042 | ``",
-            // The line reads the edit screens make, which the role did not have before.
-            "GET   | /api/v1/indent-items/web/indent/31 | ``"
+            "PATCH | /api/v1/materials/web/7 | `{\"materialName\":\"OPC 53 Grade Cement\"}`"
     })
     void aProjectManagerManagesPurchases(String method, String path, String body) throws Exception {
         asProjectManager();
@@ -132,8 +114,7 @@ class ProcurementProjectManagerWriteAuthzTest {
 
     @ParameterizedTest(name = "{0} {1}")
     @CsvSource(delimiter = '|', value = {
-            // Deletions stay with the administrator. The indent ones are on the access matrix, where
-            // IndentAccessEquivalenceIT holds them to the administrator.
+            // Deletions stay with the administrator.
             "DELETE | /api/v1/materials/web/7",
             "DELETE | /api/v1/materials/web/7/location-thresholds/2"
     })
