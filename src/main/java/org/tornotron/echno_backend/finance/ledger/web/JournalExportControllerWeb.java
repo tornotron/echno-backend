@@ -25,15 +25,14 @@ import java.time.LocalDate;
 @Tag(
         name = "Journal Export",
         description = "CSV export of the ledger's journal entries for external accounting systems, one "
-                + "row per journal line. Tenant scoped and limited to system administrators and project "
-                + "managers."
+                + "row per journal line. Tenant scoped; needs finance read."
 )
 public class JournalExportControllerWeb {
 
     private final JournalCsvService csvService;
 
     @GetMapping("/export")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('finance', 'read')")
     @Operation(
             summary = "Export journal entries as CSV",
             description = "Streams the current tenant's journal entries as a CSV attachment with the "
@@ -43,7 +42,7 @@ public class JournalExportControllerWeb {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "CSV generated and returned as an attachment"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read finance records")
     })
     public ResponseEntity<byte[]> export(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,

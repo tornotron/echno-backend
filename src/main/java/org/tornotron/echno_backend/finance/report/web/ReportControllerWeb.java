@@ -25,15 +25,15 @@ import java.time.LocalDate;
         name = "Finance Reports",
         description = "Standard accounting reports computed from the ledger: trial balance, profit and "
                 + "loss, and balance sheet. Each report is computed on demand from posted journal entries "
-                + "for the requested date or date range. All endpoints are tenant scoped and limited to "
-                + "system administrators and project managers."
+                + "for the requested date or date range. All endpoints are tenant scoped and need finance "
+                + "read."
 )
 public class ReportControllerWeb {
 
     private final ReportService service;
 
     @GetMapping("/trial-balance")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('finance', 'read')")
     @Operation(
             summary = "Get the trial balance",
             description = "Returns the trial balance as of the given date: every account with its debit "
@@ -42,7 +42,7 @@ public class ReportControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Trial balance computed and returned"),
             @ApiResponse(responseCode = "400", description = "asOfDate is missing or not a valid ISO date"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read finance records")
     })
     public TrialBalanceReport trialBalance(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)LocalDate asOfDate
@@ -51,7 +51,7 @@ public class ReportControllerWeb {
     }
 
     @GetMapping("/profit-and-loss")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('finance', 'read')")
     @Operation(
             summary = "Get the profit and loss statement",
             description = "Returns income and expense account totals between fromDate and toDate, and the "
@@ -60,7 +60,7 @@ public class ReportControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Profit and loss statement computed and returned"),
             @ApiResponse(responseCode = "400", description = "fromDate or toDate is missing, not a valid ISO date, or fromDate is after toDate"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read finance records")
     })
     public ProfitAndLossReport profitAndLoss(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
@@ -69,7 +69,7 @@ public class ReportControllerWeb {
     }
 
     @GetMapping("/balance-sheet")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('finance', 'read')")
     @Operation(
             summary = "Get the balance sheet",
             description = "Returns assets, liabilities and equity as of the given date, with their totals "
@@ -78,7 +78,7 @@ public class ReportControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Balance sheet computed and returned"),
             @ApiResponse(responseCode = "400", description = "asOfDate is missing or not a valid ISO date"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read finance records")
     })
     public BalanceSheetReport balanceSheet(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate asOfDate) {

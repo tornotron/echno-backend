@@ -23,15 +23,14 @@ import java.util.List;
         description = "Per-organization mapping of finance posting roles (accounts receivable, GST "
                 + "output, accounts payable, GST input, default revenue, default expense) to concrete "
                 + "accounts. Where a role is unmapped, the postings fall back to the configured default "
-                + "account. Reading is open to project managers and system administrators; changing a "
-                + "mapping is restricted to system administrators."
+                + "account. Reading needs finance read; changing a mapping needs finance configure."
 )
 public class PostingAccountMappingControllerWeb {
 
     private final PostingAccountMappingService service;
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('finance', 'read')")
     @Operation(
             summary = "List effective posting accounts",
             description = "Returns all six posting roles with the account each currently resolves to for "
@@ -40,7 +39,7 @@ public class PostingAccountMappingControllerWeb {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Effective posting accounts returned"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not read finance records"),
             @ApiResponse(responseCode = "404", description = "A default account is not configured in the tenant's chart")
     })
     public List<PostingAccountMappingDto> list() {
@@ -48,7 +47,7 @@ public class PostingAccountMappingControllerWeb {
     }
 
     @PutMapping("/{role}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@access.can('finance', 'configure')")
     @Operation(
             summary = "Map a posting role to an account",
             description = "Points the given posting role at a specific account, creating the mapping or "
@@ -58,7 +57,7 @@ public class PostingAccountMappingControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Mapping saved, effective mapping returned"),
             @ApiResponse(responseCode = "400", description = "The account is inactive or is a header account"),
-            @ApiResponse(responseCode = "403", description = "Caller is not a system administrator in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not configure finance"),
             @ApiResponse(responseCode = "404", description = "No account with the given id in the current tenant")
     })
     public PostingAccountMappingDto upsert(@PathVariable PostingRole role,
@@ -67,7 +66,7 @@ public class PostingAccountMappingControllerWeb {
     }
 
     @DeleteMapping("/{role}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@access.can('finance', 'configure')")
     @Operation(
             summary = "Remove a posting-role mapping",
             description = "Removes the mapping override for the given role, reverting it to the configured "
@@ -75,7 +74,7 @@ public class PostingAccountMappingControllerWeb {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Mapping removed, effective (default) mapping returned"),
-            @ApiResponse(responseCode = "403", description = "Caller is not a system administrator in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not configure finance"),
             @ApiResponse(responseCode = "404", description = "The default account is not configured in the tenant's chart")
     })
     public PostingAccountMappingDto delete(@PathVariable PostingRole role) {
