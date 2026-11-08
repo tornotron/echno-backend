@@ -44161,7 +44161,7 @@
                 }
               }
             },
-            "description": "Caller is neither a member of the current tenant nor holds an elevated role in it"
+            "description": "Caller may not read categories"
           },
           "404": {
             "content": {
@@ -44271,7 +44271,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to categories"
           },
           "404": {
             "content": {
@@ -44384,7 +44384,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to categories"
           },
           "404": {
             "content": {
@@ -44495,7 +44495,7 @@
                 }
               }
             },
-            "description": "Caller is neither a member of the current tenant nor holds an elevated role in it"
+            "description": "Caller may not read categories"
           },
           "404": {
             "content": {
@@ -44611,7 +44611,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read categories"
           },
           "404": {
             "content": {
@@ -112301,7 +112301,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read projects"
           },
           "404": {
             "content": {
@@ -112425,7 +112425,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to projects"
           },
           "404": {
             "content": {
@@ -112541,7 +112541,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read projects"
           },
           "404": {
             "content": {
@@ -112680,7 +112680,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read projects"
           },
           "404": {
             "content": {
@@ -112819,7 +112819,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read projects"
           },
           "404": {
             "content": {
@@ -112932,7 +112932,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to projects"
           },
           "404": {
             "content": {
@@ -113043,7 +113043,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read projects"
           },
           "404": {
             "content": {
@@ -113184,7 +113184,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to projects"
           },
           "404": {
             "content": {
@@ -113324,7 +113324,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read projects"
           },
           "404": {
             "content": {
@@ -113440,7 +113440,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read projects"
           },
           "404": {
             "content": {
@@ -113562,7 +113562,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to projects"
           },
           "404": {
             "content": {
@@ -113685,7 +113685,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to projects"
           },
           "404": {
             "content": {
@@ -144021,7 +144021,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read categories"
           },
           "404": {
             "content": {
@@ -144170,7 +144170,7 @@
       "name": "Categories"
     },
     {
-      "description": "Web-console counterpart of the category API, gated by organization role instead of a flat authority. Covers creating, listing and deleting work categories such as \"Reinforcement Steel\" or \"Aggregates\".",
+      "description": "Web-console counterpart of the category API, gated by the projects permissions of the access matrix instead of a flat authority: each endpoint needs the one named for its action (read, create or delete). A category belongs to its organization and to no project, so only a grant covering every record of the organization reaches it. Covers creating, listing and deleting work categories such as \"Reinforcement Steel\" or \"Aggregates\".",
       "name": "Categories (Web)"
     },
     {
@@ -144498,7 +144498,7 @@
       "name": "Project site structure"
     },
     {
-      "description": "Web-client twin of the project endpoints. Adds employee membership management (add/remove/list by project or by employee) alongside the same create, read, update and delete operations as the base project API. Access is gated by tenant membership, with mutations restricted to a system admin or project manager.",
+      "description": "Web-client twin of the project endpoints. Adds employee membership management (add/remove/list by project or by employee) alongside the same create, read, update and delete operations as the base project API. Each endpoint needs the projects permission named for its action (read, create, edit or delete), and a project outside the caller's scope reads as not found.",
       "name": "Projects"
     },
     {
