@@ -11284,6 +11284,26 @@
           "email": {
             "type": "string"
           },
+          "emailDelivery": {
+            "description": "Where Echno's own email for the current link stands: PENDING, SENT, FAILED or SKIPPED (the link expired or was withdrawn before it went). Absent when the identity provider sends the email itself, or before the request to send it has been read.",
+            "enum": [
+              "PENDING",
+              "SENT",
+              "FAILED",
+              "SKIPPED"
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "emailDeliveryError": {
+            "description": "Why the email failed or was skipped, or the reason the last attempt failed while it is still being tried.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "employee": {
             "$ref": "#/components/schemas/EmployeeJoinOrgDto"
           },
