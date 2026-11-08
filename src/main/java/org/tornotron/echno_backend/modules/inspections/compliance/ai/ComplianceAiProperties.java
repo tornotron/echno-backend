@@ -1,42 +1,32 @@
 package org.tornotron.echno_backend.modules.inspections.compliance.ai;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
+import org.tornotron.echno_backend.common.llm.LlmEndpointProperties;
 
 /**
- * Configuration for the OpenAI-compatible chat-completions call that drives
- * compliance generation. Bound from the {@code compliance.ai.*} block in
- * application.yml. The endpoint is any service that speaks the OpenAI Chat
- * Completions schema (DigitalOcean Gradient serverless inference by default, but
- * equally OpenAI, a self-hosted vLLM/Ollama gateway, or similar).
+ * Configuration for the compliance generator's chat-completions calls, bound from the
+ * {@code compliance.ai.*} block in application.yml.
  *
- * <p>The API key is a secret supplied at deploy time via
- * {@code COMPLIANCE_AI_API_KEY}; when it is blank (or {@code enabled} is false)
- * the AI service no-ops, so the application runs normally without a key
- * configured. The model slug is a fully overridable default, never hardcoded in
- * the service.
+ * <p>The endpoint settings (base URL, API key, model, proxy, timeouts and the {@code enabled}
+ * switch) are inherited from {@link LlmEndpointProperties}, which every caller of the shared
+ * {@link org.tornotron.echno_backend.common.llm.ChatCompletionClient} reads from the same prefix.
+ * What is declared here is compliance's own: its token cap, its temperature and how it batches
+ * the rule catalogue.
+ *
+ * <p>The API key is a secret supplied at deploy time via {@code COMPLIANCE_AI_API_KEY}; when it
+ * is blank (or {@code enabled} is false) the AI service no-ops, so the application runs normally
+ * without a key configured.
  */
 @Data
+@EqualsAndHashCode(callSuper = true)
+@ToString(callSuper = true)
 @Component
 @ConfigurationProperties(prefix = "compliance.ai")
-public class ComplianceAiProperties {
-
-    /** Base URL of the OpenAI-compatible API; {@code /chat/completions} is appended to it. */
-    private String baseUrl = "https://inference.do-ai.run/v1";
-
-    /** Secret API key. Empty by default; set via the COMPLIANCE_AI_API_KEY env var. */
-    private String apiKey = "";
-
-    /** Model id (slug) to call. */
-    private String model = "llama3.3-70b-instruct";
-
-    /**
-     * Version label recorded on every observation the compliance generator writes, beside the
-     * model slug. The slug alone does not say which revision of a hosted model answered; set this
-     * when the provider exposes one, or to a date the deployment was pinned. Empty means unknown.
-     */
-    private String modelVersion = "";
+public class ComplianceAiProperties extends LlmEndpointProperties {
 
     /** Upper bound on tokens generated in the response. */
     private int maxTokens = 4096;
@@ -69,42 +59,4 @@ public class ComplianceAiProperties {
 
     /** Sampling temperature; kept low for deterministic structured output. */
     private double temperature = 0.2;
-
-    /** Master switch; when false the AI call is skipped and generation no-ops. */
-    private boolean enabled = true;
-
-    /**
-     * Optional HTTP forward-proxy host for reaching the inference endpoint. Empty by
-     * default (direct egress, the production behaviour on DigitalOcean). Set it in
-     * environments where the backend has no direct internet and must egress through a
-     * forward proxy (for example the IITM lab, where a haproxy on the host relays out).
-     */
-    private String proxyHost = "";
-
-    /** Proxy port used only when {@code proxyHost} is set. */
-    private int proxyPort = 3128;
-
-    /**
-     * How long to wait for the TCP connection to the inference endpoint, in seconds.
-     *
-     * <p>Ten seconds is generous for a connect: either the endpoint answers the handshake
-     * quickly or something is wrong with the route. It is configuration rather than a
-     * constant because the route is not always direct. Where egress goes through a forward
-     * proxy the connect is to the proxy, and a loaded proxy can be slower to accept than the
-     * endpoint behind it.
-     */
-    private int connectTimeoutSeconds = 10;
-
-    /**
-     * How long to wait for the endpoint's response after the request is sent, in seconds.
-     *
-     * <p>Sixty is sized against {@code batchSize}, not against the catalogue: a run costs
-     * about 1.7 seconds a rule, so the default ten-rule batch takes roughly 20 seconds and
-     * sits at a third of this. That margin is the whole reason this value can stay still
-     * while the catalogue grows, and it is also why the two numbers have to move together.
-     * Raising {@code batchSize} to twenty puts a batch at about 34 seconds, over half the
-     * budget; past thirty rules a batch no longer fits at all. A slower endpoint moves the
-     * same line without anyone touching the batch size.
-     */
-    private int readTimeoutSeconds = 60;
 }
