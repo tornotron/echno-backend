@@ -23,6 +23,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -40,6 +41,11 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p>The rule: on these controllers a GET admits {@code project-manager} beside
  * {@code system-admin}, and everything else admits {@code system-admin} alone. Reading a purchase
  * order is not raising one.
+ *
+ * <p>#855 made the one named exception: project managers manage purchases, so raising and editing
+ * an indent or a purchase order admits them too. {@link #PURCHASING_WRITES} lists those endpoints
+ * by name. Every other write here, including every purchase order status change and every
+ * deletion, still admits {@code system-admin} alone.
  */
 class ProcurementDocumentGuardSplitTest {
 
@@ -66,6 +72,17 @@ class ProcurementDocumentGuardSplitTest {
             SiteTransferController.class,
             MaterialConsumptionController.class);
 
+    /** The writes #855 opened to project managers, as {@code Controller.method}. */
+    private static final Set<String> PURCHASING_WRITES = Set.of(
+            "PurchaseOrderControllerWeb.createPurchaseOrder",
+            "PurchaseOrderControllerWeb.updatePurchaseOrder",
+            "PurchaseOrderController.createPurchaseOrder",
+            "PurchaseOrderController.updatePurchaseOrder",
+            "IndentControllerWeb.createIndent",
+            "IndentControllerWeb.UpdateAnIndent",
+            "IndentControllerWeb.addItem",
+            "IndentControllerWeb.updateItem");
+
     @Test
     void everyDocumentReadAdmitsTheProjectManager() {
         List<String> readsThatDoNot = new ArrayList<>();
@@ -80,16 +97,36 @@ class ProcurementDocumentGuardSplitTest {
     }
 
     @Test
-    void noDocumentWriteAdmitsTheProjectManager() {
+    void noOtherDocumentWriteAdmitsTheProjectManager() {
         List<String> writesThatDo = new ArrayList<>();
         for (Class<?> controller : ROLE_GUARDED) {
             for (Method method : requestMappedMethods(controller)) {
-                if (!isRead(method) && guardOf(method).contains(PROJECT_MANAGER)) {
+                if (!isRead(method) && !isPurchasingWrite(controller, method)
+                        && guardOf(method).contains(PROJECT_MANAGER)) {
                     writesThatDo.add(describe(controller, method));
                 }
             }
         }
         assertThat(writesThatDo).isEmpty();
+    }
+
+    @Test
+    void thePurchasingWritesAdmitTheProjectManager() {
+        List<String> found = new ArrayList<>();
+        for (Class<?> controller : ROLE_GUARDED) {
+            for (Method method : requestMappedMethods(controller)) {
+                if (isPurchasingWrite(controller, method)) {
+                    assertThat(guardOf(method)).as(describe(controller, method)).contains(PROJECT_MANAGER);
+                    found.add(controller.getSimpleName() + "." + method.getName());
+                }
+            }
+        }
+        // Every name in the list is a real endpoint, so a rename cannot quietly empty it.
+        assertThat(found).containsExactlyInAnyOrderElementsOf(PURCHASING_WRITES);
+    }
+
+    private static boolean isPurchasingWrite(Class<?> controller, Method method) {
+        return !isRead(method) && PURCHASING_WRITES.contains(controller.getSimpleName() + "." + method.getName());
     }
 
     /** A guard that stopped mentioning system-admin would be a narrowing, not a widening. */

@@ -150152,7 +150152,7 @@
       "name": "Materials"
     },
     {
-      "description": "Web-console counterpart of the materials API, gated by organization role for the current tenant. Covers the same create, browse, search, update, stock lookup and delete operations as the standard materials endpoints, for use from the admin web console rather than the mobile app. Reads, including the stock lookup, are open to the system-admin, project-manager and store-keeper roles, because a project manager raises and approves stock adjustments and those are documents about a material's balance, and a storekeeper cannot name a material on a receipt, an issue or a count without reading the catalogue first. Setting a material's reorder thresholds at a storage location is open to the same three roles, because tuning them per project is an operational decision and the low-stock sweep that reads them notifies the same people. Creating, editing and deleting materials, and removing a threshold override, stay with system-admin.",
+      "description": "Web-console counterpart of the materials API, gated by organization role for the current tenant. Covers the same create, browse, search, update, stock lookup and delete operations as the standard materials endpoints, for use from the admin web console rather than the mobile app. Reads, including the stock lookup, are open to the system-admin, project-manager and store-keeper roles, because a project manager raises and approves stock adjustments and those are documents about a material's balance, and a storekeeper cannot name a material on a receipt, an issue or a count without reading the catalogue first. Setting a material's reorder thresholds at a storage location is open to the same three roles, because tuning them per project is an operational decision and the low-stock sweep that reads them notifies the same people. Creating and editing materials is open to system-admin and project-manager; deleting a material and removing a threshold override stay with system-admin.",
       "name": "Materials (Web)"
     },
     {
@@ -150252,7 +150252,7 @@
       "name": "Projects"
     },
     {
-      "description": "Line items belonging to a purchase order: the material, ordered and received quantities, unit price and totals. Items can be created independently of the parent order create call and looked up by purchase order or by material. Writing an item is restricted to the system-admin role for the current tenant. Reading one is also open to store-keeper, who needs the ordered quantities to check a delivery against them.",
+      "description": "Line items belonging to a purchase order: the material, ordered and received quantities, unit price and totals. Items can be created independently of the parent order create call and looked up by purchase order or by material. Adding and editing an item are open to system-admin and project-manager in the current tenant, the project manager only while the order is still a draft; removing one stays with system-admin. Reading one is also open to project-manager and store-keeper, who needs the ordered quantities to check a delivery against them.",
       "name": "Purchase Order Items"
     },
     {
@@ -150260,7 +150260,7 @@
       "name": "Purchase Order Items (Web)"
     },
     {
-      "description": "Purchase orders raised against a vendor, optionally converted from an indent. A purchase order carries line items, a status lifecycle from draft through fully received or cancelled, and the totals used for payables. Raising and changing an order is restricted to the system-admin role for the current tenant. Reading one is also open to store-keeper, which is what a goods receipt is booked against, and to project-manager, which already sees what that receipt booked in the stock ledger. Neither can alter the order.",
+      "description": "Purchase orders raised against a vendor, optionally converted from an indent. A purchase order carries line items, a status lifecycle from draft through fully received or cancelled, and the totals used for payables. Raising an order and editing its header are open to system-admin and project-manager in the current tenant; a status change, approval included, stays with system-admin. Reading one is also open to store-keeper, which is what a goods receipt is booked against.",
       "name": "Purchase Orders"
     },
     {

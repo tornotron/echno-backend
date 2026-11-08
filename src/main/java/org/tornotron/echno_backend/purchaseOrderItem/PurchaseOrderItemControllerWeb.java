@@ -36,7 +36,7 @@ public class PurchaseOrderItemControllerWeb {
     }
 
     @PostMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @Operation(
             summary = "Create a purchase order item",
             description = "Adds a line item to an existing purchase order, naming the material, ordered "
@@ -54,7 +54,7 @@ public class PurchaseOrderItemControllerWeb {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
     @Operation(
             summary = "Get a purchase order item by id",
             description = "Returns a single purchase order line item, including ordered and received quantities."
@@ -70,7 +70,7 @@ public class PurchaseOrderItemControllerWeb {
     }
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
     @Operation(
             summary = "List all purchase order items",
             description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
@@ -96,7 +96,7 @@ public class PurchaseOrderItemControllerWeb {
      * @return A {@link ResponseEntity} containing the page of purchase order items.
      */
     @GetMapping("/paginated")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
     @Operation(
             summary = "List purchase order items, paginated",
             description = "Returns a single page of purchase order items with the paging metadata included. "
@@ -112,7 +112,7 @@ public class PurchaseOrderItemControllerWeb {
     }
 
     @GetMapping("/purchase-order/{purchaseOrderId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
     @Operation(
             summary = "List items for a purchase order",
             description = "Returns every line item belonging to the given purchase order, for example all "
@@ -129,7 +129,7 @@ public class PurchaseOrderItemControllerWeb {
     }
 
     @GetMapping("/material/{materialId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
     @Operation(
             summary = "List items for a material",
             description = "Returns every purchase order line item that orders the given material, across "
@@ -145,7 +145,7 @@ public class PurchaseOrderItemControllerWeb {
     }
 
     @PatchMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @Operation(
             summary = "Update a purchase order item",
             description = "Updates a line item's material, ordered quantity, unit price or remarks. The id is read from the request body. The material can only change while nothing has been received against the line."

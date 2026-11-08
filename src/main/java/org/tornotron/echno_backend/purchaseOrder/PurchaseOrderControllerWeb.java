@@ -41,7 +41,7 @@ public class PurchaseOrderControllerWeb {
     }
 
     @PostMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @Operation(
             summary = "Create a purchase order",
             description = "Creates a purchase order for a vendor, with an optional link back to the indent "
@@ -188,7 +188,7 @@ public class PurchaseOrderControllerWeb {
     }
 
     @PatchMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
     @Operation(
             summary = "Update a purchase order",
             description = "Applies a partial update to a purchase order's status, project, expected "

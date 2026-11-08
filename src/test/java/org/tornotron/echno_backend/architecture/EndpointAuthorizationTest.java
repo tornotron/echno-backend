@@ -37,7 +37,7 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods;
  * <p>The second rule pins the guard itself, for the areas the roles matrix in the admin guide
  * ({@code docs/admin-guide/roles-and-permissions.md} in echno-docs) names and #853 aligned:
  * construction invoices, issues, storage locations, assets, stock adjustments and the third-party
- * registers. A guard on one of those controllers must name exactly the roles the matrix gives
+ * registers, and since #855 materials, indents and purchase orders. A guard on one of those controllers must name exactly the roles the matrix gives
  * the endpoint's row, so a loosening arrives as a failed build rather than a line in a diff.
  * A new endpoint on a pinned controller must be added to {@link #MATRIX} with its row, which
  * is the same decision the matrix asks of it.
@@ -160,7 +160,34 @@ class EndpointAuthorizationTest {
             pin("ProjectRiskController", MEMBER, "read*"),
             pin("ProjectRiskController", ADMIN_OR_PM, "createRisk", "importRisks", "updateRisk", "deleteRisk"),
             pin("ProjectRiskControllerWeb", MEMBER, "read*"),
-            pin("ProjectRiskControllerWeb", ADMIN_OR_PM, "createRisk", "importRisks", "updateRisk", "deleteRisk"));
+            pin("ProjectRiskControllerWeb", ADMIN_OR_PM, "createRisk", "importRisks", "updateRisk", "deleteRisk"),
+
+            // Materials, indents and purchase orders (#855): the stores tier reads, and project
+            // managers manage purchases, so the pair creates and edits. Deleting, removing a
+            // threshold override and every purchase order status change, approval included, stay
+            // with the administrator. Reorder thresholds are the stores tier's (#746). The mobile
+            // material and indent twins carry unsatisfiable resource:scope guards and are #1002's.
+            pin("MaterialControllerWeb", STORES_TIER, "get*", "searchMaterials", "upsertLocationThreshold"),
+            pin("MaterialControllerWeb", ADMIN_OR_PM, "createMaterial", "updateMaterial"),
+            pin("MaterialControllerWeb", SYSTEM_ADMIN, "deleteMaterial", "deleteLocationThreshold"),
+            pin("IndentControllerWeb", STORES_TIER, "get*"),
+            pin("IndentControllerWeb", ADMIN_OR_PM, "createIndent", "UpdateAnIndent", "addItem", "updateItem"),
+            pin("IndentControllerWeb", SYSTEM_ADMIN, "deleteIndent", "deleteItem"),
+            pin("IndentItemControllerWeb", STORES_TIER, "get*"),
+            pin("IndentItemControllerWeb", ADMIN_OR_PM, "createIndentItem", "updateIndentItem", "markAsConverted"),
+            pin("IndentItemControllerWeb", SYSTEM_ADMIN, "deleteIndentItem"),
+            pin("PurchaseOrderControllerWeb", STORES_TIER, "get*", "readStatusHistory"),
+            pin("PurchaseOrderControllerWeb", ADMIN_OR_PM, "createPurchaseOrder", "updatePurchaseOrder"),
+            pin("PurchaseOrderControllerWeb", SYSTEM_ADMIN, "updatePurchaseOrderStatus"),
+            pin("PurchaseOrderController", STORES_TIER, "get*"),
+            pin("PurchaseOrderController", ADMIN_OR_PM, "createPurchaseOrder", "updatePurchaseOrder"),
+            pin("PurchaseOrderController", SYSTEM_ADMIN, "updatePurchaseOrderStatus"),
+            pin("PurchaseOrderItemControllerWeb", STORES_TIER, "get*"),
+            pin("PurchaseOrderItemControllerWeb", ADMIN_OR_PM, "createPurchaseOrderItem", "updatePurchaseOrderItem"),
+            pin("PurchaseOrderItemControllerWeb", SYSTEM_ADMIN, "deletePurchaseOrderItem"),
+            pin("PurchaseOrderItemController", STORES_TIER, "get*"),
+            pin("PurchaseOrderItemController", ADMIN_OR_PM, "createPurchaseOrderItem", "updatePurchaseOrderItem"),
+            pin("PurchaseOrderItemController", SYSTEM_ADMIN, "deletePurchaseOrderItem"));
 
     private static final Set<String> PINNED_CONTROLLERS = new TreeSet<>(
             MATRIX.stream().map(Pin::controller).toList());
