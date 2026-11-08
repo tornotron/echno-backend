@@ -48,6 +48,49 @@
         },
         "type": "object"
       },
+      "AccessGrantRequest": {
+        "properties": {
+          "permission": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "scope": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "permission",
+          "scope"
+        ],
+        "type": "object"
+      },
+      "AccessGrantsRequest": {
+        "properties": {
+          "grants": {
+            "items": {
+              "$ref": "#/components/schemas/AccessGrantRequest"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "grants"
+        ],
+        "type": "object"
+      },
+      "AccessRoleCreatedDto": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "AccessRoleDto": {
         "properties": {
           "assignments": {
@@ -98,6 +141,44 @@
             "type": "boolean"
           }
         },
+        "type": "object"
+      },
+      "AccessRoleIdsRequest": {
+        "properties": {
+          "roleIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "roleIds"
+        ],
+        "type": "object"
+      },
+      "AccessRoleRequest": {
+        "properties": {
+          "description": {
+            "maxLength": 2000,
+            "minLength": 0,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "subtitle": {
+            "maxLength": 120,
+            "minLength": 0,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
         "type": "object"
       },
       "AccessUserDto": {
@@ -159,6 +240,36 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "AccessUserRoleRequest": {
+        "properties": {
+          "projectId": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "roleId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "roleId"
+        ],
+        "type": "object"
+      },
+      "AccessUserRolesRequest": {
+        "properties": {
+          "roles": {
+            "items": {
+              "$ref": "#/components/schemas/AccessUserRoleRequest"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "roles"
+        ],
         "type": "object"
       },
       "AccountDto": {
@@ -469,6 +580,9 @@
           },
           "label": {
             "type": "string"
+          },
+          "scopeAware": {
+            "type": "boolean"
           },
           "section": {
             "type": "string"
@@ -28696,9 +28810,223 @@
         "tags": [
           "Access Administration (Web)"
         ]
+      },
+      "post": {
+        "description": "A role with no grants. The System Admin may assign it, and so may each role the caller holds that already assigns others.",
+        "operationId": "createAccessRole",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccessRoleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessRoleCreatedDto"
+                }
+              }
+            },
+            "description": "The new role"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "A field failed validation"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller may not edit roles and permissions"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "A role of that name, ignoring case, already exists"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Create a role",
+        "tags": [
+          "Access Administration (Web)"
+        ]
       }
     },
     "/api/v1/access/web/roles/{roleId}": {
+      "delete": {
+        "description": "Deletes a role nobody holds. System roles, and roles that stand in for an old role while the old checks read it, stay. A deleted starting role is not copied back.",
+        "operationId": "deleteAccessRole",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roleId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller may not edit roles, or their roles may not assign this one"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such role in this organization"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The role is a system role, stands in for an old role, or is held by someone"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Delete a role",
+        "tags": [
+          "Access Administration (Web)"
+        ]
+      },
       "get": {
         "description": "One role as the list gives it, for the role's details panel: its module permissions and its assigned people.",
         "operationId": "getAccessRole",
@@ -28806,6 +29134,352 @@
           }
         },
         "summary": "Get a role",
+        "tags": [
+          "Access Administration (Web)"
+        ]
+      },
+      "put": {
+        "description": "Changes a role's name, subtitle and description. Its slug never changes. System roles are never renamed.",
+        "operationId": "updateAccessRole",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roleId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccessRoleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Changed"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "A field failed validation"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller may not edit roles, or their roles may not assign this one"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such role in this organization"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Another role has that name, ignoring case"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The role is a system role"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Rename a role",
+        "tags": [
+          "Access Administration (Web)"
+        ]
+      }
+    },
+    "/api/v1/access/web/roles/{roleId}/grantable-roles": {
+      "put": {
+        "description": "The whole set of roles the role's holders may give others. The caller lists, or takes off the list, only roles they may assign themselves. System roles' lists are fixed, and the baseline is never listed.",
+        "operationId": "replaceAccessRoleGrantableRoles",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roleId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccessRoleIdsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Changed"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The baseline role was listed"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller may not edit this role, holds it, or may not assign a role they listed or took off"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "A role is not in this organization"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The role is a system role"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Replace the roles a role's holders may assign",
+        "tags": [
+          "Access Administration (Web)"
+        ]
+      }
+    },
+    "/api/v1/access/web/roles/{roleId}/grants": {
+      "put": {
+        "description": "The whole set of grants the role should hold. Any action brings read on its area with the same scope. A grant being added must be on an action the catalog marks enforced, and must cover ALL records unless the area is scope aware. The caller gives or takes only grants they hold. The baseline role's grants need access:edit-employee-role and never include the access area; System Admin's are fixed.",
+        "operationId": "replaceAccessRoleGrants",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roleId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccessGrantsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Changed; the role's holders see it on their next request"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "A permission or scope is not offered, or the baseline was given a grant on the access area"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller may not edit this role, holds it, or does not hold a grant they tried to give or take"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such role in this organization"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The role is System Admin"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Replace a role's module permissions",
         "tags": [
           "Access Administration (Web)"
         ]
@@ -29024,6 +29698,122 @@
           }
         },
         "summary": "Get a person's access",
+        "tags": [
+          "Access Administration (Web)"
+        ]
+      }
+    },
+    "/api/v1/access/web/users/{employeeId}/roles": {
+      "put": {
+        "description": "The whole set of roles the person should hold, each on a project or across the organization. Every role added or taken must be one the caller's roles may assign. Nobody changes their own roles, the organization's last active System Admin keeps the role, and a role that stands in for an old role takes no project yet.",
+        "operationId": "replaceAccessUserRoles",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "employeeId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccessUserRolesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Changed; the person sees it on their next request"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The baseline role was listed, a role that stands in for an old role was given a project, or the change would leave no System Admin"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller may not edit roles, changed their own, or may not assign a role they gave or took"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The person, a role or a project is not in this organization"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Replace a person's roles",
         "tags": [
           "Access Administration (Web)"
         ]
