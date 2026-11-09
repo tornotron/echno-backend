@@ -86,7 +86,6 @@ class EndpointAuthorizationTest {
     private static final Set<String> SYSTEM_ADMIN = Set.of("system-admin");
     private static final Set<String> ADMIN_OR_PM = Set.of("system-admin", "project-manager");
     private static final Set<String> STORES_TIER = Set.of("system-admin", "project-manager", "store-keeper");
-    private static final Set<String> ADMIN_OR_HR = Set.of("system-admin", "hr-admin");
 
     /**
      * One row of the matrix applied to one controller: the methods it covers, by exact name or
@@ -140,12 +139,10 @@ class EndpointAuthorizationTest {
             // them: the store reads who delivers and how to reach them, and a vendor's financials and
             // every write stay the administrator's.
 
-            // Labour: a workforce register, so it belongs to HR and the administrator throughout.
-            pin("LabourControllerWeb", ADMIN_OR_HR, "*"),
-
-            // Sub-contracts: any member reads, the pair writes.
-            pin("SubContractControllerWeb", MEMBER, "read*"),
-            pin("SubContractControllerWeb", ADMIN_OR_PM, "createSubContract", "updateSubContract", "deleteSubContract"),
+            // Labour and sub-contracts are on the access matrix, as the areas labour and construction,
+            // and LabourGuardsTest, SubContractGuardsTest and their equivalence tests pin them: labour
+            // stays HR's and the administrator's throughout, any member reads a sub-contract and the
+            // pair changes it.
 
             // Risk register: it sits with the project, so any member reads and the pair records,
             // changes, imports and removes. Both twins.

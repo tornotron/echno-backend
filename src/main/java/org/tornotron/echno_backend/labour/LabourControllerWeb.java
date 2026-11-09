@@ -27,7 +27,8 @@ import java.util.List;
         description = "Contract and daily-wage workforce records for the organization: masons, bar "
                 + "benders, electricians and similar site labour, with employment type, skill level, "
                 + "pay rate and bank details. Endpoints cover creating a labour record, listing, lookup "
-                + "by id, partial update and deletion, all restricted to admin and HR roles."
+                + "by id, partial update and deletion. Each needs the labour permission it uses: labour:read for "
+                + "the reads, and labour:create, labour:edit or labour:delete for the changes."
 )
 public class LabourControllerWeb {
 
@@ -38,7 +39,7 @@ public class LabourControllerWeb {
     }
 
     @PostMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @PreAuthorize("@access.can('labour', 'create')")
     @Operation(
             summary = "Create a labour record",
             description = "Adds a new labour record to the current tenant organization, for example a "
@@ -47,14 +48,14 @@ public class LabourControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Labour record created"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to labour")
     })
     public ResponseEntity<LabourSimpleDto> createLabour(@Valid @RequestBody LabourCreationDto labourCreationDto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(labourService.createLabour(labourCreationDto));
     }
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @PreAuthorize("@access.can('labour', 'read')")
     @Operation(
             summary = "List labour records",
             description = "Returns a single page of labour records. The pageNo and pageSize parameters "
@@ -62,21 +63,21 @@ public class LabourControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of labour records returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read labour")
     })
     public ResponseEntity<List<LabourDto>> getAllLabours(@Valid @ParameterObject PageQuery pageQuery) {
         return ResponseEntity.status(HttpStatus.OK).body(labourService.getAllLabours(pageQuery.getPageNo(), pageQuery.getPageSize()).getContent());
     }
 
     @GetMapping("{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @PreAuthorize("@access.can('labour', 'read')")
     @Operation(
             summary = "Get a labour record by id",
             description = "Returns a single labour record with its employment, pay and bank detail."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Labour record found"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read labour"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No labour record with the given id")
     })
     public ResponseEntity<LabourDto> getALabour(@PathVariable Long id) {
@@ -84,7 +85,7 @@ public class LabourControllerWeb {
     }
 
     @PatchMapping("{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @PreAuthorize("@access.can('labour', 'edit')")
     @Operation(
             summary = "Partially update a labour record",
             description = "Applies the supplied fields as a partial update to an existing labour record. "
@@ -93,7 +94,7 @@ public class LabourControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Labour record updated"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to labour"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No labour record with the given id")
     })
     public ResponseEntity<ApiResponse> partialUpdateALabour(@Valid @RequestBody LabourUpdateDto updates, @PathVariable Long id) {
@@ -102,14 +103,14 @@ public class LabourControllerWeb {
     }
 
     @DeleteMapping("{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @PreAuthorize("@access.can('labour', 'delete')")
     @Operation(
             summary = "Delete a labour record",
             description = "Deletes the labour record with the given id."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Labour record deleted"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to labour"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No labour record with the given id")
     })
     public ResponseEntity<ApiResponse> deleteALabour(@PathVariable Long id) {

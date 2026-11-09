@@ -26,8 +26,8 @@ import java.util.List;
         name = "Subcontracts",
         description = "Contracts placed with subcontractors for labor, material supply, equipment rental "
                 + "or services on a project, including payment milestones, ratings and completion "
-                + "tracking. Read access requires tenant membership; creating, updating and deleting are "
-                + "restricted to system-admin or project-manager."
+                + "tracking. Reads need construction:read, which every member holds; creating, updating and "
+                + "deleting need construction:create, construction:edit or construction:delete."
 )
 public class SubContractControllerWeb {
 
@@ -38,14 +38,14 @@ public class SubContractControllerWeb {
     }
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('construction', 'read')")
     @Operation(
             summary = "List all subcontracts",
             description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Subcontracts returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read subcontracts")
     })
     public ResponseEntity<List<SubContractDto>> readAllSubContracts() {
         return UnpagedResultCap.respond(subContractService.getPaginated(
@@ -53,7 +53,7 @@ public class SubContractControllerWeb {
     }
 
     @GetMapping("/paginated")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('construction', 'read')")
     @Operation(
             summary = "List subcontracts, paginated and filterable",
             description = "Returns a single page of subcontracts. Supports a free-text search over "
@@ -61,7 +61,7 @@ public class SubContractControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of subcontracts returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read subcontracts")
     })
     public ResponseEntity<Page<SubContractDto>> readAllSubContractsPaginated(
             @Valid @ParameterObject PageQuery pageQuery,
@@ -72,14 +72,14 @@ public class SubContractControllerWeb {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('construction', 'read')")
     @Operation(
             summary = "Get a subcontract by id",
             description = "Returns a single subcontract, including its milestones, ratings and payment totals."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Subcontract found"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read subcontracts"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No subcontract with the given id")
     })
     public ResponseEntity<SubContractDto> readASubContract(@PathVariable Long id) {
@@ -87,7 +87,7 @@ public class SubContractControllerWeb {
     }
 
     @PostMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('construction', 'create')")
     @Operation(
             summary = "Create a subcontract",
             description = "Creates a subcontract with a contractor, its scope of work, contract value, "
@@ -96,14 +96,14 @@ public class SubContractControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Subcontract created"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "contractName or contractorName is missing"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to subcontracts")
     })
     public ResponseEntity<SubContractDto> createSubContract(@Valid @RequestBody SubContractCreationDto creationDto) {
         return new ResponseEntity<>(subContractService.create(creationDto), HttpStatus.CREATED);
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('construction', 'edit')")
     @Operation(
             summary = "Update a subcontract",
             description = "Replaces the subcontract's details, including its milestone list, with the given payload."
@@ -111,7 +111,7 @@ public class SubContractControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Subcontract updated"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "contractName or contractorName is missing"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to subcontracts"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No subcontract with the given id")
     })
     public ResponseEntity<SubContractDto> updateSubContract(@PathVariable Long id,
@@ -120,14 +120,14 @@ public class SubContractControllerWeb {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('construction', 'delete')")
     @Operation(
             summary = "Delete a subcontract",
             description = "Deletes the subcontract with the given id, along with its milestones."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Subcontract deleted"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to subcontracts"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No subcontract with the given id")
     })
     public ResponseEntity<ApiResponse> deleteSubContract(@PathVariable Long id) {

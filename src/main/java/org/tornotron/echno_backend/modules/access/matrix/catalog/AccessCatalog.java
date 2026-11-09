@@ -44,7 +44,10 @@ public final class AccessCatalog {
             area("tasks", "Tasks", "Projects"),
             area("issues", "Issues & Comments", "Projects"),
             area("bim", "3D Models & Site Layout", "Projects"),
-            area("construction", "Subcontracts & Labour", "Projects"),
+            // Labour is the workforce register, which HR and the system admin keep, while every member
+            // reads the subcontracts, so the two are areas of their own.
+            area("construction", "Subcontracts", "Projects"),
+            area("labour", "Labour", "Projects"),
             area("assets", "Assets & Equipment", "Projects"),
             area("compliance", "Risk & Compliance", "Projects"),
             area("progress", "Progress Tracking", "Progress"),
