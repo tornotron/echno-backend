@@ -43,8 +43,8 @@ import java.util.List;
         name = "Chat",
         description = "One-to-one and group chat between employees of the organization: rooms the caller "
                 + "participates in, their unread counts and last message, and the send/edit message flow. "
-                + "Reading needs chat:read, and opening a room, posting, reacting, marking a room read and "
-                + "archiving need chat:create, editing a message chat:edit and deleting one chat:delete. Every "
+                + "Reading, the stream and marking a room read need chat:read, and opening a room, posting, "
+                + "reacting and archiving need chat:create, editing a message chat:edit and deleting one chat:delete. Every "
                 + "member holds all four through the employee baseline, so any member of the tenant may chat; "
                 + "access to a specific room is limited to its participants."
 )
@@ -109,14 +109,14 @@ public class ChatControllerWeb {
     }
 
     @PostMapping("/rooms/web/{roomId}/read")
-    @PreAuthorize("@access.can('chat', 'create')")
+    @PreAuthorize("@access.can('chat', 'read')")
     @Operation(
             summary = "Mark a room read",
             description = "Advances the caller's last-read marker in the room to now, clearing the unread count."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "204", description = "Room marked read"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to chat, or is not a participant of the room"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read chat, or is not a participant of the room"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No room with the given id in this tenant")
     })
     public ResponseEntity<Void> markRoomRead(@PathVariable Long roomId) {
