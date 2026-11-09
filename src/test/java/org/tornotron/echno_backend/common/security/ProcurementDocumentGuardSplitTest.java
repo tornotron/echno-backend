@@ -8,8 +8,6 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.tornotron.echno_backend.goodsReceivedNote.GoodsReceivedNoteController;
-import org.tornotron.echno_backend.goodsReceivedNote.GoodsReceivedNoteControllerWeb;
 import org.tornotron.echno_backend.materialConsumption.MaterialConsumptionController;
 import org.tornotron.echno_backend.materialConsumption.MaterialConsumptionControllerWeb;
 import org.tornotron.echno_backend.siteTransfer.SiteTransferController;
@@ -46,14 +44,13 @@ class ProcurementDocumentGuardSplitTest {
      * list when its reads moved onto the access matrix, where {@code IndentGuardsTest} and
      * {@code IndentAccessEquivalenceIT} hold it to the same split. Both purchase order controllers
      * left it the same way, for {@code PurchaseOrderGuardsTest} and
-     * {@code PurchaseOrderAccessEquivalenceIT}. The mobile twins were guarded on flat
+     * {@code PurchaseOrderAccessEquivalenceIT}, and both goods receipt controllers for
+     * {@code GoodsReceivedNoteGuardsTest} and {@code GoodsReceivedNoteAccessEquivalenceIT}. The mobile twins were guarded on flat
      * {@code resource:scope} authorities nothing in the realm mints, until development aligned them
      * with their web twins, so the remaining ones carry the same split. The mobile indent controller
      * follows its web twin onto the matrix ({@code MobileWebGuardParityTest}).
      */
     private static final List<Class<?>> ROLE_GUARDED = List.of(
-            GoodsReceivedNoteControllerWeb.class,
-            GoodsReceivedNoteController.class,
             SiteTransferControllerWeb.class,
             SiteTransferController.class,
             MaterialConsumptionControllerWeb.class,
@@ -107,10 +104,10 @@ class ProcurementDocumentGuardSplitTest {
             total += requestMappedMethods(controller).size();
         }
         // 57 since the site transfer picker for asset lines (GET /sendable-assets), less the eleven
-        // web indent endpoints and the nineteen purchase order endpoints that moved onto the access
-        // matrix, plus the 25 on the mobile twins of the other three (GRN 7, site transfer 10,
-        // material consumption 8).
-        assertThat(total).isEqualTo(52);
+        // web indent endpoints, the nineteen purchase order endpoints and the seven web goods receipt
+        // endpoints that moved onto the access matrix, plus the 18 on the mobile twins of the other
+        // two (site transfer 10, material consumption 8).
+        assertThat(total).isEqualTo(38);
     }
 
     private static List<Method> requestMappedMethods(Class<?> controller) {

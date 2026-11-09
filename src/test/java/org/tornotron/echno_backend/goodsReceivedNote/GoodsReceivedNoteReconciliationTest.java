@@ -94,7 +94,8 @@ class GoodsReceivedNoteReconciliationTest {
                 vendorRepository, userRepository, materialRepository, eventPublisher,
                 goodsReceivedNoteMapper, tenantEntityHelper, employeeRepository, projectRepository,
                 storageLocationRepository, purchaseOrderRepository,
-                documentNumberAllocator, retryTemplate, purchaseOrderReceiptReconciler);
+                documentNumberAllocator, retryTemplate, purchaseOrderReceiptReconciler,
+                GoodsReceivedNoteAccessStubs.allowingEverything());
         lenient().when(retryTemplate.execute(anyString(), any(Predicate.class), any(Supplier.class)))
                 .thenAnswer(invocation -> invocation.getArgument(2, Supplier.class).get());
 

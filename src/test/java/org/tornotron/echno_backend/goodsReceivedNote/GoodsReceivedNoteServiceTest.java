@@ -92,7 +92,8 @@ class GoodsReceivedNoteServiceTest {
                 vendorRepository, userRepository, materialRepository, eventPublisher,
                 goodsReceivedNoteMapper, tenantEntityHelper, employeeRepository, projectRepository,
                 storageLocationRepository, purchaseOrderRepository,
-                documentNumberAllocator, retryTemplate, purchaseOrderReceiptReconciler);
+                documentNumberAllocator, retryTemplate, purchaseOrderReceiptReconciler,
+                GoodsReceivedNoteAccessStubs.allowingEverything());
         lenient().when(purchaseOrderReceiptReconciler.applyReceipt(any(), any(), any(), anyBoolean()))
                 .thenReturn(new PurchaseOrderReceiptReconciler.ReceiptOutcome(0, false, null));
         // The template's own behaviour is covered by its own tests; here it just runs the work.

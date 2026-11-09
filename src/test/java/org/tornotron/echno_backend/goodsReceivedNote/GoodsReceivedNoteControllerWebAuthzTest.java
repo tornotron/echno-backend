@@ -17,14 +17,15 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
 import org.tornotron.echno_backend.common.configuration.RPTCache;
-import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.goodsReceivedNote.dto.GoodsReceivedNoteDto;
+import org.tornotron.echno_backend.modules.access.guard.AccessGuard;
 
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
@@ -47,9 +48,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * it offers to record another, and a storekeeper who may create one and may not see it has been
  * given a form and no register.
  *
- * <p>{@code @orgSecurity} is mocked so the branch under test is the only one answering true: the
- * storekeeper stubs deliberately answer false to every expression that does not name the role, which
- * is exactly a caller holding {@code store-keeper} and nothing else.
+ * <p>The controller is on the access matrix, so {@code @access} is mocked to answer as the store
+ * keeper's starting role does: goods receipts read, create and edit, and nothing else. That the store
+ * keeper's role holds exactly those is {@code GoodsReceivedNoteAccessEquivalenceIT}'s to show.
  */
 @WebMvcTest(GoodsReceivedNoteControllerWeb.class)
 @Import(GoodsReceivedNoteControllerWebAuthzTest.TestSecurityConfig.class)
@@ -61,8 +62,8 @@ class GoodsReceivedNoteControllerWebAuthzTest {
     @MockitoBean
     private GoodsReceivedNoteService goodsReceivedNoteService;
 
-    @MockitoBean(name = "orgSecurity")
-    private OrganizationSecurityService orgSecurity;
+    @MockitoBean(name = "access")
+    private AccessGuard access;
 
     // Satisfies RPTExchangeFilter, a custom filter the web slice loads; unused here
     // because .with(jwt(...)) sets the authentication directly.
@@ -73,23 +74,16 @@ class GoodsReceivedNoteControllerWebAuthzTest {
     @MockitoBean
     private RPTCache rptCache;
 
-    /**
-     * A caller holding store-keeper and no other org role. The reads on this controller now admit
-     * project-manager as well, so the guard behind them asks for three roles in one call and needs
-     * its own stub; the writes still ask for two.
-     */
+    /** A caller holding what the store keeper's starting role holds on goods receipts. */
     private void asStoreKeeper() {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin")).thenReturn(false);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "store-keeper")).thenReturn(true);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "store-keeper", "project-manager"))
-                .thenReturn(true);
+        when(access.can("goods-receipts", "read")).thenReturn(true);
+        when(access.can("goods-receipts", "create")).thenReturn(true);
+        when(access.can("goods-receipts", "edit")).thenReturn(true);
     }
 
-    /** A caller who is a member of the tenant and holds no org role at all. */
+    /** A caller who is a member of the tenant and holds nothing on goods receipts. */
     private void asPlainMember() {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "store-keeper")).thenReturn(false);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "store-keeper", "project-manager"))
-                .thenReturn(false);
+        when(access.can(anyString(), anyString())).thenReturn(false);
     }
 
     private void stubReads() {

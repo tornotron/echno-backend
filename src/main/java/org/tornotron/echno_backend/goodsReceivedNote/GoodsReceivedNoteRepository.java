@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.goodsReceivedNote;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -8,7 +9,8 @@ import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
-public interface GoodsReceivedNoteRepository extends JpaRepository<GoodsReceivedNote, Long> {
+public interface GoodsReceivedNoteRepository extends JpaRepository<GoodsReceivedNote, Long>,
+        JpaSpecificationExecutor<GoodsReceivedNote> {
 
     Optional<GoodsReceivedNote> findByIdAndOrganization_Id(Long id, Long organizationId);
 

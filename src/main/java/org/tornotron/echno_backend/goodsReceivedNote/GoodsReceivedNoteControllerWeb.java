@@ -44,7 +44,7 @@ public class GoodsReceivedNoteControllerWeb {
     }
 
     @PostMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
+    @PreAuthorize("@access.can('goods-receipts', 'create')")
     @Operation(
             summary = "Create a goods received note",
             description = "Creates a GRN recording materials received against a vendor with its line items. "
@@ -64,7 +64,7 @@ public class GoodsReceivedNoteControllerWeb {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
+    @PreAuthorize("@access.can('goods-receipts', 'read')")
     @Operation(
             summary = "Get a goods received note by id",
             description = "Returns a single GRN."
@@ -80,7 +80,7 @@ public class GoodsReceivedNoteControllerWeb {
     }
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
+    @PreAuthorize("@access.can('goods-receipts', 'read')")
     @Operation(
             summary = "List goods received notes",
             description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
@@ -94,7 +94,7 @@ public class GoodsReceivedNoteControllerWeb {
     }
 
     @GetMapping("/all")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
+    @PreAuthorize("@access.can('goods-receipts', 'read')")
     @Operation(
             summary = "List goods received notes (paged)",
             description = "Returns a single page of GRNs controlled by the pageNo and pageSize parameters."
@@ -111,7 +111,7 @@ public class GoodsReceivedNoteControllerWeb {
     }
 
     @GetMapping("/vendor/{vendorId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
+    @PreAuthorize("@access.can('goods-receipts', 'read')")
     @Operation(
             summary = "List goods received notes for a vendor",
             description = "Returns the GRNs recorded against the given vendor."
@@ -126,7 +126,7 @@ public class GoodsReceivedNoteControllerWeb {
     }
 
     @PatchMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
+    @PreAuthorize("@access.can('goods-receipts', 'edit')")
     @Operation(
             summary = "Update a goods received note",
             description = "Applies an update to the GRN identified in the request body."
@@ -143,7 +143,7 @@ public class GoodsReceivedNoteControllerWeb {
     }
 
     @GetMapping("/date-range")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper','project-manager')")
+    @PreAuthorize("@access.can('goods-receipts', 'read')")
     @Operation(
             summary = "List goods received notes by date range",
             description = "Returns the GRNs recorded between the given start and end date-times."

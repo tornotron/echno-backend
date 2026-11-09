@@ -51,14 +51,10 @@ class StoreKeeperRoleScopeTest {
      * it, which is the failure this codebase has already made once.
      */
     private static final Set<String> EXPECTED = new TreeSet<>(Set.of(
-            // Recording a delivery, which is the case the role was introduced for.
-            "GoodsReceivedNoteControllerWeb.createGrn POST",
-            "GoodsReceivedNoteControllerWeb.getGrnById GET /{id}",
-            "GoodsReceivedNoteControllerWeb.getAllGrns GET",
-            "GoodsReceivedNoteControllerWeb.getAllGrnsPaginated GET /all",
-            "GoodsReceivedNoteControllerWeb.getGrnsByVendor GET /vendor/{vendorId}",
-            "GoodsReceivedNoteControllerWeb.updateGrn PATCH",
-            "GoodsReceivedNoteControllerWeb.getGrnsByDateRange GET /date-range",
+            // Recording a delivery, which is the case the role was introduced for, is on the access
+            // matrix now: the store keeper's starting role holds goods receipts read, create and
+            // edit, and GoodsReceivedNoteAccessEquivalenceIT holds it to the receipt reads and writes
+            // it had.
 
             // Handing material out over the counter.
             "MaterialConsumptionControllerWeb.createMaterialConsumption POST",
@@ -152,13 +148,6 @@ class StoreKeeperRoleScopeTest {
             // store reads of indents and their lines, on both twins, is on the access matrix now:
             // the store keeper's starting role holds indents read and IndentAccessEquivalenceIT
             // pins it.
-            "GoodsReceivedNoteController.createGrn POST",
-            "GoodsReceivedNoteController.getGrnById GET /{id}",
-            "GoodsReceivedNoteController.getAllGrns GET",
-            "GoodsReceivedNoteController.getAllGrnsPaginated GET /all",
-            "GoodsReceivedNoteController.getGrnsByVendor GET /vendor/{vendorId}",
-            "GoodsReceivedNoteController.updateGrn PATCH",
-            "GoodsReceivedNoteController.getGrnsByDateRange GET /date-range",
             "InventoryTransactionController.getTransactionById GET /{id}",
             "InventoryTransactionController.getAllTransactions GET",
             "InventoryTransactionController.getAllTransactionsPaginated GET /all",

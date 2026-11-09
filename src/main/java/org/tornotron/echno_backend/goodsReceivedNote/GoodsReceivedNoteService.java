@@ -5,6 +5,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.goodsReceivedNote.mapper.GoodsReceivedNoteMapper;
@@ -27,6 +28,9 @@ import org.tornotron.echno_backend.grnItem.GrnItem;
 import org.tornotron.echno_backend.grnItem.GrnItemRepository;
 import org.tornotron.echno_backend.material.Material;
 import org.tornotron.echno_backend.material.MaterialRepository;
+import org.tornotron.echno_backend.modules.access.api.AccessFilter;
+import org.tornotron.echno_backend.modules.access.api.AccessPermission;
+import org.tornotron.echno_backend.modules.access.api.RecordFacts;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.purchaseOrder.PurchaseOrder;
@@ -76,6 +80,7 @@ public class GoodsReceivedNoteService {
     private final DocumentNumberAllocator documentNumberAllocator;
     private final TransactionRetryTemplate retryTemplate;
     private final PurchaseOrderReceiptReconciler purchaseOrderReceiptReconciler;
+    private final GoodsReceivedNoteAccess grnAccess;
 
     public GoodsReceivedNoteService(GoodsReceivedNoteRepository goodsReceivedNoteRepository,
                                     GrnItemRepository grnItemRepository,
@@ -91,7 +96,8 @@ public class GoodsReceivedNoteService {
                                     PurchaseOrderRepository purchaseOrderRepository,
                                     DocumentNumberAllocator documentNumberAllocator,
                                     TransactionRetryTemplate retryTemplate,
-                                    PurchaseOrderReceiptReconciler purchaseOrderReceiptReconciler) {
+                                    PurchaseOrderReceiptReconciler purchaseOrderReceiptReconciler,
+                                    GoodsReceivedNoteAccess grnAccess) {
         this.goodsReceivedNoteRepository = goodsReceivedNoteRepository;
         this.grnItemRepository = grnItemRepository;
         this.vendorRepository = vendorRepository;
@@ -106,6 +112,7 @@ public class GoodsReceivedNoteService {
         this.documentNumberAllocator = documentNumberAllocator;
         this.retryTemplate = retryTemplate;
         this.purchaseOrderReceiptReconciler = purchaseOrderReceiptReconciler;
+        this.grnAccess = grnAccess;
     }
 
     /**
@@ -147,6 +154,11 @@ public class GoodsReceivedNoteService {
         // Validate project
         Project project = projectRepository.findByIdAndOrganization_Id(creationDto.getProjectId(), TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Project with ID " + creationDto.getProjectId() + " was not found in this organization"));
+
+        // Checked on the receipt as it will be recorded, before a number is allocated for it, so
+        // nobody records one on a project or from a vendor they may not.
+        grnAccess.require(AccessPermission.CREATE, GoodsReceivedNoteAccess.facts(
+                TenantContext.getCurrentOrgId(), project.getId(), receivedBy.getId(), vendor.getId()));
 
         PurchaseOrder purchaseOrder = purchaseOrderRepository.findByIdAndOrganization_Id(creationDto.getPurchaseOrderId(), TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Purchase order with ID " + creationDto.getPurchaseOrderId() + " was not found in this organization"));
@@ -237,8 +249,7 @@ public class GoodsReceivedNoteService {
      */
     @Transactional
     public GoodsReceivedNoteDto updateGoodsReceivedNote(GoodsReceivedNoteUpdateDto updateDto) {
-        GoodsReceivedNote grn = goodsReceivedNoteRepository.findByIdAndOrganization_Id(updateDto.getId(), TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("GRN with ID " + updateDto.getId() + " was not found in this organization"));
+        GoodsReceivedNote grn = requireGrn(updateDto.getId(), AccessPermission.EDIT);
 
         if (updateDto.getReceivedOn() != null) {
             grn.setReceivedOn(updateDto.getReceivedOn());
@@ -270,6 +281,10 @@ public class GoodsReceivedNoteService {
             grn.setStorageLocation(storageLocation);
         }
 
+        // An edit can name another receiver, and must not move the receipt out of what the caller
+        // may edit.
+        grnAccess.require(AccessPermission.EDIT, GoodsReceivedNoteAccess.facts(grn));
+
         grn = goodsReceivedNoteRepository.save(grn);
         return goodsReceivedNoteMapper.toDto(grn);
     }
@@ -283,9 +298,7 @@ public class GoodsReceivedNoteService {
      */
     @Transactional(readOnly = true)
     public GoodsReceivedNoteDto getGrnById(Long id) {
-        GoodsReceivedNote grn = goodsReceivedNoteRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("GRN with ID " + id + " was not found in this organization"));
-        return goodsReceivedNoteMapper.toDto(grn);
+        return goodsReceivedNoteMapper.toDto(requireGrn(id, AccessPermission.READ));
     }
 
 
@@ -299,8 +312,14 @@ public class GoodsReceivedNoteService {
     @Transactional(readOnly = true)
     public Page<GoodsReceivedNoteDto> getAllGrns(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.DESC, "receivedOn"));
-        return goodsReceivedNoteRepository.findAll(pageable)
-                .map(grn -> goodsReceivedNoteMapper.toDto(grn));
+        AccessFilter visible = grnAccess.filter(AccessPermission.READ);
+        if (visible.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        Page<GoodsReceivedNote> grns = visible.everything()
+                ? goodsReceivedNoteRepository.findAll(pageable)
+                : goodsReceivedNoteRepository.findAll(GoodsReceivedNoteAccess.admittedBy(visible), pageable);
+        return grns.map(grn -> goodsReceivedNoteMapper.toDto(grn));
     }
 
     /**
@@ -311,7 +330,15 @@ public class GoodsReceivedNoteService {
      */
     @Transactional(readOnly = true)
     public List<GoodsReceivedNoteDto> getGrnsByVendor(Long vendorId) {
-        return goodsReceivedNoteRepository.findByVendorId(vendorId).stream()
+        AccessFilter visible = grnAccess.filter(AccessPermission.READ);
+        if (visible.isEmpty()) {
+            return List.of();
+        }
+        List<GoodsReceivedNote> grns = visible.everything()
+                ? goodsReceivedNoteRepository.findByVendorId(vendorId)
+                : goodsReceivedNoteRepository.findAll(
+                        fromVendor(vendorId).and(GoodsReceivedNoteAccess.admittedBy(visible)));
+        return grns.stream()
                 .map(grn -> goodsReceivedNoteMapper.toDto(grn))
                 .collect(Collectors.toList());
     }
@@ -327,8 +354,15 @@ public class GoodsReceivedNoteService {
     public Page<GoodsReceivedNoteDto> getGrnsByVendor(Long vendorId, int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize,
                 Sort.by(Sort.Direction.DESC, "receivedOn").and(Sort.by(Sort.Direction.DESC, "id")));
-        return goodsReceivedNoteRepository.findByVendorId(vendorId, pageable)
-                .map(grn -> goodsReceivedNoteMapper.toDto(grn));
+        AccessFilter visible = grnAccess.filter(AccessPermission.READ);
+        if (visible.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        Page<GoodsReceivedNote> grns = visible.everything()
+                ? goodsReceivedNoteRepository.findByVendorId(vendorId, pageable)
+                : goodsReceivedNoteRepository.findAll(
+                        fromVendor(vendorId).and(GoodsReceivedNoteAccess.admittedBy(visible)), pageable);
+        return grns.map(grn -> goodsReceivedNoteMapper.toDto(grn));
     }
 
     /**
@@ -340,7 +374,15 @@ public class GoodsReceivedNoteService {
      */
     @Transactional(readOnly = true)
     public List<GoodsReceivedNoteDto> getGrnsByDateRange(LocalDateTime startDate, LocalDateTime endDate) {
-        return goodsReceivedNoteRepository.findByReceivedOnBetween(startDate, endDate).stream()
+        AccessFilter visible = grnAccess.filter(AccessPermission.READ);
+        if (visible.isEmpty()) {
+            return List.of();
+        }
+        List<GoodsReceivedNote> grns = visible.everything()
+                ? goodsReceivedNoteRepository.findByReceivedOnBetween(startDate, endDate)
+                : goodsReceivedNoteRepository.findAll(
+                        receivedBetween(startDate, endDate).and(GoodsReceivedNoteAccess.admittedBy(visible)));
+        return grns.stream()
                 .map(grn -> goodsReceivedNoteMapper.toDto(grn))
                 .collect(Collectors.toList());
     }
@@ -356,7 +398,43 @@ public class GoodsReceivedNoteService {
     public Page<GoodsReceivedNoteDto> getGrnsByDateRange(LocalDateTime startDate, LocalDateTime endDate, int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize,
                 Sort.by(Sort.Direction.DESC, "receivedOn").and(Sort.by(Sort.Direction.DESC, "id")));
-        return goodsReceivedNoteRepository.findByReceivedOnBetween(startDate, endDate, pageable)
-                .map(grn -> goodsReceivedNoteMapper.toDto(grn));
+        AccessFilter visible = grnAccess.filter(AccessPermission.READ);
+        if (visible.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        Page<GoodsReceivedNote> grns = visible.everything()
+                ? goodsReceivedNoteRepository.findByReceivedOnBetween(startDate, endDate, pageable)
+                : goodsReceivedNoteRepository.findAll(
+                        receivedBetween(startDate, endDate).and(GoodsReceivedNoteAccess.admittedBy(visible)), pageable);
+        return grns.map(grn -> goodsReceivedNoteMapper.toDto(grn));
+    }
+
+    /**
+     * The receipt, when the caller may read it and act on it this way. One the caller may not read
+     * is reported missing, as one in another organization is.
+     */
+    private GoodsReceivedNote requireGrn(Long id, String action) {
+        GoodsReceivedNote grn = goodsReceivedNoteRepository.findByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId())
+                .orElseThrow(() -> notFound(id));
+        RecordFacts facts = GoodsReceivedNoteAccess.facts(grn);
+        if (!grnAccess.allows(AccessPermission.READ, facts)) {
+            throw notFound(id);
+        }
+        if (!AccessPermission.READ.equals(action)) {
+            grnAccess.require(action, facts);
+        }
+        return grn;
+    }
+
+    private static ResourceNotFoundException notFound(Long id) {
+        return new ResourceNotFoundException("GRN with ID " + id + " was not found in this organization");
+    }
+
+    private static Specification<GoodsReceivedNote> fromVendor(Long vendorId) {
+        return (root, query, cb) -> cb.equal(root.get("vendor").get("id"), vendorId);
+    }
+
+    private static Specification<GoodsReceivedNote> receivedBetween(LocalDateTime startDate, LocalDateTime endDate) {
+        return (root, query, cb) -> cb.between(root.get("receivedOn"), startDate, endDate);
     }
 }
