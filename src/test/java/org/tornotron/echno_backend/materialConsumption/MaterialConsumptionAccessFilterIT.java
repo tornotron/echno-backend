@@ -23,6 +23,8 @@ import org.tornotron.echno_backend.modules.access.matrix.AccessFixtures;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.support.AbstractIntegrationTest;
+import org.tornotron.echno_backend.task.Task;
+import org.tornotron.echno_backend.task.enums.TaskStatus;
 
 /**
  * The consumption query admits exactly the consumptions {@link AccessFilter#admits} does, on
@@ -44,9 +46,11 @@ class MaterialConsumptionAccessFilterIT extends AbstractIntegrationTest {
     private Employee creator;
     private List<MaterialConsumption> all;
 
+    private AccessFixtures fixtures;
+
     @BeforeEach
     void someConsumptions() {
-        AccessFixtures fixtures = new AccessFixtures(em);
+        fixtures = new AccessFixtures(em);
         mine = fixtures.organization("Filter " + System.nanoTime());
         Organization theirs = fixtures.organization("Filter other " + System.nanoTime());
         first = fixtures.project(mine, "First");
@@ -107,6 +111,52 @@ class MaterialConsumptionAccessFilterIT extends AbstractIntegrationTest {
                 .map(MaterialConsumption::getDetails))
                 .containsExactlyInAnyOrder("On first", "Recorded by the creator on first",
                         "Recorded by the creator on second");
+    }
+
+    /**
+     * Each lookup's own condition still applies under a narrowed filter: the query keeps the rows that
+     * match both the lookup and the filter, and nothing else.
+     */
+    @Test
+    void aLookupNarrowedByAFilterKeepsItsOwnCondition() {
+        Material steel = material(mine);
+        Employee creatorOfTask = fixtures.employee(mine, "task-creator-" + System.nanoTime());
+        Task pour = new Task();
+        pour.setTitle("Pour");
+        pour.setStatus(TaskStatus.upcoming);
+        pour.setCreator(creatorOfTask);
+        pour.setProject(first);
+        pour.setOrganization(mine);
+        em.persist(pour);
+        consumption(mine, "Steel on first", first, null, steel);
+        consumption(mine, "Steel on second", second, null, steel);
+        MaterialConsumption transferredOnFirst = consumption(mine, "Transferred on first", first, null, steel);
+        transferredOnFirst.setConsumptionType(MaterialConsumptionType.TRANSFERRED);
+        MaterialConsumption lastYearOnFirst = consumption(mine, "Last year on first", first, null, steel);
+        lastYearOnFirst.setConsumptionDate(LocalDateTime.of(2025, 11, 1, 10, 0));
+        MaterialConsumption forThePourOnFirst = consumption(mine, "For the pour on first", first, null, steel);
+        forThePourOnFirst.setTask(pour);
+        em.flush();
+        em.clear();
+        AccessFilter onFirst = new AccessFilter(mine.getId(), false, Set.of(first.getId()), null, null);
+
+        assertThat(listed(MaterialConsumptionService.ofMaterial(steel.getId()), onFirst))
+                .containsExactlyInAnyOrder("Steel on first", "Transferred on first", "Last year on first",
+                        "For the pour on first");
+        assertThat(listed(MaterialConsumptionService.ofType(MaterialConsumptionType.TRANSFERRED), onFirst))
+                .containsExactly("Transferred on first");
+        assertThat(listed(MaterialConsumptionService.consumedBetween(
+                LocalDateTime.of(2025, 1, 1, 0, 0), LocalDateTime.of(2025, 12, 31, 0, 0)), onFirst))
+                .containsExactly("Last year on first");
+        assertThat(listed(MaterialConsumptionService.againstTask(pour.getId()), onFirst))
+                .containsExactly("For the pour on first");
+    }
+
+    private Set<String> listed(org.springframework.data.jpa.domain.Specification<MaterialConsumption> condition,
+                               AccessFilter filter) {
+        return consumptions.findAll(condition.and(MaterialConsumptionAccess.admittedBy(filter))).stream()
+                .map(MaterialConsumption::getDetails)
+                .collect(Collectors.toSet());
     }
 
     private Links owned() {
