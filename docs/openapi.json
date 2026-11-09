@@ -156465,7 +156465,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read tasks"
           },
           "404": {
             "content": {
@@ -156589,7 +156589,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant, or has no employee record in it, so the record would name nobody"
+            "description": "Caller may not make this change to tasks, or has no employee record in the current tenant, so the record would name nobody"
           },
           "404": {
             "content": {
@@ -156704,7 +156704,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to tasks"
           },
           "404": {
             "content": {
@@ -156809,7 +156809,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read tasks"
           },
           "404": {
             "content": {
@@ -156933,7 +156933,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant, or has no employee record in it, so the record would name nobody"
+            "description": "Caller may not make this change to tasks, or has no employee record in the current tenant, so the record would name nobody"
           },
           "404": {
             "content": {
@@ -157048,7 +157048,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to tasks"
           },
           "404": {
             "content": {
@@ -157196,7 +157196,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read tasks"
           },
           "404": {
             "content": {
@@ -157312,7 +157312,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read tasks"
           },
           "404": {
             "content": {
@@ -157425,7 +157425,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to tasks"
           },
           "404": {
             "content": {
@@ -157536,7 +157536,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read tasks"
           },
           "404": {
             "content": {
@@ -157677,7 +157677,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to tasks"
           },
           "404": {
             "content": {
@@ -157790,7 +157790,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to tasks"
           },
           "404": {
             "content": {
@@ -157901,7 +157901,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read tasks"
           },
           "404": {
             "content": {
@@ -169743,11 +169743,11 @@
       "name": "Subcontracts (Mobile)"
     },
     {
-      "description": "Web-client twin of the task endpoints. Adds listing tasks by project, alongside the same create, read, batch update and delete operations as the base task API. Access is gated by tenant membership, with mutations restricted to a system admin or project manager.",
+      "description": "Web-client twin of the task endpoints. Adds listing tasks by project, alongside the same create, read, batch update and delete operations as the base task API. Reads need tasks:read, which every member holds through the employee baseline, and creating, changing and deleting a task need tasks:create, edit and delete, which the starting roles give to the system admin and project manager. A grant held on one project reaches that project's tasks only.",
       "name": "Tasks"
     },
     {
-      "description": "Work items tracked against a project. A task carries a title, schedule, assignees, category, tags, progress and status. Endpoints cover creating a task with attachments, browsing and reading tasks, batch updates and deletion. Access follows the organization roles of the /web twin, endpoint for endpoint.",
+      "description": "Work items tracked against a project. A task carries a title, schedule, assignees, category, tags, progress and status. Endpoints cover creating a task with attachments, browsing and reading tasks, batch updates and deletion. Each endpoint needs the tasks permission its /web twin needs: tasks:read for the reads, tasks:create, edit and delete for the changes.",
       "name": "Tasks"
     },
     {
