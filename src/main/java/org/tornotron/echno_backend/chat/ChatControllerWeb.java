@@ -43,7 +43,10 @@ import java.util.List;
         name = "Chat",
         description = "One-to-one and group chat between employees of the organization: rooms the caller "
                 + "participates in, their unread counts and last message, and the send/edit message flow. "
-                + "Any member of the tenant may chat; access to a specific room is limited to its participants."
+                + "Reading needs chat:read, and opening a room, posting, reacting, marking a room read and "
+                + "archiving need chat:create, editing a message chat:edit and deleting one chat:delete. Every "
+                + "member holds all four through the employee baseline, so any member of the tenant may chat; "
+                + "access to a specific room is limited to its participants."
 )
 public class ChatControllerWeb {
 
@@ -59,7 +62,7 @@ public class ChatControllerWeb {
     }
 
     @GetMapping("/rooms/web")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('chat', 'read')")
     @Operation(
             summary = "List the caller's chat rooms",
             description = "Returns every room the current employee participates in, each with its participants, "
@@ -67,14 +70,14 @@ public class ChatControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Rooms returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read chat")
     })
     public ResponseEntity<List<ChatRoomDto>> readRooms() {
         return new ResponseEntity<>(chatService.getRoomsForCurrentEmployee(), HttpStatus.OK);
     }
 
     @GetMapping("/rooms/web/{id}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('chat', 'read')")
     @Operation(
             summary = "Get a chat room",
             description = "Returns a single room the caller participates in, with its participants, latest "
@@ -82,7 +85,7 @@ public class ChatControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Room found"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a participant of the room"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read chat, or is not a participant of the room"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No room with the given id in this tenant")
     })
     public ResponseEntity<ChatRoomDto> readRoom(@PathVariable Long id) {
@@ -90,7 +93,7 @@ public class ChatControllerWeb {
     }
 
     @PostMapping("/rooms/web/direct")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('chat', 'create')")
     @Operation(
             summary = "Open a direct room",
             description = "Opens the one-to-one direct room with the given employee, reusing the existing one "
@@ -99,21 +102,21 @@ public class ChatControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Direct room opened or reused"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "employeeId is missing or is the caller"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to chat")
     })
     public ResponseEntity<ChatRoomDto> openDirectRoom(@Valid @RequestBody CreateDirectRoomDto dto) {
         return new ResponseEntity<>(chatService.openDirectRoom(dto.getEmployeeId()), HttpStatus.OK);
     }
 
     @PostMapping("/rooms/web/{roomId}/read")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('chat', 'create')")
     @Operation(
             summary = "Mark a room read",
             description = "Advances the caller's last-read marker in the room to now, clearing the unread count."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "204", description = "Room marked read"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a participant of the room"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to chat, or is not a participant of the room"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No room with the given id in this tenant")
     })
     public ResponseEntity<Void> markRoomRead(@PathVariable Long roomId) {
@@ -122,14 +125,14 @@ public class ChatControllerWeb {
     }
 
     @GetMapping("/rooms/web/{roomId}/messages")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('chat', 'read')")
     @Operation(
             summary = "List a room's messages, paginated",
             description = "Returns a page of the room's non-deleted messages, newest first."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of messages returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a participant of the room"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read chat, or is not a participant of the room"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No room with the given id in this tenant")
     })
     public ResponseEntity<Page<ChatMessageDto>> readMessages(
@@ -139,7 +142,7 @@ public class ChatControllerWeb {
     }
 
     @PostMapping(value = "/rooms/web/{roomId}/messages", consumes = MediaType.APPLICATION_JSON_VALUE)
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('chat', 'create')")
     @Operation(
             summary = "Send a message (text only)",
             description = "Posts a text message from the current employee to the room and bumps the room's "
@@ -149,7 +152,7 @@ public class ChatControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Message created"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "content is blank"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a participant of the room"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to chat, or is not a participant of the room"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No room with the given id in this tenant")
     })
     public ResponseEntity<ChatMessageDto> sendMessage(@PathVariable Long roomId,
@@ -159,7 +162,7 @@ public class ChatControllerWeb {
     }
 
     @PostMapping(value = "/rooms/web/{roomId}/messages", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('chat', 'create')")
     @Operation(
             summary = "Send a message with attachments",
             description = "Posts a message with one or more file attachments. The message fields travel as a "
@@ -169,7 +172,7 @@ public class ChatControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Message created"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "content is blank or the data part is malformed"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a participant of the room"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to chat, or is not a participant of the room"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No room with the given id in this tenant")
     })
     public ResponseEntity<ChatMessageDto> sendMessageWithAttachments(
@@ -185,7 +188,7 @@ public class ChatControllerWeb {
     }
 
     @PatchMapping("/messages/web/{id}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('chat', 'edit')")
     @Operation(
             summary = "Edit a message",
             description = "Edits the body of the caller's own message, marking it edited. Only the sender may edit."
@@ -193,7 +196,7 @@ public class ChatControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Message updated"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "content is blank"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not the sender of the message"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to chat, or is not the sender of the message"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No message with the given id in this tenant")
     })
     public ResponseEntity<ChatMessageDto> editMessage(@PathVariable Long id,
@@ -202,7 +205,7 @@ public class ChatControllerWeb {
     }
 
     @PostMapping("/messages/web/{id}/reactions")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('chat', 'create')")
     @Operation(
             summary = "Toggle a reaction",
             description = "Adds the caller's emoji reaction to the message, or removes it if they already "
@@ -211,7 +214,7 @@ public class ChatControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Reaction toggled"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "emoji is blank"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a participant of the room"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to chat, or is not a participant of the room"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No message with the given id in this tenant")
     })
     public ResponseEntity<ChatMessageDto> toggleReaction(@PathVariable Long id,
@@ -220,7 +223,7 @@ public class ChatControllerWeb {
     }
 
     @DeleteMapping("/messages/web/{id}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('chat', 'delete')")
     @Operation(
             summary = "Delete a message",
             description = "Soft-deletes a message, keeping the row so the web can render a tombstone. Only the "
@@ -228,7 +231,7 @@ public class ChatControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "204", description = "Message deleted"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither the sender nor a room admin"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to chat, or is neither the sender nor a room admin"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No message with the given id in this tenant")
     })
     public ResponseEntity<Void> deleteMessage(@PathVariable Long id) {
@@ -237,7 +240,7 @@ public class ChatControllerWeb {
     }
 
     @PostMapping("/rooms/web/{roomId}/archive")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('chat', 'create')")
     @Operation(
             summary = "Archive or unarchive a room",
             description = "Sets the room's archived state for the whole conversation. Any participant may toggle it."
@@ -245,7 +248,7 @@ public class ChatControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Room archive state updated"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "archived is missing"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a participant of the room"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to chat, or is not a participant of the room"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No room with the given id in this tenant")
     })
     public ResponseEntity<ChatRoomDto> archiveRoom(@PathVariable Long roomId,
@@ -254,7 +257,7 @@ public class ChatControllerWeb {
     }
 
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('chat', 'read')")
     @Operation(
             summary = "Subscribe to chat changes",
             description = "A server-sent event stream of the caller's chat changes: new messages, message "
@@ -265,7 +268,7 @@ public class ChatControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Stream opened"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller has no employee record in this tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read chat, or has no employee record in this tenant")
     })
     public SseEmitter stream(HttpServletResponse response) {
         // The edge vhost sets proxy_buffering on for every site. Measured against those same
