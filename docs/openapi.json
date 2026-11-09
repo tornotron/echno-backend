@@ -52198,7 +52198,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inspection checklists"
           },
           "404": {
             "content": {
@@ -52308,7 +52308,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inspection checklists"
           },
           "404": {
             "content": {
@@ -52440,7 +52440,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inspection checklists"
           },
           "404": {
             "content": {
@@ -52545,7 +52545,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inspection checklists"
           },
           "404": {
             "content": {
@@ -52657,7 +52657,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inspection checklists"
           },
           "404": {
             "content": {
@@ -52794,7 +52794,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inspection checklists"
           },
           "404": {
             "content": {
@@ -52904,7 +52904,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inspection checklists"
           },
           "404": {
             "content": {
@@ -53036,7 +53036,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inspection checklists"
           },
           "404": {
             "content": {
@@ -53141,7 +53141,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inspection checklists"
           },
           "404": {
             "content": {
@@ -53253,7 +53253,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inspection checklists"
           },
           "404": {
             "content": {
@@ -53366,7 +53366,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inspection checklists"
           },
           "404": {
             "content": {
@@ -53487,7 +53487,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inspection checklists"
           },
           "404": {
             "content": {
@@ -53600,7 +53600,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inspection checklists"
           },
           "404": {
             "content": {
@@ -53721,7 +53721,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inspection checklists"
           },
           "404": {
             "content": {
@@ -89656,7 +89656,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inspections"
           },
           "404": {
             "content": {
@@ -89766,7 +89766,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inspections"
           },
           "404": {
             "content": {
@@ -89888,7 +89888,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to reinspections"
           },
           "404": {
             "content": {
@@ -90059,7 +90059,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inspections"
           },
           "404": {
             "content": {
@@ -90305,7 +90305,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inspections"
           },
           "404": {
             "content": {
@@ -90415,7 +90415,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inspections"
           },
           "404": {
             "content": {
@@ -90527,7 +90527,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inspections"
           },
           "404": {
             "content": {
@@ -90649,7 +90649,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inspections"
           },
           "404": {
             "content": {
@@ -90765,7 +90765,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inspections"
           },
           "404": {
             "content": {
@@ -90894,7 +90894,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inspections"
           },
           "404": {
             "content": {
@@ -91023,7 +91023,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inspections"
           },
           "404": {
             "content": {
@@ -91146,7 +91146,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inspections"
           },
           "404": {
             "content": {
@@ -91259,7 +91259,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read reinspections"
           },
           "404": {
             "content": {
@@ -91382,7 +91382,7 @@
                 }
               }
             },
-            "description": "Caller lacks the sign-off role for this reinspection's discipline"
+            "description": "Caller may not make this change to reinspections"
           },
           "404": {
             "content": {
@@ -91595,7 +91595,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inspections"
           },
           "404": {
             "content": {
@@ -91705,7 +91705,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inspections"
           },
           "404": {
             "content": {
@@ -91818,7 +91818,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inspections"
           },
           "404": {
             "content": {
@@ -91939,7 +91939,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inspections"
           },
           "404": {
             "content": {
@@ -92052,7 +92052,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inspections"
           },
           "404": {
             "content": {
@@ -92169,7 +92169,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inspections"
           },
           "404": {
             "content": {
@@ -92373,7 +92373,7 @@
                 }
               }
             },
-            "description": "Caller lacks the system-admin role"
+            "description": "Caller may not make this change to inspections"
           },
           "404": {
             "content": {
@@ -92607,7 +92607,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to reinspections"
           },
           "404": {
             "content": {
@@ -92723,7 +92723,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inspection checklists"
           },
           "404": {
             "content": {
@@ -92833,7 +92833,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inspection checklists"
           },
           "404": {
             "content": {
@@ -92938,7 +92938,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inspection checklists"
           },
           "404": {
             "content": {
@@ -93061,7 +93061,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inspection checklists"
           },
           "404": {
             "content": {
@@ -93232,7 +93232,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inspections"
           },
           "404": {
             "content": {
@@ -93478,7 +93478,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inspections"
           },
           "404": {
             "content": {
@@ -93588,7 +93588,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inspections"
           },
           "404": {
             "content": {
@@ -93700,7 +93700,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inspections"
           },
           "404": {
             "content": {
@@ -93822,7 +93822,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inspections"
           },
           "404": {
             "content": {
@@ -93938,7 +93938,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inspections"
           },
           "404": {
             "content": {
@@ -94067,7 +94067,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inspections"
           },
           "404": {
             "content": {
@@ -94196,7 +94196,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inspections"
           },
           "404": {
             "content": {
@@ -94319,7 +94319,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inspections"
           },
           "404": {
             "content": {
@@ -94431,7 +94431,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read reinspections"
           },
           "404": {
             "content": {
@@ -94554,7 +94554,7 @@
                 }
               }
             },
-            "description": "Caller lacks the sign-off role for this reinspection's discipline"
+            "description": "Caller may not make this change to reinspections"
           },
           "404": {
             "content": {
@@ -94670,7 +94670,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inspection checklists"
           },
           "404": {
             "content": {
@@ -94780,7 +94780,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inspection checklists"
           },
           "404": {
             "content": {
@@ -94885,7 +94885,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inspection checklists"
           },
           "404": {
             "content": {
@@ -95008,7 +95008,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inspection checklists"
           },
           "404": {
             "content": {
@@ -95121,7 +95121,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inspections"
           },
           "404": {
             "content": {
@@ -95242,7 +95242,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inspections"
           },
           "404": {
             "content": {
@@ -95363,7 +95363,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inspections"
           },
           "404": {
             "content": {
@@ -95487,7 +95487,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inspections"
           },
           "404": {
             "content": {
@@ -95608,7 +95608,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inspections"
           },
           "404": {
             "content": {
@@ -95724,7 +95724,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inspections"
           },
           "404": {
             "content": {
@@ -95859,7 +95859,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inspections"
           },
           "404": {
             "content": {
@@ -95988,7 +95988,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inspections"
           },
           "404": {
             "content": {
@@ -96117,7 +96117,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inspections"
           },
           "404": {
             "content": {
@@ -96232,7 +96232,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inspections"
           },
           "404": {
             "content": {
@@ -96346,7 +96346,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inspections"
           },
           "404": {
             "content": {
@@ -96459,7 +96459,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inspections"
           },
           "404": {
             "content": {
@@ -96580,7 +96580,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inspections"
           },
           "404": {
             "content": {
@@ -96701,7 +96701,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inspections"
           },
           "404": {
             "content": {
@@ -96825,7 +96825,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inspections"
           },
           "404": {
             "content": {
@@ -96946,7 +96946,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inspections"
           },
           "404": {
             "content": {
@@ -97062,7 +97062,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inspections"
           },
           "404": {
             "content": {
@@ -97197,7 +97197,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inspections"
           },
           "404": {
             "content": {
@@ -97326,7 +97326,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inspections"
           },
           "404": {
             "content": {
@@ -97455,7 +97455,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inspections"
           },
           "404": {
             "content": {
@@ -97570,7 +97570,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inspections"
           },
           "404": {
             "content": {
@@ -97684,7 +97684,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inspections"
           },
           "404": {
             "content": {
@@ -123318,7 +123318,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read NCRs"
           },
           "404": {
             "content": {
@@ -123428,7 +123428,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to NCRs"
           },
           "404": {
             "content": {
@@ -123572,7 +123572,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read NCRs"
           },
           "404": {
             "content": {
@@ -123775,7 +123775,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read NCRs"
           },
           "404": {
             "content": {
@@ -123885,7 +123885,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to NCRs"
           },
           "404": {
             "content": {
@@ -124029,7 +124029,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read NCRs"
           },
           "404": {
             "content": {
@@ -124141,7 +124141,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read NCRs"
           },
           "404": {
             "content": {
@@ -124264,7 +124264,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to NCRs"
           },
           "404": {
             "content": {
@@ -124377,7 +124377,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to NCRs"
           },
           "404": {
             "content": {
@@ -124499,7 +124499,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to NCRs"
           },
           "404": {
             "content": {
@@ -124620,7 +124620,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inspections"
           },
           "404": {
             "content": {
@@ -124734,7 +124734,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read NCRs"
           },
           "404": {
             "content": {
@@ -124856,7 +124856,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to NCRs"
           },
           "404": {
             "content": {
@@ -124978,7 +124978,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to NCRs"
           },
           "404": {
             "content": {
@@ -125100,7 +125100,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to NCRs"
           },
           "404": {
             "content": {
@@ -125216,7 +125216,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read reinspections"
           },
           "404": {
             "content": {
@@ -125336,7 +125336,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to reinspections"
           },
           "404": {
             "content": {
@@ -125448,7 +125448,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read NCRs"
           },
           "404": {
             "content": {
@@ -125571,7 +125571,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to NCRs"
           },
           "404": {
             "content": {
@@ -125684,7 +125684,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to NCRs"
           },
           "404": {
             "content": {
@@ -125806,7 +125806,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to NCRs"
           },
           "404": {
             "content": {
@@ -125927,7 +125927,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inspections"
           },
           "404": {
             "content": {
@@ -126041,7 +126041,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read NCRs"
           },
           "404": {
             "content": {
@@ -126163,7 +126163,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to NCRs"
           },
           "404": {
             "content": {
@@ -126285,7 +126285,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to NCRs"
           },
           "404": {
             "content": {
@@ -126407,7 +126407,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to NCRs"
           },
           "404": {
             "content": {
@@ -126523,7 +126523,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read reinspections"
           },
           "404": {
             "content": {
@@ -126643,7 +126643,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to reinspections"
           },
           "404": {
             "content": {
