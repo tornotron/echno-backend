@@ -36,6 +36,7 @@ import org.tornotron.echno_backend.inventoryTransaction.InventoryService;
 import org.tornotron.echno_backend.material.Material;
 import org.tornotron.echno_backend.material.MaterialRepository;
 import org.tornotron.echno_backend.materialConsumption.dto.MaterialConsumptionCreationDto;
+import org.tornotron.echno_backend.materialConsumption.dto.MaterialConsumptionDto;
 import org.tornotron.echno_backend.materialConsumption.enums.MaterialConsumptionType;
 import org.tornotron.echno_backend.materialConsumption.mapper.MaterialConsumptionMapper;
 import org.tornotron.echno_backend.modules.access.api.AccessFilter;
@@ -112,8 +113,10 @@ class MaterialConsumptionServiceAccessTest {
 
     @Test
     void aConsumptionTheCallerMaySeeIsReturned() {
-        service.getMaterialConsumptionById(ON_MY_PROJECT);
+        MaterialConsumptionDto mapped = new MaterialConsumptionDto();
+        when(materialConsumptionMapper.toDto(any(MaterialConsumption.class))).thenReturn(mapped);
 
+        assertThat(service.getMaterialConsumptionById(ON_MY_PROJECT)).isSameAs(mapped);
         verify(materialConsumptionMapper).toDto(any(MaterialConsumption.class));
     }
 

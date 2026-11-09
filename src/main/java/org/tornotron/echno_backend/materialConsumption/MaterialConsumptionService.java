@@ -361,19 +361,19 @@ public class MaterialConsumptionService {
         return condition == null ? admitted : condition.and(admitted);
     }
 
-    private static Specification<MaterialConsumption> ofMaterial(Long materialId) {
+    static Specification<MaterialConsumption> ofMaterial(Long materialId) {
         return (root, query, cb) -> cb.equal(root.get("material").get("id"), materialId);
     }
 
-    private static Specification<MaterialConsumption> ofType(MaterialConsumptionType consumptionType) {
+    static Specification<MaterialConsumption> ofType(MaterialConsumptionType consumptionType) {
         return (root, query, cb) -> cb.equal(root.get("consumptionType"), consumptionType);
     }
 
-    private static Specification<MaterialConsumption> againstTask(Long taskId) {
+    static Specification<MaterialConsumption> againstTask(Long taskId) {
         return (root, query, cb) -> cb.equal(root.get("task").get("id"), taskId);
     }
 
-    private static Specification<MaterialConsumption> consumedBetween(LocalDateTime startDate, LocalDateTime endDate) {
+    static Specification<MaterialConsumption> consumedBetween(LocalDateTime startDate, LocalDateTime endDate) {
         return (root, query, cb) -> cb.between(root.get("consumptionDate"), startDate, endDate);
     }
 }
