@@ -66,7 +66,8 @@ class TaskCreationValidationTest {
         service = new TaskService(taskRepository, employeeRepository, projectRepository,
                 categoryRepository, attachmentService, currentEmployeeService, taskMapper,
                 new PayloadValidator(validator),
-                org.mockito.Mockito.mock(org.tornotron.echno_backend.project.ProjectCompletion.class));
+                org.mockito.Mockito.mock(org.tornotron.echno_backend.project.ProjectCompletion.class),
+                TaskAccessStubs.allowingEverything());
     }
 
     @AfterAll

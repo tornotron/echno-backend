@@ -183,6 +183,13 @@ class PartialUpdateNullBehaviourTest {
 
         @Mock private org.tornotron.echno_backend.project.ProjectCompletion projectCompletion;
 
+        @Mock private org.tornotron.echno_backend.task.TaskAccess taskAccess;
+
+        @org.junit.jupiter.api.BeforeEach
+        void everyTaskIsAllowed() {
+            org.tornotron.echno_backend.task.TaskAccessStubs.allowEverything(taskAccess);
+        }
+
         @InjectMocks private TaskService service;
 
         private Task task;
