@@ -76,7 +76,8 @@ class MaterialConsumptionStockScopeTest {
                 inventoryTransactionRepository, materialRepository, storageLocationRepository);
         service = new MaterialConsumptionService(materialConsumptionRepository, materialRepository,
                 inventoryService, eventPublisher, materialConsumptionMapper, tenantEntityHelper,
-                employeeRepository, projectRepository, storageLocationRepository, taskRepository);
+                employeeRepository, projectRepository, storageLocationRepository, taskRepository,
+                MaterialConsumptionAccessStubs.allowingEverything());
 
         Material material = new Material();
         material.setId(MATERIAL);

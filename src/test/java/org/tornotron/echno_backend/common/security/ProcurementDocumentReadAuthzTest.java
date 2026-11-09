@@ -15,8 +15,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
 import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
-import org.tornotron.echno_backend.materialConsumption.MaterialConsumptionControllerWeb;
-import org.tornotron.echno_backend.materialConsumption.MaterialConsumptionService;
 import org.tornotron.echno_backend.siteTransfer.SiteTransferControllerWeb;
 import org.tornotron.echno_backend.siteTransfer.SiteTransferService;
 import org.tornotron.echno_backend.siteTransfer.dto.SiteTransferDto;
@@ -59,17 +57,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * <p>The web indent controller has left this slice: its reads moved onto the access matrix, and
  * {@code IndentAccessEquivalenceIT} holds every role to the indent reads it had. The purchase order
  * controllers left it the same way, for {@code PurchaseOrderAccessEquivalenceIT}, and the goods
- * receipt controller for {@code GoodsReceivedNoteAccessEquivalenceIT}.
+ * receipt controller for {@code GoodsReceivedNoteAccessEquivalenceIT}, and the material consumption
+ * controller for {@code MaterialConsumptionAccessEquivalenceIT}.
  *
- * <p>One slice over two controllers rather than two slices, following
- * {@link ReadWriteGuardSymmetryTest}: Spring caches a context per distinct slice and the test JVM
- * is capped. {@code @orgSecurity} is mocked, and the stubs use exact role arguments, so what is
- * pinned is the role list each guard actually asks for.
+ * <p>Only the site transfer controller is left in the slice. {@code @orgSecurity} is mocked, and the
+ * stubs use exact role arguments, so what is pinned is the role list each guard actually asks for.
  */
-@WebMvcTest({
-        SiteTransferControllerWeb.class,
-        MaterialConsumptionControllerWeb.class
-})
+@WebMvcTest(SiteTransferControllerWeb.class)
 @Import(ProcurementDocumentReadAuthzTest.TestSecurityConfig.class)
 class ProcurementDocumentReadAuthzTest {
 
@@ -78,9 +72,6 @@ class ProcurementDocumentReadAuthzTest {
 
     @MockitoBean
     private SiteTransferService siteTransferService;
-
-    @MockitoBean
-    private MaterialConsumptionService materialConsumptionService;
 
     // Named to match the @orgSecurity bean the @PreAuthorize SpEL references.
     @MockitoBean(name = "orgSecurity")
@@ -124,16 +115,6 @@ class ProcurementDocumentReadAuthzTest {
         when(siteTransferService.getSiteTransferById(anyLong())).thenReturn(new SiteTransferDto());
 
         mockMvc.perform(get("/api/v1/site-transfers/web/31").with(jwt()))
-                .andExpect(status().isOk());
-    }
-
-    @Test
-    void aProjectManagerReadsMaterialConsumptions() throws Exception {
-        aProjectManager();
-        when(materialConsumptionService.getAllMaterialConsumptions(anyInt(), anyInt()))
-                .thenReturn(Page.empty());
-
-        mockMvc.perform(get("/api/v1/material-consumptions/web").with(jwt()))
                 .andExpect(status().isOk());
     }
 

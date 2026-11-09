@@ -76,7 +76,8 @@ class MaterialConsumptionServiceTest {
         TenantContext.setCurrentOrgId(ORG);
         service = new MaterialConsumptionService(materialConsumptionRepository, materialRepository,
                 inventoryService, eventPublisher, materialConsumptionMapper, tenantEntityHelper,
-                employeeRepository, projectRepository, storageLocationRepository, taskRepository);
+                employeeRepository, projectRepository, storageLocationRepository, taskRepository,
+                MaterialConsumptionAccessStubs.allowingEverything());
     }
 
     @AfterEach

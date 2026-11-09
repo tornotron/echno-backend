@@ -5,6 +5,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.materialConsumption.mapper.MaterialConsumptionMapper;
@@ -20,6 +21,8 @@ import org.tornotron.echno_backend.material.MaterialRepository;
 import org.tornotron.echno_backend.materialConsumption.dto.MaterialConsumptionCreationDto;
 import org.tornotron.echno_backend.materialConsumption.dto.MaterialConsumptionDto;
 import org.tornotron.echno_backend.materialConsumption.enums.MaterialConsumptionType;
+import org.tornotron.echno_backend.modules.access.api.AccessFilter;
+import org.tornotron.echno_backend.modules.access.api.AccessPermission;
 import org.tornotron.echno_backend.project.Project;
 import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.storageLocation.StorageLocation;
@@ -32,6 +35,7 @@ import org.tornotron.echno_backend.user.UserRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
@@ -45,6 +49,11 @@ import java.util.stream.Collectors;
  * <p>A storage location on another project is refused, and an organisation-level location
  * (one that names no project) is accepted from any project. See
  * {@link org.tornotron.echno_backend.storageLocation.StorageLocationScope}.
+ *
+ * <p>Every read is narrowed to the consumptions the caller may read on the access matrix
+ * ({@link MaterialConsumptionAccess}): the lists in the query, and a single consumption by
+ * reporting one the caller may not read as missing. Recording one is checked on the project and
+ * creator it will carry.
  */
 @Service
 public class MaterialConsumptionService {
@@ -59,6 +68,7 @@ public class MaterialConsumptionService {
     private final ProjectRepository projectRepository;
     private final StorageLocationRepository storageLocationRepository;
     private final TaskRepository taskRepository;
+    private final MaterialConsumptionAccess consumptionAccess;
 
     public MaterialConsumptionService(MaterialConsumptionRepository materialConsumptionRepository,
                                       MaterialRepository materialRepository,
@@ -69,7 +79,8 @@ public class MaterialConsumptionService {
                                       EmployeeRepository employeeRepository,
                                       ProjectRepository projectRepository,
                                       StorageLocationRepository storageLocationRepository,
-                                      TaskRepository taskRepository) {
+                                      TaskRepository taskRepository,
+                                      MaterialConsumptionAccess consumptionAccess) {
         this.materialConsumptionRepository = materialConsumptionRepository;
         this.materialRepository = materialRepository;
         this.inventoryService = inventoryService;
@@ -80,6 +91,7 @@ public class MaterialConsumptionService {
         this.projectRepository = projectRepository;
         this.storageLocationRepository = storageLocationRepository;
         this.taskRepository = taskRepository;
+        this.consumptionAccess = consumptionAccess;
     }
 
     /**
@@ -110,6 +122,11 @@ public class MaterialConsumptionService {
         // Validate project
         Project project = projectRepository.findByIdAndOrganization_Id(creationDto.getProjectId(), TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Project with ID " + creationDto.getProjectId() + " was not found in this organization"));
+
+        // Checked on the consumption as it will be recorded, before any stock is looked at, so
+        // nobody draws material down on a project they may not record consumption on.
+        consumptionAccess.require(AccessPermission.CREATE, MaterialConsumptionAccess.facts(
+                TenantContext.getCurrentOrgId(), project.getId(), createdBy.getId()));
 
         // Resolve the storage location before the stock check, because the location decides
         // which balance row the check has to read: the consumption draws down exactly one row
@@ -177,11 +194,13 @@ public class MaterialConsumptionService {
      *
      * @param id The id of the consumption record to retrieve.
      * @return The consumption record as a DTO.
-     * @throws ResourceNotFoundException if no consumption record with the given id exists in this organization.
+     * @throws ResourceNotFoundException if no consumption record with the given id exists in this
+     *         organization, or the caller may not read it.
      */
     @Transactional(readOnly = true)
     public MaterialConsumptionDto getMaterialConsumptionById(Long id) {
         MaterialConsumption consumption = materialConsumptionRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
+                .filter(found -> consumptionAccess.allows(AccessPermission.READ, MaterialConsumptionAccess.facts(found)))
                 .orElseThrow(() -> new ResourceNotFoundException("Material consumption with ID " + id + " was not found in this organization"));
         return materialConsumptionMapper.toDto(consumption);
     }
@@ -197,8 +216,7 @@ public class MaterialConsumptionService {
     @Transactional(readOnly = true)
     public Page<MaterialConsumptionDto> getAllMaterialConsumptions(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.DESC, "consumptionDate"));
-        return materialConsumptionRepository.findAll(pageable)
-                .map(consumption -> materialConsumptionMapper.toDto(consumption));
+        return visiblePage(() -> materialConsumptionRepository.findAll(pageable), null, pageable);
     }
 
     /**
@@ -209,9 +227,7 @@ public class MaterialConsumptionService {
      */
     @Transactional(readOnly = true)
     public List<MaterialConsumptionDto> getConsumptionsByMaterial(Long materialId) {
-        return materialConsumptionRepository.findByMaterialId(materialId).stream()
-                .map(consumption -> materialConsumptionMapper.toDto(consumption))
-                .collect(Collectors.toList());
+        return visibleList(() -> materialConsumptionRepository.findByMaterialId(materialId), ofMaterial(materialId));
     }
 
     /**
@@ -225,8 +241,7 @@ public class MaterialConsumptionService {
     public Page<MaterialConsumptionDto> getConsumptionsByMaterial(Long materialId, int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize,
                 Sort.by(Sort.Direction.DESC, "consumptionDate").and(Sort.by(Sort.Direction.DESC, "id")));
-        return materialConsumptionRepository.findByMaterialId(materialId, pageable)
-                .map(consumption -> materialConsumptionMapper.toDto(consumption));
+        return visiblePage(() -> materialConsumptionRepository.findByMaterialId(materialId, pageable), ofMaterial(materialId), pageable);
     }
 
     /**
@@ -237,9 +252,7 @@ public class MaterialConsumptionService {
      */
     @Transactional(readOnly = true)
     public List<MaterialConsumptionDto> getConsumptionsByType(MaterialConsumptionType consumptionType) {
-        return materialConsumptionRepository.findByConsumptionType(consumptionType).stream()
-                .map(consumption -> materialConsumptionMapper.toDto(consumption))
-                .collect(Collectors.toList());
+        return visibleList(() -> materialConsumptionRepository.findByConsumptionType(consumptionType), ofType(consumptionType));
     }
 
     /**
@@ -253,8 +266,7 @@ public class MaterialConsumptionService {
     public Page<MaterialConsumptionDto> getConsumptionsByType(MaterialConsumptionType consumptionType, int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize,
                 Sort.by(Sort.Direction.DESC, "consumptionDate").and(Sort.by(Sort.Direction.DESC, "id")));
-        return materialConsumptionRepository.findByConsumptionType(consumptionType, pageable)
-                .map(consumption -> materialConsumptionMapper.toDto(consumption));
+        return visiblePage(() -> materialConsumptionRepository.findByConsumptionType(consumptionType, pageable), ofType(consumptionType), pageable);
     }
 
     /**
@@ -266,9 +278,8 @@ public class MaterialConsumptionService {
      */
     @Transactional(readOnly = true)
     public List<MaterialConsumptionDto> getConsumptionsByDateRange(LocalDateTime startDate, LocalDateTime endDate) {
-        return materialConsumptionRepository.findByConsumptionDateBetween(startDate, endDate).stream()
-                .map(consumption -> materialConsumptionMapper.toDto(consumption))
-                .collect(Collectors.toList());
+        return visibleList(() -> materialConsumptionRepository.findByConsumptionDateBetween(startDate, endDate),
+                consumedBetween(startDate, endDate));
     }
 
     /**
@@ -282,8 +293,8 @@ public class MaterialConsumptionService {
     public Page<MaterialConsumptionDto> getConsumptionsByDateRange(LocalDateTime startDate, LocalDateTime endDate, int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize,
                 Sort.by(Sort.Direction.DESC, "consumptionDate").and(Sort.by(Sort.Direction.DESC, "id")));
-        return materialConsumptionRepository.findByConsumptionDateBetween(startDate, endDate, pageable)
-                .map(consumption -> materialConsumptionMapper.toDto(consumption));
+        return visiblePage(() -> materialConsumptionRepository.findByConsumptionDateBetween(startDate, endDate, pageable),
+                consumedBetween(startDate, endDate), pageable);
     }
 
     /**
@@ -294,9 +305,7 @@ public class MaterialConsumptionService {
      */
     @Transactional(readOnly = true)
     public List<MaterialConsumptionDto> getConsumptionsByTask(Long taskId) {
-        return materialConsumptionRepository.findByTaskId(taskId).stream()
-                .map(consumption -> materialConsumptionMapper.toDto(consumption))
-                .collect(Collectors.toList());
+        return visibleList(() -> materialConsumptionRepository.findByTaskId(taskId), againstTask(taskId));
     }
 
     /**
@@ -310,7 +319,61 @@ public class MaterialConsumptionService {
     public Page<MaterialConsumptionDto> getConsumptionsByTask(Long taskId, int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize,
                 Sort.by(Sort.Direction.DESC, "consumptionDate").and(Sort.by(Sort.Direction.DESC, "id")));
-        return materialConsumptionRepository.findByTaskId(taskId, pageable)
-                .map(consumption -> materialConsumptionMapper.toDto(consumption));
+        return visiblePage(() -> materialConsumptionRepository.findByTaskId(taskId, pageable), againstTask(taskId), pageable);
+    }
+
+    /**
+     * The page of consumptions the caller may read. A caller who may read every consumption gets the
+     * unnarrowed query, one who may read none is not queried for, and anyone else gets the condition
+     * narrowed by the access filter in the query, so the page and its totals stay right.
+     */
+    private Page<MaterialConsumptionDto> visiblePage(Supplier<Page<MaterialConsumption>> unnarrowed,
+                                                     Specification<MaterialConsumption> condition,
+                                                     Pageable pageable) {
+        AccessFilter visible = consumptionAccess.filter(AccessPermission.READ);
+        if (visible.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        Page<MaterialConsumption> consumptions = visible.everything()
+                ? unnarrowed.get()
+                : materialConsumptionRepository.findAll(narrowed(condition, visible), pageable);
+        return consumptions.map(consumption -> materialConsumptionMapper.toDto(consumption));
+    }
+
+    /** The unpaged list of the consumptions the caller may read, narrowed the same way. */
+    private List<MaterialConsumptionDto> visibleList(Supplier<List<MaterialConsumption>> unnarrowed,
+                                                     Specification<MaterialConsumption> condition) {
+        AccessFilter visible = consumptionAccess.filter(AccessPermission.READ);
+        if (visible.isEmpty()) {
+            return List.of();
+        }
+        List<MaterialConsumption> consumptions = visible.everything()
+                ? unnarrowed.get()
+                : materialConsumptionRepository.findAll(narrowed(condition, visible));
+        return consumptions.stream()
+                .map(consumption -> materialConsumptionMapper.toDto(consumption))
+                .collect(Collectors.toList());
+    }
+
+    private static Specification<MaterialConsumption> narrowed(Specification<MaterialConsumption> condition,
+                                                               AccessFilter visible) {
+        Specification<MaterialConsumption> admitted = MaterialConsumptionAccess.admittedBy(visible);
+        return condition == null ? admitted : condition.and(admitted);
+    }
+
+    private static Specification<MaterialConsumption> ofMaterial(Long materialId) {
+        return (root, query, cb) -> cb.equal(root.get("material").get("id"), materialId);
+    }
+
+    private static Specification<MaterialConsumption> ofType(MaterialConsumptionType consumptionType) {
+        return (root, query, cb) -> cb.equal(root.get("consumptionType"), consumptionType);
+    }
+
+    private static Specification<MaterialConsumption> againstTask(Long taskId) {
+        return (root, query, cb) -> cb.equal(root.get("task").get("id"), taskId);
+    }
+
+    private static Specification<MaterialConsumption> consumedBetween(LocalDateTime startDate, LocalDateTime endDate) {
+        return (root, query, cb) -> cb.between(root.get("consumptionDate"), startDate, endDate);
     }
 }
