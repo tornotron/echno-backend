@@ -56,15 +56,9 @@ class StoreKeeperRoleScopeTest {
             // edit, and GoodsReceivedNoteAccessEquivalenceIT holds it to the receipt reads and writes
             // it had.
 
-            // Handing material out over the counter.
-            "MaterialConsumptionControllerWeb.createMaterialConsumption POST",
-            "MaterialConsumptionControllerWeb.getMaterialConsumptionById GET /{id}",
-            "MaterialConsumptionControllerWeb.getAllMaterialConsumptions GET",
-            "MaterialConsumptionControllerWeb.getAllMaterialConsumptionsPaginated GET /all",
-            "MaterialConsumptionControllerWeb.getConsumptionsByMaterial GET /material/{materialId}",
-            "MaterialConsumptionControllerWeb.getConsumptionsByType GET /type/{consumptionType}",
-            "MaterialConsumptionControllerWeb.getConsumptionsByDateRange GET /date-range",
-            "MaterialConsumptionControllerWeb.getConsumptionsByTask GET /task/{taskId}",
+            // Handing material out over the counter is on the access matrix now: the store keeper's
+            // starting role holds material consumption read and create, and
+            // MaterialConsumptionAccessEquivalenceIT holds it to the consumption reads and writes it had.
 
             // Both ends of a site transfer are worked by a store: one despatches, one confirms.
             // The status route is a signpost rather than an authority. It refuses every payload and
@@ -166,14 +160,6 @@ class StoreKeeperRoleScopeTest {
             "MaterialController.getMaterialWithStock GET /{id}/stock",
             "MaterialController.getLocationThresholds GET /{materialId}/location-thresholds",
             "MaterialController.upsertLocationThreshold PUT /{materialId}/location-thresholds/{storageLocationId}",
-            "MaterialConsumptionController.createMaterialConsumption POST",
-            "MaterialConsumptionController.getMaterialConsumptionById GET /{id}",
-            "MaterialConsumptionController.getAllMaterialConsumptions GET",
-            "MaterialConsumptionController.getAllMaterialConsumptionsPaginated GET /all",
-            "MaterialConsumptionController.getConsumptionsByMaterial GET /material/{materialId}",
-            "MaterialConsumptionController.getConsumptionsByType GET /type/{consumptionType}",
-            "MaterialConsumptionController.getConsumptionsByDateRange GET /date-range",
-            "MaterialConsumptionController.getConsumptionsByTask GET /task/{taskId}",
             "SiteTransferController.createSiteTransfer POST",
             "SiteTransferController.getSiteTransferById GET /{id}",
             "SiteTransferController.getAllSiteTransfers GET",

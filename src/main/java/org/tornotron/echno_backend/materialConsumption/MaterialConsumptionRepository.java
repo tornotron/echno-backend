@@ -1,6 +1,7 @@
 package org.tornotron.echno_backend.materialConsumption;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.tornotron.echno_backend.materialConsumption.enums.MaterialConsumptionType;
 
 import java.time.LocalDateTime;
@@ -9,7 +10,8 @@ import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
-public interface MaterialConsumptionRepository extends JpaRepository<MaterialConsumption, Long> {
+public interface MaterialConsumptionRepository extends JpaRepository<MaterialConsumption, Long>,
+        JpaSpecificationExecutor<MaterialConsumption> {
 
     Optional<MaterialConsumption> findByIdAndOrganization_Id(Long id, Long organizationId);
 
