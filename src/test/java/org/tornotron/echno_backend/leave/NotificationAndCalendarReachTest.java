@@ -14,6 +14,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
 import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
+import org.tornotron.echno_backend.modules.access.guard.AccessGuard;
 
 import java.util.List;
 import java.util.Map;
@@ -22,6 +23,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
@@ -74,6 +76,12 @@ class NotificationAndCalendarReachTest {
     @MockitoBean
     private LeaveCalendarService calendarService;
 
+    @MockitoBean(name = "access")
+    private AccessGuard access;
+
+    @MockitoBean(name = "leaveAccess")
+    private LeaveAccess leaveAccess;
+
     @MockitoBean(name = "orgSecurity")
     private OrganizationSecurityService orgSecurity;
 
@@ -103,21 +111,30 @@ class NotificationAndCalendarReachTest {
 
     /** A site manager: a member of the tenant, holding neither administrative leave role. */
     private void asAnEmployeeHoldingNoAdministrativeRole() {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "hr-admin")).thenReturn(false);
-        when(orgSecurity.isSelfOrHasAnyOrgRole(anyLong(), anyString(), anyString())).thenReturn(false);
+        when(access.can(eq("leave"), anyString()))
+                .thenAnswer(call -> true && !"adjust-balances".equals(call.getArgument(1)));
+        when(access.can("leave", "adjust-balances")).thenReturn(false);
+        when(leaveAccess.acrossOrganization("read")).thenReturn(false);
+        when(access.can(eq("leave-policies"), anyString())).thenReturn(false);
+        when(leaveAccess.allowsFor(anyString(), anyLong())).thenReturn(false);
     }
 
     private void asALeaveAdministrator() {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "hr-admin")).thenReturn(true);
-        when(orgSecurity.isSelfOrHasAnyOrgRole(anyLong(), anyString(), anyString())).thenReturn(true);
+        when(access.can(eq("leave"), anyString()))
+                .thenAnswer(call -> true && !"adjust-balances".equals(call.getArgument(1)));
+        when(access.can("leave", "adjust-balances")).thenReturn(true);
+        when(leaveAccess.acrossOrganization("read")).thenReturn(true);
+        when(access.can(eq("leave-policies"), anyString())).thenReturn(true);
+        when(leaveAccess.allowsFor(anyString(), anyLong())).thenReturn(true);
     }
 
     private void asSomebodyOutsideTheTenant() {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(false);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "hr-admin")).thenReturn(false);
-        when(orgSecurity.isSelfOrHasAnyOrgRole(anyLong(), anyString(), anyString())).thenReturn(false);
+        when(access.can(eq("leave"), anyString()))
+                .thenAnswer(call -> false && !"adjust-balances".equals(call.getArgument(1)));
+        when(access.can("leave", "adjust-balances")).thenReturn(false);
+        when(leaveAccess.acrossOrganization("read")).thenReturn(false);
+        when(access.can(eq("leave-policies"), anyString())).thenReturn(false);
+        when(leaveAccess.allowsFor(anyString(), anyLong())).thenReturn(false);
     }
 
     @ParameterizedTest

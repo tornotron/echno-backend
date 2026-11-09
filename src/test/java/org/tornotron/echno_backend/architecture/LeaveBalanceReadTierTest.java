@@ -34,10 +34,13 @@ class LeaveBalanceReadTierTest {
             System.getProperty("main.source.root", "src/main/java"));
     private static final Path LEAVE = SOURCE_ROOT.resolve("org/tornotron/echno_backend/leave");
 
-    private static final String APPROVE_GRANT = "@leaveSecurity.canViewEmployeeBalances(#employeeId)";
+    private static final String APPROVE_GRANT =
+            "@access.can('leave', 'read') and @leaveSecurity.canViewEmployeeBalances(#employeeId)";
     private static final String SELF_OR_ADMIN =
-            "@orgSecurity.isSelfOrHasAnyOrgRole(#employeeId, 'system-admin', 'hr-admin')";
-    private static final String ADMIN_ONLY = "@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')";
+            "@access.can('leave', 'read') and @leaveAccess.allowsFor('read', #employeeId)";
+    private static final String ADMIN_LEDGER =
+            "@access.can('leave', 'read') and @leaveAccess.acrossOrganization('read')";
+    private static final String ADMIN_ONLY = "@access.can('leave', 'adjust-balances')";
 
     private static final Map<String, String> EXPECTED = new TreeMap<>(Map.ofEntries(
             // The balance the days come out of: readable by whoever may approve the request.
@@ -55,10 +58,10 @@ class LeaveBalanceReadTierTest {
             // Commands, and the ledger keyed by a balance id that names no person.
             Map.entry("LeaveBalanceController.recalculateBalances POST /employee/{employeeId}/recalculate", ADMIN_ONLY),
             Map.entry("LeaveBalanceController.adjustBalance POST /adjust", ADMIN_ONLY),
-            Map.entry("LeaveBalanceController.getTransactionsByBalance GET /{balanceId}/transactions", ADMIN_ONLY),
+            Map.entry("LeaveBalanceController.getTransactionsByBalance GET /{balanceId}/transactions", ADMIN_LEDGER),
             Map.entry("LeaveBalanceControllerWeb.recalculateBalances POST /recalculate", ADMIN_ONLY),
             Map.entry("LeaveBalanceControllerWeb.adjustBalance POST /adjust", ADMIN_ONLY),
-            Map.entry("LeaveBalanceControllerWeb.getTransactionsByBalance GET /transactions-by-balance", ADMIN_ONLY)
+            Map.entry("LeaveBalanceControllerWeb.getTransactionsByBalance GET /transactions-by-balance", ADMIN_LEDGER)
     ));
 
     private static final Pattern PRE_AUTHORIZE = Pattern.compile("^\\s*@PreAuthorize\\(\"(.*)\"\\)\\s*$");

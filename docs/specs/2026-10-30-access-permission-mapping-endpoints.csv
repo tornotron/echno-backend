@@ -389,26 +389,26 @@ issue,DELETE,/api/v1/issues/{id},deleteAnIssue,role-names,project-manager;system
 issue,GET,/api/v1/issues/{id},readAnIssue,keycloak-permission,,,issues,view,issue:admin->issues:view+create+edit+approve+delete issue:read->issues:view,issue/IssueController.java,hasAuthority('issue:read') or hasAuthority('issue:admin')
 issue,PATCH,/api/v1/issues/{id},partialUpdateAnIssue,role-names,project-manager;system-admin,,issues,edit,,issue/IssueController.java,"@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')"
 leave,POST,/api/v1/leave-approvals/requests/{requestId}/approve,approve,any-member,,,leave,approve,,leave/LeaveApprovalController.java,@orgSecurity.isMemberOfCurrentTenant()
-leave,GET,/api/v1/leave-approvals/requests/{requestId}/can-approve,canApprove,any-member,,,leave,approve,,leave/LeaveApprovalController.java,@orgSecurity.isMemberOfCurrentTenant()
-leave,GET,/api/v1/leave-approvals/requests/{requestId}/chain,getApprovalChain,any-member,,,leave,approve,,leave/LeaveApprovalController.java,@orgSecurity.isMemberOfCurrentTenant()
+leave,GET,/api/v1/leave-approvals/requests/{requestId}/can-approve,canApprove,any-member,,,leave,view,,leave/LeaveApprovalController.java,@orgSecurity.isMemberOfCurrentTenant()
+leave,GET,/api/v1/leave-approvals/requests/{requestId}/chain,getApprovalChain,any-member,,,leave,view,,leave/LeaveApprovalController.java,@orgSecurity.isMemberOfCurrentTenant()
 leave,POST,/api/v1/leave-approvals/requests/{requestId}/delegate,delegate,any-member,,,leave,approve,,leave/LeaveApprovalController.java,@orgSecurity.isMemberOfCurrentTenant()
-leave,GET,/api/v1/leave-approvals/requests/{requestId}/history,getApprovalHistory,any-member,,,leave,approve,,leave/LeaveApprovalController.java,@orgSecurity.isMemberOfCurrentTenant()
+leave,GET,/api/v1/leave-approvals/requests/{requestId}/history,getApprovalHistory,any-member,,,leave,view,,leave/LeaveApprovalController.java,@orgSecurity.isMemberOfCurrentTenant()
 leave,POST,/api/v1/leave-approvals/requests/{requestId}/reject,reject,any-member,,,leave,approve,,leave/LeaveApprovalController.java,@orgSecurity.isMemberOfCurrentTenant()
 leave,POST,/api/v1/leave-approvals/web/approve,approve,any-member,,,leave,approve,,leave/LeaveApprovalControllerWeb.java,@orgSecurity.isMemberOfCurrentTenant()
-leave,GET,/api/v1/leave-approvals/web/can-approve,canApprove,any-member,,,leave,approve,,leave/LeaveApprovalControllerWeb.java,@orgSecurity.isMemberOfCurrentTenant()
-leave,GET,/api/v1/leave-approvals/web/chain,getApprovalChain,any-member,,,leave,approve,,leave/LeaveApprovalControllerWeb.java,@orgSecurity.isMemberOfCurrentTenant()
+leave,GET,/api/v1/leave-approvals/web/can-approve,canApprove,any-member,,,leave,view,,leave/LeaveApprovalControllerWeb.java,@orgSecurity.isMemberOfCurrentTenant()
+leave,GET,/api/v1/leave-approvals/web/chain,getApprovalChain,any-member,,,leave,view,,leave/LeaveApprovalControllerWeb.java,@orgSecurity.isMemberOfCurrentTenant()
 leave,POST,/api/v1/leave-approvals/web/delegate,delegate,any-member,,,leave,approve,,leave/LeaveApprovalControllerWeb.java,@orgSecurity.isMemberOfCurrentTenant()
-leave,GET,/api/v1/leave-approvals/web/history,getApprovalHistory,any-member,,,leave,approve,,leave/LeaveApprovalControllerWeb.java,@orgSecurity.isMemberOfCurrentTenant()
+leave,GET,/api/v1/leave-approvals/web/history,getApprovalHistory,any-member,,,leave,view,,leave/LeaveApprovalControllerWeb.java,@orgSecurity.isMemberOfCurrentTenant()
 leave,POST,/api/v1/leave-approvals/web/reject,reject,any-member,,,leave,approve,,leave/LeaveApprovalControllerWeb.java,@orgSecurity.isMemberOfCurrentTenant()
-leave,POST,/api/v1/leave-balances/adjust,adjustBalance,keycloak-permission,,,leave,create,leave:admin->leave:view+create+edit+approve+delete,leave/LeaveBalanceController.java,hasAuthority('leave:admin')
+leave,POST,/api/v1/leave-balances/adjust,adjustBalance,keycloak-permission,,,leave,adjust-balances,leave:admin->leave:view+create+edit+approve+delete,leave/LeaveBalanceController.java,hasAuthority('leave:admin')
 leave,GET,/api/v1/leave-balances/employee/{employeeId},getEmployeeBalances,domain-bean,,,leave,view,,leave/LeaveBalanceController.java,@leaveSecurity.canViewEmployeeBalances(#employeeId)
 leave,GET,/api/v1/leave-balances/employee/{employeeId}/policy/{policyId},getSpecificBalance,domain-bean,,,leave,view,,leave/LeaveBalanceController.java,@leaveSecurity.canViewEmployeeBalances(#employeeId)
-leave,POST,/api/v1/leave-balances/employee/{employeeId}/recalculate,recalculateBalances,keycloak-permission,,,leave,create,leave:admin->leave:view+create+edit+approve+delete,leave/LeaveBalanceController.java,hasAuthority('leave:admin')
+leave,POST,/api/v1/leave-balances/employee/{employeeId}/recalculate,recalculateBalances,keycloak-permission,,,leave,adjust-balances,leave:admin->leave:view+create+edit+approve+delete,leave/LeaveBalanceController.java,hasAuthority('leave:admin')
 leave,GET,/api/v1/leave-balances/employee/{employeeId}/summary,getBalanceSummary,domain-bean,,,leave,view,,leave/LeaveBalanceController.java,@leaveSecurity.canViewEmployeeBalances(#employeeId)
 leave,GET,/api/v1/leave-balances/employee/{employeeId}/transactions,getTransactionHistory,role-names,hr-admin;system-admin,yes,leave,view,,leave/LeaveBalanceController.java,"@orgSecurity.isSelfOrHasAnyOrgRole(#employeeId, 'system-admin', 'hr-admin')"
 leave,GET,/api/v1/leave-balances/web,getEmployeeBalances,domain-bean,,,leave,view,,leave/LeaveBalanceControllerWeb.java,@leaveSecurity.canViewEmployeeBalances(#employeeId)
-leave,POST,/api/v1/leave-balances/web/adjust,adjustBalance,role-names,hr-admin;system-admin,,leave,create,,leave/LeaveBalanceControllerWeb.java,"@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')"
-leave,POST,/api/v1/leave-balances/web/recalculate,recalculateBalances,role-names,hr-admin;system-admin,,leave,create,,leave/LeaveBalanceControllerWeb.java,"@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')"
+leave,POST,/api/v1/leave-balances/web/adjust,adjustBalance,role-names,hr-admin;system-admin,,leave,adjust-balances,,leave/LeaveBalanceControllerWeb.java,"@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')"
+leave,POST,/api/v1/leave-balances/web/recalculate,recalculateBalances,role-names,hr-admin;system-admin,,leave,adjust-balances,,leave/LeaveBalanceControllerWeb.java,"@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')"
 leave,GET,/api/v1/leave-balances/web/specific,getSpecificBalance,domain-bean,,,leave,view,,leave/LeaveBalanceControllerWeb.java,@leaveSecurity.canViewEmployeeBalances(#employeeId)
 leave,GET,/api/v1/leave-balances/web/summary,getBalanceSummary,domain-bean,,,leave,view,,leave/LeaveBalanceControllerWeb.java,@leaveSecurity.canViewEmployeeBalances(#employeeId)
 leave,GET,/api/v1/leave-balances/web/transactions,getTransactionHistory,role-names,hr-admin;system-admin,yes,leave,view,,leave/LeaveBalanceControllerWeb.java,"@orgSecurity.isSelfOrHasAnyOrgRole(#employeeId, 'system-admin', 'hr-admin')"
@@ -426,57 +426,57 @@ leave,GET,/api/v1/leave-calendar/web/employee,getEmployeeCalendar,role-names,hr-
 leave,GET,/api/v1/leave-calendar/web/grouped,getCalendarGroupedByDate,role-names,hr-admin;system-admin,,leave,view,,leave/LeaveCalendarControllerWeb.java,"@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')"
 leave,GET,/api/v1/leave-calendar/web/organization,getOrganizationCalendar,role-names,hr-admin;system-admin,,leave,view,,leave/LeaveCalendarControllerWeb.java,"@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')"
 leave,GET,/api/v1/leave-calendar/web/team,getTeamCalendar,any-member,,,leave,view,,leave/LeaveCalendarControllerWeb.java,@orgSecurity.isMemberOfCurrentTenant()
-leave,GET,/api/v1/leave-policies,getAllPolicies,role-names,hr-admin;system-admin,,leave,view,,leave/LeavePolicyController.java,"@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')"
-leave,POST,/api/v1/leave-policies,createPolicy,keycloak-permission,,,leave,create,leave:admin->leave:view+create+edit+approve+delete,leave/LeavePolicyController.java,hasAuthority('leave:admin')
+leave,GET,/api/v1/leave-policies,getAllPolicies,role-names,hr-admin;system-admin,,leave-policies,view,,leave/LeavePolicyController.java,"@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')"
+leave,POST,/api/v1/leave-policies,createPolicy,keycloak-permission,,,leave-policies,create,leave:admin->leave:view+create+edit+approve+delete,leave/LeavePolicyController.java,hasAuthority('leave:admin')
 leave,GET,/api/v1/leave-policies/employee/{employeeId},getApplicablePoliciesForEmployee,role-names,hr-admin;system-admin,yes,leave,view,,leave/LeavePolicyController.java,"@orgSecurity.isSelfOrHasAnyOrgRole(#employeeId, 'system-admin', 'hr-admin')"
-leave,GET,/api/v1/leave-policies/web,getAllPolicies,role-names,hr-admin;system-admin,,leave,view,,leave/LeavePolicyControllerWeb.java,"@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')"
-leave,POST,/api/v1/leave-policies/web,createPolicy,role-names,system-admin,,leave,create,,leave/LeavePolicyControllerWeb.java,@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')
-leave,POST,/api/v1/leave-policies/web/activate,activatePolicy,role-names,hr-admin;system-admin,,leave,create,,leave/LeavePolicyControllerWeb.java,"@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')"
-leave,DELETE,/api/v1/leave-policies/web/deactivate,deactivatePolicy,role-names,hr-admin;system-admin,,leave,delete,,leave/LeavePolicyControllerWeb.java,"@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')"
+leave,GET,/api/v1/leave-policies/web,getAllPolicies,role-names,hr-admin;system-admin,,leave-policies,view,,leave/LeavePolicyControllerWeb.java,"@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')"
+leave,POST,/api/v1/leave-policies/web,createPolicy,role-names,system-admin,,leave-policies,create,,leave/LeavePolicyControllerWeb.java,@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')
+leave,POST,/api/v1/leave-policies/web/activate,activatePolicy,role-names,hr-admin;system-admin,,leave-policies,maintain,,leave/LeavePolicyControllerWeb.java,"@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')"
+leave,DELETE,/api/v1/leave-policies/web/deactivate,deactivatePolicy,role-names,hr-admin;system-admin,,leave-policies,maintain,,leave/LeavePolicyControllerWeb.java,"@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')"
 leave,GET,/api/v1/leave-policies/web/employee,getApplicablePoliciesForEmployee,role-names,hr-admin;system-admin,,leave,view,,leave/LeavePolicyControllerWeb.java,"@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')"
-leave,GET,/api/v1/leave-policies/web/policy,getPolicy,role-names,hr-admin;system-admin,,leave,view,,leave/LeavePolicyControllerWeb.java,"@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')"
-leave,PATCH,/api/v1/leave-policies/web/update,updatePolicy,role-names,hr-admin;system-admin,,leave,edit,,leave/LeavePolicyControllerWeb.java,"@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')"
-leave,DELETE,/api/v1/leave-policies/{policyId},deactivatePolicy,keycloak-permission,,,leave,delete,leave:admin->leave:view+create+edit+approve+delete,leave/LeavePolicyController.java,hasAuthority('leave:admin')
-leave,GET,/api/v1/leave-policies/{policyId},getPolicy,keycloak-permission,,,leave,view,leave:admin->leave:view+create+edit+approve+delete leave:read->leave:view,leave/LeavePolicyController.java,hasAuthority('leave:read') or hasAuthority('leave:admin')
-leave,PATCH,/api/v1/leave-policies/{policyId},updatePolicy,keycloak-permission,,,leave,edit,leave:admin->leave:view+create+edit+approve+delete,leave/LeavePolicyController.java,hasAuthority('leave:admin')
-leave,POST,/api/v1/leave-policies/{policyId}/activate,activatePolicy,keycloak-permission,,,leave,create,leave:admin->leave:view+create+edit+approve+delete,leave/LeavePolicyController.java,hasAuthority('leave:admin')
+leave,GET,/api/v1/leave-policies/web/policy,getPolicy,role-names,hr-admin;system-admin,,leave-policies,view,,leave/LeavePolicyControllerWeb.java,"@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')"
+leave,PATCH,/api/v1/leave-policies/web/update,updatePolicy,role-names,hr-admin;system-admin,,leave-policies,maintain,,leave/LeavePolicyControllerWeb.java,"@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')"
+leave,DELETE,/api/v1/leave-policies/{policyId},deactivatePolicy,keycloak-permission,,,leave-policies,maintain,leave:admin->leave:view+create+edit+approve+delete,leave/LeavePolicyController.java,hasAuthority('leave:admin')
+leave,GET,/api/v1/leave-policies/{policyId},getPolicy,keycloak-permission,,,leave-policies,view,leave:admin->leave:view+create+edit+approve+delete leave:read->leave:view,leave/LeavePolicyController.java,hasAuthority('leave:read') or hasAuthority('leave:admin')
+leave,PATCH,/api/v1/leave-policies/{policyId},updatePolicy,keycloak-permission,,,leave-policies,maintain,leave:admin->leave:view+create+edit+approve+delete,leave/LeavePolicyController.java,hasAuthority('leave:admin')
+leave,POST,/api/v1/leave-policies/{policyId}/activate,activatePolicy,keycloak-permission,,,leave-policies,maintain,leave:admin->leave:view+create+edit+approve+delete,leave/LeavePolicyController.java,hasAuthority('leave:admin')
 leave,POST,/api/v1/leave-requests,createRequest,role-names,hr-admin;system-admin,yes,leave,create,,leave/LeaveRequestController.java,"@orgSecurity.isSelfOrHasAnyOrgRole(#employeeId, 'system-admin', 'hr-admin')"
-leave,POST,/api/v1/leave-requests/calculate-days,calculateDays,keycloak-permission,,,leave,create,leave:admin->leave:view+create+edit+approve+delete leave:read->leave:view,leave/LeaveRequestController.java,hasAuthority('leave:read') or hasAuthority('leave:admin')
+leave,POST,/api/v1/leave-requests/calculate-days,calculateDays,keycloak-permission,,,leave,read,leave:admin->leave:view+create+edit+approve+delete leave:read->leave:view,leave/LeaveRequestController.java,hasAuthority('leave:read') or hasAuthority('leave:admin')
 leave,GET,/api/v1/leave-requests/conflicts,getConflictingDates,keycloak-permission,,,leave,view,leave:admin->leave:view+create+edit+approve+delete leave:read->leave:view,leave/LeaveRequestController.java,hasAuthority('leave:read') or hasAuthority('leave:admin')
 leave,GET,/api/v1/leave-requests/employeeId/{employeeId},getEmployeeRequests,keycloak-permission,,,leave,view,leave:admin->leave:view+create+edit+approve+delete leave:read->leave:view,leave/LeaveRequestController.java,hasAuthority('leave:read') or hasAuthority('leave:admin')
 leave,GET,/api/v1/leave-requests/employeeId/{employeeId}/status/{status},getEmployeeRequestsByStatus,keycloak-permission,,,leave,view,leave:admin->leave:view+create+edit+approve+delete leave:read->leave:view,leave/LeaveRequestController.java,hasAuthority('leave:read') or hasAuthority('leave:admin')
 leave,GET,/api/v1/leave-requests/organizationId/{organizationId},getOrganizationRequests,keycloak-permission,,,leave,view,leave:admin->leave:view+create+edit+approve+delete,leave/LeaveRequestController.java,hasAuthority('leave:admin')
-leave,GET,/api/v1/leave-requests/pending-approvals,getPendingApprovals,any-member,,,leave,approve,,leave/LeaveRequestController.java,@orgSecurity.isMemberOfCurrentTenant()
-leave,GET,/api/v1/leave-requests/pending-approvals/count,getPendingApprovalCount,any-member,,,leave,approve,,leave/LeaveRequestController.java,@orgSecurity.isMemberOfCurrentTenant()
+leave,GET,/api/v1/leave-requests/pending-approvals,getPendingApprovals,any-member,,,leave,view,,leave/LeaveRequestController.java,@orgSecurity.isMemberOfCurrentTenant()
+leave,GET,/api/v1/leave-requests/pending-approvals/count,getPendingApprovalCount,any-member,,,leave,view,,leave/LeaveRequestController.java,@orgSecurity.isMemberOfCurrentTenant()
 leave,GET,/api/v1/leave-requests/requestId/{requestId},getRequest,any-member,,,leave,view,,leave/LeaveRequestController.java,@orgSecurity.isMemberOfCurrentTenant()
 leave,PATCH,/api/v1/leave-requests/requestId/{requestId},updateRequest,any-member,,,leave,edit,,leave/LeaveRequestController.java,@orgSecurity.isMemberOfCurrentTenant()
-leave,POST,/api/v1/leave-requests/requestId/{requestId}/cancel,cancelRequest,any-member,,,leave,create,,leave/LeaveRequestController.java,@orgSecurity.isMemberOfCurrentTenant()
-leave,POST,/api/v1/leave-requests/requestId/{requestId}/submit,submitRequest,any-member,,,leave,create,,leave/LeaveRequestController.java,@orgSecurity.isMemberOfCurrentTenant()
-leave,POST,/api/v1/leave-requests/requestId/{requestId}/withdraw,withdrawRequest,any-member,,,leave,create,,leave/LeaveRequestController.java,@orgSecurity.isMemberOfCurrentTenant()
+leave,POST,/api/v1/leave-requests/requestId/{requestId}/cancel,cancelRequest,any-member,,,leave,edit,,leave/LeaveRequestController.java,@orgSecurity.isMemberOfCurrentTenant()
+leave,POST,/api/v1/leave-requests/requestId/{requestId}/submit,submitRequest,any-member,,,leave,edit,,leave/LeaveRequestController.java,@orgSecurity.isMemberOfCurrentTenant()
+leave,POST,/api/v1/leave-requests/requestId/{requestId}/withdraw,withdrawRequest,any-member,,,leave,edit,,leave/LeaveRequestController.java,@orgSecurity.isMemberOfCurrentTenant()
 leave,POST,/api/v1/leave-requests/web,createRequest,role-names,hr-admin;system-admin,yes,leave,create,,leave/LeaveRequestControllerWeb.java,"@orgSecurity.isSelfOrHasAnyOrgRole(#employeeId, 'system-admin', 'hr-admin')"
-leave,GET,/api/v1/leave-requests/web/approver,getRequestsByApprover,any-member,,,leave,approve,,leave/LeaveRequestControllerWeb.java,@orgSecurity.isMemberOfCurrentTenant()
-leave,POST,/api/v1/leave-requests/web/calculate-days,calculateDays,any-member,,,leave,create,,leave/LeaveRequestControllerWeb.java,@orgSecurity.isMemberOfCurrentTenant()
-leave,POST,/api/v1/leave-requests/web/cancel,cancelRequest,role-names,hr-admin;system-admin,yes,leave,create,,leave/LeaveRequestControllerWeb.java,"@orgSecurity.isSelfOrHasAnyOrgRole(#employeeId, 'system-admin', 'hr-admin')"
+leave,GET,/api/v1/leave-requests/web/approver,getRequestsByApprover,any-member,,,leave,view,,leave/LeaveRequestControllerWeb.java,@orgSecurity.isMemberOfCurrentTenant()
+leave,POST,/api/v1/leave-requests/web/calculate-days,calculateDays,any-member,,,leave,read,,leave/LeaveRequestControllerWeb.java,@orgSecurity.isMemberOfCurrentTenant()
+leave,POST,/api/v1/leave-requests/web/cancel,cancelRequest,role-names,hr-admin;system-admin,yes,leave,edit,,leave/LeaveRequestControllerWeb.java,"@orgSecurity.isSelfOrHasAnyOrgRole(#employeeId, 'system-admin', 'hr-admin')"
 leave,GET,/api/v1/leave-requests/web/conflicts,getConflictingDates,domain-bean,,yes,leave,view,,leave/LeaveRequestControllerWeb.java,@orgSecurity.isSelfInCurrentTenant(#employeeId)
 leave,GET,/api/v1/leave-requests/web/employee,getEmployeeRequests,domain-bean,,yes,leave,view,,leave/LeaveRequestControllerWeb.java,@orgSecurity.isSelfInCurrentTenant(#employeeId)
 leave,GET,/api/v1/leave-requests/web/employee-by-status,getEmployeeRequestsByStatus,role-names,hr-admin;system-admin,,leave,view,,leave/LeaveRequestControllerWeb.java,"@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')"
-leave,POST,/api/v1/leave-requests/web/employeeId/{employeeId}/submit,submitRequest,role-names,hr-admin;system-admin,yes,leave,create,,leave/LeaveRequestControllerWeb.java,"@orgSecurity.isSelfOrHasAnyOrgRole(#employeeId, 'system-admin', 'hr-admin')"
-leave,POST,/api/v1/leave-requests/web/employeeId/{employeeId}/withdraw,withdrawRequest,role-names,hr-admin;system-admin,yes,leave,create,,leave/LeaveRequestControllerWeb.java,"@orgSecurity.isSelfOrHasAnyOrgRole(#employeeId, 'system-admin', 'hr-admin')"
+leave,POST,/api/v1/leave-requests/web/employeeId/{employeeId}/submit,submitRequest,role-names,hr-admin;system-admin,yes,leave,edit,,leave/LeaveRequestControllerWeb.java,"@orgSecurity.isSelfOrHasAnyOrgRole(#employeeId, 'system-admin', 'hr-admin')"
+leave,POST,/api/v1/leave-requests/web/employeeId/{employeeId}/withdraw,withdrawRequest,role-names,hr-admin;system-admin,yes,leave,edit,,leave/LeaveRequestControllerWeb.java,"@orgSecurity.isSelfOrHasAnyOrgRole(#employeeId, 'system-admin', 'hr-admin')"
 leave,GET,/api/v1/leave-requests/web/organization,getOrganizationRequests,role-names,hr-admin;system-admin,,leave,view,,leave/LeaveRequestControllerWeb.java,"@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')"
-leave,GET,/api/v1/leave-requests/web/pending-approvals,getPendingApprovals,any-member,,,leave,approve,,leave/LeaveRequestControllerWeb.java,@orgSecurity.isMemberOfCurrentTenant()
-leave,GET,/api/v1/leave-requests/web/pending-approvals/count,getPendingApprovalCount,any-member,,,leave,approve,,leave/LeaveRequestControllerWeb.java,@orgSecurity.isMemberOfCurrentTenant()
+leave,GET,/api/v1/leave-requests/web/pending-approvals,getPendingApprovals,any-member,,,leave,view,,leave/LeaveRequestControllerWeb.java,@orgSecurity.isMemberOfCurrentTenant()
+leave,GET,/api/v1/leave-requests/web/pending-approvals/count,getPendingApprovalCount,any-member,,,leave,view,,leave/LeaveRequestControllerWeb.java,@orgSecurity.isMemberOfCurrentTenant()
 leave,GET,/api/v1/leave-requests/web/request,getRequest,any-member,,,leave,view,,leave/LeaveRequestControllerWeb.java,@orgSecurity.isMemberOfCurrentTenant()
 leave,PATCH,/api/v1/leave-requests/web/update,updateRequest,role-names,hr-admin;system-admin,yes,leave,edit,,leave/LeaveRequestControllerWeb.java,"@orgSecurity.isSelfOrHasAnyOrgRole(#employeeId, 'system-admin', 'hr-admin')"
 leave,GET,/api/v1/notifications,getNotifications,any-member,,,leave,view,,leave/NotificationController.java,@orgSecurity.isMemberOfCurrentTenant()
-leave,POST,/api/v1/notifications/mark-all-read,markAllAsRead,any-member,,,leave,create,,leave/NotificationController.java,@orgSecurity.isMemberOfCurrentTenant()
+leave,POST,/api/v1/notifications/mark-all-read,markAllAsRead,any-member,,,leave,read,,leave/NotificationController.java,@orgSecurity.isMemberOfCurrentTenant()
 leave,GET,/api/v1/notifications/unread,getUnreadNotifications,any-member,,,leave,view,,leave/NotificationController.java,@orgSecurity.isMemberOfCurrentTenant()
 leave,GET,/api/v1/notifications/unread-count,getUnreadCount,any-member,,,leave,view,,leave/NotificationController.java,@orgSecurity.isMemberOfCurrentTenant()
 leave,GET,/api/v1/notifications/web,getNotifications,any-member,,,leave,view,,leave/NotificationControllerWeb.java,@orgSecurity.isMemberOfCurrentTenant()
-leave,POST,/api/v1/notifications/web/mark-all-read,markAllAsRead,any-member,,,leave,create,,leave/NotificationControllerWeb.java,@orgSecurity.isMemberOfCurrentTenant()
-leave,PATCH,/api/v1/notifications/web/read,markAsRead,any-member,,,leave,edit,,leave/NotificationControllerWeb.java,@orgSecurity.isMemberOfCurrentTenant()
+leave,POST,/api/v1/notifications/web/mark-all-read,markAllAsRead,any-member,,,leave,read,,leave/NotificationControllerWeb.java,@orgSecurity.isMemberOfCurrentTenant()
+leave,PATCH,/api/v1/notifications/web/read,markAsRead,any-member,,,leave,read,,leave/NotificationControllerWeb.java,@orgSecurity.isMemberOfCurrentTenant()
 leave,GET,/api/v1/notifications/web/unread,getUnreadNotifications,any-member,,,leave,view,,leave/NotificationControllerWeb.java,@orgSecurity.isMemberOfCurrentTenant()
 leave,GET,/api/v1/notifications/web/unread-count,getUnreadCount,any-member,,,leave,view,,leave/NotificationControllerWeb.java,@orgSecurity.isMemberOfCurrentTenant()
-leave,PATCH,/api/v1/notifications/{notificationId}/read,markAsRead,any-member,,,leave,edit,,leave/NotificationController.java,@orgSecurity.isMemberOfCurrentTenant()
+leave,PATCH,/api/v1/notifications/{notificationId}/read,markAsRead,any-member,,,leave,read,,leave/NotificationController.java,@orgSecurity.isMemberOfCurrentTenant()
 attendance,GET,/api/v1/attendance-regularizations/calendar,calendar,domain-bean,,,leave-regularisation,view,,attendance/AttendanceRegularizationController.java,@attendanceSecurity.canViewEmployeeRecords(#employeeId)
 attendance,GET,/api/v1/attendance-regularizations/pending,getPending,domain-bean,,,leave-regularisation,view,,attendance/AttendanceRegularizationController.java,@attendanceSecurity.canManageRecords()
 attendance,POST,/api/v1/attendance-regularizations/request,submitRequest,any-member,,,leave-regularisation,create,,attendance/AttendanceRegularizationController.java,@orgSecurity.isMemberOfCurrentTenant()

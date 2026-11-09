@@ -98,6 +98,10 @@ class MobileListPagingContractTest {
     @MockitoBean(name = "access")
     private org.tornotron.echno_backend.modules.access.guard.AccessGuard access;
 
+    // Named to match the @leaveAccess bean the leave guards reference.
+    @MockitoBean(name = "leaveAccess")
+    private org.tornotron.echno_backend.leave.LeaveAccess leaveAccess;
+
     @MockitoBean
     private KeycloakAuthorizationService keycloakAuthorizationService;
 
@@ -113,6 +117,8 @@ class MobileListPagingContractTest {
         when(orgSecurity.isSelfInCurrentTenant(anyLong())).thenReturn(true);
         when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(true);
         when(attendanceSecurity.canManageRecords()).thenReturn(true);
+        when(leaveAccess.acrossOrganization(org.mockito.ArgumentMatchers.anyString())).thenReturn(true);
+        when(leaveAccess.allowsFor(org.mockito.ArgumentMatchers.anyString(), anyLong())).thenReturn(true);
     }
 
     /** Five rows in all, asked for two at a time, and this is the middle page. */

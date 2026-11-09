@@ -48,7 +48,7 @@ public class LeaveRequestControllerWeb {
     }
 
     @PostMapping
-    @PreAuthorize("@orgSecurity.isSelfOrHasAnyOrgRole(#employeeId, 'system-admin', 'hr-admin')")
+    @PreAuthorize("@access.can('leave', 'create') and @leaveAccess.allowsFor('create', #employeeId)")
     @Operation(
             summary = "Create a leave request",
             description = "Creates a leave request for the given employee from the dates, policy and reason "
@@ -58,7 +58,7 @@ public class LeaveRequestControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Request created"),
             @ApiResponse(responseCode = "400", description = "The request payload failed validation"),
-            @ApiResponse(responseCode = "403", description = "Caller is neither the employee named nor a holder of the system-admin or hr-admin role"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to leave"),
             @ApiResponse(responseCode = "409", description = "The requested dates overlap an existing leave request, or the balance is insufficient")
     })
     public ResponseEntity<LeaveRequestDto> createRequest(
@@ -69,7 +69,7 @@ public class LeaveRequestControllerWeb {
     }
 
     @GetMapping("/request")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('leave', 'read')")
     @Operation(
             summary = "Get a leave request by id",
             description = "Returns a single leave request with its approval trail. Readable by the "
@@ -80,7 +80,7 @@ public class LeaveRequestControllerWeb {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Request found"),
-            @ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant, or takes no part in this request and holds neither leave-administrator role"),
+            @ApiResponse(responseCode = "403", description = "Caller may not read leave, or takes no part in this request and holds neither leave-administrator role"),
             @ApiResponse(responseCode = "404", description = "No leave request with the given id")
     })
     public ResponseEntity<LeaveRequestDto> getRequest(@RequestParam Long requestId) {
@@ -88,7 +88,7 @@ public class LeaveRequestControllerWeb {
     }
 
     @GetMapping("/employee")
-    @PreAuthorize("@orgSecurity.isSelfInCurrentTenant(#employeeId)")
+    @PreAuthorize("@access.can('leave', 'read') and @orgSecurity.isSelfInCurrentTenant(#employeeId)")
     @Operation(
             summary = "List an employee's leave requests",
             description = "Returns the leave requests raised by the employee, across all statuses, as a "
@@ -96,7 +96,7 @@ public class LeaveRequestControllerWeb {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Requests returned"),
-            @ApiResponse(responseCode = "403", description = "Caller is not the employee identified by the id"),
+            @ApiResponse(responseCode = "403", description = "Caller may not read leave"),
             @ApiResponse(responseCode = "404", description = "No employee with the given id")
     })
     public ResponseEntity<List<LeaveRequestDto>> getEmployeeRequests(
@@ -106,7 +106,7 @@ public class LeaveRequestControllerWeb {
     }
 
     @GetMapping("/employee-by-status")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @PreAuthorize("@access.can('leave', 'read') and @leaveAccess.acrossOrganization('read')")
     @Operation(
             summary = "List an employee's leave requests by status",
             description = "Returns the employee's leave requests filtered to the given status, for "
@@ -114,7 +114,7 @@ public class LeaveRequestControllerWeb {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Requests returned"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not read leave"),
             @ApiResponse(responseCode = "404", description = "No employee with the given id")
     })
     public ResponseEntity<List<LeaveRequestDto>> getEmployeeRequestsByStatus(
@@ -124,21 +124,21 @@ public class LeaveRequestControllerWeb {
     }
 
     @GetMapping("/organization")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @PreAuthorize("@access.can('leave', 'read') and @leaveAccess.acrossOrganization('read')")
     @Operation(
             summary = "List the current tenant's leave requests",
             description = "Returns every leave request raised within the caller's current tenant."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Requests returned"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read leave")
     })
     public ResponseEntity<List<LeaveRequestDto>> getOrganizationRequests() {
         return ResponseEntity.ok(requestService.getRequestsByOrganization());
     }
 
     @GetMapping("/approver")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('leave', 'read')")
     @Operation(
             summary = "List the requests you have been an approver on",
             description = "Returns the leave requests, across all statuses, that name the signed-in caller "
@@ -148,14 +148,14 @@ public class LeaveRequestControllerWeb {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Requests returned"),
-            @ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant, or has no employee record in it")
+            @ApiResponse(responseCode = "403", description = "Caller may not read leave, or has no employee record in it")
     })
     public ResponseEntity<List<LeaveRequestDto>> getRequestsByApprover() {
         return ResponseEntity.ok(requestService.getRequestsByApprover());
     }
 
     @GetMapping("/pending-approvals")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('leave', 'read')")
     @Operation(
             summary = "List the requests waiting on you",
             description = "Returns the leave requests currently awaiting a decision from the signed-in "
@@ -167,14 +167,14 @@ public class LeaveRequestControllerWeb {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Pending requests returned"),
-            @ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant, or has no employee record in it, so there is no queue to serve")
+            @ApiResponse(responseCode = "403", description = "Caller may not read leave, or has no employee record in it, so there is no queue to serve")
     })
     public ResponseEntity<List<LeaveRequestDto>> getPendingApprovals() {
         return ResponseEntity.ok(requestService.getPendingApprovals());
     }
 
     @GetMapping("/pending-approvals/count")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('leave', 'read')")
     @Operation(
             summary = "Count the requests waiting on you",
             description = "Returns the number of leave requests currently awaiting a decision from the "
@@ -182,7 +182,7 @@ public class LeaveRequestControllerWeb {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Count returned"),
-            @ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant, or has no employee record in it, so there is no queue to count")
+            @ApiResponse(responseCode = "403", description = "Caller may not read leave, or has no employee record in it, so there is no queue to count")
     })
     public ResponseEntity<Map<String, Long>> getPendingApprovalCount() {
         long count = requestService.getPendingApprovalCount();
@@ -190,7 +190,7 @@ public class LeaveRequestControllerWeb {
     }
 
     @PatchMapping("/update")
-    @PreAuthorize("@orgSecurity.isSelfOrHasAnyOrgRole(#employeeId, 'system-admin', 'hr-admin')")
+    @PreAuthorize("@access.can('leave', 'edit') and @leaveAccess.allowsFor('edit', #employeeId)")
     @Operation(
             summary = "Partially update a leave request",
             description = "Applies the given field updates to a draft leave request and returns the "
@@ -199,7 +199,7 @@ public class LeaveRequestControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Request updated"),
             @ApiResponse(responseCode = "400", description = "One of the update fields failed validation"),
-            @ApiResponse(responseCode = "403", description = "Caller is neither the employee the request belongs to nor a holder of the system-admin or hr-admin role"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to leave"),
             @ApiResponse(responseCode = "404", description = "No leave request with the given id"),
             @ApiResponse(responseCode = "409", description = "The updated dates overlap an existing leave request, or the request is no longer editable")
     })
@@ -213,7 +213,7 @@ public class LeaveRequestControllerWeb {
     }
 
     @PostMapping("employeeId/{employeeId}/submit")
-    @PreAuthorize("@orgSecurity.isSelfOrHasAnyOrgRole(#employeeId, 'system-admin', 'hr-admin')")
+    @PreAuthorize("@access.can('leave', 'edit') and @leaveAccess.allowsFor('edit', #employeeId)")
     @Operation(
             summary = "Submit a leave request for approval",
             description = "Moves a draft leave request into the approval workflow, assigning the first "
@@ -221,7 +221,7 @@ public class LeaveRequestControllerWeb {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Request submitted"),
-            @ApiResponse(responseCode = "403", description = "Caller is neither the employee the request belongs to nor a holder of the system-admin or hr-admin role"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to leave"),
             @ApiResponse(responseCode = "404", description = "No leave request with the given id"),
             @ApiResponse(responseCode = "409", description = "The request is not in a submittable state, or the balance is insufficient")
     })
@@ -230,7 +230,7 @@ public class LeaveRequestControllerWeb {
     }
 
     @PostMapping("/cancel")
-    @PreAuthorize("@orgSecurity.isSelfOrHasAnyOrgRole(#employeeId, 'system-admin', 'hr-admin')")
+    @PreAuthorize("@access.can('leave', 'edit') and @leaveAccess.allowsFor('edit', #employeeId)")
     @Operation(
             summary = "Cancel a leave request",
             description = "Cancels an already-approved leave request and records the given reason, "
@@ -238,7 +238,7 @@ public class LeaveRequestControllerWeb {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Request cancelled"),
-            @ApiResponse(responseCode = "403", description = "Caller is neither the employee the request belongs to nor a holder of the system-admin or hr-admin role"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to leave"),
             @ApiResponse(responseCode = "404", description = "No leave request with the given id"),
             @ApiResponse(responseCode = "409", description = "The request is not in a cancellable state")
     })
@@ -250,7 +250,7 @@ public class LeaveRequestControllerWeb {
     }
 
     @PostMapping("employeeId/{employeeId}/withdraw")
-    @PreAuthorize("@orgSecurity.isSelfOrHasAnyOrgRole(#employeeId, 'system-admin', 'hr-admin')")
+    @PreAuthorize("@access.can('leave', 'edit') and @leaveAccess.allowsFor('edit', #employeeId)")
     @Operation(
             summary = "Withdraw a leave request",
             description = "Withdraws a leave request that is still pending approval, before any approver "
@@ -258,7 +258,7 @@ public class LeaveRequestControllerWeb {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Request withdrawn"),
-            @ApiResponse(responseCode = "403", description = "Caller is neither the employee the request belongs to nor a holder of the system-admin or hr-admin role"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to leave"),
             @ApiResponse(responseCode = "404", description = "No leave request with the given id"),
             @ApiResponse(responseCode = "409", description = "The request is not in a withdrawable state")
     })
@@ -267,7 +267,7 @@ public class LeaveRequestControllerWeb {
     }
 
     @GetMapping("/conflicts")
-    @PreAuthorize("@orgSecurity.isSelfInCurrentTenant(#employeeId)")
+    @PreAuthorize("@access.can('leave', 'read') and @orgSecurity.isSelfInCurrentTenant(#employeeId)")
     @Operation(
             summary = "Get conflicting leave dates",
             description = "Returns the dates within the given range that already fall inside another leave "
@@ -275,7 +275,7 @@ public class LeaveRequestControllerWeb {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Conflicting dates returned"),
-            @ApiResponse(responseCode = "403", description = "Caller is not the employee identified by the id"),
+            @ApiResponse(responseCode = "403", description = "Caller may not read leave"),
             @ApiResponse(responseCode = "404", description = "No employee with the given id")
     })
     public ResponseEntity<List<LocalDate>> getConflictingDates(
@@ -286,7 +286,7 @@ public class LeaveRequestControllerWeb {
     }
 
     @PostMapping("/calculate-days")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('leave', 'read')")
     @Operation(
             summary = "Calculate total leave days",
             description = "Calculates what a leave request between startDate and endDate would cost, "
@@ -296,7 +296,7 @@ public class LeaveRequestControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Total days calculated"),
             @ApiResponse(responseCode = "400", description = "startDate or endDate is missing or not a valid date"),
-            @ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read leave")
     })
     public ResponseEntity<LeaveDaysCalculationResultDto> calculateDays(
             @Valid @RequestBody LeaveDaysCalculationDto dto) {

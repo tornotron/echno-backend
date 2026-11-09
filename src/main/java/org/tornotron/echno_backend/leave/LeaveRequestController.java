@@ -48,7 +48,7 @@ public class LeaveRequestController {
     }
 
     @PostMapping
-    @PreAuthorize("@orgSecurity.isSelfOrHasAnyOrgRole(#employeeId, 'system-admin', 'hr-admin')")
+    @PreAuthorize("@access.can('leave', 'create') and @leaveAccess.allowsFor('create', #employeeId)")
     @Operation(
             summary = "Create a leave request",
             description = "Creates a leave request for the given employee from the dates, policy and reason "
@@ -58,7 +58,7 @@ public class LeaveRequestController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Request created"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The request payload failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither the employee named nor a holder of the system-admin or hr-admin role"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to leave"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "The requested dates overlap an existing leave request, or the balance is insufficient")
     })
     public ResponseEntity<LeaveRequestDto> createRequest(
@@ -69,7 +69,7 @@ public class LeaveRequestController {
     }
 
     @GetMapping("/requestId/{requestId}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('leave', 'read')")
     @Operation(
             summary = "Get a leave request by id",
             description = "Returns a single leave request with its approval trail. Readable by the "
@@ -80,7 +80,7 @@ public class LeaveRequestController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Request found"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant, or takes no part in this request and holds neither leave-administrator role"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read leave, or takes no part in this request and holds neither leave-administrator role"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No leave request with the given id")
     })
     public ResponseEntity<LeaveRequestDto> getRequest(@PathVariable Long requestId) {
@@ -89,7 +89,7 @@ public class LeaveRequestController {
 
     @GetMapping("/employeeId/{employeeId}")
 //    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
-    @PreAuthorize("@orgSecurity.isSelfInCurrentTenant(#employeeId)")
+    @PreAuthorize("@access.can('leave', 'read') and @orgSecurity.isSelfInCurrentTenant(#employeeId)")
     @Operation(
             summary = "List an employee's leave requests",
             description = "Returns a page of leave requests raised by the employee, across all statuses, "
@@ -97,7 +97,7 @@ public class LeaveRequestController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of requests returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not the employee identified by the id"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read leave"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No employee with the given id")
     })
     public ResponseEntity<Page<LeaveRequestDto>> getEmployeeRequests(
@@ -109,7 +109,7 @@ public class LeaveRequestController {
 
     @GetMapping("/employeeId/{employeeId}/status/{status}")
 //    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @PreAuthorize("@access.can('leave', 'read') and @leaveAccess.acrossOrganization('read')")
     @Operation(
             summary = "List an employee's leave requests by status",
             description = "Returns the employee's leave requests filtered to the given status, for "
@@ -117,7 +117,7 @@ public class LeaveRequestController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Requests returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read leave"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No employee with the given id")
     })
     public ResponseEntity<Page<LeaveRequestDto>> getEmployeeRequestsByStatus(
@@ -131,7 +131,7 @@ public class LeaveRequestController {
     @GetMapping("/organizationId/{organizationId}")
 //    @PreAuthorize("hasAuthority('leave:admin')")
     @PreAuthorize("@orgSecurity.isCurrentTenant(#organizationId) "
-            + "and @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+            + "and @access.can('leave', 'read') and @leaveAccess.acrossOrganization('read')")
     @Operation(
             summary = "List an organization's leave requests",
             description = "Returns a page of the leave requests raised within the given organization, newest "
@@ -141,7 +141,7 @@ public class LeaveRequestController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Requests returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not entitled to the organization named, or lacks the required role in it")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read leave, or lacks the required role in it")
     })
     // organizationId is bound for the guard rather than for the service. The published path
     // promises the id decides what is returned, and nothing read it: the handler answered the
@@ -158,7 +158,7 @@ public class LeaveRequestController {
     }
 
     @GetMapping("/pending-approvals")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('leave', 'read')")
     @Operation(
             summary = "List the requests waiting on you",
             description = "Returns the leave requests currently awaiting a decision from the signed-in "
@@ -170,14 +170,14 @@ public class LeaveRequestController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Pending requests returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant, or has no employee record in it, so there is no queue to serve")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read leave, or has no employee record in it, so there is no queue to serve")
     })
     public ResponseEntity<Page<LeaveRequestDto>> getPendingApprovals(@Valid @ParameterObject PageQuery pageQuery) {
         return ResponseEntity.ok(requestService.getPendingApprovals(pageQuery.getPageNo(), pageQuery.getPageSize()));
     }
 
     @GetMapping("/pending-approvals/count")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('leave', 'read')")
     @Operation(
             summary = "Count the requests waiting on you",
             description = "Returns the number of leave requests currently awaiting a decision from the "
@@ -185,7 +185,7 @@ public class LeaveRequestController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Count returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant, or has no employee record in it, so there is no queue to count")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read leave, or has no employee record in it, so there is no queue to count")
     })
     public ResponseEntity<Map<String, Long>> getPendingApprovalCount() {
         long count = requestService.getPendingApprovalCount();
@@ -195,7 +195,7 @@ public class LeaveRequestController {
     @PatchMapping("requestId/{requestId}")
     // Ownership is settled in LeaveRequestService against the request's own employee: this
     // handler takes no employee id, so there is nothing here for a self-check to read.
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('leave', 'edit')")
     @Operation(
             summary = "Partially update a leave request",
             description = "Applies the given field updates to a draft leave request and returns the "
@@ -204,7 +204,7 @@ public class LeaveRequestController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Request updated"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "One of the update fields failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither the employee the request belongs to nor a holder of the system-admin or hr-admin role"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to leave"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No leave request with the given id"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "The updated dates overlap an existing leave request, or the request is no longer editable")
     })
@@ -219,7 +219,7 @@ public class LeaveRequestController {
     @PostMapping("/requestId/{requestId}/submit")
     // Ownership is settled in LeaveRequestService against the request's own employee: this
     // handler takes no employee id, so there is nothing here for a self-check to read.
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('leave', 'edit')")
     @Operation(
             summary = "Submit a leave request for approval",
             description = "Moves a draft leave request into the approval workflow, assigning the first "
@@ -227,7 +227,7 @@ public class LeaveRequestController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Request submitted"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither the employee the request belongs to nor a holder of the system-admin or hr-admin role"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to leave"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No leave request with the given id"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "The request is not in a submittable state, or the balance is insufficient")
     })
@@ -238,7 +238,7 @@ public class LeaveRequestController {
     @PostMapping("/requestId/{requestId}/cancel")
     // Ownership is settled in LeaveRequestService against the request's own employee: this
     // handler takes no employee id, so there is nothing here for a self-check to read.
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('leave', 'edit')")
     @Operation(
             summary = "Cancel a leave request",
             description = "Cancels an already-approved leave request and records the given reason, "
@@ -246,7 +246,7 @@ public class LeaveRequestController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Request cancelled"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither the employee the request belongs to nor a holder of the system-admin or hr-admin role"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to leave"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No leave request with the given id"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "The request is not in a cancellable state")
     })
@@ -259,7 +259,7 @@ public class LeaveRequestController {
     @PostMapping("/requestId/{requestId}/withdraw")
     // Ownership is settled in LeaveRequestService against the request's own employee: this
     // handler takes no employee id, so there is nothing here for a self-check to read.
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('leave', 'edit')")
     @Operation(
             summary = "Withdraw a leave request",
             description = "Withdraws a leave request that is still pending approval, before any approver "
@@ -267,7 +267,7 @@ public class LeaveRequestController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Request withdrawn"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither the employee the request belongs to nor a holder of the system-admin or hr-admin role"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to leave"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No leave request with the given id"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "The request is not in a withdrawable state")
     })
@@ -277,7 +277,7 @@ public class LeaveRequestController {
 
     @GetMapping("/conflicts")
 //    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
-    @PreAuthorize("@orgSecurity.isSelfInCurrentTenant(#employeeId)")
+    @PreAuthorize("@access.can('leave', 'read') and @orgSecurity.isSelfInCurrentTenant(#employeeId)")
     @Operation(
             summary = "Get conflicting leave dates",
             description = "Returns the dates within the given range that already fall inside another leave "
@@ -285,7 +285,7 @@ public class LeaveRequestController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Conflicting dates returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not the employee identified by the id"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read leave"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No employee with the given id")
     })
     public ResponseEntity<List<LocalDate>> getConflictingDates(
@@ -297,7 +297,7 @@ public class LeaveRequestController {
 
     @PostMapping("/calculate-days")
 //    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('leave', 'read')")
     @Operation(
             summary = "Calculate total leave days",
             description = "Calculates what a leave request between startDate and endDate would cost, "
@@ -307,7 +307,7 @@ public class LeaveRequestController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Total days calculated"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "startDate or endDate is missing or not a valid date"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read leave")
     })
     public ResponseEntity<LeaveDaysCalculationResultDto> calculateDays(
             @Valid @RequestBody LeaveDaysCalculationDto dto) {

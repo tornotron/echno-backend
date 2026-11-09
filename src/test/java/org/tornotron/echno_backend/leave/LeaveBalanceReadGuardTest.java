@@ -14,8 +14,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
 import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
+import org.tornotron.echno_backend.modules.access.guard.AccessGuard;
 
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -64,6 +67,12 @@ class LeaveBalanceReadGuardTest {
     private LeaveBalanceService balanceService;
 
     // Named to match the @orgSecurity bean the @PreAuthorize SpEL references.
+    @MockitoBean(name = "access")
+    private AccessGuard access;
+
+    @MockitoBean(name = "leaveAccess")
+    private LeaveAccess leaveAccess;
+
     @MockitoBean(name = "orgSecurity")
     private OrganizationSecurityService orgSecurity;
 
@@ -87,18 +96,22 @@ class LeaveBalanceReadGuardTest {
      * membership and nothing else, so the colleague's summary really was returned to this caller.
      */
     private void callerIsAnOrdinaryEmployee() {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
-        when(orgSecurity.isSelfOrHasAnyOrgRole(SELF, "system-admin", "hr-admin")).thenReturn(true);
-        when(orgSecurity.isSelfOrHasAnyOrgRole(COLLEAGUE, "system-admin", "hr-admin")).thenReturn(false);
+        when(access.can(eq("leave"), anyString()))
+                .thenAnswer(call -> true && !"adjust-balances".equals(call.getArgument(1)));
+        when(leaveAccess.allowsFor(anyString(), eq(SELF))).thenReturn(true);
+        when(leaveAccess.allowsFor(anyString(), eq(COLLEAGUE))).thenReturn(false);
         when(leaveSecurity.canViewEmployeeBalances(SELF)).thenReturn(true);
         when(leaveSecurity.canViewEmployeeBalances(COLLEAGUE)).thenReturn(false);
     }
 
     /** An hr-admin: the role branch answers for anybody, before the change and after it. */
     private void callerIsAnHrAdmin() {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "hr-admin")).thenReturn(true);
-        when(orgSecurity.isSelfOrHasAnyOrgRole(COLLEAGUE, "system-admin", "hr-admin")).thenReturn(true);
+        when(access.can(eq("leave"), anyString()))
+                .thenAnswer(call -> true && !"adjust-balances".equals(call.getArgument(1)));
+        when(access.can("leave", "adjust-balances")).thenReturn(true);
+        when(leaveAccess.acrossOrganization("read")).thenReturn(true);
+        when(access.can(eq("leave-policies"), anyString())).thenReturn(true);
+        when(leaveAccess.allowsFor(anyString(), eq(COLLEAGUE))).thenReturn(true);
         when(leaveSecurity.canViewEmployeeBalances(COLLEAGUE)).thenReturn(true);
     }
 
@@ -108,9 +121,12 @@ class LeaveBalanceReadGuardTest {
      * false for this caller on every balance read, so the approver was refused the figure.
      */
     private void callerIsTheColleaguesLineManager() {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "hr-admin")).thenReturn(false);
-        when(orgSecurity.isSelfOrHasAnyOrgRole(COLLEAGUE, "system-admin", "hr-admin")).thenReturn(false);
+        when(access.can(eq("leave"), anyString()))
+                .thenAnswer(call -> true && !"adjust-balances".equals(call.getArgument(1)));
+        when(access.can("leave", "adjust-balances")).thenReturn(false);
+        when(leaveAccess.acrossOrganization("read")).thenReturn(false);
+        when(access.can(eq("leave-policies"), anyString())).thenReturn(false);
+        when(leaveAccess.allowsFor(anyString(), eq(COLLEAGUE))).thenReturn(false);
         when(leaveSecurity.canViewEmployeeBalances(COLLEAGUE)).thenReturn(true);
     }
 
@@ -241,7 +257,9 @@ class LeaveBalanceReadGuardTest {
         // Deliberately not moved. It is the one route in the pair that is written as a command
         // rather than a read, and an employee triggering a recalculation of their own figures is
         // a different decision from an employee being told what they are.
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "hr-admin")).thenReturn(false);
+        when(access.can("leave", "adjust-balances")).thenReturn(false);
+        when(leaveAccess.acrossOrganization("read")).thenReturn(false);
+        when(access.can(eq("leave-policies"), anyString())).thenReturn(false);
 
         mockMvc.perform(post("/api/v1/leave-balances/employee/" + SELF + "/recalculate").with(jwt()))
                 .andExpect(status().isForbidden());

@@ -38,7 +38,7 @@ public class LeaveBalanceControllerWeb {
     }
 
     @GetMapping
-    @PreAuthorize("@leaveSecurity.canViewEmployeeBalances(#employeeId)")
+    @PreAuthorize("@access.can('leave', 'read') and @leaveSecurity.canViewEmployeeBalances(#employeeId)")
     @Operation(
             summary = "List an employee's leave balances",
             description = "Returns every leave policy balance held by the employee for the given year, "
@@ -46,7 +46,7 @@ public class LeaveBalanceControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Balances returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not the employee identified by the id, not in that employee's management line or the current approver of one of their pending leave requests, and holds neither the system-admin nor the hr-admin role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read leave"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No employee with the given id")
     })
     public ResponseEntity<List<LeaveBalanceDto>> getEmployeeBalances(
@@ -57,7 +57,7 @@ public class LeaveBalanceControllerWeb {
     }
 
     @GetMapping("/specific")
-    @PreAuthorize("@leaveSecurity.canViewEmployeeBalances(#employeeId)")
+    @PreAuthorize("@access.can('leave', 'read') and @leaveSecurity.canViewEmployeeBalances(#employeeId)")
     @Operation(
             summary = "Get an employee's balance for one policy",
             description = "Returns, or calculates on demand, the employee's balance under the given leave "
@@ -65,7 +65,7 @@ public class LeaveBalanceControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Balance returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not the employee identified by the id, not in that employee's management line or the current approver of one of their pending leave requests, and holds neither the system-admin nor the hr-admin role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read leave"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No employee or leave policy with the given id")
     })
     public ResponseEntity<LeaveBalanceDto> getSpecificBalance(
@@ -77,7 +77,7 @@ public class LeaveBalanceControllerWeb {
     }
 
     @GetMapping("/summary")
-    @PreAuthorize("@leaveSecurity.canViewEmployeeBalances(#employeeId)")
+    @PreAuthorize("@access.can('leave', 'read') and @leaveSecurity.canViewEmployeeBalances(#employeeId)")
     @Operation(
             summary = "Get an employee's balance summary",
             description = "Returns the employee's balances for the given year together with totals for "
@@ -85,7 +85,7 @@ public class LeaveBalanceControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Summary returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not the employee identified by the id, not in that employee's management line or the current approver of one of their pending leave requests, and holds neither the system-admin nor the hr-admin role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read leave"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No employee with the given id")
     })
     public ResponseEntity<LeaveBalanceSummaryDto> getBalanceSummary(
@@ -96,7 +96,7 @@ public class LeaveBalanceControllerWeb {
     }
 
     @PostMapping("/recalculate")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @PreAuthorize("@access.can('leave', 'adjust-balances')")
     @Operation(
             summary = "Recalculate an employee's leave balances",
             description = "Rebuilds every policy balance held by the employee for the given year and "
@@ -110,7 +110,7 @@ public class LeaveBalanceControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Balances recalculated"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to leave"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No employee with the given id")
     })
     public ResponseEntity<List<LeaveBalanceDto>> recalculateBalances(
@@ -121,7 +121,7 @@ public class LeaveBalanceControllerWeb {
     }
 
     @PostMapping("/adjust")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @PreAuthorize("@access.can('leave', 'adjust-balances')")
     @Operation(
             summary = "Manually adjust a leave balance",
             description = "Applies a signed day adjustment to an employee's balance under the given policy "
@@ -130,7 +130,7 @@ public class LeaveBalanceControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Adjustment applied"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The adjustment payload failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to leave"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No employee or leave policy with the given id")
     })
     public ResponseEntity<LeaveTransactionDto> adjustBalance(
@@ -139,7 +139,7 @@ public class LeaveBalanceControllerWeb {
     }
 
     @GetMapping("/transactions")
-    @PreAuthorize("@orgSecurity.isSelfOrHasAnyOrgRole(#employeeId, 'system-admin', 'hr-admin')")
+    @PreAuthorize("@access.can('leave', 'read') and @leaveAccess.allowsFor('read', #employeeId)")
     @Operation(
             summary = "Get an employee's transaction history",
             description = "Returns every leave balance transaction recorded for the employee, across all "
@@ -147,7 +147,7 @@ public class LeaveBalanceControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Transaction history returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither the employee identified by the id nor a holder of the system-admin or hr-admin role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read leave"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No employee with the given id")
     })
     public ResponseEntity<List<LeaveTransactionDto>> getTransactionHistory(
@@ -156,7 +156,7 @@ public class LeaveBalanceControllerWeb {
     }
 
     @GetMapping("/transactions-by-balance")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @PreAuthorize("@access.can('leave', 'read') and @leaveAccess.acrossOrganization('read')")
     @Operation(
             summary = "Get transactions for one balance",
             description = "Returns every transaction recorded against the given leave balance record, in "
@@ -164,7 +164,7 @@ public class LeaveBalanceControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Transactions returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read leave"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No leave balance with the given id")
     })
     public ResponseEntity<List<LeaveTransactionDto>> getTransactionsByBalance(

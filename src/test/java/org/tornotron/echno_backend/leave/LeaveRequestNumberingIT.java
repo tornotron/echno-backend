@@ -20,7 +20,6 @@ import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.retry.TransactionRetryTemplate;
 import org.tornotron.echno_backend.common.retry.TransactionalWorkRunner;
 import org.tornotron.echno_backend.common.service.CurrentEmployeeService;
-import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.leave.dto.LeaveRequestCreationDto;
 import org.tornotron.echno_backend.leave.enums.LeaveStatus;
@@ -39,6 +38,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 /**
@@ -73,7 +73,7 @@ class LeaveRequestNumberingIT extends AbstractIntegrationTest {
     @MockitoBean private LeaveApprovalService approvalService;
     @MockitoBean private LeaveRequestValidator leaveRequestValidator;
     @MockitoBean private LeaveRequestMapper leaveRequestMapper;
-    @MockitoBean private OrganizationSecurityService orgSecurity;
+    @MockitoBean private LeaveAccess leaveAccess;
     @MockitoBean private CurrentEmployeeService currentEmployeeService;
 
     private record Tenant(Long orgId, Long employeeId, Long policyId) {
@@ -94,7 +94,7 @@ class LeaveRequestNumberingIT extends AbstractIntegrationTest {
         // The same number in a second tenant: rejected while the constraint spanned every tenant.
         Tenant other = new TransactionTemplate(txManager).execute(status -> persistTenantHolding(first));
 
-        when(orgSecurity.isSelfInCurrentTenant(anyLong())).thenReturn(true);
+        when(leaveAccess.allowsFor(anyString(), anyLong())).thenReturn(true);
         when(leaveRequestValidator.charge(any(), any(), any(), any(), any()))
                 .thenReturn(new LeaveCharge(2.0, 2.0, 0, WeekendHolidayTreatment.CHARGE_ALL_DAYS));
 
@@ -121,7 +121,7 @@ class LeaveRequestNumberingIT extends AbstractIntegrationTest {
 
         Tenant tenant = new TransactionTemplate(txManager).execute(status -> persistTenantHolding(eighth, tenth));
 
-        when(orgSecurity.isSelfInCurrentTenant(anyLong())).thenReturn(true);
+        when(leaveAccess.allowsFor(anyString(), anyLong())).thenReturn(true);
         when(leaveRequestValidator.charge(any(), any(), any(), any(), any()))
                 .thenReturn(new LeaveCharge(2.0, 2.0, 0, WeekendHolidayTreatment.CHARGE_ALL_DAYS));
 

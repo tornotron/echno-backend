@@ -7,7 +7,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.common.service.CurrentEmployeeService;
-import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.leave.dto.LeaveApprovalActionDto;
@@ -52,7 +51,7 @@ class LeaveApprovalServiceTest {
     @Mock private LeaveTransactionRepository transactionRepository;
     @Mock private EmployeeRepository employeeRepository;
     @Mock private CurrentEmployeeService currentEmployeeService;
-    @Mock private OrganizationSecurityService orgSecurity;
+    @Mock private LeaveAccess leaveAccess;
     @Mock private LeaveCalendarService calendarService;
     @Mock private NotificationService notificationService;
     @Mock private LeaveRequestMapper leaveRequestMapper;
@@ -66,7 +65,7 @@ class LeaveApprovalServiceTest {
                 transactionRepository,
                 employeeRepository,
                 currentEmployeeService,
-                orgSecurity,
+                leaveAccess,
                 calendarService,
                 notificationService,
                 leaveRequestMapper,

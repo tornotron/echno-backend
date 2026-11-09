@@ -14,8 +14,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
 import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
+import org.tornotron.echno_backend.modules.access.guard.AccessGuard;
 
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -50,6 +53,12 @@ class LeaveRequestOrganizationSegmentTest {
     private LeaveRequestService requestService;
 
     // Named to match the @orgSecurity bean the @PreAuthorize SpEL references.
+    @MockitoBean(name = "access")
+    private AccessGuard access;
+
+    @MockitoBean(name = "leaveAccess")
+    private LeaveAccess leaveAccess;
+
     @MockitoBean(name = "orgSecurity")
     private OrganizationSecurityService orgSecurity;
 
@@ -63,7 +72,10 @@ class LeaveRequestOrganizationSegmentTest {
 
     /** An hr-admin of their own organization and of no other. */
     private void callerIsAnHrAdmin() {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "hr-admin")).thenReturn(true);
+        when(access.can("leave", "adjust-balances")).thenReturn(true);
+        when(leaveAccess.acrossOrganization("read")).thenReturn(true);
+        when(access.can("leave", "read")).thenReturn(true);
+        when(access.can(eq("leave-policies"), anyString())).thenReturn(true);
         when(orgSecurity.isCurrentTenant(OWN_ORG)).thenReturn(true);
         when(orgSecurity.isCurrentTenant(FOREIGN_ORG)).thenReturn(false);
     }

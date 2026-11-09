@@ -11,7 +11,6 @@ import org.mockito.quality.Strictness;
 import org.springframework.security.access.AccessDeniedException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.CurrentEmployeeService;
-import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.leave.dto.LeaveApprovalDto;
@@ -65,7 +64,7 @@ class LeaveApprovalTrailAccessTest {
     @Mock private LeaveTransactionRepository transactionRepository;
     @Mock private EmployeeRepository employeeRepository;
     @Mock private CurrentEmployeeService currentEmployeeService;
-    @Mock private OrganizationSecurityService orgSecurity;
+    @Mock private LeaveAccess leaveAccess;
     @Mock private LeaveCalendarService calendarService;
     @Mock private NotificationService notificationService;
     @Mock private LeaveRequestMapper leaveRequestMapper;
@@ -90,7 +89,7 @@ class LeaveApprovalTrailAccessTest {
                 transactionRepository,
                 employeeRepository,
                 currentEmployeeService,
-                orgSecurity,
+                leaveAccess,
                 calendarService,
                 notificationService,
                 leaveRequestMapper,
@@ -145,7 +144,7 @@ class LeaveApprovalTrailAccessTest {
     }
 
     private void holdingNoLeaveAdminRole() {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "hr-admin")).thenReturn(false);
+        when(leaveAccess.acrossOrganization("read")).thenReturn(false);
     }
 
     @Test
@@ -181,7 +180,7 @@ class LeaveApprovalTrailAccessTest {
     void aLeaveAdministratorMayReadAnyTrail() {
         theRequestExists();
         signedInAs(BYSTANDER_ID);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "hr-admin")).thenReturn(true);
+        when(leaveAccess.acrossOrganization("read")).thenReturn(true);
 
         assertThat(service().getApprovalChain(REQUEST_ID)).hasSize(2);
     }

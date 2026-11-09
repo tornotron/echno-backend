@@ -10,7 +10,6 @@ import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.CurrentEmployeeService;
-import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.leave.dto.LeaveApprovalActionDto;
@@ -22,6 +21,7 @@ import org.tornotron.echno_backend.leave.enums.LeaveApproverRole;
 import org.tornotron.echno_backend.leave.enums.LeaveStatus;
 import org.tornotron.echno_backend.leave.enums.NotificationType;
 import org.tornotron.echno_backend.leave.enums.TransactionType;
+import org.tornotron.echno_backend.modules.access.api.AccessPermission;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -51,14 +51,13 @@ public class LeaveApprovalService {
     private final LeaveTransactionRepository transactionRepository;
     private final EmployeeRepository employeeRepository;
     private final CurrentEmployeeService currentEmployeeService;
-    private final OrganizationSecurityService orgSecurity;
+    private final LeaveAccess leaveAccess;
     private final LeaveCalendarService calendarService;
     private final NotificationService notificationService;
     private final LeaveRequestMapper leaveRequestMapper;
     private final LeaveRequestValidator leaveRequestValidator;
 
     /** The roles that may read any leave request's approval trail, chain membership aside. */
-    private static final String[] LEAVE_ADMIN_ROLES = {"system-admin", "hr-admin"};
 
     public LeaveApprovalService(
             LeaveApprovalRepository approvalRepository,
@@ -67,7 +66,7 @@ public class LeaveApprovalService {
             LeaveTransactionRepository transactionRepository,
             EmployeeRepository employeeRepository,
             CurrentEmployeeService currentEmployeeService,
-            OrganizationSecurityService orgSecurity,
+            LeaveAccess leaveAccess,
             @Lazy LeaveCalendarService calendarService,
             @Lazy NotificationService notificationService,
             LeaveRequestMapper leaveRequestMapper,
@@ -78,7 +77,7 @@ public class LeaveApprovalService {
         this.transactionRepository = transactionRepository;
         this.employeeRepository = employeeRepository;
         this.currentEmployeeService = currentEmployeeService;
-        this.orgSecurity = orgSecurity;
+        this.leaveAccess = leaveAccess;
         this.calendarService = calendarService;
         this.notificationService = notificationService;
         this.leaveRequestMapper = leaveRequestMapper;
@@ -436,7 +435,7 @@ public class LeaveApprovalService {
     }
 
     private void requireMayReadTrail(LeaveRequest request, List<LeaveApproval> approvals) {
-        if (orgSecurity.hasAnyOrgRoleForCurrentTenant(LEAVE_ADMIN_ROLES)) {
+        if (leaveAccess.acrossOrganization(AccessPermission.READ)) {
             return;
         }
 

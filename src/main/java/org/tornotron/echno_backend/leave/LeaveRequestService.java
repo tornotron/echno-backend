@@ -17,7 +17,6 @@ import org.tornotron.echno_backend.common.retry.TransactionRetryTemplate;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.CurrentEmployeeService;
-import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.leave.dto.LeaveRequestCreationDto;
@@ -25,6 +24,7 @@ import org.tornotron.echno_backend.leave.dto.LeaveRequestDto;
 import org.tornotron.echno_backend.leave.enums.HalfDayType;
 import org.tornotron.echno_backend.leave.enums.LeaveStatus;
 import org.tornotron.echno_backend.organization.Organization;
+import org.tornotron.echno_backend.modules.access.api.AccessPermission;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
@@ -56,12 +56,11 @@ public class LeaveRequestService {
     private final LeaveApprovalService approvalService;
     private final LeaveRequestValidator leaveRequestValidator;
     private final LeaveRequestMapper leaveRequestMapper;
-    private final OrganizationSecurityService orgSecurity;
+    private final LeaveAccess leaveAccess;
     private final CurrentEmployeeService currentEmployeeService;
     private final TransactionRetryTemplate retryTemplate;
 
     /** The roles that may raise or act on a leave request belonging to somebody else. */
-    private static final String[] LEAVE_ADMIN_ROLES = {"system-admin", "hr-admin"};
 
     public LeaveRequestService(
             LeaveRequestRepository requestRepository,
@@ -72,7 +71,7 @@ public class LeaveRequestService {
             LeaveApprovalService approvalService,
             LeaveRequestValidator leaveRequestValidator,
             LeaveRequestMapper leaveRequestMapper,
-            OrganizationSecurityService orgSecurity,
+            LeaveAccess leaveAccess,
             CurrentEmployeeService currentEmployeeService,
             TransactionRetryTemplate retryTemplate) {
         this.requestRepository = requestRepository;
@@ -83,7 +82,7 @@ public class LeaveRequestService {
         this.approvalService = approvalService;
         this.leaveRequestValidator = leaveRequestValidator;
         this.leaveRequestMapper = leaveRequestMapper;
-        this.orgSecurity = orgSecurity;
+        this.leaveAccess = leaveAccess;
         this.currentEmployeeService = currentEmployeeService;
         this.retryTemplate = retryTemplate;
     }
@@ -104,9 +103,8 @@ public class LeaveRequestService {
      *     is one rather than taken from the request.
      * @throws AccessDeniedException if the caller is neither that employee nor a leave admin.
      */
-    private void requireActorMayActFor(Long employeeId) {
-        if (orgSecurity.isSelfInCurrentTenant(employeeId)
-                || orgSecurity.hasAnyOrgRoleForCurrentTenant(LEAVE_ADMIN_ROLES)) {
+    private void requireActorMayActFor(String action, Long employeeId) {
+        if (leaveAccess.allowsFor(action, employeeId)) {
             return;
         }
         throw new AccessDeniedException(
@@ -134,7 +132,7 @@ public class LeaveRequestService {
      *     nor a holder of the system-admin or hr-admin role.
      */
     public LeaveRequestDto createRequest(LeaveRequestCreationDto dto,Long employeeId) {
-        requireActorMayActFor(employeeId);
+        requireActorMayActFor(AccessPermission.CREATE, employeeId);
 
         return retryTemplate.execute(
                 "LeaveRequestService.createRequest",
@@ -410,7 +408,7 @@ public class LeaveRequestService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Leave request with ID " + requestId + " was not found in this organization"));
 
-        requireActorMayActFor(request.getEmployee().getId());
+        requireActorMayActFor(AccessPermission.EDIT, request.getEmployee().getId());
 
         if (request.getStatus() != LeaveStatus.DRAFT) {
             throw new InvalidRequestException(
@@ -497,7 +495,7 @@ public class LeaveRequestService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Leave request with ID " + requestId + " was not found in this organization"));
 
-        requireActorMayActFor(request.getEmployee().getId());
+        requireActorMayActFor(AccessPermission.EDIT, request.getEmployee().getId());
 
         if (request.getStatus() != LeaveStatus.DRAFT) {
             throw new InvalidRequestException(
@@ -544,7 +542,7 @@ public class LeaveRequestService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Leave request with ID " + requestId + " was not found in this organization"));
 
-        requireActorMayActFor(request.getEmployee().getId());
+        requireActorMayActFor(AccessPermission.EDIT, request.getEmployee().getId());
 
         if (request.getStatus() == LeaveStatus.CANCELLED ||
             request.getStatus() == LeaveStatus.REJECTED) {
@@ -588,7 +586,7 @@ public class LeaveRequestService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Leave request with ID " + requestId + " was not found in this organization"));
 
-        requireActorMayActFor(request.getEmployee().getId());
+        requireActorMayActFor(AccessPermission.EDIT, request.getEmployee().getId());
 
         if (request.getStatus() != LeaveStatus.DRAFT &&
             request.getStatus() != LeaveStatus.PENDING_APPROVAL) {

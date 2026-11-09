@@ -115,24 +115,25 @@ class LeaveApprovalEndpointAuthorityTest {
     }
 
     @Test
-    void actingOnAnApprovalIsGatedOnMembershipBecauseTheRecordDecidesWhoMayAct() {
+    void actingOnAnApprovalIsGatedOnTheAreaBecauseTheRecordDecidesWhoMayAct() {
         // The role gate this replaces could not express the rule. An approval chain is built by
         // walking the employee's management line, so an approver is a manager and holds neither
         // system-admin nor hr-admin: the guard refused the very people who hold the decision,
         // while an administrator who was not in the chain got past it and was refused by the
-        // service. Membership is what the annotation can evaluate; the service settles the rest.
+        // service. Every member holds leave:approve at own scope, which is what the annotation can
+        // evaluate; the service settles the rest.
         assertThat(guardOf(LeaveApprovalController.class, "approve"))
-                .isEqualTo("@orgSecurity.isMemberOfCurrentTenant()");
+                .isEqualTo("@access.can('leave', 'approve')");
         assertThat(guardOf(LeaveApprovalController.class, "reject"))
-                .isEqualTo("@orgSecurity.isMemberOfCurrentTenant()");
+                .isEqualTo("@access.can('leave', 'approve')");
         assertThat(guardOf(LeaveApprovalController.class, "delegate"))
-                .isEqualTo("@orgSecurity.isMemberOfCurrentTenant()");
+                .isEqualTo("@access.can('leave', 'approve')");
         assertThat(guardOf(LeaveApprovalControllerWeb.class, "approve"))
-                .isEqualTo("@orgSecurity.isMemberOfCurrentTenant()");
+                .isEqualTo("@access.can('leave', 'approve')");
         assertThat(guardOf(LeaveApprovalControllerWeb.class, "reject"))
-                .isEqualTo("@orgSecurity.isMemberOfCurrentTenant()");
+                .isEqualTo("@access.can('leave', 'approve')");
         assertThat(guardOf(LeaveApprovalControllerWeb.class, "delegate"))
-                .isEqualTo("@orgSecurity.isMemberOfCurrentTenant()");
+                .isEqualTo("@access.can('leave', 'approve')");
     }
 
     @Test

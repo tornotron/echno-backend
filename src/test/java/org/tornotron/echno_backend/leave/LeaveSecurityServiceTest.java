@@ -10,7 +10,6 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.CurrentEmployeeService;
-import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 
@@ -47,7 +46,7 @@ class LeaveSecurityServiceTest {
     private static final Long DELEGATE_ID = 10L;
     private static final Long BYSTANDER_ID = 11L;
 
-    @Mock private OrganizationSecurityService orgSecurity;
+    @Mock private LeaveAccess leaveAccess;
     @Mock private CurrentEmployeeService currentEmployeeService;
     @Mock private EmployeeRepository employeeRepository;
     @Mock private LeaveApprovalRepository approvalRepository;
@@ -59,7 +58,7 @@ class LeaveSecurityServiceTest {
     void setUp() {
         TenantContext.setCurrentOrgId(ORG_ID);
         applicant = employee(APPLICANT_ID);
-        when(orgSecurity.isSelfOrHasAnyOrgRole(anyLong(), eq("system-admin"), eq("hr-admin"))).thenReturn(false);
+        when(leaveAccess.allowsFor(eq("read"), anyLong())).thenReturn(false);
         when(employeeRepository.findByIdAndOrganizationId(APPLICANT_ID, ORG_ID)).thenReturn(Optional.of(applicant));
         when(approvalService.resolveApprovalChain(applicant))
                 .thenReturn(List.of(employee(LINE_MANAGER_ID), employee(SENIOR_MANAGER_ID)));
@@ -72,7 +71,7 @@ class LeaveSecurityServiceTest {
     }
 
     private LeaveSecurityService service() {
-        return new LeaveSecurityService(orgSecurity, currentEmployeeService, employeeRepository,
+        return new LeaveSecurityService(leaveAccess, currentEmployeeService, employeeRepository,
                 approvalRepository, approvalService);
     }
 
@@ -134,7 +133,7 @@ class LeaveSecurityServiceTest {
 
     @Test
     void selfAndTheAdministratorRolesAnswerBeforeAnyLookup() {
-        when(orgSecurity.isSelfOrHasAnyOrgRole(eq(APPLICANT_ID), eq("system-admin"), eq("hr-admin"))).thenReturn(true);
+        when(leaveAccess.allowsFor("read", APPLICANT_ID)).thenReturn(true);
 
         assertThat(service().canViewEmployeeBalances(APPLICANT_ID)).isTrue();
         verifyNoInteractions(employeeRepository, approvalService, approvalRepository);

@@ -43,7 +43,8 @@ class AccessRoleTemplateSeedTest {
             "db/data/access/role-template-grants-document-reversals.csv",
             "db/data/access/role-template-grants-documents-reports.csv",
             "db/data/access/role-template-grants-org-profile.csv",
-            "db/data/access/role-template-grants-inspections.csv");
+            "db/data/access/role-template-grants-inspections.csv",
+            "db/data/access/role-template-grants-leave.csv");
 
     /**
      * Template grants a later changeset deleted, by template slug and key: access-011 takes the
@@ -349,6 +350,24 @@ class AccessRoleTemplateSeedTest {
         KEYS_BY_SLUG.forEach((slug, keys) -> assertThat(keys).as(slug)
                 .allMatch(key -> !key.startsWith("inspections:") && !key.startsWith("inspection-checklists:")
                         && !key.startsWith("ncrs:") || holders.containsKey(key)));
+    }
+
+    @Test
+    void onlyTheSystemAdminAndTheHrAdminKeepLeaveBalancesAndPolicies() {
+        // Before the matrix the system admin and HR admin recalculated and adjusted balances, and read
+        // and kept the policies, while only the system admin created one.
+        for (String slug : List.of("system-admin", "hr-admin")) {
+            assertThat(KEYS_BY_SLUG.get(slug)).as(slug).contains("leave:adjust-balances",
+                    "leave-policies:read", "leave-policies:maintain");
+        }
+        assertThat(KEYS_BY_SLUG.get("system-admin")).contains("leave-policies:create");
+        assertThat(KEYS_BY_SLUG.get("hr-admin")).doesNotContain("leave-policies:create");
+        KEYS_BY_SLUG.forEach((slug, keys) -> {
+            if (!slug.equals("system-admin") && !slug.equals("hr-admin")) {
+                assertThat(keys).as(slug).doesNotContain("leave:adjust-balances")
+                        .noneMatch(key -> key.startsWith("leave-policies:"));
+            }
+        });
     }
 
     @Test

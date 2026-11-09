@@ -47,7 +47,7 @@ public class LeaveApprovalControllerWeb {
     }
 
     @PostMapping("/approve")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('leave', 'approve')")
     @Operation(
             summary = "Approve a leave request",
             description = "Records an approval for the given request and approves it: a request has one "
@@ -58,7 +58,7 @@ public class LeaveApprovalControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Request approved"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The approval action payload failed validation, or the caller is not the request's current approver, or the request is not pending approval"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant, or has no employee record in it, so the decision would name nobody"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to leave, or has no employee record in it, so the decision would name nobody"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No leave request with the given id")
     })
     public ResponseEntity<LeaveRequestDto> approve(
@@ -68,7 +68,7 @@ public class LeaveApprovalControllerWeb {
     }
 
     @PostMapping("/reject")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('leave', 'approve')")
     @Operation(
             summary = "Reject a leave request",
             description = "Records a rejection for the given request, stopping the approval workflow and "
@@ -79,7 +79,7 @@ public class LeaveApprovalControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Request rejected"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The approval action payload failed validation, or the caller is not the request's current approver, or the request is not pending approval"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant, or has no employee record in it, so the decision would name nobody"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to leave, or has no employee record in it, so the decision would name nobody"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No leave request with the given id")
     })
     public ResponseEntity<LeaveRequestDto> reject(
@@ -89,7 +89,7 @@ public class LeaveApprovalControllerWeb {
     }
 
     @PostMapping("/delegate")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('leave', 'approve')")
     @Operation(
             summary = "Transfer a pending approval to a more senior manager",
             description = "Hands the request to the employee named in the payload, who then decides it, "
@@ -101,7 +101,7 @@ public class LeaveApprovalControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Approval delegated"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The approval action payload failed validation, no target was given, the caller is not the request's current approver, or the target is not above them in their reporting line"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant, or has no employee record in it, so the handover would name nobody"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to leave, or has no employee record in it, so the handover would name nobody"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No leave request with the given id, or no such delegate in this organization")
     })
     public ResponseEntity<LeaveRequestDto> delegate(
@@ -111,7 +111,7 @@ public class LeaveApprovalControllerWeb {
     }
 
     @GetMapping("/history")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('leave', 'read')")
     @Operation(
             summary = "Get the approval history of a request",
             description = "Returns every approval action recorded against the given leave request, in the "
@@ -119,7 +119,7 @@ public class LeaveApprovalControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Approval history returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant, or takes no part in this request and holds neither the system-admin nor the hr-admin role"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read leave, or takes no part in this request and holds neither the system-admin nor the hr-admin role"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No leave request with the given id")
     })
     public ResponseEntity<List<LeaveApprovalDto>> getApprovalHistory(
@@ -128,7 +128,7 @@ public class LeaveApprovalControllerWeb {
     }
 
     @GetMapping("/chain")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('leave', 'read')")
     @Operation(
             summary = "Get the approval chain of a request",
             description = "Returns the ordered sequence of approvers configured for the given leave request, "
@@ -136,7 +136,7 @@ public class LeaveApprovalControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Approval chain returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant, or takes no part in this request and holds neither the system-admin nor the hr-admin role"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read leave, or takes no part in this request and holds neither the system-admin nor the hr-admin role"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No leave request with the given id")
     })
     public ResponseEntity<List<LeaveApprovalDto>> getApprovalChain(
@@ -145,7 +145,7 @@ public class LeaveApprovalControllerWeb {
     }
 
     @GetMapping("/can-approve")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('leave', 'read')")
     @Operation(
             summary = "Check whether you can approve a request",
             description = "Returns whether the signed-in caller is the current approver for the given leave "
@@ -157,7 +157,7 @@ public class LeaveApprovalControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Eligibility flag returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read leave"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No leave request with the given id")
     })
     public ResponseEntity<Map<String, Boolean>> canApprove(
