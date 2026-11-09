@@ -2,6 +2,7 @@ package org.tornotron.echno_backend.modules.documentingestion.extraction;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -88,7 +89,8 @@ class CorpusGateHarnessTest {
     static final String MILESTONE_ROWS = "0.95";
     static final String TITLE_BLOCK = "0.90";
 
-    final ObjectMapper json = new ObjectMapper();
+    /** Decimals read exactly, so a label's number is never rounded through a double. */
+    final ObjectMapper json = new ObjectMapper().enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS);
 
     /** What one corpus document holds after the worker read it. */
     record Parsed(String id, String fileName, DocumentFileType type, String surface, DocClass labelledClass,
@@ -179,8 +181,12 @@ class CorpusGateHarnessTest {
         int standardsNotLabelled = 0;
         for (JsonNode doc : labels.path("documents")) {
             String id = doc.path("document_id").asText();
-            if (!"text".equals(doc.path("surface").asText()) || !byId.containsKey(id)) {
+            if (!"text".equals(doc.path("surface").asText())) {
                 continue;
+            }
+            if (!byId.containsKey(id)) {
+                // A labelled document with no parsed output still counts: its labels are misses, not absent.
+                counts.merge("labelled text documents with no parsed output, counted as missed", 1, Integer::sum);
             }
             classText = classText.plus(doc.path("document_class").asText().equals(predictedClass.get(id)) ? 1 : 0, 1);
             boolean excel = Set.of("xls", "xlsx").contains(doc.path("file_type").asText());
@@ -228,7 +234,7 @@ class CorpusGateHarnessTest {
                         wanted.forEach(c -> c.path("payload").path("standards")
                                 .forEach(s -> labelled.add(CorpusGates.normalize(s))));
                         Set<String> found = new HashSet<>();
-                        Standards.find(text(byId.get(id), coverage.path("pages").asText("")))
+                        Standards.find(byId.containsKey(id) ? text(byId.get(id), coverage.path("pages").asText("")) : "")
                                 .forEach(s -> found.add(CorpusGates.normalize(json.getNodeFactory().textNode(s))));
                         Set<String> hit = new HashSet<>(labelled);
                         hit.retainAll(found);
@@ -242,6 +248,8 @@ class CorpusGateHarnessTest {
             }
         }
 
+        System.out.printf(Locale.ROOT, "Corpus run: labelled text documents with no parsed output, counted as "
+                + "missed: %d%n", counts.getOrDefault("labelled text documents with no parsed output, counted as missed", 0));
         System.out.printf(Locale.ROOT, "Gate, document class on text documents, deterministic reading alone: %s "
                 + "(an undecided document goes to the LLM; ClassGateCorpusTest asserts precision)%n", classText.show());
         System.out.printf(Locale.ROOT, "Gate, BOQ rows captured, Excel (bar %s): %s%n", BOQ_EXCEL_ROWS, boqRows.show());
@@ -260,6 +268,8 @@ class CorpusGateHarnessTest {
 
         if (boqRows.measured()) {
             assertThat(boqRows.meets(BOQ_EXCEL_ROWS)).as("BOQ rows captured, Excel: " + boqRows.show()).isTrue();
+        }
+        if (boqNumbers.measured()) {
             assertThat(boqNumbers.meets(BOQ_EXCEL_NUMBERS)).as("BOQ numbers exact, Excel: " + boqNumbers.show())
                     .isTrue();
         }
@@ -497,8 +507,14 @@ class CorpusGateHarnessTest {
     /** The name the file had where it was published, as a person uploading it would keep it. */
     private static String fileName(JsonNode doc) {
         String url = doc.path("source_url").asText();
-        String last = url.substring(url.lastIndexOf('/') + 1);
-        int query = last.indexOf('?');
-        return URLDecoder.decode(query < 0 ? last : last.substring(0, query), StandardCharsets.UTF_8);
+        int cut = url.length();
+        for (char c : new char[] {'?', '#'}) {
+            int i = url.indexOf(c);
+            if (i >= 0 && i < cut) {
+                cut = i;
+            }
+        }
+        String path = url.substring(0, cut);
+        return URLDecoder.decode(path.substring(path.lastIndexOf('/') + 1), StandardCharsets.UTF_8);
     }
 }
