@@ -17,6 +17,8 @@ import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.service.AttachmentService;
 import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.modules.documentingestion.DocumentIngestionStorageLayout;
+import org.tornotron.echno_backend.modules.documentingestion.domain.ClassMethod;
+import org.tornotron.echno_backend.modules.documentingestion.domain.DocClass;
 import org.tornotron.echno_backend.modules.documentingestion.domain.DocumentFileType;
 import org.tornotron.echno_backend.modules.documentingestion.domain.DocumentStatus;
 import org.tornotron.echno_backend.modules.documentingestion.domain.IngestDocument;
@@ -119,6 +121,9 @@ public class IngestDocumentService {
         if (doc.getFileType() == DocumentFileType.DWG) {
             doc.setStatus(DocumentStatus.STORED_ONLY);
             doc.setError("DWG files are stored and listed but not read. Add a PDF or DXF copy to have it read.");
+            doc.setDocClass(DocClass.DRAWING.name());
+            doc.setClassMethod(ClassMethod.DETERMINISTIC);
+            doc.setClassReason("A drawing file.");
         } else {
             enqueue(doc);
         }
