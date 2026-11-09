@@ -37,39 +37,39 @@ public class TradeControllerWeb {
     private final TradeService service;
 
     @GetMapping
-    @PreAuthorize("@inspectionSecurity.canRead()")
+    @PreAuthorize("@access.can('inspection-checklists', 'read')")
     @Operation(summary = "List the organization's trades",
             description = "Active trades by default, in sort order then name. Pass includeInactive=true "
                     + "to see retired ones too.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "The organization's trades"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read inspection checklists")
     })
     public List<OrgTradeDto> list(@RequestParam(required = false, defaultValue = "false") boolean includeInactive) {
         return service.listOrgTrades(includeInactive);
     }
 
     @GetMapping("/catalogue")
-    @PreAuthorize("@inspectionSecurity.canRead()")
+    @PreAuthorize("@access.can('inspection-checklists', 'read')")
     @Operation(summary = "List the shipped trade catalogue",
             description = "The global catalogue every organization's list is copied from. Read only.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "The catalogue"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read inspection checklists")
     })
     public List<TradeCatalogueDto> catalogue() {
         return service.listCatalogue();
     }
 
     @PostMapping
-    @PreAuthorize("@inspectionSecurity.canDefineChecklists()")
+    @PreAuthorize("@access.can('inspection-checklists', 'create')")
     @Operation(summary = "Define a trade",
             description = "Adds an organization-defined trade. It appears in pickers at once and can "
                     + "back a checklist template.")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Trade created"),
             @ApiResponse(responseCode = "400", description = "Validation failed on the request body"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to inspection checklists"),
             @ApiResponse(responseCode = "409", description = "The organization already has a trade with that code")
     })
     public ResponseEntity<OrgTradeDto> create(@Valid @RequestBody CreateTradeRequest req) {
@@ -77,14 +77,14 @@ public class TradeControllerWeb {
     }
 
     @PatchMapping("/{id}")
-    @PreAuthorize("@inspectionSecurity.canDefineChecklists()")
+    @PreAuthorize("@access.can('inspection-checklists', 'edit')")
     @Operation(summary = "Rename, regroup, reorder or deactivate a trade",
             description = "The code is immutable, including on catalogue copies. Deactivating hides "
                     + "the trade from pickers and leaves existing references valid.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Trade updated"),
             @ApiResponse(responseCode = "400", description = "Validation failed on the request body"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to inspection checklists"),
             @ApiResponse(responseCode = "404", description = "No trade with the given id in the current tenant")
     })
     public OrgTradeDto update(@PathVariable UUID id, @Valid @RequestBody UpdateTradeRequest req) {

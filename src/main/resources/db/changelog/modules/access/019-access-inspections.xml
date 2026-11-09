@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        inspection-checklists and ncrs (echno-backend #914). Today the inspection module gives each
+        job its own role list: the system admin, project manager, QA engineer, safety officer and site
+        engineer read; the first four schedule and record inspections and review observations; only
+        the system admin and QA engineer define checklists, element types and trades; the system admin,
+        QA engineer and safety officer raise and assign NCRs; the system admin and site engineer report
+        the corrective work; and each discipline signs off its own reports. One inspections area could
+        not hold that, so checklists and NCRs become areas of their own, with named actions for the
+        corrective work and the two sign-offs.
+
+        The site engineer and the observation producer held inspections:create, which would have let
+        them schedule and record inspections, so both go. A machine observation stays on its role
+        check: the producer is a service account with no employee row, which the matrix cannot
+        resolve. Starting a compliance check is inspections:generate-compliance (system admin and
+        project manager) and exporting a dataset is inspections:export-datasets (system admin), as
+        today.
+
+        A file of its own because 008 loads role-template-grants.csv with no runOnChange. The
+        reconciler carries the template to every uncustomized role on the next boot, in both
+        directions; a customized role is left as its organization set it.
+    -->
+
+    <changeSet id="access-019-inspections" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT count(*) FROM access_role_template_grant
+                WHERE template_id = 'ed34dfe6-5468-5f6e-b6ed-ef6eefccfce2'
+                  AND permission_key = 'ncrs:read'
+            </sqlCheck>
+        </preConditions>
+        <delete tableName="access_role_template_grant">
+            <where>template_id IN ('5f7de6b4-6265-514e-ad35-0152ced1dd98', '7cb7fbb7-895a-5dd2-a729-f54ac1edbe93')
+                AND permission_key = 'inspections:create'</where>
+        </delete>
+        <loadData tableName="access_role_template_grant" file="db/data/access/role-template-grants-inspections.csv" separator=",">
+            <column name="id" type="UUID"/>
+            <column name="template_id" type="UUID"/>
+            <column name="permission_key" type="STRING"/>
+            <column name="scope" type="STRING"/>
+        </loadData>
+    </changeSet>
+
+</databaseChangeLog>

@@ -43,7 +43,7 @@ public class ReinspectionController extends ReinspectionControllerWeb {
 
     @Override
     @PostMapping("/api/v1/ncrs/{ncrId}/reinspections")
-    @PreAuthorize("@inspectionSecurity.canSignOffNcr(#ncrId)")
+    @PreAuthorize("@inspectionSecurity.maySignOffNcr(#ncrId, @access.can('ncrs', 'sign-off-quality'), @access.can('ncrs', 'sign-off-safety'))")
     @Operation(summary = "Schedule a reinspection of an NCR",
             description = "Same as POST /api/v1/ncrs/web/{ncrId}/reinspections.")
     public ResponseEntity<ReinspectionDto> scheduleForNcr(@PathVariable UUID ncrId,
@@ -53,7 +53,7 @@ public class ReinspectionController extends ReinspectionControllerWeb {
 
     @Override
     @GetMapping("/api/v1/ncrs/{ncrId}/reinspections")
-    @PreAuthorize("@inspectionSecurity.canRead()")
+    @PreAuthorize("@access.can('ncrs', 'read')")
     @Operation(summary = "List the reinspection attempts on an NCR",
             description = "Same as GET /api/v1/ncrs/web/{ncrId}/reinspections.")
     public List<ReinspectionDto> listForNcr(@PathVariable UUID ncrId) {
@@ -62,7 +62,7 @@ public class ReinspectionController extends ReinspectionControllerWeb {
 
     @Override
     @PostMapping("/api/v1/inspections/defects/{defectId}/reinspections")
-    @PreAuthorize("@inspectionSecurity.canManageInspections()")
+    @PreAuthorize("@access.can('inspections', 'create')")
     @Operation(summary = "Schedule a reinspection of a defect",
             description = "Same as POST /api/v1/inspections/web/defects/{defectId}/reinspections.")
     public ResponseEntity<ReinspectionDto> scheduleForDefect(@PathVariable UUID defectId,
@@ -72,7 +72,7 @@ public class ReinspectionController extends ReinspectionControllerWeb {
 
     @Override
     @GetMapping("/api/v1/inspections/reinspections/{id}")
-    @PreAuthorize("@inspectionSecurity.canRead()")
+    @PreAuthorize("@access.can('inspections', 'read')")
     @Operation(summary = "Get a reinspection by id",
             description = "Same as GET /api/v1/inspections/web/reinspections/{id}.")
     public ReinspectionDto get(@PathVariable UUID id) {
@@ -81,7 +81,7 @@ public class ReinspectionController extends ReinspectionControllerWeb {
 
     @Override
     @PostMapping("/api/v1/inspections/reinspections/{id}/outcome")
-    @PreAuthorize("@inspectionSecurity.canRecordReinspectionOutcome(#id)")
+    @PreAuthorize("@inspectionSecurity.mayRecordReinspectionOutcome(#id, @access.can('ncrs', 'sign-off-quality'), @access.can('ncrs', 'sign-off-safety'))")
     @Operation(summary = "Record what the reinspection found",
             description = "Same as POST /api/v1/inspections/web/reinspections/{id}/outcome.")
     public ReinspectionDto recordOutcome(@PathVariable UUID id,

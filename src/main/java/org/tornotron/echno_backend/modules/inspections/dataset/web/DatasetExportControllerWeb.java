@@ -48,7 +48,7 @@ public class DatasetExportControllerWeb {
     private final UserContextService userContextService;
 
     @PostMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@access.can('inspections', 'export-datasets')")
     @Operation(summary = "Start an evidence export run for the current organization",
             description = "Records a run and returns it as running; the copy of every not-yet-exported inspection "
                     + "image (inspection evidence, defect photos, observation evidence) to export/<runKey>/ in the "
@@ -57,7 +57,7 @@ public class DatasetExportControllerWeb {
                     + "a later run exports nothing already on record.")
     @ApiResponses({
             @ApiResponse(responseCode = "202", description = "The run, recorded as running; its status endpoint carries the outcome"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the system-admin role"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to inspections"),
             @ApiResponse(responseCode = "409", description = "The organization has not recorded dataset consent, or a run of it is still running")
     })
     public ResponseEntity<DatasetExportRunDto> run() {
@@ -70,14 +70,14 @@ public class DatasetExportControllerWeb {
     }
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@access.can('inspections', 'export-datasets')")
     @Operation(summary = "List the organization's export runs, newest first")
     public ResponseEntity<List<DatasetExportRunDto>> list() {
         return ResponseEntity.ok(exportService.listRuns(currentOrgId()));
     }
 
     @GetMapping("{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@access.can('inspections', 'export-datasets')")
     @Operation(summary = "Read one export run")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "The run"),

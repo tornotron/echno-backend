@@ -44,7 +44,7 @@ public class ChecklistTemplateControllerWeb {
     private final ChecklistTemplateService service;
 
     @PostMapping
-    @PreAuthorize("@inspectionSecurity.canDefineChecklists()")
+    @PreAuthorize("@access.can('inspection-checklists', 'create')")
     @Operation(
             summary = "Define a checklist template",
             description = "Creates the organization's checklist for a trade, with its check points. "
@@ -53,7 +53,7 @@ public class ChecklistTemplateControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Template created"),
             @ApiResponse(responseCode = "400", description = "Validation failed on the request body"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to inspection checklists"),
             @ApiResponse(responseCode = "409", description = "The tenant already has a template for that trade")
     })
     public ResponseEntity<ChecklistTemplateDto> create(@Valid @RequestBody ChecklistTemplateRequest req) {
@@ -61,14 +61,14 @@ public class ChecklistTemplateControllerWeb {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@inspectionSecurity.canRead()")
+    @PreAuthorize("@access.can('inspection-checklists', 'read')")
     @Operation(
             summary = "Get a checklist template by id",
             description = "Returns a single template including its check points in line order."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Template found"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not read inspection checklists"),
             @ApiResponse(responseCode = "404", description = "No template with the given id in the current tenant")
     })
     public ChecklistTemplateDto get(@PathVariable UUID id) {
@@ -76,7 +76,7 @@ public class ChecklistTemplateControllerWeb {
     }
 
     @GetMapping
-    @PreAuthorize("@inspectionSecurity.canRead()")
+    @PreAuthorize("@access.can('inspection-checklists', 'read')")
     @Operation(
             summary = "List checklist templates",
             description = "Returns a page of the organization's templates. The trade and active "
@@ -85,7 +85,7 @@ public class ChecklistTemplateControllerWeb {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Page of matching templates"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read inspection checklists")
     })
     public Page<ChecklistTemplateDto> list(@RequestParam(required = false) String trade,
                                            @RequestParam(required = false) UUID tradeId,
@@ -95,7 +95,7 @@ public class ChecklistTemplateControllerWeb {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("@inspectionSecurity.canDefineChecklists()")
+    @PreAuthorize("@access.can('inspection-checklists', 'edit')")
     @Operation(
             summary = "Replace a checklist template",
             description = "Replaces the name, description, active flag and check points of an "
@@ -107,7 +107,7 @@ public class ChecklistTemplateControllerWeb {
             @ApiResponse(responseCode = "200", description = "Template updated"),
             @ApiResponse(responseCode = "400", description = "Validation failed on the request body, or the "
                     + "payload names a different trade"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to inspection checklists"),
             @ApiResponse(responseCode = "404", description = "No template with the given id in the current tenant")
     })
     public ChecklistTemplateDto update(@PathVariable UUID id,
@@ -116,7 +116,7 @@ public class ChecklistTemplateControllerWeb {
     }
 
     @GetMapping("/applicable")
-    @PreAuthorize("@inspectionSecurity.canRead()")
+    @PreAuthorize("@access.can('inspection-checklists', 'read')")
     @Operation(
             summary = "Suggest templates for an element and project type",
             description = "Returns the organization's active templates whose applicability admits the "
@@ -126,7 +126,7 @@ public class ChecklistTemplateControllerWeb {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "The applicable templates"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read inspection checklists")
     })
     public List<ChecklistTemplateDto> applicable(@RequestParam(required = false) String elementType,
                                                  @RequestParam(required = false) ProjectType projectType) {
@@ -134,7 +134,7 @@ public class ChecklistTemplateControllerWeb {
     }
 
     @GetMapping("/starters")
-    @PreAuthorize("@inspectionSecurity.canRead()")
+    @PreAuthorize("@access.can('inspection-checklists', 'read')")
     @Operation(
             summary = "List the starter checklists on offer",
             description = "Returns the product-supplied default checklists, one per trade at most. "
@@ -143,14 +143,14 @@ public class ChecklistTemplateControllerWeb {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "The available starter checklists"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read inspection checklists")
     })
     public List<StarterChecklistTemplateDto> listStarters() {
         return service.findStarters();
     }
 
     @PostMapping("/starters/{trade}/adopt")
-    @PreAuthorize("@inspectionSecurity.canDefineChecklists()")
+    @PreAuthorize("@access.can('inspection-checklists', 'create')")
     @Operation(
             summary = "Adopt a starter checklist",
             description = "Copies the shipped starter for a trade into this organization as its own "
@@ -159,7 +159,7 @@ public class ChecklistTemplateControllerWeb {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Template created from the starter"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to inspection checklists"),
             @ApiResponse(responseCode = "404", description = "No starter checklist is available for that trade"),
             @ApiResponse(responseCode = "409", description = "The tenant already has a template for that trade")
     })

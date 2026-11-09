@@ -62,14 +62,14 @@ public class ObservationControllerWeb {
     private final ObservationBatchReviewService batchReviewService;
 
     @PostMapping
-    @PreAuthorize("@inspectionSecurity.canManageInspections()")
+    @PreAuthorize("@access.can('inspections', 'create')")
     @Operation(summary = "Record an observation",
             description = "Records a finding by the signed-in inspector. Created accepted, with the caller "
                     + "as reporter and reviewer; a supervisor may still reject it later.")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Observation recorded"),
             @ApiResponse(responseCode = "400", description = "Validation failed on the request body"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to inspections"),
             @ApiResponse(responseCode = "404", description = "No inspection, spatial node or attachment with the given id in the current tenant")
     })
     public ResponseEntity<ObservationDto> create(@Valid @RequestBody CreateObservationRequest req) {
@@ -77,13 +77,13 @@ public class ObservationControllerWeb {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@inspectionSecurity.canRead() and @detectionVisibility.maySee(#id)")
+    @PreAuthorize("@access.can('inspections', 'read') and @detectionVisibility.maySee(#id)")
     @Operation(summary = "Read an observation",
             description = "Returns the observation with its active regions. includeRetiredRegions=true also returns "
                     + "the regions a review replaced or removed, so a corrected box can be shown beside the original.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Observation returned"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not read inspections"),
             @ApiResponse(responseCode = "404", description = "No observation with the given id in the current tenant")
     })
     public ObservationDto read(@PathVariable UUID id,
@@ -92,7 +92,7 @@ public class ObservationControllerWeb {
     }
 
     @GetMapping
-    @PreAuthorize("@inspectionSecurity.canRead()")
+    @PreAuthorize("@access.can('inspections', 'read')")
     @Operation(summary = "List observations",
             description = "Paged, filtered by project, review status, source, inspection, site structure "
                     + "subtree and observed-at window, and by model name and version, category (repeatable, reads as the "
@@ -102,7 +102,7 @@ public class ObservationControllerWeb {
                     + "are listed only for a caller with a role in echno.security.inspection.detection-read-roles.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Page of observations returned"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read inspections")
     })
     public Page<ObservationDto> list(@RequestParam(required = false) Long projectId,
                                      @RequestParam(required = false) ObservationReviewStatus reviewStatus,
@@ -127,7 +127,7 @@ public class ObservationControllerWeb {
     }
 
     @PostMapping("/{id}/review")
-    @PreAuthorize("@inspectionSecurity.canReviewObservations() and @detectionVisibility.maySee(#id)")
+    @PreAuthorize("@access.can('inspections', 'approve') and @detectionVisibility.maySee(#id)")
     @Operation(summary = "Decide on a pending observation",
             description = "Accept, modify or reject. Accept and modify link the outcome: mark a check item, "
                     + "create or attach a defect, or confirm an inspection. Modify stores the reviewer's "
@@ -137,7 +137,7 @@ public class ObservationControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Decision recorded"),
             @ApiResponse(responseCode = "400", description = "Reject without a note or a required rejectReason, modify without changes, an invalid region edit, or an incomplete outcome"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to inspections"),
             @ApiResponse(responseCode = "404", description = "No observation, check item, defect or inspection with the given id"),
             @ApiResponse(responseCode = "409", description = "The observation has already been reviewed")
     })
@@ -146,7 +146,7 @@ public class ObservationControllerWeb {
     }
 
     @PostMapping("/review-batch")
-    @PreAuthorize("@inspectionSecurity.canReviewObservations()")
+    @PreAuthorize("@access.can('inspections', 'approve')")
     @Operation(summary = "Decide on many pending observations",
             description = "Accept with no outcome, or reject with one reason and one note, for up to 100 ids the "
                     + "reviewer has seen. Results come back per id and each is its own transaction. Every reviewed row "
@@ -154,20 +154,20 @@ public class ObservationControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Per-observation results returned"),
             @ApiResponse(responseCode = "400", description = "MODIFY, or the envelope is empty or over its limits; nothing was written"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to inspections")
     })
     public ReviewBatchResponse reviewBatch(@Valid @RequestBody ReviewBatchRequest req) {
         return batchReviewService.review(req, detectionVisibility.callerMaySeeDetections());
     }
 
     @GetMapping("/{id}/evidence")
-    @PreAuthorize("@inspectionSecurity.canRead() and @detectionVisibility.maySee(#id)")
+    @PreAuthorize("@access.can('inspections', 'read') and @detectionVisibility.maySee(#id)")
     @Operation(summary = "List an observation's evidence",
             description = "The observation's own uploads, then every other image one of its regions is drawn on, "
                     + "each once, with a presigned download URL.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Evidence returned"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not read inspections"),
             @ApiResponse(responseCode = "404", description = "No observation with the given id in the current tenant")
     })
     public List<AttachmentDto> readEvidence(@PathVariable UUID id) {
@@ -175,13 +175,13 @@ public class ObservationControllerWeb {
     }
 
     @PostMapping("/{id}/evidence/presign")
-    @PreAuthorize("@inspectionSecurity.canManageInspections() and @detectionVisibility.maySee(#id)")
+    @PreAuthorize("@access.can('inspections', 'create') and @detectionVisibility.maySee(#id)")
     @Operation(summary = "Presign evidence uploads for an observation",
             description = "Step one of the direct-to-storage path, as for inspection evidence.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Presigned upload URLs returned"),
             @ApiResponse(responseCode = "400", description = "A file was declared twice, or is already attached"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to inspections"),
             @ApiResponse(responseCode = "404", description = "No observation with the given id in the current tenant")
     })
     public List<PresignedUpload> presignEvidence(@PathVariable UUID id, @RequestBody List<UploadRequest> uploads) {
@@ -189,14 +189,14 @@ public class ObservationControllerWeb {
     }
 
     @PostMapping("/{id}/evidence/register")
-    @PreAuthorize("@inspectionSecurity.canManageInspections() and @detectionVisibility.maySee(#id)")
+    @PreAuthorize("@access.can('inspections', 'create') and @detectionVisibility.maySee(#id)")
     @Operation(summary = "Register presigned evidence uploads for an observation",
             description = "Step two of the direct-to-storage path: confirms the keys once each object is "
                     + "verified present in storage.")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Evidence registered"),
             @ApiResponse(responseCode = "400", description = "A referenced object is missing from storage, or its key was not presigned for this observation"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to inspections"),
             @ApiResponse(responseCode = "404", description = "No observation with the given id in the current tenant")
     })
     public ResponseEntity<List<AttachmentDto>> registerEvidence(@PathVariable UUID id,

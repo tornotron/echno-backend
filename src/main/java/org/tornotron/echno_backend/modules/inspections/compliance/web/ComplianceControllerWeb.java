@@ -63,7 +63,7 @@ public class ComplianceControllerWeb {
     private final ComplianceGenerationJobService complianceGenerationJobService;
 
     @PostMapping("/jobs")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('inspections', 'generate-compliance')")
     @Operation(
             summary = "Start compliance generation for a project",
             description = "Accepts the work and returns a job to poll with GET /compliance/jobs/{jobId}. "
@@ -76,7 +76,7 @@ public class ComplianceControllerWeb {
             @ApiResponse(responseCode = "202", description = "Accepted; the body is the queued job"),
             @ApiResponse(responseCode = "200", description = "A run for this project was already in flight; the body is that job"),
             @ApiResponse(responseCode = "400", description = "No organization context set (the X-Organization-Id header is required), or a precondition is unmet: the project has no type, its address carries no recognisable state, no rules are registered for its jurisdiction, or the AI service is not configured. The detail message states what to fix."),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to inspections"),
             @ApiResponse(responseCode = "404", description = "No project with the given id in the current tenant")
     })
     public ResponseEntity<ComplianceGenerationJobDto> startGeneration(@RequestParam Long projectId) {
@@ -88,7 +88,7 @@ public class ComplianceControllerWeb {
     }
 
     @GetMapping("/jobs/{jobId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('inspections', 'generate-compliance')")
     @Operation(
             summary = "Read one compliance generation job",
             description = "Status, progress and outcome of a single run. Poll this while the status is "
@@ -99,7 +99,7 @@ public class ComplianceControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "The job"),
             @ApiResponse(responseCode = "400", description = "No organization context set (the X-Organization-Id header is required)"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to inspections"),
             @ApiResponse(responseCode = "404", description = "No job with the given id in the current tenant")
     })
     public ComplianceGenerationJobDto readJob(@PathVariable UUID jobId) {
@@ -107,7 +107,7 @@ public class ComplianceControllerWeb {
     }
 
     @GetMapping("/jobs")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('inspections', 'generate-compliance')")
     @Operation(
             summary = "Read the most recent compliance generation job for a project",
             description = "The latest run for a project, whatever state it is in, or 404 if it has never "
@@ -117,7 +117,7 @@ public class ComplianceControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "The most recent job for the project"),
             @ApiResponse(responseCode = "400", description = "No organization context set (the X-Organization-Id header is required)"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to inspections"),
             @ApiResponse(responseCode = "404", description = "This project has never had a generation job")
     })
     public ComplianceGenerationJobDto readLatestJob(@RequestParam Long projectId) {
@@ -128,7 +128,7 @@ public class ComplianceControllerWeb {
     }
 
     @PostMapping("/regenerate")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'project-manager')")
+    @PreAuthorize("@access.can('inspections', 'generate-compliance')")
     @Operation(
             summary = "Regenerate compliance inspections for a project (superseded by POST /compliance/jobs)",
             description = "Runs compliance generation for the given project synchronously and returns the "
@@ -142,7 +142,7 @@ public class ComplianceControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Generation ran; the created inspections are returned (possibly empty when nothing new applied)"),
             @ApiResponse(responseCode = "400", description = "No organization context set (the X-Organization-Id header is required), or a precondition is unmet: the project has no type, its address carries no recognisable state, no rules are registered for its jurisdiction, or the AI service is not configured. The detail message states what to fix."),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to inspections"),
             @ApiResponse(responseCode = "404", description = "No project with the given id in the current tenant"),
             @ApiResponse(responseCode = "409", description = "Another generation run for the same project kept winning the race to create the same compliances; nothing was created by this call and the request can be sent again"),
             @ApiResponse(responseCode = "502", description = "The compliance AI endpoint could not be reached, returned an error, or returned an answer that was cut short by its token limit and so did not cover every candidate rule. Nothing was created; the detail message says which")

@@ -27,6 +27,8 @@ import org.tornotron.echno_backend.modules.inspections.web.ReinspectionControlle
 
 import java.util.UUID;
 
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
@@ -136,8 +138,8 @@ class MobilePathAuthzTest {
 
     @Test
     void anInheritedGuardIsEvaluatedAgainstThePathVariable() throws Exception {
-        when(inspectionSecurity.canSignOffNcr(NCR)).thenReturn(true);
-        when(inspectionSecurity.canSignOffNcr(OTHER_NCR)).thenReturn(false);
+        when(inspectionSecurity.maySignOffNcr(eq(NCR), anyBoolean(), anyBoolean())).thenReturn(true);
+        when(inspectionSecurity.maySignOffNcr(eq(OTHER_NCR), anyBoolean(), anyBoolean())).thenReturn(false);
 
         mockMvc.perform(post("/api/v1/ncrs/{id}/verify", NCR).with(jwt()))
                 .andExpect(status().isOk());
@@ -149,7 +151,7 @@ class MobilePathAuthzTest {
 
     @Test
     void aReaderGetsAReinspectionOnTheMobilePath() throws Exception {
-        when(inspectionSecurity.canRead()).thenReturn(true);
+        when(access.can("inspections", "read")).thenReturn(true);
 
         mockMvc.perform(get("/api/v1/inspections/reinspections/{id}", NCR).with(jwt()))
                 .andExpect(status().isOk());
@@ -157,7 +159,7 @@ class MobilePathAuthzTest {
 
     @Test
     void aCallerWhoCannotReadIsRefusedAReinspectionOnTheMobilePath() throws Exception {
-        when(inspectionSecurity.canRead()).thenReturn(false);
+        when(access.can("inspections", "read")).thenReturn(false);
 
         mockMvc.perform(get("/api/v1/inspections/reinspections/{id}", NCR).with(jwt()))
                 .andExpect(status().isForbidden());
@@ -165,8 +167,8 @@ class MobilePathAuthzTest {
 
     @Test
     void anOverriddenGuardIsEvaluatedAgainstThePathVariable() throws Exception {
-        when(inspectionSecurity.canSignOffNcr(NCR)).thenReturn(true);
-        when(inspectionSecurity.canSignOffNcr(OTHER_NCR)).thenReturn(false);
+        when(inspectionSecurity.maySignOffNcr(eq(NCR), anyBoolean(), anyBoolean())).thenReturn(true);
+        when(inspectionSecurity.maySignOffNcr(eq(OTHER_NCR), anyBoolean(), anyBoolean())).thenReturn(false);
 
         mockMvc.perform(post("/api/v1/ncrs/{ncrId}/reinspections", NCR).with(jwt())
                         .contentType(MediaType.APPLICATION_JSON).content("{}"))

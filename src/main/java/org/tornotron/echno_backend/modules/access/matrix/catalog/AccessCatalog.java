@@ -57,7 +57,18 @@ public final class AccessCatalog {
             // The last step of a bill's chain, finance paying it: the second signature on a payment.
             new Area("progress-bills", "Contractor Bills", "Bills",
                     List.of("prepare", "verify", "certify", "authorize-payment")),
-            area("inspections", "Inspections & Defects", "Inspect"),
+            // Inspections, observations and their defects. Starting a compliance check and reading its
+            // jobs is the system admin's and the project manager's, and exporting a training dataset is
+            // the system admin's alone, so each is a named action.
+            new Area("inspections", "Inspections & Defects", "Inspect",
+                    List.of("generate-compliance", "export-datasets")),
+            // The criteria work is judged against: checklist templates, element types and trades. Every
+            // inspection reader reads them, while only the system admin and the QA engineer define them.
+            area("inspection-checklists", "Checklists & Trades", "Inspect"),
+            // Non-conformance reports. The corrective work is reported by the site engineer, and each
+            // discipline signs off its own reports, so those are named actions.
+            new Area("ncrs", "Non-conformance Reports", "Inspect",
+                    List.of("report-corrective-action", "sign-off-quality", "sign-off-safety")),
             area("toolbox-talks", "Toolbox Talks", "Talks"),
             // Stock adjustments and the stock ledger. The ledger listed over the whole organization is
             // the store's and the system admin's, while a project manager reads the movements behind a

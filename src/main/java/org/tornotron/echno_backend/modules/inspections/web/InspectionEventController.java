@@ -45,7 +45,7 @@ public class InspectionEventController extends InspectionEventControllerWeb {
 
     @Override
     @GetMapping("/api/v1/inspections/{id}/events")
-    @PreAuthorize("@inspectionSecurity.canRead()")
+    @PreAuthorize("@access.can('inspections', 'read')")
     @Operation(summary = "Read an inspection's timeline",
             description = "Same as GET /api/v1/inspections/web/{id}/events.")
     public Page<InspectionEventDto> inspectionTimeline(@PathVariable UUID id, Pageable pageable) {
@@ -54,7 +54,7 @@ public class InspectionEventController extends InspectionEventControllerWeb {
 
     @Override
     @GetMapping("/api/v1/ncrs/{id}/events")
-    @PreAuthorize("@inspectionSecurity.canRead()")
+    @PreAuthorize("@access.can('ncrs', 'read')")
     @Operation(summary = "Read a non-conformance report's timeline",
             description = "Same as GET /api/v1/ncrs/web/{id}/events.")
     public Page<InspectionEventDto> ncrTimeline(@PathVariable UUID id, Pageable pageable) {
@@ -63,7 +63,7 @@ public class InspectionEventController extends InspectionEventControllerWeb {
 
     @Override
     @GetMapping("/api/v1/inspections/events")
-    @PreAuthorize("@inspectionSecurity.canRead()")
+    @PreAuthorize("@access.can('inspections', 'read')")
     @Operation(summary = "Search the inspection event log",
             description = "Same as GET /api/v1/inspections/web/events.")
     public Page<InspectionEventDto> search(

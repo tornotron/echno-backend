@@ -53,7 +53,7 @@ public class NcrControllerWeb {
     private final NcrReportPdfService reportService;
 
     @PostMapping
-    @PreAuthorize("@inspectionSecurity.canRaiseNcrs()")
+    @PreAuthorize("@access.can('ncrs', 'create')")
     @Operation(
             summary = "Raise a non-conformance report",
             description = "Raises an NCR against an inspection, and against one of its defects when "
@@ -64,7 +64,7 @@ public class NcrControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "NCR raised"),
             @ApiResponse(responseCode = "400", description = "Validation failed on the request body"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to NCRs"),
             @ApiResponse(responseCode = "404", description = "No such inspection in the current tenant, or the "
                     + "named defect does not belong to it")
     })
@@ -73,11 +73,11 @@ public class NcrControllerWeb {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@inspectionSecurity.canRead()")
+    @PreAuthorize("@access.can('ncrs', 'read')")
     @Operation(summary = "Get a non-conformance report by id")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "NCR found"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not read NCRs"),
             @ApiResponse(responseCode = "404", description = "No NCR with the given id in the current tenant")
     })
     public NcrDto get(@PathVariable UUID id) {
@@ -85,7 +85,7 @@ public class NcrControllerWeb {
     }
 
     @GetMapping
-    @PreAuthorize("@inspectionSecurity.canRead()")
+    @PreAuthorize("@access.can('ncrs', 'read')")
     @Operation(
             summary = "List non-conformance reports",
             description = "Returns a page of NCRs in the current tenant. Every parameter is an "
@@ -100,7 +100,7 @@ public class NcrControllerWeb {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Page of matching NCRs"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read NCRs")
     })
     public Page<NcrDto> list(@RequestParam(required = false) Long projectId,
                              @RequestParam(required = false) UUID inspectionId,
@@ -117,7 +117,7 @@ public class NcrControllerWeb {
     }
 
     @PostMapping("/{id}/assign")
-    @PreAuthorize("@inspectionSecurity.canRaiseNcrs()")
+    @PreAuthorize("@access.can('ncrs', 'edit')")
     @Operation(
             summary = "Assign a non-conformance report",
             description = "Hands the corrective work to a site engineer, or moves it to a different "
@@ -126,7 +126,7 @@ public class NcrControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "NCR assigned"),
             @ApiResponse(responseCode = "400", description = "The NCR is at a stage it cannot be assigned from"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to NCRs"),
             @ApiResponse(responseCode = "404", description = "No NCR with the given id in the current tenant")
     })
     public NcrDto assign(@PathVariable UUID id, @Valid @RequestBody AssignNcrRequest req) {
@@ -134,7 +134,7 @@ public class NcrControllerWeb {
     }
 
     @PostMapping("/{id}/corrective-action-complete")
-    @PreAuthorize("@inspectionSecurity.canReportCorrectiveAction()")
+    @PreAuthorize("@access.can('ncrs', 'report-corrective-action')")
     @Operation(
             summary = "Report the corrective action complete",
             description = "The site engineer reports the work done and the NCR ready for "
@@ -144,7 +144,7 @@ public class NcrControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Corrective action recorded"),
             @ApiResponse(responseCode = "400", description = "The NCR is not assigned, so there is no work to report"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to NCRs"),
             @ApiResponse(responseCode = "404", description = "No NCR with the given id in the current tenant")
     })
     public NcrDto markCorrectiveActionComplete(@PathVariable UUID id,
@@ -153,7 +153,7 @@ public class NcrControllerWeb {
     }
 
     @PostMapping("/{id}/verify")
-    @PreAuthorize("@inspectionSecurity.canSignOffNcr(#id)")
+    @PreAuthorize("@inspectionSecurity.maySignOffNcr(#id, @access.can('ncrs', 'sign-off-quality'), @access.can('ncrs', 'sign-off-safety'))")
     @Operation(
             summary = "Verify the corrective action",
             description = "Records that the corrective work was re-inspected and accepted. Naming a "
@@ -164,7 +164,7 @@ public class NcrControllerWeb {
             @ApiResponse(responseCode = "200", description = "NCR verified"),
             @ApiResponse(responseCode = "400", description = "The corrective action has not been reported "
                     + "complete, or the named reinspection is not this NCR's or has not passed"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to NCRs"),
             @ApiResponse(responseCode = "404", description = "No NCR with the given id in the current tenant")
     })
     public NcrDto verify(@PathVariable UUID id,
@@ -173,7 +173,7 @@ public class NcrControllerWeb {
     }
 
     @PostMapping("/{id}/reject")
-    @PreAuthorize("@inspectionSecurity.canSignOffNcr(#id)")
+    @PreAuthorize("@inspectionSecurity.maySignOffNcr(#id, @access.can('ncrs', 'sign-off-quality'), @access.can('ncrs', 'sign-off-safety'))")
     @Operation(
             summary = "Reject the corrective action",
             description = "Records that the corrective work was re-inspected and not accepted. The "
@@ -182,7 +182,7 @@ public class NcrControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "NCR rejected"),
             @ApiResponse(responseCode = "400", description = "The corrective action has not been reported complete"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to NCRs"),
             @ApiResponse(responseCode = "404", description = "No NCR with the given id in the current tenant")
     })
     public NcrDto reject(@PathVariable UUID id,
@@ -191,7 +191,7 @@ public class NcrControllerWeb {
     }
 
     @PostMapping("/{id}/reopen")
-    @PreAuthorize("@inspectionSecurity.canSignOffNcr(#id)")
+    @PreAuthorize("@inspectionSecurity.maySignOffNcr(#id, @access.can('ncrs', 'sign-off-quality'), @access.can('ncrs', 'sign-off-safety'))")
     @Operation(
             summary = "Reopen a non-conformance report",
             description = "Records that the same non-conformance has come back after it was verified "
@@ -201,7 +201,7 @@ public class NcrControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "NCR reopened"),
             @ApiResponse(responseCode = "400", description = "The NCR has not been verified or closed"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to NCRs"),
             @ApiResponse(responseCode = "404", description = "No NCR with the given id in the current tenant")
     })
     public NcrDto reopen(@PathVariable UUID id,
@@ -210,7 +210,7 @@ public class NcrControllerWeb {
     }
 
     @PostMapping("/{id}/close")
-    @PreAuthorize("@inspectionSecurity.canSignOffNcr(#id)")
+    @PreAuthorize("@inspectionSecurity.maySignOffNcr(#id, @access.can('ncrs', 'sign-off-quality'), @access.can('ncrs', 'sign-off-safety'))")
     @Operation(
             summary = "Close a non-conformance report",
             description = "Closes a verified NCR and records who closed it."
@@ -218,7 +218,7 @@ public class NcrControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "NCR closed"),
             @ApiResponse(responseCode = "400", description = "The NCR has not been verified"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to NCRs"),
             @ApiResponse(responseCode = "404", description = "No NCR with the given id in the current tenant")
     })
     public NcrDto close(@PathVariable UUID id) {
@@ -236,7 +236,7 @@ public class NcrControllerWeb {
      * "punch-list" is never offered to the UUID converter.
      */
     @GetMapping("/punch-list/pdf")
-    @PreAuthorize("@inspectionSecurity.canRead()")
+    @PreAuthorize("@access.can('ncrs', 'read')")
     @Operation(
             summary = "Download the punch list",
             description = "Renders every non-conformance that is not yet closed, newest first. This "
@@ -247,7 +247,7 @@ public class NcrControllerWeb {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "PDF generated and returned as an attachment"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not read NCRs"),
             @ApiResponse(responseCode = "500", description = "PDF rendering failed")
     })
     public ResponseEntity<byte[]> downloadPunchList(
@@ -259,7 +259,7 @@ public class NcrControllerWeb {
     }
 
     @GetMapping("/{id}/pdf")
-    @PreAuthorize("@inspectionSecurity.canRead()")
+    @PreAuthorize("@access.can('ncrs', 'read')")
     @Operation(
             summary = "Download a non-conformance report",
             description = "Renders one report with its full accountability trail: who raised it and "
@@ -270,7 +270,7 @@ public class NcrControllerWeb {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "PDF generated and returned as an attachment"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not read NCRs"),
             @ApiResponse(responseCode = "404", description = "No NCR with the given id in the current tenant"),
             @ApiResponse(responseCode = "500", description = "PDF rendering failed")
     })

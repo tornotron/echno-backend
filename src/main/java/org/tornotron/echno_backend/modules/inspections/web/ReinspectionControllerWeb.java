@@ -40,7 +40,7 @@ public class ReinspectionControllerWeb {
     private final ReinspectionService service;
 
     @PostMapping("/api/v1/ncrs/web/{ncrId}/reinspections")
-    @PreAuthorize("@inspectionSecurity.canSignOffNcr(#ncrId)")
+    @PreAuthorize("@inspectionSecurity.maySignOffNcr(#ncrId, @access.can('ncrs', 'sign-off-quality'), @access.can('ncrs', 'sign-off-safety'))")
     @Operation(
             summary = "Schedule a reinspection of an NCR",
             description = "Creates the reinspection record and a new inspection with the original's "
@@ -51,7 +51,7 @@ public class ReinspectionControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Reinspection scheduled"),
             @ApiResponse(responseCode = "400", description = "The NCR is not awaiting verification, or an attempt is still pending"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to reinspections"),
             @ApiResponse(responseCode = "404", description = "No NCR with the given id in the current tenant, or no such inspector")
     })
     public ResponseEntity<ReinspectionDto> scheduleForNcr(@PathVariable UUID ncrId,
@@ -61,11 +61,11 @@ public class ReinspectionControllerWeb {
     }
 
     @GetMapping("/api/v1/ncrs/web/{ncrId}/reinspections")
-    @PreAuthorize("@inspectionSecurity.canRead()")
+    @PreAuthorize("@access.can('ncrs', 'read')")
     @Operation(summary = "List the reinspection attempts on an NCR", description = "In attempt order.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "The attempts, oldest first"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not read reinspections"),
             @ApiResponse(responseCode = "404", description = "No NCR with the given id in the current tenant")
     })
     public List<ReinspectionDto> listForNcr(@PathVariable UUID ncrId) {
@@ -73,7 +73,7 @@ public class ReinspectionControllerWeb {
     }
 
     @PostMapping("/api/v1/inspections/web/defects/{defectId}/reinspections")
-    @PreAuthorize("@inspectionSecurity.canManageInspections()")
+    @PreAuthorize("@access.can('inspections', 'create')")
     @Operation(
             summary = "Schedule a reinspection of a defect",
             description = "The defect-only path, for a defect reported resolved with no NCR over it. "
@@ -82,7 +82,7 @@ public class ReinspectionControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Reinspection scheduled"),
             @ApiResponse(responseCode = "400", description = "The defect is not resolved, or an attempt is still pending"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to reinspections"),
             @ApiResponse(responseCode = "404", description = "No defect with the given id in the current tenant, or no such inspector")
     })
     public ResponseEntity<ReinspectionDto> scheduleForDefect(@PathVariable UUID defectId,
@@ -92,11 +92,11 @@ public class ReinspectionControllerWeb {
     }
 
     @GetMapping("/api/v1/inspections/web/reinspections/{id}")
-    @PreAuthorize("@inspectionSecurity.canRead()")
+    @PreAuthorize("@access.can('inspections', 'read')")
     @Operation(summary = "Get a reinspection by id")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Reinspection found"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not read reinspections"),
             @ApiResponse(responseCode = "404", description = "No reinspection with the given id in the current tenant")
     })
     public ReinspectionDto get(@PathVariable UUID id) {
@@ -104,7 +104,7 @@ public class ReinspectionControllerWeb {
     }
 
     @PostMapping("/api/v1/inspections/web/reinspections/{id}/outcome")
-    @PreAuthorize("@inspectionSecurity.canRecordReinspectionOutcome(#id)")
+    @PreAuthorize("@inspectionSecurity.mayRecordReinspectionOutcome(#id, @access.can('ncrs', 'sign-off-quality'), @access.can('ncrs', 'sign-off-safety'))")
     @Operation(
             summary = "Record what the reinspection found",
             description = "passed or failed, once. A failed re-check of an NCR sends it to rejected; "
@@ -114,7 +114,7 @@ public class ReinspectionControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Outcome recorded"),
             @ApiResponse(responseCode = "400", description = "The outcome is pending, or was already recorded"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the sign-off role for this reinspection's discipline"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to reinspections"),
             @ApiResponse(responseCode = "404", description = "No reinspection with the given id in the current tenant")
     })
     public ReinspectionDto recordOutcome(@PathVariable UUID id,

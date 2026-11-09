@@ -2,6 +2,7 @@ package org.tornotron.echno_backend.modules.inspections;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -33,11 +34,11 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
 import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
+import org.tornotron.echno_backend.modules.access.guard.AccessGuard;
 import org.tornotron.echno_backend.modules.inspections.dtos.ObservationListFilter;
 import org.tornotron.echno_backend.modules.inspections.events.InspectionEventService;
 import org.tornotron.echno_backend.modules.inspections.repositories.ObservationRepository;
 import org.tornotron.echno_backend.modules.inspections.service.DetectionVisibility;
-import org.tornotron.echno_backend.modules.inspections.service.InspectionSecurityService;
 import org.tornotron.echno_backend.modules.inspections.service.ObservationBatchReviewService;
 import org.tornotron.echno_backend.modules.inspections.service.ObservationEvidenceService;
 import org.tornotron.echno_backend.modules.inspections.service.ObservationService;
@@ -60,8 +61,8 @@ class DetectionVisibilityGuardTest {
     @MockitoBean(name = "orgSecurity")
     private OrganizationSecurityService orgSecurity;
 
-    @MockitoBean(name = "inspectionSecurity")
-    private InspectionSecurityService inspectionSecurity;
+    @MockitoBean(name = "access")
+    private AccessGuard access;
 
     @MockitoBean
     private ObservationRepository observations;
@@ -90,9 +91,7 @@ class DetectionVisibilityGuardTest {
 
     @BeforeEach
     void anyCallerMayReadAndReview() {
-        when(inspectionSecurity.canRead()).thenReturn(true);
-        when(inspectionSecurity.canReviewObservations()).thenReturn(true);
-        when(inspectionSecurity.canManageInspections()).thenReturn(true);
+        when(access.can(eq("inspections"), anyString())).thenReturn(true);
         when(observations.countDetectionScoped(ID)).thenReturn(1L);
     }
 

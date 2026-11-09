@@ -38,38 +38,38 @@ public class ElementTypeControllerWeb {
     private final ElementTypeService service;
 
     @GetMapping
-    @PreAuthorize("@inspectionSecurity.canRead()")
+    @PreAuthorize("@access.can('inspection-checklists', 'read')")
     @Operation(summary = "List the organization's element types",
             description = "Active types by default, in sort order then name. Pass includeInactive=true "
                     + "to see retired ones too.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "The organization's element types"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read inspection checklists")
     })
     public List<OrgElementTypeDto> list(@RequestParam(required = false, defaultValue = "false") boolean includeInactive) {
         return service.listOrgElementTypes(includeInactive);
     }
 
     @GetMapping("/catalogue")
-    @PreAuthorize("@inspectionSecurity.canRead()")
+    @PreAuthorize("@access.can('inspection-checklists', 'read')")
     @Operation(summary = "List the shipped element type catalogue",
             description = "The global catalogue every organization's list is copied from. Read only.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "The catalogue"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read inspection checklists")
     })
     public List<ElementTypeCatalogueDto> catalogue() {
         return service.listCatalogue();
     }
 
     @PostMapping
-    @PreAuthorize("@inspectionSecurity.canDefineChecklists()")
+    @PreAuthorize("@access.can('inspection-checklists', 'create')")
     @Operation(summary = "Define an element type",
             description = "Adds an organization-defined element type. It appears in pickers at once.")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Element type created"),
             @ApiResponse(responseCode = "400", description = "Validation failed on the request body"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to inspection checklists"),
             @ApiResponse(responseCode = "409", description = "The organization already has an element type with that code")
     })
     public ResponseEntity<OrgElementTypeDto> create(@Valid @RequestBody CreateElementTypeRequest req) {
@@ -77,13 +77,13 @@ public class ElementTypeControllerWeb {
     }
 
     @PatchMapping("/{id}")
-    @PreAuthorize("@inspectionSecurity.canDefineChecklists()")
+    @PreAuthorize("@access.can('inspection-checklists', 'edit')")
     @Operation(summary = "Rename, regroup, reorder or deactivate an element type",
             description = "The code is immutable, including on catalogue copies.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Element type updated"),
             @ApiResponse(responseCode = "400", description = "Validation failed on the request body"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to inspection checklists"),
             @ApiResponse(responseCode = "404", description = "No element type with the given id in the current tenant")
     })
     public OrgElementTypeDto update(@PathVariable UUID id, @Valid @RequestBody UpdateElementTypeRequest req) {

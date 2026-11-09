@@ -62,7 +62,7 @@ public class InspectionControllerWeb {
     private final InspectionReportPdfService reportService;
 
     @PostMapping
-    @PreAuthorize("@inspectionSecurity.canManageInspections()")
+    @PreAuthorize("@access.can('inspections', 'create')")
     @Operation(
             summary = "Create an inspection",
             description = "Creates a new inspection for a project, including its checklist items."
@@ -70,7 +70,7 @@ public class InspectionControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Inspection created"),
             @ApiResponse(responseCode = "400", description = "Validation failed on the request body"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to inspections"),
             @ApiResponse(responseCode = "404", description = "No project with the given id in the current tenant")
     })
     public ResponseEntity<InspectionDto> create(@Valid @RequestBody CreateInspectionRequest req) {
@@ -78,7 +78,7 @@ public class InspectionControllerWeb {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@inspectionSecurity.canRead()")
+    @PreAuthorize("@access.can('inspections', 'read')")
     @Operation(
             summary = "Get an inspection by id",
             description = "Returns a single inspection including its checklist items and any recorded "
@@ -86,7 +86,7 @@ public class InspectionControllerWeb {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Inspection found"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not read inspections"),
             @ApiResponse(responseCode = "404", description = "No inspection with the given id in the current tenant")
     })
     public InspectionDto get(@PathVariable UUID id) {
@@ -94,7 +94,7 @@ public class InspectionControllerWeb {
     }
 
     @GetMapping
-    @PreAuthorize("@inspectionSecurity.canRead()")
+    @PreAuthorize("@access.can('inspections', 'read')")
     @Operation(
             summary = "List inspections",
             description = "Returns a page of inspections in the current tenant. The projectId, status, "
@@ -103,7 +103,7 @@ public class InspectionControllerWeb {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Page of matching inspections"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read inspections")
     })
     public Page<InspectionDto> list(@RequestParam(required = false) Long projectId,
                                     @RequestParam(required = false) InspectionStatus status,
@@ -119,7 +119,7 @@ public class InspectionControllerWeb {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("@inspectionSecurity.canManageInspections()")
+    @PreAuthorize("@access.can('inspections', 'edit')")
     @Operation(
             summary = "Update an inspection",
             description = "Updates the status, result, checklist items and defects of an existing "
@@ -130,7 +130,7 @@ public class InspectionControllerWeb {
             @ApiResponse(responseCode = "200", description = "Inspection updated"),
             @ApiResponse(responseCode = "400", description = "Validation failed on the request body, or the "
                     + "payload names a different project"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to inspections"),
             @ApiResponse(responseCode = "404", description = "No inspection with the given id in the current tenant"),
             @ApiResponse(responseCode = "422", description = "The status move submits the inspection for a "
                     + "verdict while check points are still pending. The body lists them under "
@@ -143,7 +143,7 @@ public class InspectionControllerWeb {
     }
 
     @GetMapping("/{id}/annotations")
-    @PreAuthorize("@inspectionSecurity.canRead()")
+    @PreAuthorize("@access.can('inspections', 'read')")
     @Operation(
             summary = "List the marks drawn over an inspection's defect photos",
             description = "Returns a page of annotations. Each one names the photo it is drawn on, "
@@ -152,7 +152,7 @@ public class InspectionControllerWeb {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Page of annotations"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not read inspections"),
             @ApiResponse(responseCode = "404", description = "No inspection with the given id in the current tenant")
     })
     public Page<DefectPhotoAnnotationDto> listAnnotations(@PathVariable UUID id, Pageable pageable) {
@@ -160,7 +160,7 @@ public class InspectionControllerWeb {
     }
 
     @PutMapping("/{id}/annotations")
-    @PreAuthorize("@inspectionSecurity.canManageInspections()")
+    @PreAuthorize("@access.can('inspections', 'edit')")
     @Operation(
             summary = "Replace the marks drawn over an inspection's defect photos",
             description = "Stores the supplied set and discards whatever was there before, so one "
@@ -173,7 +173,7 @@ public class InspectionControllerWeb {
             @ApiResponse(responseCode = "200", description = "Annotations stored"),
             @ApiResponse(responseCode = "400", description = "Validation failed, or a mark names a photo "
                     + "no defect on this inspection carries"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to inspections"),
             @ApiResponse(responseCode = "404", description = "No inspection with the given id in the current tenant")
     })
     public List<DefectPhotoAnnotationDto> replaceAnnotations(
@@ -183,7 +183,7 @@ public class InspectionControllerWeb {
     }
 
     @GetMapping("/{id}/pdf")
-    @PreAuthorize("@inspectionSecurity.canRead()")
+    @PreAuthorize("@access.can('inspections', 'read')")
     @Operation(
             summary = "Download the QA/QC inspection report",
             description = "Renders the inspection into a PDF: its check points with the acceptance "
@@ -194,7 +194,7 @@ public class InspectionControllerWeb {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "PDF generated and returned as an attachment"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not read inspections"),
             @ApiResponse(responseCode = "404", description = "No inspection with the given id in the current tenant"),
             @ApiResponse(responseCode = "500", description = "PDF rendering failed")
     })
@@ -220,7 +220,7 @@ public class InspectionControllerWeb {
     // already serves every module and needed nothing added for this one.
 
     @GetMapping("/{id}/evidence")
-    @PreAuthorize("@inspectionSecurity.canRead()")
+    @PreAuthorize("@access.can('inspections', 'read')")
     @Operation(
             summary = "List an inspection's evidence",
             description = "Returns the files filed against the inspection: the permit, certificate "
@@ -232,7 +232,7 @@ public class InspectionControllerWeb {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Evidence returned"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not read inspections"),
             @ApiResponse(responseCode = "404", description = "No inspection with the given id in the current tenant")
     })
     public List<AttachmentDto> readEvidence(@PathVariable UUID id) {
@@ -240,7 +240,7 @@ public class InspectionControllerWeb {
     }
 
     @PostMapping(value = "/{id}/evidence", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("@inspectionSecurity.canManageInspections()")
+    @PreAuthorize("@access.can('inspections', 'create')")
     @Operation(
             summary = "Attach evidence to an inspection",
             description = "Uploads one or more files straight through the API and files them against "
@@ -251,7 +251,7 @@ public class InspectionControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Evidence attached"),
             @ApiResponse(responseCode = "400", description = "No files were sent, or one is already attached"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to inspections"),
             @ApiResponse(responseCode = "404", description = "No inspection with the given id in the current tenant")
     })
     public ResponseEntity<List<AttachmentDto>> attachEvidence(
@@ -261,7 +261,7 @@ public class InspectionControllerWeb {
     }
 
     @PostMapping("/{id}/evidence/presign")
-    @PreAuthorize("@inspectionSecurity.canManageInspections()")
+    @PreAuthorize("@access.can('inspections', 'create')")
     @Operation(
             summary = "Presign evidence uploads",
             description = "Step one of the direct-to-storage path: for each declared file, returns a "
@@ -272,7 +272,7 @@ public class InspectionControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Presigned upload URLs returned"),
             @ApiResponse(responseCode = "400", description = "A file was declared twice, or is already attached"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to inspections"),
             @ApiResponse(responseCode = "404", description = "No inspection with the given id in the current tenant")
     })
     public List<PresignedUpload> presignEvidence(
@@ -282,7 +282,7 @@ public class InspectionControllerWeb {
     }
 
     @PostMapping("/{id}/evidence/register")
-    @PreAuthorize("@inspectionSecurity.canManageInspections()")
+    @PreAuthorize("@access.can('inspections', 'create')")
     @Operation(
             summary = "Register presigned evidence uploads",
             description = "Step two of the direct-to-storage path: confirms the storage keys once "
@@ -292,7 +292,7 @@ public class InspectionControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Evidence registered"),
             @ApiResponse(responseCode = "400", description = "A referenced object is missing from storage"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to inspections"),
             @ApiResponse(responseCode = "404", description = "No inspection with the given id in the current tenant")
     })
     public ResponseEntity<List<AttachmentDto>> registerEvidence(
@@ -302,7 +302,7 @@ public class InspectionControllerWeb {
     }
 
     @DeleteMapping("/{id}/evidence/{attachmentId}")
-    @PreAuthorize("@inspectionSecurity.canManageInspections()")
+    @PreAuthorize("@access.can('inspections', 'edit')")
     @Operation(
             summary = "Remove evidence from an inspection",
             description = "Deletes one file and its stored object. Refused once the inspection has "
@@ -313,7 +313,7 @@ public class InspectionControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Evidence removed"),
             @ApiResponse(responseCode = "400", description = "The inspection has been judged and its evidence is frozen"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to inspections"),
             @ApiResponse(responseCode = "404", description = "No such inspection, or the file is not filed against it"),
             @ApiResponse(responseCode = "409", description = "An observation region is drawn on the file")
     })

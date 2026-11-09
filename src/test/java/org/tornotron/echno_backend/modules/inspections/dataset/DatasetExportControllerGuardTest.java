@@ -15,16 +15,16 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * The export endpoints are for the organization's system-admin only, behind the inspections
+ * The export endpoints need inspections:export-datasets, which only the system admin starts with, behind the inspections
  * feature (#791). Read off the annotations, the way the module's other routing tests do,
  * rather than through a web slice that would cost another cached context.
  */
 class DatasetExportControllerGuardTest {
 
-    private static final String SYSTEM_ADMIN_ONLY = "@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')";
+    private static final String SYSTEM_ADMIN_ONLY = "@access.can('inspections', 'export-datasets')";
 
     @Test
-    void everyHandlerIsGuardedOnTheSystemAdminRoleOfTheCurrentTenant() {
+    void everyHandlerNeedsTheExportAction() {
         List<Method> handlers = Arrays.stream(DatasetExportControllerWeb.class.getDeclaredMethods())
                 .filter(m -> Modifier.isPublic(m.getModifiers()) && !m.isSynthetic())
                 .toList();
