@@ -32,11 +32,13 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
 import org.tornotron.echno_backend.common.configuration.RPTCache;
-import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
+import org.tornotron.echno_backend.modules.access.guard.AccessGuard;
 
 /**
- * The schedule's guards on both twins, at the slice: any member of the tenant reads the WBS and
- * the schedule, and only the system admin or the project manager changes it. Before work progress
+ * The schedule's guards on both twins, at the slice: reads need wbs:read, which every member holds
+ * through the baseline, and each change needs the wbs action it makes, which only the system admin
+ * and the project manager hold. That each role holds exactly what it did is
+ * {@code WbsAccessEquivalenceIT}'s to show. Before work progress
  * inspection every endpoint here was the system admin's alone.
  */
 @WebMvcTest({WbsElementController.class, WbsElementControllerWeb.class})
@@ -51,8 +53,22 @@ class WbsElementControllerAuthzTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockitoBean(name = "orgSecurity")
-    private OrganizationSecurityService orgSecurity;
+    // Named to match the @access bean the @PreAuthorize SpEL references.
+    @MockitoBean(name = "access")
+    private AccessGuard access;
+
+    /** The baseline's WBS action: every member reads the schedule. */
+    private static final String[] MEMBER = {"wbs:read"};
+    /** The system admin's and project manager's: the baseline plus every change. */
+    private static final String[] PAIR = {"wbs:read", "wbs:create", "wbs:edit", "wbs:delete"};
+
+    /** Stubs {@code @access} to allow exactly these area:action keys; every other check answers false. */
+    private void holds(String... permissions) {
+        for (String permission : permissions) {
+            String[] parts = permission.split(":");
+            when(access.can(parts[0], parts[1])).thenReturn(true);
+        }
+    }
 
     @MockitoBean
     private WbsElementService service;
@@ -95,29 +111,28 @@ class WbsElementControllerAuthzTest {
     @ParameterizedTest(name = "{0} on {1}")
     @MethodSource("reads")
     void aReadIsForbiddenForANonMember(String name, String prefix, Endpoint endpoint) throws Exception {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(false);
+        holds();
         mockMvc.perform(endpoint.on(prefix).with(memberOfOrgSeven())).andExpect(status().isForbidden());
     }
 
     @ParameterizedTest(name = "{0} on {1}")
     @MethodSource("reads")
     void aReadIsOkForAMember(String name, String prefix, Endpoint endpoint) throws Exception {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
+        holds(MEMBER);
         mockMvc.perform(endpoint.on(prefix).with(memberOfOrgSeven())).andExpect(status().is2xxSuccessful());
     }
 
     @ParameterizedTest(name = "{0} on {1}")
     @MethodSource("writes")
     void aWriteIsForbiddenForAMemberWithoutTheRole(String name, String prefix, Endpoint endpoint) throws Exception {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(false);
+        holds(MEMBER);
         mockMvc.perform(endpoint.on(prefix).with(memberOfOrgSeven())).andExpect(status().isForbidden());
     }
 
     @ParameterizedTest(name = "{0} on {1}")
     @MethodSource("writes")
     void aWriteIsAllowedForTheRole(String name, String prefix, Endpoint endpoint) throws Exception {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(true);
+        holds(PAIR);
         mockMvc.perform(endpoint.on(prefix).with(memberOfOrgSeven())).andExpect(status().is2xxSuccessful());
     }
 
