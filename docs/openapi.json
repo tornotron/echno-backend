@@ -68593,7 +68593,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read document reversals"
           },
           "404": {
             "content": {
@@ -68703,7 +68703,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant, or did not raise the document"
+            "description": "Caller may not make this change to document reversals, or did not raise the document"
           },
           "404": {
             "content": {
@@ -68832,7 +68832,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read document reversals"
           },
           "404": {
             "content": {
@@ -68958,7 +68958,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read document reversals"
           },
           "404": {
             "content": {
@@ -69103,7 +69103,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read document reversals"
           },
           "404": {
             "content": {
@@ -69213,7 +69213,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant, or did not raise the document"
+            "description": "Caller may not make this change to document reversals, or did not raise the document"
           },
           "404": {
             "content": {
@@ -69342,7 +69342,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read document reversals"
           },
           "404": {
             "content": {
@@ -69468,7 +69468,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read document reversals"
           },
           "404": {
             "content": {
@@ -69580,7 +69580,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read document reversals"
           },
           "404": {
             "content": {
@@ -69693,7 +69693,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to document reversals"
           },
           "404": {
             "content": {
@@ -69806,7 +69806,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant, or did not raise the request"
+            "description": "Caller may not make this change to document reversals, or did not raise the request"
           },
           "404": {
             "content": {
@@ -69929,7 +69929,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to document reversals"
           },
           "404": {
             "content": {
@@ -70041,7 +70041,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read document reversals"
           },
           "404": {
             "content": {
@@ -70154,7 +70154,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to document reversals"
           },
           "404": {
             "content": {
@@ -70267,7 +70267,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant, or did not raise the request"
+            "description": "Caller may not make this change to document reversals, or did not raise the request"
           },
           "404": {
             "content": {
@@ -70390,7 +70390,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to document reversals"
           },
           "404": {
             "content": {
@@ -135615,7 +135615,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read the risk register"
           },
           "404": {
             "content": {
@@ -135736,7 +135736,7 @@
                 }
               }
             },
-            "description": "Caller lacks the system-admin or project-manager role"
+            "description": "Caller may not make this change to the risk register"
           },
           "404": {
             "content": {
@@ -135862,7 +135862,7 @@
                 }
               }
             },
-            "description": "Caller lacks the system-admin or project-manager role"
+            "description": "Caller may not make this change to the risk register"
           },
           "404": {
             "content": {
@@ -135978,7 +135978,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read the risk register"
           },
           "404": {
             "content": {
@@ -136099,7 +136099,7 @@
                 }
               }
             },
-            "description": "Caller lacks the system-admin or project-manager role"
+            "description": "Caller may not make this change to the risk register"
           },
           "404": {
             "content": {
@@ -136225,7 +136225,7 @@
                 }
               }
             },
-            "description": "Caller lacks the system-admin or project-manager role"
+            "description": "Caller may not make this change to the risk register"
           },
           "404": {
             "content": {
@@ -136340,7 +136340,7 @@
                 }
               }
             },
-            "description": "Caller lacks the system-admin or project-manager role"
+            "description": "Caller may not make this change to the risk register"
           },
           "404": {
             "content": {
@@ -136460,7 +136460,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read the risk register"
           },
           "404": {
             "content": {
@@ -136590,7 +136590,7 @@
                 }
               }
             },
-            "description": "Caller lacks the system-admin or project-manager role"
+            "description": "Caller may not make this change to the risk register"
           },
           "404": {
             "content": {
@@ -136705,7 +136705,7 @@
                 }
               }
             },
-            "description": "Caller lacks the system-admin or project-manager role"
+            "description": "Caller may not make this change to the risk register"
           },
           "404": {
             "content": {
@@ -136825,7 +136825,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read the risk register"
           },
           "404": {
             "content": {
@@ -136955,7 +136955,7 @@
                 }
               }
             },
-            "description": "Caller lacks the system-admin or project-manager role"
+            "description": "Caller may not make this change to the risk register"
           },
           "404": {
             "content": {
