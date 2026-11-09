@@ -19,6 +19,8 @@ import org.tornotron.echno_backend.modules.documentingestion.domain.DocumentFile
 import org.tornotron.echno_backend.modules.documentingestion.domain.ExtractJob;
 import org.tornotron.echno_backend.modules.documentingestion.domain.ExtractJobStatus;
 import org.tornotron.echno_backend.modules.documentingestion.domain.IngestDocument;
+import org.tornotron.echno_backend.modules.documentingestion.domain.IngestPackage;
+import org.tornotron.echno_backend.modules.documentingestion.domain.PackageStage;
 import org.tornotron.echno_backend.modules.documentingestion.domain.PackageStatus;
 import org.tornotron.echno_backend.modules.documentingestion.domain.Segment;
 import org.tornotron.echno_backend.modules.documentingestion.domain.SegmentStatus;
@@ -199,8 +201,13 @@ public class ClassificationService {
         doc.setClassSetBy(userId);
         doc.setClassConfirmedAt(now);
         documents.save(doc);
+        PackageStage stage = packages.findByIdScoped(doc.getPackageId()).map(IngestPackage::getStage)
+                .orElse(PackageStage.TENDER);
         for (Segment s : confirmed) {
             for (Extractor e : registry.segmentExtractors(DocClass.parse(s.getDocClass()).orElse(DocClass.OTHER))) {
+                if (!e.readsAtStage(stage)) {
+                    continue;
+                }
                 queue.queue(doc.getOrganization(), doc.getPackageId(), doc.getId(), s.getId(), e, userId);
                 queued++;
             }
@@ -209,11 +216,13 @@ public class ClassificationService {
             // Only a reader of table rows can read a workbook; a page reader, such as project setup, would get no
             // pages and end as if it had read the file.
             queued += confirmWholeFile(doc, docClass, docClass == DocClass.BOQ ? List.of()
-                    : registry.segmentExtractors(docClass).stream().filter(Extractor::readsTables).toList(),
+                    : registry.segmentExtractors(docClass).stream().filter(Extractor::readsTables)
+                            .filter(e -> e.readsAtStage(stage)).toList(),
                     "The whole workbook.", userId, now);
         } else if (isDrawingFile(doc)) {
             queued += confirmWholeFile(doc, docClass, registry.segmentExtractors(docClass).stream()
-                    .filter(Extractor::readsTitleBlocks).toList(), "The whole drawing file.", userId, now);
+                    .filter(Extractor::readsTitleBlocks).filter(e -> e.readsAtStage(stage)).toList(),
+                    "The whole drawing file.", userId, now);
         }
         return new int[] {confirmed.size(), queued};
     }

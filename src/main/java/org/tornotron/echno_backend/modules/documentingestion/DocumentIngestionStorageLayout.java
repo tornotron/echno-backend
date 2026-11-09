@@ -11,6 +11,8 @@ public final class DocumentIngestionStorageLayout {
 
     public static final String ATTACHMENT_ENTITY_TYPE = "DOC_INGEST_DOCUMENT";
     public static final String ATTACHMENT_FOLDER = "doc-ingest";
+    /** The owner type of an evidence file of the company profile. */
+    public static final String EVIDENCE_ENTITY_TYPE = "DOC_INGEST_COMPANY_EVIDENCE";
     public static final String META_FILE = "meta.json";
     public static final String MANIFEST_FILE = "manifest.json";
     public static final String TABLES_FILE = "tables.jsonl";
@@ -42,6 +44,15 @@ public final class DocumentIngestionStorageLayout {
     /** The title-block crop of a page, relative to the output prefix, as the worker writes it. */
     public static String titleBlockImage(int page) {
         return "titleblock/" + page + ".webp";
+    }
+
+    public static AttachmentOwner evidenceOwnerOf(UUID evidenceId) {
+        return AttachmentOwner.of(EVIDENCE_ENTITY_TYPE, evidenceId);
+    }
+
+    /** An evidence file of the organization's company profile, outside every package. */
+    public static String evidenceKey(Long organizationId, UUID evidenceId) {
+        return "doc-ingest/" + organizationId + "/company-profile/" + evidenceId + "/source";
     }
 
     public static String memberKey(Long organizationId, UUID packageId, String sha256) {
