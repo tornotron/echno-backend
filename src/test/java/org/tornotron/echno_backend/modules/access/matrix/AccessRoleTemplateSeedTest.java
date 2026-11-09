@@ -23,6 +23,9 @@ import org.tornotron.echno_backend.common.enums.OrgRole;
  */
 class AccessRoleTemplateSeedTest {
 
+    /** A mapping row's read that needs more than the area's read: its named action is checked as is. */
+    private static final Set<String> NAMED_READS = Set.of("read-financials");
+
     private static final Path MAPPING = Path.of("docs/specs/2026-10-30-access-permission-mapping-endpoints.csv");
     private static final String BASELINE = "employee";
 
@@ -31,7 +34,8 @@ class AccessRoleTemplateSeedTest {
             "db/data/access/role-template-grants.csv",
             "db/data/access/role-template-grants-purchasing.csv",
             "db/data/access/role-template-grants-payments.csv",
-            "db/data/access/role-template-grants-finance-areas.csv");
+            "db/data/access/role-template-grants-finance-areas.csv",
+            "db/data/access/role-template-grants-vendor-financials.csv");
 
     /**
      * Template grants a later changeset deleted, by template slug and key: access-011 takes the
@@ -154,6 +158,20 @@ class AccessRoleTemplateSeedTest {
     }
 
     @Test
+    void onlyTheSystemAdminReadsAVendorsFinancials() {
+        // Bank accounts, tax identifiers, payment terms and the spend summary were the system admin's
+        // alone before the matrix; the store keeper reads the rest of a vendor.
+        assertThat(KEYS_BY_SLUG.get("system-admin")).contains("vendors:read-financials");
+        assertThat(KEYS_BY_SLUG.get("store-keeper")).contains("vendors:read")
+                .doesNotContain("vendors:read-financials");
+        KEYS_BY_SLUG.forEach((slug, keys) -> {
+            if (!slug.equals("system-admin")) {
+                assertThat(keys).as(slug).doesNotContain("vendors:read-financials");
+            }
+        });
+    }
+
+    @Test
     void everyGrantIdIsUniqueAcrossTheFiles() throws IOException {
         Set<String> ids = new HashSet<>();
         for (String file : GRANT_FILES) {
@@ -203,7 +221,7 @@ class AccessRoleTemplateSeedTest {
             if (!row[4].equals("role-names") || isPlatform(row)) {
                 continue;
             }
-            String action = row[1].equals("GET") ? "read" : row[8];
+            String action = row[1].equals("GET") && !NAMED_READS.contains(row[8]) ? "read" : row[8];
             for (String legacy : row[5].split(";")) {
                 String slug = slugOf(legacy.trim());
                 assertThat(held(slug)).as(slug + " " + row[1] + " " + row[2]).contains(row[7] + ":" + action);

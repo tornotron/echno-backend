@@ -86,7 +86,6 @@ class EndpointAuthorizationTest {
     private static final Set<String> SYSTEM_ADMIN = Set.of("system-admin");
     private static final Set<String> ADMIN_OR_PM = Set.of("system-admin", "project-manager");
     private static final Set<String> STORES_TIER = Set.of("system-admin", "project-manager", "store-keeper");
-    private static final Set<String> ADMIN_OR_STORE_KEEPER = Set.of("system-admin", "store-keeper");
     private static final Set<String> ADMIN_OR_HR = Set.of("system-admin", "hr-admin");
 
     /**
@@ -138,12 +137,9 @@ class EndpointAuthorizationTest {
             pin("StockAdjustmentControllerWeb", ADMIN_OR_PM,
                     "approveStockAdjustment", "rejectStockAdjustment", "deleteStockAdjustment"),
 
-            // Vendors: the store reads who delivers and how to reach them; everything commercial
-            // (summary, tax identifiers, bank accounts, payment terms) and every write is the
-            // administrator's.
-            pin("VendorControllerWeb", ADMIN_OR_STORE_KEEPER,
-                    "getVendorById", "getAllVendors", "getAllVendorsPaginated", "searchVendors", "getContacts"),
-            pin("VendorControllerWeb", SYSTEM_ADMIN, "*"),
+            // Vendors are on the access matrix, and VendorGuardsTest and VendorAccessEquivalenceIT pin
+            // them: the store reads who delivers and how to reach them, and a vendor's financials and
+            // every write stay the administrator's.
 
             // Labour: a workforce register, so it belongs to HR and the administrator throughout.
             pin("LabourControllerWeb", ADMIN_OR_HR, "*"),
