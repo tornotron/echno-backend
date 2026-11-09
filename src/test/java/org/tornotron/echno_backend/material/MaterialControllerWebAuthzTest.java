@@ -17,7 +17,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
 import org.tornotron.echno_backend.common.configuration.RPTCache;
-import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
+import org.tornotron.echno_backend.modules.access.guard.AccessGuard;
 import org.tornotron.echno_backend.material.threshold.dto.MaterialLocationThresholdDto;
 import org.tornotron.echno_backend.material.dto.MaterialStockSummaryDto;
 import org.tornotron.echno_backend.material.dto.MaterialWithStockDto;
@@ -70,9 +70,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * per project is an operational decision and the low-stock sweep that reads it notifies the same
  * people. Removing an override stays with system-admin, so the pair below pins both directions.
  *
- * <p>{@code @orgSecurity} is mocked so each branch is exercised on its own: the project-manager
- * tests deliberately answer false to the system-admin-only expression and true to the expressions
- * that name project-manager, which is exactly a caller holding project-manager and not system-admin.
+ * <p>{@code @access} is mocked so each branch is exercised on its own: each persona holds
+ * exactly the materials actions its starting role does, and every other check answers false. That
+ * each role holds exactly what it did is {@code StoresAccessEquivalenceIT}'s to show.
  */
 @WebMvcTest(MaterialControllerWeb.class)
 @Import(MaterialControllerWebAuthzTest.TestSecurityConfig.class)
@@ -93,8 +93,17 @@ class MaterialControllerWebAuthzTest {
     @MockitoBean
     private MaterialStockSummaryService stockSummaryService;
 
-    @MockitoBean(name = "orgSecurity")
-    private OrganizationSecurityService orgSecurity;
+    // Named to match the @access bean the @PreAuthorize SpEL references.
+    @MockitoBean(name = "access")
+    private AccessGuard access;
+
+    /** Stubs {@code @access} to allow exactly these area:action keys; every other check answers false. */
+    private void holds(String... permissions) {
+        for (String permission : permissions) {
+            String[] parts = permission.split(":");
+            when(access.can(parts[0], parts[1])).thenReturn(true);
+        }
+    }
 
     // Satisfies RPTExchangeFilter, a custom filter the web slice loads; unused here
     // because .with(jwt(...)) sets the authentication directly.
@@ -107,19 +116,15 @@ class MaterialControllerWebAuthzTest {
 
     /** A caller holding project-manager and not system-admin. */
     private void asProjectManager() {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin")).thenReturn(false);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager")).thenReturn(true);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager", "store-keeper")).thenReturn(true);
+        holds("materials:read", "materials:create", "materials:edit", "materials:set-thresholds");
     }
 
     /**
-     * A caller holding store-keeper and not system-admin. The mock answers by expression, so it
-     * differs from a project manager only on the system-admin and project-manager pair; the
-     * source-level {@code StoreKeeperRoleScopeTest} is what tells the two roles apart everywhere.
+     * A caller holding store-keeper and not system-admin. It reads the catalogue and sets
+     * reorder thresholds, and nothing else.
      */
     private void asStoreKeeper() {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin")).thenReturn(false);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager", "store-keeper")).thenReturn(true);
+        holds("materials:read", "materials:set-thresholds");
     }
 
     private void stubReads() {
@@ -171,9 +176,7 @@ class MaterialControllerWebAuthzTest {
     void aMemberHoldingNeitherRoleIsStillRefusedTheRead(String path) throws Exception {
         // Widening the read to project-manager and store-keeper is not widening it to everybody.
         // The tier below both of those is still plain membership, and it reads nothing here.
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin")).thenReturn(false);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager", "store-keeper")).thenReturn(false);
+        holds();
 
         mockMvc.perform(get(path).with(jwt()))
                 .andExpect(status().isForbidden());
@@ -258,9 +261,7 @@ class MaterialControllerWebAuthzTest {
 
     @Test
     void aMemberHoldingNeitherRoleMayNotSetAReorderThreshold() throws Exception {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin")).thenReturn(false);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager", "store-keeper")).thenReturn(false);
+        holds();
 
         mockMvc.perform(put("/api/v1/materials/web/1/location-thresholds/7").with(jwt()).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -288,8 +289,7 @@ class MaterialControllerWebAuthzTest {
 
     @Test
     void aSystemAdminStillReadsTheBalance() throws Exception {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin")).thenReturn(true);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager", "store-keeper")).thenReturn(true);
+        holds("materials:read", "materials:create", "materials:edit", "materials:delete", "materials:set-thresholds");
         stubReads();
 
         mockMvc.perform(get("/api/v1/materials/web/1/stock?projectId=4&storageLocationId=7").with(jwt()))

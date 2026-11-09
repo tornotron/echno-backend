@@ -24,7 +24,7 @@ import org.tornotron.echno_backend.common.enums.OrgRole;
 class AccessRoleTemplateSeedTest {
 
     /** A mapping row's read that needs more than the area's read: its named action is checked as is. */
-    private static final Set<String> NAMED_READS = Set.of("read-financials");
+    private static final Set<String> NAMED_READS = Set.of("read-financials", "read-ledger");
 
     private static final Path MAPPING = Path.of("docs/specs/2026-10-30-access-permission-mapping-endpoints.csv");
     private static final String BASELINE = "employee";
@@ -37,7 +37,8 @@ class AccessRoleTemplateSeedTest {
             "db/data/access/role-template-grants-finance-areas.csv",
             "db/data/access/role-template-grants-vendor-financials.csv",
             "db/data/access/role-template-grants-labour.csv",
-            "db/data/access/role-template-grants-issue-comments.csv");
+            "db/data/access/role-template-grants-issue-comments.csv",
+            "db/data/access/role-template-grants-stores.csv");
 
     /**
      * Template grants a later changeset deleted, by template slug and key: access-011 takes the
@@ -194,6 +195,35 @@ class AccessRoleTemplateSeedTest {
         assertThat(KEYS_BY_SLUG.get(BASELINE)).contains("construction:read");
         assertThat(KEYS_BY_SLUG.get("project-manager"))
                 .contains("construction:create", "construction:edit", "construction:delete");
+    }
+
+    @Test
+    void theStoresAreasKeepWhatEachRoleHadBeforeTheMatrix() {
+        // Before the matrix the system admin, project manager and store keeper read every stores
+        // record. The pair changed the catalogue and only the system admin deleted from it, while all
+        // three set reorder thresholds. Only the system admin and store keeper moved a site transfer
+        // or listed the ledger over the whole organization.
+        assertThat(KEYS_BY_SLUG.get("system-admin")).contains("inventory:read-ledger",
+                "materials:read", "materials:create", "materials:edit", "materials:delete",
+                "materials:set-thresholds", "site-transfers:read", "site-transfers:create",
+                "site-transfers:edit");
+        assertThat(KEYS_BY_SLUG.get("project-manager"))
+                .contains("materials:read", "materials:create", "materials:edit", "materials:set-thresholds",
+                        "site-transfers:read")
+                .doesNotContain("inventory:read-ledger", "materials:delete", "site-transfers:create",
+                        "site-transfers:edit");
+        assertThat(KEYS_BY_SLUG.get("store-keeper"))
+                .contains("inventory:read-ledger", "materials:read", "materials:set-thresholds",
+                        "site-transfers:read", "site-transfers:create", "site-transfers:edit")
+                .doesNotContain("inventory:approve", "inventory:delete",
+                        "materials:create", "materials:edit", "materials:delete", "site-transfers:delete");
+        Set<String> stores = Set.of("system-admin", "project-manager", "store-keeper");
+        KEYS_BY_SLUG.forEach((slug, keys) -> {
+            if (!stores.contains(slug)) {
+                assertThat(keys).as(slug).noneMatch(key -> key.startsWith("inventory:")
+                        || key.startsWith("materials:") || key.startsWith("site-transfers:"));
+            }
+        });
     }
 
     @Test

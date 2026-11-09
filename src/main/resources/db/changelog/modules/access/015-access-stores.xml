@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Stores (echno-backend #914): materials, site transfers, stock adjustments and the stock ledger.
+        Today the four are guarded differently, and the one inventory area of the template would widen
+        some of them:
+
+        - Stock adjustments: the system admin, project manager and store keeper read, raise and edit
+          one; the system admin and project manager approve, reject and delete it. That is the
+          template's inventory area as it stands, so it keeps the name.
+        - The ledger: the same three read the movements behind a material, location, project or task,
+          but only the system admin and store keeper list it over the whole organization (all, paged,
+          by type, by date range). That one read differs, so it is the named action
+          inventory:read-ledger.
+        - Materials: the three read the catalogue, the system admin and project manager create and edit
+          it, the system admin alone deletes a material or removes a threshold override, and all three
+          set a reorder threshold at a storage location. Create, edit and delete differ from
+          inventory, so materials become an area of their own, with materials:set-thresholds for the
+          one write the store keeper holds.
+        - Site transfers: the three read, and only the system admin and store keeper raise, receive,
+          cancel or move one. Create and edit differ from inventory, so site transfers become an area
+          of their own.
+
+        Nothing is deleted: the project manager's inventory create, edit, approve and delete and the
+        store keeper's inventory create and edit are all used by stock adjustments.
+
+        A file of its own because 008 loads role-template-grants.csv with no runOnChange. The
+        reconciler carries the template to every uncustomized role on the next boot, in both
+        directions; a customized role is left as its organization set it.
+    -->
+
+    <changeSet id="access-015-stores" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT count(*) FROM access_role_template_grant
+                WHERE template_id = 'ed34dfe6-5468-5f6e-b6ed-ef6eefccfce2'
+                  AND permission_key = 'materials:read'
+            </sqlCheck>
+        </preConditions>
+        <loadData tableName="access_role_template_grant" file="db/data/access/role-template-grants-stores.csv" separator=",">
+            <column name="id" type="UUID"/>
+            <column name="template_id" type="UUID"/>
+            <column name="permission_key" type="STRING"/>
+            <column name="scope" type="STRING"/>
+        </loadData>
+    </changeSet>
+
+</databaseChangeLog>

@@ -16,7 +16,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
 import org.tornotron.echno_backend.common.configuration.RPTCache;
-import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
+import org.tornotron.echno_backend.modules.access.guard.AccessGuard;
 import org.tornotron.echno_backend.inventoryTransaction.dto.InventoryMaterialStockDto;
 import org.tornotron.echno_backend.inventoryTransaction.dto.InventoryTransactionDto;
 import org.tornotron.echno_backend.inventoryTransaction.dto.MaterialLocationStockDto;
@@ -88,8 +88,17 @@ class InventoryTransactionControllerWebAuthzTest {
     @MockitoBean
     private InventoryService inventoryService;
 
-    @MockitoBean(name = "orgSecurity")
-    private OrganizationSecurityService orgSecurity;
+    // Named to match the @access bean the @PreAuthorize SpEL references.
+    @MockitoBean(name = "access")
+    private AccessGuard access;
+
+    /** Stubs {@code @access} to allow exactly these area:action keys; every other check answers false. */
+    private void holds(String... permissions) {
+        for (String permission : permissions) {
+            String[] parts = permission.split(":");
+            when(access.can(parts[0], parts[1])).thenReturn(true);
+        }
+    }
 
     // Satisfies RPTExchangeFilter, a custom filter the web slice loads; unused here
     // because .with(jwt(...)) sets the authentication directly.
@@ -102,14 +111,12 @@ class InventoryTransactionControllerWebAuthzTest {
 
     /** A caller holding project-manager and not system-admin. */
     private void asProjectManager() {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "store-keeper")).thenReturn(false);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager", "store-keeper")).thenReturn(true);
+        holds("inventory:read");
     }
 
     /** A caller holding system-admin, which satisfies every spelling of the guard. */
     private void asSystemAdmin() {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "store-keeper")).thenReturn(true);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager", "store-keeper")).thenReturn(true);
+        holds("inventory:read", "inventory:read-ledger");
     }
 
     private void stubReads() {
@@ -206,9 +213,7 @@ class InventoryTransactionControllerWebAuthzTest {
 
     @Test
     void aMemberHoldingNeitherRoleIsStillRefusedTheAnchoredRead() throws Exception {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "store-keeper")).thenReturn(false);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager", "store-keeper")).thenReturn(false);
+        holds();
 
         mockMvc.perform(get("/api/v1/inventory-transactions/web/material/7/history").with(jwt()))
                 .andExpect(status().isForbidden());

@@ -17,7 +17,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
 import org.tornotron.echno_backend.common.configuration.RPTCache;
-import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
+import org.tornotron.echno_backend.modules.access.guard.AccessGuard;
 import org.tornotron.echno_backend.material.MaterialControllerWeb;
 import org.tornotron.echno_backend.material.MaterialService;
 import org.tornotron.echno_backend.material.lowstock.LowStockService;
@@ -51,8 +51,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * the access it had, so only the material catalogue is left in this slice.
  *
  * <p>One slice, as in {@link ProcurementDocumentReadAuthzTest}, because
- * Spring caches a context per distinct slice. {@code @orgSecurity} is mocked with exact role
- * arguments, so what is pinned is the role list each guard asks for. The services are mocks that
+ * Spring caches a context per distinct slice. {@code @access} is mocked with exact
+ * actions, so what is pinned is the action each guard asks for. The services are mocks that
  * answer null, which the controllers wrap without looking at, so a write that is let through answers
  * 2xx and a refused one 403.
  */
@@ -70,9 +70,17 @@ class ProcurementProjectManagerWriteAuthzTest {
     @MockitoBean private LowStockService lowStockService;
     @MockitoBean private MaterialStockSummaryService stockSummaryService;
 
-    // Named to match the @orgSecurity bean the @PreAuthorize SpEL references.
-    @MockitoBean(name = "orgSecurity")
-    private OrganizationSecurityService orgSecurity;
+    // Named to match the @access bean the @PreAuthorize SpEL references.
+    @MockitoBean(name = "access")
+    private AccessGuard access;
+
+    /** Stubs {@code @access} to allow exactly these area:action keys; every other check answers false. */
+    private void holds(String... permissions) {
+        for (String permission : permissions) {
+            String[] parts = permission.split(":");
+            when(access.can(parts[0], parts[1])).thenReturn(true);
+        }
+    }
 
     // Satisfy RPTExchangeFilter, a custom filter the web slice loads; unused because
     // .with(jwt()) sets the authentication directly.
@@ -85,9 +93,7 @@ class ProcurementProjectManagerWriteAuthzTest {
      * so it answers false, which is what makes the refusals below the guard's own.
      */
     private void asProjectManager() {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager")).thenReturn(true);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "store-keeper", "project-manager"))
-                .thenReturn(true);
+        holds("materials:read", "materials:create", "materials:edit", "materials:set-thresholds");
     }
 
     private MockHttpServletRequestBuilder call(String method, String path, String body) {
@@ -128,7 +134,7 @@ class ProcurementProjectManagerWriteAuthzTest {
     /** Opening the writes to project managers is not opening them to every member. */
     @Test
     void aMemberHoldingNeitherRoleStillCannotAddAMaterial() throws Exception {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
+        holds();
 
         mockMvc.perform(call("POST", "/api/v1/materials/web", "{\"materialName\":\"OPC 53 Grade Cement\",\"unit\":\"bags\",\"createdBy\":5}"))
                 .andExpect(status().isForbidden());

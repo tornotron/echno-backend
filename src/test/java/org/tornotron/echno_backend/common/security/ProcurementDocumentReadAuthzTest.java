@@ -14,7 +14,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
 import org.tornotron.echno_backend.common.configuration.RPTCache;
-import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
+import org.tornotron.echno_backend.modules.access.guard.AccessGuard;
 import org.tornotron.echno_backend.siteTransfer.SiteTransferControllerWeb;
 import org.tornotron.echno_backend.siteTransfer.SiteTransferService;
 import org.tornotron.echno_backend.siteTransfer.dto.SiteTransferDto;
@@ -60,8 +60,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * receipt controller for {@code GoodsReceivedNoteAccessEquivalenceIT}, and the material consumption
  * controller for {@code MaterialConsumptionAccessEquivalenceIT}.
  *
- * <p>Only the site transfer controller is left in the slice. {@code @orgSecurity} is mocked, and the
- * stubs use exact role arguments, so what is pinned is the role list each guard actually asks for.
+ * <p>Only the site transfer controller is left in the slice. {@code @access} is mocked, and the
+ * stubs name exact actions, so what is pinned is the action each guard actually asks for.
  */
 @WebMvcTest(SiteTransferControllerWeb.class)
 @Import(ProcurementDocumentReadAuthzTest.TestSecurityConfig.class)
@@ -73,9 +73,17 @@ class ProcurementDocumentReadAuthzTest {
     @MockitoBean
     private SiteTransferService siteTransferService;
 
-    // Named to match the @orgSecurity bean the @PreAuthorize SpEL references.
-    @MockitoBean(name = "orgSecurity")
-    private OrganizationSecurityService orgSecurity;
+    // Named to match the @access bean the @PreAuthorize SpEL references.
+    @MockitoBean(name = "access")
+    private AccessGuard access;
+
+    /** Stubs {@code @access} to allow exactly these area:action keys; every other check answers false. */
+    private void holds(String... permissions) {
+        for (String permission : permissions) {
+            String[] parts = permission.split(":");
+            when(access.can(parts[0], parts[1])).thenReturn(true);
+        }
+    }
 
     // Satisfies RPTExchangeFilter, a custom filter the web slice loads; unused here because
     // .with(jwt(...)) sets the authentication directly.
@@ -93,8 +101,7 @@ class ProcurementDocumentReadAuthzTest {
      * mock's default rather than an assertion the stub arranged.
      */
     private void aProjectManager() {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "store-keeper", "project-manager"))
-                .thenReturn(true);
+        holds("site-transfers:read");
     }
 
     // ---- the reads a project manager gains ----
@@ -155,8 +162,8 @@ class ProcurementDocumentReadAuthzTest {
      * The write refusals below use the endpoints whose guard is reached without a request body.
      * {@code @PreAuthorize} is evaluated when the handler is invoked, which is after argument
      * binding, so a deliberately empty body on a validated endpoint answers 400 and proves nothing
-     * about the guard. {@link ProcurementDocumentGuardSplitTest} covers every write, body or not,
-     * by reading the annotation itself.
+     * about the guard. {@code StoresAccessEquivalenceIT} covers every write, body or not,
+     * by asking the matrix for each handler's action.
      */
     @Test
     void aProjectManagerCannotReceiveASiteTransfer() throws Exception {

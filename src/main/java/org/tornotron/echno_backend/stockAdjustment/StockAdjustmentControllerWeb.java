@@ -51,21 +51,21 @@ public class StockAdjustmentControllerWeb {
     }
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
+    @PreAuthorize("@access.can('inventory', 'read')")
     @Operation(
             summary = "List all stock adjustments",
             description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Stock adjustments returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read inventory")
     })
     public ResponseEntity<List<StockAdjustmentDto>> readAllStockAdjustments() {
         return UnpagedResultCap.respond(stockAdjustmentService.getAll(0, UnpagedResultCap.MAX_ROWS));
     }
 
     @GetMapping("/paginated")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
+    @PreAuthorize("@access.can('inventory', 'read')")
     @Operation(
             summary = "List stock adjustments, paginated",
             description = "Returns a single page of stock adjustments ordered by creation time, most recent "
@@ -73,7 +73,7 @@ public class StockAdjustmentControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of stock adjustments returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read inventory")
     })
     public ResponseEntity<Page<StockAdjustmentDto>> readAllStockAdjustmentsPaginated(
             @Valid @ParameterObject PageQuery pageQuery) {
@@ -81,7 +81,7 @@ public class StockAdjustmentControllerWeb {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
+    @PreAuthorize("@access.can('inventory', 'read')")
     @Operation(
             summary = "Get a stock adjustment by id",
             description = "Returns a single stock adjustment document, including its header fields and line "
@@ -89,7 +89,7 @@ public class StockAdjustmentControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Stock adjustment found"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read inventory"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No stock adjustment with the given id")
     })
     public ResponseEntity<StockAdjustmentDto> readAStockAdjustment(@PathVariable Long id) {
@@ -97,7 +97,7 @@ public class StockAdjustmentControllerWeb {
     }
 
     @GetMapping("/by-source-document")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
+    @PreAuthorize("@access.can('inventory', 'read')")
     @Operation(
             summary = "List the stock adjustments raised to answer one document",
             description = "Returns the adjustments naming the given source document, most recently "
@@ -111,7 +111,7 @@ public class StockAdjustmentControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Stock adjustments naming the document returned, empty where none do"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "sourceDocumentType is not a known kind of document"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read inventory")
     })
     public ResponseEntity<List<StockAdjustmentDto>> readStockAdjustmentsBySourceDocument(
             @RequestParam StockAdjustmentSourceType sourceDocumentType,
@@ -122,7 +122,7 @@ public class StockAdjustmentControllerWeb {
     }
 
     @PostMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
+    @PreAuthorize("@access.can('inventory', 'create')")
     @Operation(
             summary = "Create a stock adjustment",
             description = "Records a stock adjustment document capturing the counted and system quantities, "
@@ -134,7 +134,7 @@ public class StockAdjustmentControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Stock adjustment created"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A required field is missing or failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to inventory"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "The referenced location or project, or a material on one of the line items, was not found")
     })
     public ResponseEntity<StockAdjustmentDto> createStockAdjustment(@Valid @RequestBody StockAdjustmentCreationDto creationDto) {
@@ -142,7 +142,7 @@ public class StockAdjustmentControllerWeb {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
+    @PreAuthorize("@access.can('inventory', 'edit')")
     @Operation(
             summary = "Update a stock adjustment",
             description = "Replaces the header fields and line items of an existing stock adjustment with "
@@ -154,7 +154,7 @@ public class StockAdjustmentControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Stock adjustment updated"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A required field is missing or failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to inventory"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No stock adjustment with the given id, or the referenced location, project, or a material on one of the line items was not found")
     })
     public ResponseEntity<StockAdjustmentDto> updateStockAdjustment(@PathVariable Long id,
@@ -163,7 +163,7 @@ public class StockAdjustmentControllerWeb {
     }
 
     @PostMapping("/{id}/approve")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('inventory', 'approve')")
     @Operation(
             summary = "Approve a stock adjustment and post it to the stock ledger",
             description = "Approves the adjustment and posts each of its lines as an inventory "
@@ -184,7 +184,7 @@ public class StockAdjustmentControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Stock adjustment approved and posted"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The adjustment is already posted, is being approved by whoever raised it without the system-admin role, names no project, has no lines, or a line is missing a material, a reason or a quantity, or would take a balance below zero"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to inventory"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No stock adjustment with the given id")
     })
     public ResponseEntity<StockAdjustmentDto> approveStockAdjustment(@PathVariable Long id) {
@@ -192,7 +192,7 @@ public class StockAdjustmentControllerWeb {
     }
 
     @PostMapping("/{id}/reject")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('inventory', 'approve')")
     @Operation(
             summary = "Reject a stock adjustment, recording why it was refused",
             description = "Records that an approver looked at the proposed correction and did not "
@@ -213,7 +213,7 @@ public class StockAdjustmentControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Stock adjustment rejected"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "No reason was given, or the adjustment is already posted or already rejected"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to inventory"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No stock adjustment with the given id")
     })
     public ResponseEntity<StockAdjustmentDto> rejectStockAdjustment(
@@ -223,7 +223,7 @@ public class StockAdjustmentControllerWeb {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('inventory', 'delete')")
     @Operation(
             summary = "Delete a stock adjustment",
             description = "Deletes the stock adjustment with the given id. Refused once the adjustment "
@@ -232,7 +232,7 @@ public class StockAdjustmentControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Stock adjustment deleted"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to inventory"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No stock adjustment with the given id")
     })
     public ResponseEntity<ApiResponse> deleteStockAdjustment(@PathVariable Long id) {
