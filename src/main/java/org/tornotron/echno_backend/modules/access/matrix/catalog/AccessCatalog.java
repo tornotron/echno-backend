@@ -59,7 +59,9 @@ public final class AccessCatalog {
             area("goods-receipts", "Goods Receipts", "Stores"),
             area("indents", "Material Requests", "Buying"),
             area("purchase-orders", "Purchase Orders", "Buying"),
-            area("vendors", "Vendors", "Buying"),
+            // A vendor's bank accounts, tax identifiers, payment terms and spend summary are read by the
+            // system admin alone, while the store keeper reads the rest of a vendor.
+            new Area("vendors", "Vendors", "Buying", List.of("read-financials")),
             // Expenses and receipts are read by every member, the rest of finance by the pair, so they
             // are an area of their own; payables are the system admin's alone. Configure is the
             // system admin's part of finance: the chart's import and defaults, the posting mappings

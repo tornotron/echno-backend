@@ -43,7 +43,7 @@ public class VendorController {
     // ==================== Vendor Endpoints ====================
 
     @PostMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@access.can('vendors', 'create')")
     @Operation(
             summary = "Create a vendor",
             description = "Creates a vendor record in the current tenant with its identifying details."
@@ -59,7 +59,7 @@ public class VendorController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
+    @PreAuthorize("@access.can('vendors', 'read')")
     @Operation(
             summary = "Get a vendor by id",
             description = "Returns a single vendor."
@@ -75,7 +75,7 @@ public class VendorController {
     }
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
+    @PreAuthorize("@access.can('vendors', 'read')")
     @Operation(
             summary = "List vendors",
             description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
@@ -89,7 +89,7 @@ public class VendorController {
     }
 
     @GetMapping("/all")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
+    @PreAuthorize("@access.can('vendors', 'read')")
     @Operation(
             summary = "List vendors (paged)",
             description = "Returns a single page of vendors controlled by the pageNo and pageSize parameters."
@@ -106,7 +106,7 @@ public class VendorController {
     }
 
     @GetMapping("/search")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
+    @PreAuthorize("@access.can('vendors', 'read')")
     @Operation(
             summary = "Search vendors by name",
             description = "Returns vendors whose name matches the given search term."
@@ -124,7 +124,7 @@ public class VendorController {
     }
 
     @PatchMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@access.can('vendors', 'edit')")
     @Operation(
             summary = "Update a vendor",
             description = "Replaces the details of the vendor with the given id."
@@ -144,7 +144,7 @@ public class VendorController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@access.can('vendors', 'delete')")
     @Operation(
             summary = "Delete a vendor",
             description = "Deletes the vendor with the given id."
@@ -162,7 +162,7 @@ public class VendorController {
     // ==================== Summary Endpoint ====================
 
     @GetMapping("/{vendorId}/summary")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@access.can('vendors', 'read-financials')")
     @Operation(
             summary = "Get a vendor summary",
             description = "Returns aggregated summary figures for the given vendor."
@@ -179,7 +179,7 @@ public class VendorController {
     // ==================== Contact Endpoints ====================
 
     @GetMapping("/{vendorId}/contacts")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
+    @PreAuthorize("@access.can('vendors', 'read')")
     @Operation(
             summary = "List vendor contacts",
             description = "Returns the contacts recorded for the given vendor."
@@ -194,7 +194,7 @@ public class VendorController {
     }
 
     @PostMapping("/{vendorId}/contacts")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@access.can('vendors', 'create')")
     @Operation(
             summary = "Add a vendor contact",
             description = "Adds a contact to the given vendor."
@@ -213,7 +213,7 @@ public class VendorController {
     }
 
     @PatchMapping("/{vendorId}/contacts/{contactId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@access.can('vendors', 'edit')")
     @Operation(
             summary = "Update a vendor contact",
             description = "Replaces the details of a contact belonging to the given vendor."
@@ -233,7 +233,7 @@ public class VendorController {
     }
 
     @DeleteMapping("/{vendorId}/contacts/{contactId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@access.can('vendors', 'delete')")
     @Operation(
             summary = "Delete a vendor contact",
             description = "Deletes a contact belonging to the given vendor."
@@ -254,7 +254,7 @@ public class VendorController {
     // ==================== Tax Identifier Endpoints ====================
 
     @GetMapping("/{vendorId}/tax-identifiers")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@access.can('vendors', 'read-financials')")
     @Operation(
             summary = "List vendor tax identifiers",
             description = "Returns the tax identifiers recorded for the given vendor."
@@ -269,7 +269,7 @@ public class VendorController {
     }
 
     @PostMapping("/{vendorId}/tax-identifiers")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@access.can('vendors', 'create')")
     @Operation(
             summary = "Add a vendor tax identifier",
             description = "Adds a tax identifier to the given vendor."
@@ -288,7 +288,7 @@ public class VendorController {
     }
 
     @PatchMapping("/{vendorId}/tax-identifiers/{taxIdId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@access.can('vendors', 'edit')")
     @Operation(
             summary = "Update a vendor tax identifier",
             description = "Replaces the details of a tax identifier belonging to the given vendor."
@@ -308,7 +308,7 @@ public class VendorController {
     }
 
     @DeleteMapping("/{vendorId}/tax-identifiers/{taxIdId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@access.can('vendors', 'delete')")
     @Operation(
             summary = "Delete a vendor tax identifier",
             description = "Deletes a tax identifier belonging to the given vendor."
@@ -329,7 +329,7 @@ public class VendorController {
     // ==================== Bank Account Endpoints ====================
 
     @GetMapping("/{vendorId}/bank-accounts")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@access.can('vendors', 'read-financials')")
     @Operation(
             summary = "List vendor bank accounts",
             description = "Returns the bank accounts recorded for the given vendor."
@@ -344,7 +344,7 @@ public class VendorController {
     }
 
     @PostMapping("/{vendorId}/bank-accounts")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@access.can('vendors', 'create')")
     @Operation(
             summary = "Add a vendor bank account",
             description = "Adds a bank account to the given vendor."
@@ -363,7 +363,7 @@ public class VendorController {
     }
 
     @PatchMapping("/{vendorId}/bank-accounts/{accountId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@access.can('vendors', 'edit')")
     @Operation(
             summary = "Update a vendor bank account",
             description = "Replaces the details of a bank account belonging to the given vendor."
@@ -383,7 +383,7 @@ public class VendorController {
     }
 
     @DeleteMapping("/{vendorId}/bank-accounts/{accountId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@access.can('vendors', 'delete')")
     @Operation(
             summary = "Delete a vendor bank account",
             description = "Deletes a bank account belonging to the given vendor."
@@ -404,7 +404,7 @@ public class VendorController {
     // ==================== Payment Terms Endpoints ====================
 
     @GetMapping("/{vendorId}/payment-terms")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@access.can('vendors', 'read-financials')")
     @Operation(
             summary = "Get vendor payment terms",
             description = "Returns the payment terms recorded for the given vendor."
@@ -419,7 +419,7 @@ public class VendorController {
     }
 
     @PutMapping("/{vendorId}/payment-terms")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@access.can('vendors', 'edit')")
     @Operation(
             summary = "Set vendor payment terms",
             description = "Sets or replaces the payment terms for the given vendor."
@@ -438,7 +438,7 @@ public class VendorController {
     }
 
     @DeleteMapping("/{vendorId}/payment-terms")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@access.can('vendors', 'delete')")
     @Operation(
             summary = "Delete vendor payment terms",
             description = "Deletes the payment terms recorded for the given vendor."

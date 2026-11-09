@@ -142,14 +142,9 @@ class StoreKeeperRoleScopeTest {
             // procurement's, and the receiving end must not be able to alter the figures it is
             // being measured against.
 
-            // Who brought the delivery, and how to reach them about it. The vendor summary, bank
-            // accounts, tax identifiers and payment terms are commercial rather than stores
-            // information and are deliberately absent.
-            "VendorControllerWeb.getVendorById GET /{id}",
-            "VendorControllerWeb.getAllVendors GET",
-            "VendorControllerWeb.getAllVendorsPaginated GET /all",
-            "VendorControllerWeb.searchVendors GET /search",
-            "VendorControllerWeb.getContacts GET /{vendorId}/contacts",
+            // Who brought the delivery, and how to reach them about it, is read on the access matrix
+            // now: the store keeper's starting role holds vendors read and not read-financials, and
+            // VendorAccessEquivalenceIT holds it to the vendor and contact reads it had.
 
             // The mobile twins of the grants above, for the Android app on the tenant API. They
             // carry their web twin's guard expression for expression (MobileWebGuardParityTest), so
@@ -207,12 +202,7 @@ class StoreKeeperRoleScopeTest {
             "StorageLocationController.getAllStorageLocations GET",
             "StorageLocationController.getAllStorageLocationsPaginated GET /all",
             "StorageLocationController.getStorageLocationsByProject GET /project/{projectId}",
-            "StorageLocationController.getStorageLocationsByType GET /type/{locationType}",
-            "VendorController.getVendorById GET /{id}",
-            "VendorController.getAllVendors GET",
-            "VendorController.getAllVendorsPaginated GET /all",
-            "VendorController.searchVendors GET /search",
-            "VendorController.getContacts GET /{vendorId}/contacts"
+            "StorageLocationController.getStorageLocationsByType GET /type/{locationType}"
     ));
 
     /**
