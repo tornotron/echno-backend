@@ -82113,7 +82113,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read goods receipts"
           },
           "404": {
             "content": {
@@ -82223,7 +82223,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to goods receipts"
           },
           "404": {
             "content": {
@@ -82333,7 +82333,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to goods receipts"
           },
           "404": {
             "content": {
@@ -82464,7 +82464,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read goods receipts"
           },
           "404": {
             "content": {
@@ -82613,7 +82613,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read goods receipts"
           },
           "404": {
             "content": {
@@ -82753,7 +82753,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read goods receipts"
           },
           "404": {
             "content": {
@@ -82858,7 +82858,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read goods receipts"
           },
           "404": {
             "content": {
@@ -82968,7 +82968,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to goods receipts"
           },
           "404": {
             "content": {
@@ -83078,7 +83078,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to goods receipts"
           },
           "404": {
             "content": {
@@ -83209,7 +83209,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read goods receipts"
           },
           "404": {
             "content": {
@@ -83334,7 +83334,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read goods receipts"
           },
           "404": {
             "content": {
@@ -83450,7 +83450,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read goods receipts"
           },
           "404": {
             "content": {
@@ -83563,7 +83563,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read goods receipts"
           },
           "404": {
             "content": {
@@ -83676,7 +83676,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read goods receipts"
           },
           "404": {
             "content": {
