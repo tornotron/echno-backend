@@ -9,53 +9,32 @@ import org.tornotron.echno_backend.modules.inspections.domain.Ncr;
 import org.tornotron.echno_backend.modules.inspections.repositories.NcrRepository;
 import org.tornotron.echno_backend.modules.inspections.repositories.ReinspectionRepository;
 
+import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Inspection authorization policy, kept in one place so the role model can be
- * retuned without touching the controllers, following the
- * {@code attendanceSecurity} precedent. Controllers reference this bean from
- * {@code @PreAuthorize} (for example
- * {@code @inspectionSecurity.canSignOffNcr(#id)}).
+ * The parts of the inspection policy a plain {@code @access.can} guard cannot express.
  *
- * <p>The module used to admit only {@code system-admin} and
- * {@code project-manager} on every endpoint, which collapsed four jobs into one
- * and made the closure trail on an NCR meaningless: whoever could raise it could
- * also close it. The defaults below give each job the authority the functional
- * spec assigns it:
+ * <p>Most inspection endpoints ask the access matrix directly: {@code inspections} for inspections,
+ * observations and the compliance and dataset jobs, {@code inspection-checklists} for checklist
+ * templates, element types and trades, and {@code ncrs} for non-conformance reports. Two things are
+ * left here.
  *
  * <ul>
- *   <li>{@code echno.security.inspection.read-roles} (default
- *       {@code system-admin,project-manager,qa-engineer,safety-officer,site-engineer})
- *       reads inspections, checklists and NCRs. The project manager's full read and
- *       the site engineer's view of the NCRs assigned to them are both here.</li>
- *   <li>{@code echno.security.inspection.manage-roles} (default
- *       {@code system-admin,project-manager,qa-engineer,safety-officer}) schedules
- *       and records inspections. Not the site engineer: they act on the
- *       non-conformances an inspection raises, they do not carry it out.</li>
- *   <li>{@code echno.security.inspection.checklist-roles} (default
- *       {@code system-admin,qa-engineer}) defines the criteria work is judged
- *       against. Deliberately narrow: this is the QA engineer's job, and setting a
- *       tolerance is a bigger authority than recording a measurement against one.
- *       The safety officer is not here yet because a checklist template is keyed by
- *       trade, which is the QA/QC axis; safety criteria arrive with the safety
- *       phase and this default moves with them.</li>
- *   <li>{@code echno.security.inspection.ncr-raise-roles} (default
- *       {@code system-admin,qa-engineer,safety-officer}) raises and assigns
- *       non-conformances. The project manager reads them and does not assign them,
- *       which is what the spec's approval-visibility line means.</li>
- *   <li>{@code echno.security.inspection.corrective-action-roles} (default
- *       {@code system-admin,site-engineer}) reports the corrective work done. This
- *       is as far as the assignee takes it.</li>
- *   <li>{@code echno.security.inspection.quality-signoff-roles} (default
- *       {@code system-admin,qa-engineer}) and
- *       {@code echno.security.inspection.safety-signoff-roles} (default
- *       {@code system-admin,safety-officer}) verify, reject, reopen and close, each
- *       only for their own discipline. See {@link #canSignOffNcr}.</li>
+ *   <li>Signing off an NCR, and recording a reinspection outcome, needs the sign-off action of the
+ *       report's own discipline: {@code ncrs:sign-off-safety} for a safety report and
+ *       {@code ncrs:sign-off-quality} for any other. A safety officer cannot close a quality report
+ *       and a QA engineer cannot close a safety one, since both would be a sign-off on work outside
+ *       the signer's competence. The guard asks the matrix for both actions and passes the answers
+ *       here, so the literals stay in the guard where the catalog reads them, and this bean picks the
+ *       one the report's discipline calls for.</li>
+ *   <li>Posting a machine observation stays on the role check,
+ *       {@code echno.security.inspection.observation-intake-roles} (default
+ *       {@code system-admin,observation-producer}). The producer is a Keycloak service account with
+ *       no employee row, whose token carries the role groups; the matrix resolves a caller through
+ *       their employee row, so it would refuse every machine login. It moves when machine logins get
+ *       their own credential.</li>
  * </ul>
- *
- * <p>Override any of them per environment as a comma-separated list of org-role
- * tokens, no code change needed.
  */
 @Service("inspectionSecurity")
 public class InspectionSecurityService {
@@ -63,142 +42,65 @@ public class InspectionSecurityService {
     private final OrganizationSecurityService orgSecurity;
     private final NcrRepository ncrRepo;
     private final ReinspectionRepository reinspectionRepo;
-    private final String[] readRoles;
-    private final String[] manageRoles;
-    private final String[] checklistRoles;
-    private final String[] ncrRaiseRoles;
-    private final String[] correctiveActionRoles;
-    private final String[] qualitySignOffRoles;
-    private final String[] safetySignOffRoles;
-    private final String[] observationReviewRoles;
     private final String[] observationIntakeRoles;
 
     public InspectionSecurityService(
             OrganizationSecurityService orgSecurity,
             NcrRepository ncrRepo,
             ReinspectionRepository reinspectionRepo,
-            @Value("${echno.security.inspection.read-roles:"
-                    + "system-admin,project-manager,qa-engineer,safety-officer,site-engineer}")
-            String[] readRoles,
-            @Value("${echno.security.inspection.manage-roles:"
-                    + "system-admin,project-manager,qa-engineer,safety-officer}")
-            String[] manageRoles,
-            @Value("${echno.security.inspection.checklist-roles:system-admin,qa-engineer}")
-            String[] checklistRoles,
-            @Value("${echno.security.inspection.ncr-raise-roles:"
-                    + "system-admin,qa-engineer,safety-officer}")
-            String[] ncrRaiseRoles,
-            @Value("${echno.security.inspection.corrective-action-roles:system-admin,site-engineer}")
-            String[] correctiveActionRoles,
-            @Value("${echno.security.inspection.quality-signoff-roles:system-admin,qa-engineer}")
-            String[] qualitySignOffRoles,
-            @Value("${echno.security.inspection.safety-signoff-roles:system-admin,safety-officer}")
-            String[] safetySignOffRoles,
-            @Value("${echno.security.inspection.observation-review-roles:"
-                    + "system-admin,project-manager,qa-engineer,safety-officer}")
-            String[] observationReviewRoles,
             @Value("${echno.security.inspection.observation-intake-roles:system-admin,observation-producer}")
             String[] observationIntakeRoles) {
         this.orgSecurity = orgSecurity;
         this.ncrRepo = ncrRepo;
         this.reinspectionRepo = reinspectionRepo;
-        this.readRoles = readRoles;
-        this.manageRoles = manageRoles;
-        this.checklistRoles = checklistRoles;
-        this.ncrRaiseRoles = ncrRaiseRoles;
-        this.correctiveActionRoles = correctiveActionRoles;
-        this.qualitySignOffRoles = qualitySignOffRoles;
-        this.safetySignOffRoles = safetySignOffRoles;
-        this.observationReviewRoles = observationReviewRoles;
         this.observationIntakeRoles = observationIntakeRoles;
     }
 
-    /** Read inspections, checklist templates and non-conformance reports. */
-    public boolean canRead() {
-        return orgSecurity.hasAnyOrgRoleForCurrentTenant(readRoles);
-    }
-
-    /** Schedule an inspection and record what it found. */
-    public boolean canManageInspections() {
-        return orgSecurity.hasAnyOrgRoleForCurrentTenant(manageRoles);
-    }
-
     /**
-     * Decide on a pending observation: accept, modify or reject what a device, a model or a
-     * colleague proposed. {@code echno.security.inspection.observation-review-roles}, default
-     * the same four jobs that record an inspection, since the decision is the same authority
-     * as recording the finding by hand.
-     */
-    public boolean canReviewObservations() {
-        return orgSecurity.hasAnyOrgRoleForCurrentTenant(observationReviewRoles);
-    }
-
-    /**
-     * Post a machine observation. {@code echno.security.inspection.observation-intake-roles},
-     * default {@code system-admin,observation-producer}. The producer role is the org-scoped
-     * role a fleet's or integration's Keycloak service account is placed in, exactly as a
-     * person is placed in {@code qa-engineer}: the service-account user joins the organisation
-     * group and the role subgroup, its client-credentials token carries them in {@code groups},
-     * and the JWT converter turns them into the same authorities. No second identity path.
+     * Post a machine observation. The producer role is the org-scoped role a fleet's or
+     * integration's Keycloak service account is placed in, exactly as a person is placed in
+     * {@code qa-engineer}: the service-account user joins the organisation group and the role
+     * subgroup, its client-credentials token carries them in {@code groups}, and the JWT converter
+     * turns them into the same authorities.
      */
     public boolean canIntakeObservations() {
         return orgSecurity.hasAnyOrgRoleForCurrentTenant(observationIntakeRoles);
     }
 
-    /** Define the criteria work is judged against. */
-    public boolean canDefineChecklists() {
-        return orgSecurity.hasAnyOrgRoleForCurrentTenant(checklistRoles);
-    }
-
-    /** Raise a non-conformance and hand it to a site engineer. */
-    public boolean canRaiseNcrs() {
-        return orgSecurity.hasAnyOrgRoleForCurrentTenant(ncrRaiseRoles);
-    }
-
-    /** Report the corrective work done and the non-conformance ready for re-inspection. */
-    public boolean canReportCorrectiveAction() {
-        return orgSecurity.hasAnyOrgRoleForCurrentTenant(correctiveActionRoles);
-    }
-
     /**
-     * Whether the caller may verify, reject, reopen or close this particular
-     * non-conformance.
+     * Whether the caller may verify, reject, reopen or close this particular non-conformance, or
+     * schedule its reinspection.
      *
-     * <p>The discipline has to match: a safety officer cannot close a quality
-     * non-conformance and a QA engineer cannot close a safety one. Both are
-     * sign-offs on work outside the signer's competence, and the report is the
-     * record that somebody qualified accepted it. The check is per-report rather
-     * than per-endpoint because the discipline is a property of the report, not of
-     * the request.
-     *
-     * <p>A report that does not exist in this tenant is allowed through, so the
-     * caller gets the service's 404 rather than a 403 that would read as "it exists
-     * and you may not touch it".
+     * <p>A report that does not exist in this tenant is allowed through, so the caller gets the
+     * service's 404 rather than a 403 that would read as "it exists and you may not touch it".
      *
      * @param ncrId Id of the report being signed off.
-     * @return true when the caller holds the sign-off role for that report's discipline.
+     * @param qualitySignOff Whether the caller holds {@code ncrs:sign-off-quality}.
+     * @param safetySignOff Whether the caller holds {@code ncrs:sign-off-safety}.
+     * @return the answer for that report's discipline.
      */
     @Transactional(readOnly = true)
-    public boolean canSignOffNcr(UUID ncrId) {
-        return ncrRepo.findByIdScoped(ncrId)
-                .map(Ncr::getType)
-                .map(type -> orgSecurity.hasAnyOrgRoleForCurrentTenant(
-                        type == NcrType.SAFETY ? safetySignOffRoles : qualitySignOffRoles))
+    public boolean maySignOffNcr(UUID ncrId, boolean qualitySignOff, boolean safetySignOff) {
+        return disciplineOf(ncrId)
+                .map(type -> type == NcrType.SAFETY ? safetySignOff : qualitySignOff)
                 .orElse(true);
     }
 
     /**
-     * Recording a reinspection outcome is the same authority as signing off the NCR it answers:
-     * the sign-off roles of that NCR's discipline. A defect-only reinspection has no NCR to take
-     * a discipline from and falls to the quality sign-off roles. Unknown ids pass through so the
-     * service can answer 404 rather than 403.
+     * Recording a reinspection outcome is the same authority as signing off the NCR it answers. A
+     * defect-only reinspection has no NCR to take a discipline from and falls to the quality
+     * sign-off. Unknown ids pass through so the service can answer 404 rather than 403.
      */
     @Transactional(readOnly = true)
-    public boolean canRecordReinspectionOutcome(UUID reinspectionId) {
+    public boolean mayRecordReinspectionOutcome(UUID reinspectionId, boolean qualitySignOff, boolean safetySignOff) {
         return reinspectionRepo.findByIdScoped(reinspectionId)
                 .map(r -> r.getNcrId() != null
-                        ? canSignOffNcr(r.getNcrId())
-                        : orgSecurity.hasAnyOrgRoleForCurrentTenant(qualitySignOffRoles))
+                        ? maySignOffNcr(r.getNcrId(), qualitySignOff, safetySignOff)
+                        : qualitySignOff)
                 .orElse(true);
+    }
+
+    private Optional<NcrType> disciplineOf(UUID ncrId) {
+        return ncrRepo.findByIdScoped(ncrId).map(Ncr::getType);
     }
 }

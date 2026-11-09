@@ -24,7 +24,8 @@ import org.tornotron.echno_backend.common.enums.OrgRole;
 class AccessRoleTemplateSeedTest {
 
     /** A mapping row's read that needs more than the area's read: its named action is checked as is. */
-    private static final Set<String> NAMED_READS = Set.of("read-financials", "read-ledger", "read-reports");
+    private static final Set<String> NAMED_READS = Set.of("read-financials", "read-ledger", "read-reports",
+            "generate-compliance", "export-datasets");
 
     private static final Path MAPPING = Path.of("docs/specs/2026-10-30-access-permission-mapping-endpoints.csv");
     private static final String BASELINE = "employee";
@@ -41,7 +42,8 @@ class AccessRoleTemplateSeedTest {
             "db/data/access/role-template-grants-stores.csv",
             "db/data/access/role-template-grants-document-reversals.csv",
             "db/data/access/role-template-grants-documents-reports.csv",
-            "db/data/access/role-template-grants-org-profile.csv");
+            "db/data/access/role-template-grants-org-profile.csv",
+            "db/data/access/role-template-grants-inspections.csv");
 
     /**
      * Template grants a later changeset deleted, by template slug and key: access-011 takes the
@@ -51,12 +53,16 @@ class AccessRoleTemplateSeedTest {
      * comments, now an area of their own; access-016 takes the baseline's compliance:approve, which it
      * held only for document reversals, now an area of their own; access-018 takes the baseline's
      * org-admin:read and org-admin:create and the HR admin's org-admin:edit, which they held only for
-     * the organization's profile, now an area of their own.
+     * the organization's profile, now an area of their own; access-019 takes the site engineer's and the
+     * observation producer's inspections:create, which would have let them schedule and record an
+     * inspection.
      */
     private static final Map<String, Set<String>> DELETED = Map.of(
             BASELINE, Set.of("finance:read", "issues:create", "issues:edit", "compliance:approve",
                     "org-admin:read", "org-admin:create"),
-            "hr-admin", Set.of("construction:create", "construction:edit", "construction:delete", "org-admin:edit"));
+            "hr-admin", Set.of("construction:create", "construction:edit", "construction:delete", "org-admin:edit"),
+            "site-engineer", Set.of("inspections:create"),
+            "observation-producer", Set.of("inspections:create"));
 
     private static final Map<String, String> SLUG_BY_ID = new HashMap<>();
     private static final Map<String, String> LEGACY_BY_SLUG = new HashMap<>();
@@ -310,6 +316,39 @@ class AccessRoleTemplateSeedTest {
                 assertThat(keys).as(slug).doesNotContain("org-profile:edit", "org-profile:delete");
             }
         });
+    }
+
+    @Test
+    void eachInspectionJobKeepsItsOwnRoles() {
+        // Before the matrix each inspection job had its own role list, and the sign-offs went by the
+        // report's discipline.
+        Map<String, Set<String>> holders = Map.ofEntries(
+                Map.entry("inspections:read", Set.of("system-admin", "project-manager", "qa-qc-engineer",
+                        "safety-officer", "site-engineer")),
+                Map.entry("inspections:create", Set.of("system-admin", "project-manager", "qa-qc-engineer",
+                        "safety-officer")),
+                Map.entry("inspections:edit", Set.of("system-admin", "project-manager", "qa-qc-engineer",
+                        "safety-officer")),
+                Map.entry("inspections:approve", Set.of("system-admin", "project-manager", "qa-qc-engineer",
+                        "safety-officer")),
+                Map.entry("inspections:generate-compliance", Set.of("system-admin", "project-manager")),
+                Map.entry("inspections:export-datasets", Set.of("system-admin")),
+                Map.entry("inspection-checklists:read", Set.of("system-admin", "project-manager", "qa-qc-engineer",
+                        "safety-officer", "site-engineer")),
+                Map.entry("inspection-checklists:create", Set.of("system-admin", "qa-qc-engineer")),
+                Map.entry("inspection-checklists:edit", Set.of("system-admin", "qa-qc-engineer")),
+                Map.entry("ncrs:read", Set.of("system-admin", "project-manager", "qa-qc-engineer",
+                        "safety-officer", "site-engineer")),
+                Map.entry("ncrs:create", Set.of("system-admin", "qa-qc-engineer", "safety-officer")),
+                Map.entry("ncrs:edit", Set.of("system-admin", "qa-qc-engineer", "safety-officer")),
+                Map.entry("ncrs:report-corrective-action", Set.of("system-admin", "site-engineer")),
+                Map.entry("ncrs:sign-off-quality", Set.of("system-admin", "qa-qc-engineer")),
+                Map.entry("ncrs:sign-off-safety", Set.of("system-admin", "safety-officer")));
+        holders.forEach((key, slugs) -> KEYS_BY_SLUG.forEach((slug, keys) ->
+                assertThat(keys.contains(key)).as(slug + " " + key).isEqualTo(slugs.contains(slug))));
+        KEYS_BY_SLUG.forEach((slug, keys) -> assertThat(keys).as(slug)
+                .allMatch(key -> !key.startsWith("inspections:") && !key.startsWith("inspection-checklists:")
+                        && !key.startsWith("ncrs:") || holders.containsKey(key)));
     }
 
     @Test

@@ -44,7 +44,7 @@ public class InspectionEventControllerWeb {
     private final DetectionVisibility detectionVisibility;
 
     @GetMapping("/api/v1/inspections/web/{id}/events")
-    @PreAuthorize("@inspectionSecurity.canRead()")
+    @PreAuthorize("@access.can('inspections', 'read')")
     @Operation(
             summary = "Read an inspection's timeline",
             description = "Every event on the inspection and on its check points, defects, "
@@ -52,7 +52,7 @@ public class InspectionEventControllerWeb {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Page of events"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not read inspections"),
             @ApiResponse(responseCode = "404", description = "No inspection with the given id in the current tenant")
     })
     public Page<InspectionEventDto> inspectionTimeline(@PathVariable UUID id, Pageable pageable) {
@@ -60,7 +60,7 @@ public class InspectionEventControllerWeb {
     }
 
     @GetMapping("/api/v1/ncrs/web/{id}/events")
-    @PreAuthorize("@inspectionSecurity.canRead()")
+    @PreAuthorize("@access.can('ncrs', 'read')")
     @Operation(
             summary = "Read a non-conformance report's timeline",
             description = "Every event on the NCR and on the reinspections raised against it, "
@@ -68,7 +68,7 @@ public class InspectionEventControllerWeb {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Page of events"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not read inspections"),
             @ApiResponse(responseCode = "404", description = "No NCR with the given id in the current tenant")
     })
     public Page<InspectionEventDto> ncrTimeline(@PathVariable UUID id, Pageable pageable) {
@@ -76,7 +76,7 @@ public class InspectionEventControllerWeb {
     }
 
     @GetMapping("/api/v1/inspections/web/events")
-    @PreAuthorize("@inspectionSecurity.canRead()")
+    @PreAuthorize("@access.can('inspections', 'read')")
     @Operation(
             summary = "Search the inspection event log",
             description = "The project-wide log. Every parameter is an optional filter and they "
@@ -84,7 +84,7 @@ public class InspectionEventControllerWeb {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Page of matching events"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read inspections")
     })
     public Page<InspectionEventDto> search(
             @RequestParam(required = false) Long projectId,
