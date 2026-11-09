@@ -109,7 +109,9 @@ public class ApplyService {
                         failed++;
                         String reason = rowFailure.getMessage() == null
                                 ? rowFailure.getClass().getSimpleName() : rowFailure.getMessage();
-                        retry.executeWithoutResult("DocumentIngestion.markApplyFailed", () -> markFailed(id, reason));
+                        ApplyConflictException conflict = rowFailure instanceof ApplyConflictException refused ? refused : null;
+                        retry.executeWithoutResult("DocumentIngestion.markApplyFailed",
+                                () -> markFailed(id, reason, conflict));
                     }
                 }
             }
@@ -157,13 +159,17 @@ public class ApplyService {
         c.setAppliedBy(appliedBy);
         c.setAppliedAt(now);
         c.setApplyError(null);
+        c.setConflictRecordValue(null);
+        c.setConflictAppliedValue(null);
         candidates.save(c);
     }
 
-    private void markFailed(UUID candidateId, String reason) {
+    private void markFailed(UUID candidateId, String reason, ApplyConflictException conflict) {
         candidates.findByIdScoped(candidateId).ifPresent(c -> {
             c.setStatus(CandidateStatus.APPLY_FAILED);
             c.setApplyError(reason);
+            c.setConflictRecordValue(conflict == null ? null : conflict.recordValue());
+            c.setConflictAppliedValue(conflict == null ? null : conflict.appliedValue());
             candidates.save(c);
         });
     }

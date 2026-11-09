@@ -11,7 +11,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.tornotron.echno_backend.common.llm.LlmEndpointProperties;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.modules.documentingestion.domain.IngestSettingChange;
@@ -29,7 +31,12 @@ import org.tornotron.echno_backend.user.UserContextService;
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import({IngestSettingsService.class, TenantEntityHelper.class})
+@Import({IngestSettingsService.class, TenantEntityHelper.class, LlmEndpointProperties.class})
+@TestPropertySource(properties = {
+        "compliance.ai.provider-name=Example Inference Cloud",
+        "compliance.ai.provider-privacy-url=https://inference.example.test/privacy",
+        "compliance.ai.model=example-model-7b"
+})
 class DocumentIngestionSettingsIT extends AbstractIntegrationTest {
 
     static final long ADMIN = 4242L;
@@ -68,6 +75,9 @@ class DocumentIngestionSettingsIT extends AbstractIntegrationTest {
         assertThat(dto.changedBy()).isNull();
         assertThat(dto.recentChanges()).isEmpty();
         assertThat(dto.llmReadingDisclosure()).contains("sent to the AI service", "does not keep the text");
+        assertThat(dto.aiProvider()).isEqualTo("Example Inference Cloud");
+        assertThat(dto.aiModel()).isEqualTo("example-model-7b");
+        assertThat(dto.aiProviderPrivacyUrl()).isEqualTo("https://inference.example.test/privacy");
     }
 
     @Test

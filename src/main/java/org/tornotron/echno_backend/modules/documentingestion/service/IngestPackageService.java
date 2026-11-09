@@ -60,8 +60,9 @@ public class IngestPackageService {
     }
 
     @Transactional(readOnly = true)
-    public Page<PackageDto> list(int page, int size) {
-        return packages.findPage(PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), MAX_PAGE_SIZE)))
+    public Page<PackageDto> list(Long projectId, int page, int size) {
+        PageRequest request = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), MAX_PAGE_SIZE));
+        return (projectId == null ? packages.findPage(request) : packages.findPageForProject(projectId, request))
                 .map(p -> PackageDto.of(p, documents.countInPackage(p.getId())));
     }
 

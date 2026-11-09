@@ -168,6 +168,25 @@ public class IngestDocumentService {
                 DOWNLOAD_URL_EXPIRY.toSeconds());
     }
 
+    /**
+     * A short-lived link to the worker's image of one page of a document, which the review screen draws a
+     * source box over. The document is looked up in the current tenant first and the key is composed here
+     * from its output prefix, so a client never names an object.
+     */
+    @Transactional(readOnly = true)
+    public DownloadUrlDto pageImageUrl(UUID documentId, int page) {
+        IngestDocument doc = requireDocument(documentId);
+        if (doc.getOutputPrefix() == null || page < 1) {
+            throw new ResourceNotFoundException("No image of page " + page + " of " + doc.getFileName());
+        }
+        String key = doc.getOutputPrefix() + DocumentIngestionStorageLayout.pageImage(page);
+        if (!fileStorageService.objectExists(key)) {
+            throw new ResourceNotFoundException("No image of page " + page + " of " + doc.getFileName());
+        }
+        return new DownloadUrlDto(fileStorageService.generateDownloadUrl(key, DOWNLOAD_URL_EXPIRY),
+                DOWNLOAD_URL_EXPIRY.toSeconds());
+    }
+
     private void enqueue(IngestDocument doc) {
         ParseJob job = new ParseJob();
         job.setOrganization(doc.getOrganization());
