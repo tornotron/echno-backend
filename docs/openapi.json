@@ -5918,6 +5918,166 @@
         },
         "type": "object"
       },
+      "CompanyEvidenceDto": {
+        "description": "An evidence file of the company profile, such as a turnover certificate or a completion certificate. Shown in the compliance matrix beside the rows of its section once uploaded.",
+        "properties": {
+          "contentType": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "fileName": {
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "label": {
+            "example": "Auditor's turnover certificate 2025-26",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "section": {
+            "enum": [
+              "TURNOVER",
+              "SIMILAR_PROJECTS",
+              "EXPERIENCE",
+              "EQUIPMENT",
+              "PERSONNEL",
+              "OTHER"
+            ],
+            "type": "string"
+          },
+          "sizeBytes": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "uploaded": {
+            "description": "False until the upload is registered.",
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "CompanyProfileDto": {
+        "description": "The company's profile for bidding, typed in by an admin. A blank field makes the matching compliance matrix rows UNKNOWN, never GAP.",
+        "properties": {
+          "equipment": {
+            "items": {
+              "$ref": "#/components/schemas/EquipmentItem"
+            },
+            "type": "array"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/CompanyEvidenceDto"
+            },
+            "type": "array"
+          },
+          "id": {
+            "description": "Null until the profile is first saved.",
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "personnel": {
+            "items": {
+              "$ref": "#/components/schemas/PersonnelEntry"
+            },
+            "type": "array"
+          },
+          "similarProjects": {
+            "items": {
+              "$ref": "#/components/schemas/SimilarProject"
+            },
+            "type": "array"
+          },
+          "turnover": {
+            "items": {
+              "$ref": "#/components/schemas/TurnoverYear"
+            },
+            "type": "array"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "updatedBy": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "yearsInBusiness": {
+            "example": 11,
+            "format": "int32",
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "CompanyProfileRequest": {
+        "description": "The whole company profile, replacing what was saved. Evidence files are added and removed through their own calls and are kept. Leave a field empty when it is not known; it shows as UNKNOWN.",
+        "properties": {
+          "equipment": {
+            "items": {
+              "$ref": "#/components/schemas/EquipmentItem"
+            },
+            "maxItems": 500,
+            "minItems": 0,
+            "type": "array"
+          },
+          "personnel": {
+            "items": {
+              "$ref": "#/components/schemas/PersonnelEntry"
+            },
+            "maxItems": 500,
+            "minItems": 0,
+            "type": "array"
+          },
+          "similarProjects": {
+            "items": {
+              "$ref": "#/components/schemas/SimilarProject"
+            },
+            "maxItems": 500,
+            "minItems": 0,
+            "type": "array"
+          },
+          "turnover": {
+            "items": {
+              "$ref": "#/components/schemas/TurnoverYear"
+            },
+            "maxItems": 50,
+            "minItems": 0,
+            "type": "array"
+          },
+          "yearsInBusiness": {
+            "example": 11,
+            "format": "int32",
+            "maximum": 500,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
       "ComplianceGenerationJobDto": {
         "description": "A compliance generation run: its state, its progress and its outcome.",
         "properties": {
@@ -5991,6 +6151,147 @@
               "nothing-to-report",
               "failed"
             ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ComplianceMatrixDto": {
+        "description": "The Tender Compliance Matrix: each accepted qualification requirement beside the company profile, with a status. It shows matches and gaps only and makes no bid or no-bid recommendation.",
+        "properties": {
+          "notice": {
+            "type": "string"
+          },
+          "packageId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/ComplianceMatrixRow"
+            },
+            "type": "array"
+          },
+          "shown": {
+            "description": "False at stage AWARDED, where qualification no longer applies; rows is then empty.",
+            "type": "boolean"
+          },
+          "stage": {
+            "enum": [
+              "TENDER",
+              "AWARDED"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ComplianceMatrixEvidence": {
+        "description": "An evidence file shown beside a row.",
+        "properties": {
+          "fileName": {
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "label": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "ComplianceMatrixRow": {
+        "description": "One requirement of the matrix.",
+        "properties": {
+          "basis": {
+            "description": "COMPARED from the figures, SET_BY_PERSON, AWAITING_PERSON for text no one has compared yet, PROFILE_BLANK, or NOT_READABLE when the tender's value is not a number.",
+            "enum": [
+              "COMPARED",
+              "SET_BY_PERSON",
+              "AWAITING_PERSON",
+              "PROFILE_BLANK",
+              "NOT_READABLE"
+            ],
+            "type": "string"
+          },
+          "candidateId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "companyValue": {
+            "description": "What the company profile says; null when the field is blank.",
+            "example": "₹132 Cr (2025-26)",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "documentId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "evidence": {
+            "description": "Uploaded evidence files of the matching profile section.",
+            "items": {
+              "$ref": "#/components/schemas/ComplianceMatrixEvidence"
+            },
+            "type": "array"
+          },
+          "label": {
+            "example": "Turnover",
+            "type": "string"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "requirement": {
+            "description": "TURNOVER, SIMILAR_PROJECTS, EXPERIENCE, EQUIPMENT or PERSONNEL.",
+            "type": "string"
+          },
+          "requirementId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "MATCH",
+              "GAP",
+              "UNKNOWN"
+            ],
+            "type": "string"
+          },
+          "statusNote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "statusSetAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "statusSetBy": {
+            "description": "Who set the status, for a status set by a person.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "tenderValue": {
+            "description": "The requirement as the tender states it.",
+            "example": "Rs. 100 Cr",
             "type": "string"
           }
         },
@@ -10346,6 +10647,39 @@
         },
         "type": "object"
       },
+      "EquipmentItem": {
+        "description": "A machine or plant item the company owns or has access to.",
+        "properties": {
+          "details": {
+            "example": "Owned, 8 t capacity",
+            "maxLength": 500,
+            "minLength": 0,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "example": "Tower crane",
+            "maxLength": 300,
+            "minLength": 1,
+            "type": "string"
+          },
+          "quantity": {
+            "example": 2,
+            "format": "int32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
       "Error": {
         "description": "Why an item was refused.",
         "properties": {
@@ -10361,6 +10695,18 @@
           },
           "message": {
             "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "EvidenceUploadDto": {
+        "properties": {
+          "evidenceId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "upload": {
+            "$ref": "#/components/schemas/PresignedUpload"
           }
         },
         "type": "object"
@@ -22451,6 +22797,48 @@
         ],
         "type": "object"
       },
+      "PersonnelEntry": {
+        "description": "A member of staff the company can deploy.",
+        "properties": {
+          "experienceYears": {
+            "example": 12,
+            "format": "int32",
+            "maximum": 80,
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "qualification": {
+            "example": "B.E. Civil",
+            "maxLength": 300,
+            "minLength": 0,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "role": {
+            "example": "Project manager",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "role"
+        ],
+        "type": "object"
+      },
       "PlanCreateDto": {
         "description": "Payload to create or update a billing plan.",
         "properties": {
@@ -22832,6 +23220,48 @@
         "required": [
           "fileName",
           "fileSize"
+        ],
+        "type": "object"
+      },
+      "PresignEvidenceRequest": {
+        "description": "Declares an evidence file about to be uploaded to the company profile: PDF, JPG, PNG, WEBP, XLSX, XLS or DOCX.",
+        "properties": {
+          "contentType": {
+            "maxLength": 100,
+            "minLength": 0,
+            "type": "string"
+          },
+          "fileName": {
+            "maxLength": 300,
+            "minLength": 1,
+            "type": "string"
+          },
+          "fileSize": {
+            "exclusiveMinimum": 0,
+            "format": "int64",
+            "type": "integer"
+          },
+          "label": {
+            "maxLength": 300,
+            "minLength": 0,
+            "type": "string"
+          },
+          "section": {
+            "enum": [
+              "TURNOVER",
+              "SIMILAR_PROJECTS",
+              "EXPERIENCE",
+              "EQUIPMENT",
+              "PERSONNEL",
+              "OTHER"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "fileName",
+          "fileSize",
+          "section"
         ],
         "type": "object"
       },
@@ -24671,6 +25101,104 @@
         ],
         "type": "object"
       },
+      "QualificationRequirementEntryDto": {
+        "description": "A bidder qualification requirement of the tender, as printed and accepted by a person.",
+        "properties": {
+          "candidateId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "comparedAutomatically": {
+            "description": "Whether the matrix compares it automatically; otherwise a person sets the status.",
+            "type": "boolean"
+          },
+          "documentId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "label": {
+            "example": "Turnover",
+            "type": "string"
+          },
+          "minValue": {
+            "description": "Similar projects only: the value each work must reach, as printed.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "packageId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "period": {
+            "description": "The years counted over, as printed.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "personNote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "personStatus": {
+            "description": "The status a person set, for equipment or personnel.",
+            "enum": [
+              "MATCH",
+              "GAP",
+              "UNKNOWN"
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "requirement": {
+            "description": "TURNOVER, SIMILAR_PROJECTS, EXPERIENCE, EQUIPMENT or PERSONNEL.",
+            "example": "TURNOVER",
+            "type": "string"
+          },
+          "sourceClass": {
+            "description": "NIT, ITB or ELIGIBILITY.",
+            "example": "NIT",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "statusSetAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "statusSetBy": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "value": {
+            "description": "The amount, count, years or list as printed.",
+            "example": "Rs. 100 Cr",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "QualityRequirementEntryDto": {
         "description": "One quality requirement as the specification prints it and a person accepted it, with citations. A frequency or acceptance criterion the specification does not state is null and named in notStated.",
         "properties": {
@@ -26327,6 +26855,32 @@
         ],
         "type": "object"
       },
+      "RequirementStatusRequest": {
+        "description": "A person's status for an equipment or personnel requirement, which is text and is not compared automatically. A null status clears it. Who set it and when is recorded.",
+        "properties": {
+          "note": {
+            "example": "Only four of the five named posts are on our staff.",
+            "maxLength": 1000,
+            "minLength": 0,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "enum": [
+              "MATCH",
+              "GAP",
+              "UNKNOWN"
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
       "ResourceDefinitionDto": {
         "properties": {
           "displayName": {
@@ -27383,6 +27937,58 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "SimilarProject": {
+        "description": "A completed work the company counts as similar. Whether it is similar to the tender's work is the admin's judgement.",
+        "properties": {
+          "client": {
+            "example": "Northfield Municipal Council",
+            "maxLength": 300,
+            "minLength": 0,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "completedYear": {
+            "description": "The year the work was completed. Blank counts as unknown when a tender counts works over a period.",
+            "example": 2024,
+            "format": "int32",
+            "maximum": 2200,
+            "minimum": 1900,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "description": {
+            "maxLength": 500,
+            "minLength": 0,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "example": "Hillcrest school block",
+            "maxLength": 300,
+            "minLength": 1,
+            "type": "string"
+          },
+          "value": {
+            "description": "The work's value in rupees. Blank counts as unknown, never as too small.",
+            "example": 420000000,
+            "minimum": 0,
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "name"
+        ],
         "type": "object"
       },
       "SiteTransferAssetOptionDto": {
@@ -30540,6 +31146,29 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "TurnoverYear": {
+        "description": "The company's turnover in one financial year, in rupees.",
+        "properties": {
+          "amount": {
+            "description": "Rupees.",
+            "example": 1320000000,
+            "minimum": 0,
+            "type": "number"
+          },
+          "financialYear": {
+            "description": "The financial year, as 2025-26 or 2025.",
+            "example": "2025-26",
+            "minLength": 1,
+            "pattern": "\\d{4}(-\\d{2}|-\\d{4})?",
+            "type": "string"
+          }
+        },
+        "required": [
+          "amount",
+          "financialYear"
+        ],
         "type": "object"
       },
       "UnreadPage": {
@@ -64235,6 +64864,669 @@
         ]
       }
     },
+    "/api/v1/document-ingestion/company-profile": {
+      "get": {
+        "description": "Turnover by financial year, similar projects with their values, years in business, the equipment list, the personnel list and the uploaded evidence files. Empty lists and a null id until an admin first saves it.",
+        "operationId": "DocumentIngestionQualificationController_getCompanyProfile",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyProfileDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Get the company profile for bidding",
+        "tags": [
+          "Document Ingestion"
+        ]
+      },
+      "put": {
+        "description": "Replaces every field with what is sent; evidence files are kept. Typed in by hand, never read from documents. A field left empty shows as UNKNOWN in the compliance matrix.",
+        "operationId": "DocumentIngestionQualificationController_saveCompanyProfile",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompanyProfileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyProfileDto"
+                }
+              }
+            },
+            "description": "The saved profile"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "A field is out of range, or a financial year is given twice"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Save the company profile",
+        "tags": [
+          "Document Ingestion"
+        ]
+      }
+    },
+    "/api/v1/document-ingestion/company-profile/evidence/presign": {
+      "post": {
+        "description": "For a turnover certificate, a completion certificate, an equipment register or a staff list. The file goes straight to storage; register it once the upload is done.",
+        "operationId": "DocumentIngestionQualificationController_presignEvidence",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PresignEvidenceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvidenceUploadDto"
+                }
+              }
+            },
+            "description": "The evidence file and its upload URL"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Type, size or count limit refused"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Declare an evidence file and get a URL to PUT it to",
+        "tags": [
+          "Document Ingestion"
+        ]
+      }
+    },
+    "/api/v1/document-ingestion/company-profile/evidence/{evidenceId}": {
+      "delete": {
+        "operationId": "DocumentIngestionQualificationController_deleteEvidence",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "evidenceId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Removed, with its stored file"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such evidence file in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Remove an evidence file",
+        "tags": [
+          "Document Ingestion"
+        ]
+      }
+    },
+    "/api/v1/document-ingestion/company-profile/evidence/{evidenceId}/download": {
+      "get": {
+        "operationId": "DocumentIngestionQualificationController_evidenceDownload",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "evidenceId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/DownloadUrlDto"
+                }
+              }
+            },
+            "description": "The link, valid for a few minutes"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not uploaded yet"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such evidence file in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Get a short-lived link to an evidence file",
+        "tags": [
+          "Document Ingestion"
+        ]
+      }
+    },
+    "/api/v1/document-ingestion/company-profile/evidence/{evidenceId}/register": {
+      "post": {
+        "operationId": "DocumentIngestionQualificationController_registerEvidence",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "evidenceId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterDocumentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyEvidenceDto"
+                }
+              }
+            },
+            "description": "Registered; shown beside the rows of its section"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Wrong key, already registered, or nothing uploaded"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such evidence file in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Confirm an evidence upload",
+        "tags": [
+          "Document Ingestion"
+        ]
+      }
+    },
     "/api/v1/document-ingestion/contract-terms/{termId}/risk": {
       "post": {
         "description": "Adds a risk to the package's project register through the register's import, with the import reference set from the term's candidate, so raising twice gives one risk; the second call returns it with created false. The body is optional.",
@@ -67308,6 +68600,119 @@
         ]
       }
     },
+    "/api/v1/document-ingestion/packages/{packageId}/compliance-matrix": {
+      "get": {
+        "description": "One row per qualification requirement: the tender's value, the company's value, a status (MATCH, GAP or UNKNOWN) and the evidence files of that profile section. Turnover, similar projects and experience are compared automatically; equipment and personnel carry the status a person set. A blank profile field gives UNKNOWN, never GAP. Hidden at stage AWARDED. No bid or no-bid recommendation is made.",
+        "operationId": "DocumentIngestionQualificationController_complianceMatrix",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "packageId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComplianceMatrixDto"
+                }
+              }
+            },
+            "description": "The matrix, or shown=false at stage AWARDED"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such package in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Get the Tender Compliance Matrix",
+        "tags": [
+          "Document Ingestion"
+        ]
+      }
+    },
     "/api/v1/document-ingestion/packages/{packageId}/contract-terms": {
       "get": {
         "description": "One row per term applied from the general conditions, special conditions or contract data, as printed, with its clause. Written only by applying accepted CONTRACT_TERM candidates; provenance for each field is under GET /provenance with target type CONTRACT_TERM. These are the main contract's terms and are not written to sub-contracts or deduction rules.",
@@ -68706,6 +70111,122 @@
         ]
       }
     },
+    "/api/v1/document-ingestion/packages/{packageId}/qualification-requirements": {
+      "get": {
+        "description": "Applied from accepted QUALIFICATION_REQUIREMENT candidates, as printed: turnover, similar projects, experience, equipment and personnel. Provenance for each field is under GET /provenance with target type QUALIFICATION_REQUIREMENT.",
+        "operationId": "DocumentIngestionQualificationController_listQualificationRequirements",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "packageId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/QualificationRequirementEntryDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "The requirements, in matrix order"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such package in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List a package's qualification requirements",
+        "tags": [
+          "Document Ingestion"
+        ]
+      }
+    },
     "/api/v1/document-ingestion/packages/{packageId}/quality-requirements": {
       "get": {
         "description": "One row per quality requirement applied from the specification, each value as printed, with the page, box and quote behind it. A frequency or acceptance criterion the specification does not state is null and named in notStated; Echno does not fill one in. Written only by applying accepted QUALITY_REQUIREMENT candidates; provenance is under GET /provenance with target type QUALITY_REQUIREMENT.",
@@ -69202,6 +70723,129 @@
           }
         },
         "summary": "Say where each field of a live record came from",
+        "tags": [
+          "Document Ingestion"
+        ]
+      }
+    },
+    "/api/v1/document-ingestion/qualification-requirements/{requirementId}/status": {
+      "put": {
+        "description": "Equipment and personnel are text, so a system-admin or project-manager compares them with the profile and sets MATCH, GAP or UNKNOWN; null clears it. Who set it and when is kept. Refused on turnover, similar projects and experience, which are compared from their figures.",
+        "operationId": "DocumentIngestionQualificationController_setRequirementStatus",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "requirementId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequirementStatusRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/QualificationRequirementEntryDto"
+                }
+              }
+            },
+            "description": "The requirement with its status"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Compared from figures, or the package is not at TENDER"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such requirement in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Set a person's status on an equipment or personnel requirement",
         "tags": [
           "Document Ingestion"
         ]

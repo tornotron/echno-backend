@@ -2,6 +2,7 @@ package org.tornotron.echno_backend.modules.documentingestion.extraction.llm;
 
 import java.util.Set;
 import org.tornotron.echno_backend.modules.documentingestion.domain.DocClass;
+import org.tornotron.echno_backend.modules.documentingestion.domain.PackageStage;
 
 /**
  * One reader of documents on the extract queue. The queue owns claiming, chunking, retries, the
@@ -37,6 +38,14 @@ public interface Extractor {
      */
     default boolean readsTables() {
         return false;
+    }
+
+    /**
+     * Whether a segment of a package at this stage is queued for this extractor. Every stage unless an
+     * extractor says otherwise; qualification, for one, reads only while the package is being bid.
+     */
+    default boolean readsAtStage(PackageStage stage) {
+        return true;
     }
 
     /**
