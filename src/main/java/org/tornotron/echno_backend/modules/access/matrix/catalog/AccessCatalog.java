@@ -42,7 +42,10 @@ public final class AccessCatalog {
             area("projects", "Projects & Settings", "Projects"),
             area("wbs", "WBS & Schedule", "Projects"),
             area("tasks", "Tasks", "Projects"),
-            area("issues", "Issues & Comments", "Projects"),
+            // Every member reads, leaves and edits a comment, while only the system admin and project
+            // manager raise or change an issue, so comments are an area of their own.
+            area("issues", "Issues", "Projects"),
+            area("issue-comments", "Issue Comments", "Projects"),
             area("bim", "3D Models & Site Layout", "Projects"),
             // Labour is the workforce register, which HR and the system admin keep, while every member
             // reads the subcontracts, so the two are areas of their own.

@@ -18,11 +18,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
 import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.common.payload.JsonPartBinder;
-import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
+import org.tornotron.echno_backend.modules.access.guard.AccessGuard;
 
 import java.nio.charset.StandardCharsets;
 
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
@@ -50,11 +50,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * manager. The roles matrix files issues with tasks, whose writes the same pair holds, and #853
  * brought the create guard on both twins to that line.
  *
- * <p>The role list is stubbed exactly rather than through {@code any(String[].class)}. A blanket
- * stub answering true would pass whatever roles the guards named, so a delete that quietly
- * admitted every member would look identical from here. The broad stub is kept, answering false,
- * so an endpoint asking for a list no persona grants is refused rather than falling through to a
- * Mockito default that happens to agree.
+ * <p>Each persona's actions are stubbed exactly. A blanket stub answering true would pass whatever
+ * action the guards named, so a delete that quietly admitted every member would look identical from
+ * here. The broad stub is kept, answering false, so an endpoint asking for an action no persona
+ * holds is refused rather than falling through to a Mockito default that happens to agree.
+ *
+ * <p>The controller is on the access matrix now, so {@code @access} is mocked to answer as the
+ * baseline and the project manager's starting role do. That each role holds exactly what it did is
+ * {@code IssueAccessEquivalenceIT}'s to show.
  */
 @WebMvcTest(IssueController.class)
 @Import(IssueMobileGuardTest.TestSecurityConfig.class)
@@ -62,8 +65,6 @@ class IssueMobileGuardTest {
 
     private static final long ISSUE = 42L;
 
-    /** The pair the web twin's update and delete name. */
-    private static final String[] WRITE_ROLES = {"system-admin", "project-manager"};
 
     @Autowired
     private MockMvc mockMvc;
@@ -74,9 +75,9 @@ class IssueMobileGuardTest {
     @MockitoBean
     private JsonPartBinder jsonPartBinder;
 
-    // Named to match the @orgSecurity bean the @PreAuthorize SpEL references.
-    @MockitoBean(name = "orgSecurity")
-    private OrganizationSecurityService orgSecurity;
+    // Named to match the @access bean the @PreAuthorize SpEL references.
+    @MockitoBean(name = "access")
+    private AccessGuard access;
 
     // Satisfies RPTExchangeFilter, a custom filter the web slice loads; unused here because
     // .with(jwt(...)) sets the authentication directly.
@@ -86,22 +87,23 @@ class IssueMobileGuardTest {
     @MockitoBean
     private RPTCache rptCache;
 
-    /** No membership of the tenant and no role in it. */
+    /** No grant at all, as a caller outside the tenant has. */
     private void callerIsAnOutsider() {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(false);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(false);
+        when(access.can(anyString(), anyString())).thenReturn(false);
     }
 
-    /** An ordinary member of the tenant, holding no org role. */
+    /** An ordinary member of the tenant: the baseline's issues actions. */
     private void callerIsAPlainMember() {
         callerIsAnOutsider();
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
+        when(access.can("issues", "read")).thenReturn(true);
     }
 
-    /** A project manager: a member who also satisfies the write pair. */
+    /** A project manager: the baseline plus the starting role's issues actions. */
     private void callerIsAProjectManager() {
         callerIsAPlainMember();
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(WRITE_ROLES)).thenReturn(true);
+        when(access.can("issues", "create")).thenReturn(true);
+        when(access.can("issues", "edit")).thenReturn(true);
+        when(access.can("issues", "delete")).thenReturn(true);
     }
 
     private static MockMultipartFile dataPart() {

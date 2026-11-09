@@ -27,9 +27,10 @@ import java.util.List;
         name = "Issue Comments",
         description = "Web-client twin of the issue comment endpoints. Adds a single-comment read and a "
                 + "lookup of every comment on an issue, alongside the same create, paginated listing "
-                + "and delete operations as the base API. Access is gated by tenant membership. An "
-                + "edit is restricted to the comment's own author, and a delete to a system admin or "
-                + "project manager."
+                + "and delete operations as the base API. Reading, creating and editing need "
+                + "issue-comments:read, create or edit, which every member holds, and an edit is "
+                + "further restricted to the comment's own author; a delete needs "
+                + "issue-comments:delete, which the system admin and project manager hold."
 )
 public class IssueCommentControllerWeb {
 
@@ -40,7 +41,7 @@ public class IssueCommentControllerWeb {
     }
 
     @PostMapping
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('issue-comments', 'create')")
     @Operation(
             summary = "Create an issue comment",
             description = "Adds a comment to the given issue."
@@ -57,7 +58,7 @@ public class IssueCommentControllerWeb {
     }
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('issue-comments', 'read')")
     @Operation(
             summary = "List issue comments",
             description = "Returns a single page of issue comments. The pageNo and pageSize parameters "
@@ -65,7 +66,7 @@ public class IssueCommentControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of comments returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read issue comments")
     })
     public ResponseEntity<List<IssueCommentDto>> readAllIssueComments(@Valid @ParameterObject PageQuery pageQuery) {
         Page<IssueCommentDto> issueComments = issueCommentService.getAllIssueComments(pageQuery.getPageNo(),pageQuery.getPageSize());
@@ -73,14 +74,14 @@ public class IssueCommentControllerWeb {
     }
 
     @GetMapping("{id}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('issue-comments', 'read')")
     @Operation(
             summary = "Get an issue comment by id",
             description = "Returns a single issue comment."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Comment found"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read issue comments"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No comment with the given id")
     })
     public ResponseEntity<IssueCommentDto> getAnIssueComment(@PathVariable Long id) {
@@ -88,14 +89,14 @@ public class IssueCommentControllerWeb {
     }
 
     @GetMapping("/issueId/{issueId}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('issue-comments', 'read')")
     @Operation(
             summary = "List comments for an issue",
             description = "Returns every comment left on the given issue."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Comments returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read issue comments"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No issue with the given id")
     })
     public ResponseEntity<List<IssueCommentDto>> getAllIssueCommentsByIssueId(@PathVariable Long issueId) {
@@ -105,7 +106,7 @@ public class IssueCommentControllerWeb {
     /**
      * Corrects the text of a comment the caller wrote.
      *
-     * <p>The guard is tenant membership, and the authorship check is in
+     * <p>The guard is issue-comments:edit, which every member holds, and the authorship check is in
      * {@link IssueCommentService#updateIssueComment}, next to the write it authorises, so the row
      * the author is read from is the row the text is written to.
      * {@code ChatControllerWeb.editMessage} is annotated the same way for the same reason.
@@ -121,7 +122,7 @@ public class IssueCommentControllerWeb {
      * @return The updated comment, carrying the edited marker.
      */
     @PatchMapping("{id}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('issue-comments', 'edit')")
     @Operation(
             summary = "Edit an issue comment",
             description = "Changes the text of the caller's own comment and marks it edited, with the "
@@ -140,14 +141,14 @@ public class IssueCommentControllerWeb {
     }
 
     @DeleteMapping("{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('issue-comments', 'delete')")
     @Operation(
             summary = "Delete an issue comment",
             description = "Deletes the comment with the given id."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Comment deleted"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to issue comments"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No comment with the given id")
     })
     public ResponseEntity<ApiResponse> deleteAnIssueComment(@PathVariable Long id) {

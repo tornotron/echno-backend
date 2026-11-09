@@ -120,11 +120,8 @@ class EndpointAuthorizationTest {
      * same thing and this test is what keeps them saying it.
      */
     private static final List<Pin> MATRIX = List.of(
-            // Issues sit with projects and tasks: any member reads, the pair writes. Both twins.
-            pin("IssueController", MEMBER, "read*"),
-            pin("IssueController", ADMIN_OR_PM, "createIssue", "partialUpdateAnIssue", "deleteAnIssue"),
-            pin("IssueControllerWeb", MEMBER, "read*"),
-            pin("IssueControllerWeb", ADMIN_OR_PM, "createIssue", "partialUpdateAnIssue", "deleteAnIssue"),
+            // Issues are on the access matrix, and IssueGuardsTest and IssueAccessEquivalenceIT pin
+            // them: any member reads, the pair writes.
 
             // Storage locations: the stores tier reads, only the administrator shapes the list.
             // Storage locations are on the access matrix, and StorageLocationGuardsTest and

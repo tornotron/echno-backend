@@ -37,8 +37,9 @@ import org.tornotron.echno_backend.issue.dto.IssueUpdateFieldsDto;
         description = "Web-client twin of the issue endpoints. Adds unpaginated and paginated listing "
                 + "with search/status/type filters, dashboard stats, and lookups by project or task, "
                 + "alongside the same create, update and delete operations as the base issue API. "
-                + "Reads are open to any member of the tenant; creating, updating and deleting an issue "
-                + "belong to a system admin or project manager, the same pair that writes tasks."
+                + "Reads need issues:read, which every member holds; creating, updating and deleting an "
+                + "issue need issues:create, issues:edit or issues:delete, which the system admin and "
+                + "project manager hold."
 )
 public class IssueControllerWeb {
 
@@ -51,14 +52,14 @@ public class IssueControllerWeb {
     }
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('issues', 'read')")
     @Operation(
             summary = "List all issues",
             description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Issues returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read issues")
     })
     public ResponseEntity<List<IssueDto>> readAllIssues() {
         return UnpagedResultCap.respond(issueService.getAllIssuesPaginated(
@@ -66,7 +67,7 @@ public class IssueControllerWeb {
     }
 
     @GetMapping("/paginated")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('issues', 'read')")
     @Operation(
             summary = "List issues, paginated and filtered",
             description = "Returns a single page of issues, optionally filtered by project, a free-text "
@@ -75,7 +76,7 @@ public class IssueControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of issues returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read issues")
     })
     public ResponseEntity<Page<IssueDto>> readAllIssuesPaginated(
             @Valid @ParameterObject PageQuery pageQuery,
@@ -90,7 +91,7 @@ public class IssueControllerWeb {
     }
 
     @GetMapping("/stats")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('issues', 'read')")
     @Operation(
             summary = "Get issue counts",
             description = "Returns the total matching issue count and a per-status breakdown, computed "
@@ -99,7 +100,7 @@ public class IssueControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Stats returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read issues")
     })
     public ResponseEntity<IssueStatsDto> readIssueStats(
             @RequestParam(required = false) Long projectId,
@@ -109,14 +110,14 @@ public class IssueControllerWeb {
     }
 
     @GetMapping("/project/{projectId}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('issues', 'read')")
     @Operation(
             summary = "List issues for a project",
             description = "Returns every issue of the given project: the ones linked to it directly and the ones raised on its tasks."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Issues returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read issues"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No project with the given id")
     })
     public ResponseEntity<List<IssueDto>> readAllIssuesOfProject(@PathVariable Long projectId){
@@ -124,14 +125,14 @@ public class IssueControllerWeb {
     }
 
     @GetMapping("{id}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('issues', 'read')")
     @Operation(
             summary = "Get an issue by id",
             description = "Returns a single issue including its comments and attachments."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Issue found"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read issues"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No issue with the given id")
     })
     public ResponseEntity<IssueDto> readAnIssue(@PathVariable Long id) {
@@ -140,7 +141,7 @@ public class IssueControllerWeb {
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('issues', 'create')")
     @Operation(
             summary = "Create an issue",
             description = "Creates an issue from a multipart request. The data part carries the issue "
@@ -164,7 +165,7 @@ public class IssueControllerWeb {
     }
 
     @PatchMapping(value = "{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('issues', 'edit')")
     @Operation(
             summary = "Partially update an issue",
             description = "Applies field updates from a multipart request. The data part carries the "
@@ -174,7 +175,7 @@ public class IssueControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Issue updated"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The data part is not valid JSON, or a field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to issues"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No issue with the given id")
     })
     public ResponseEntity<IssueSimpleDto> partialUpdateAnIssue(
@@ -189,14 +190,14 @@ public class IssueControllerWeb {
     }
 
     @GetMapping("/taskId/{taskId}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('issues', 'read')")
     @Operation(
             summary = "List issues for a task",
             description = "Returns every issue raised against the given task."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Issues returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read issues"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No task with the given id")
     })
     public ResponseEntity<List<IssueDto>> readAllIssuesForTask(@PathVariable Long taskId){
@@ -204,14 +205,14 @@ public class IssueControllerWeb {
     }
 
     @DeleteMapping("{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('issues', 'delete')")
     @Operation(
             summary = "Delete an issue",
             description = "Deletes the issue with the given id."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Issue deleted"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to issues"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No issue with the given id")
     })
     public ResponseEntity<ApiResponse> deleteAnIssue(@PathVariable Long id) {
