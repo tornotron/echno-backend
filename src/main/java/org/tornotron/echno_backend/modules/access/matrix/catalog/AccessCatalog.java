@@ -90,7 +90,9 @@ public final class AccessCatalog {
             area("team", "Team & Attendance", "People"),
             area("leave", "Leave", "People"),
             area("leave-regularisation", "Attendance Regularisation", "People"),
-            area("documents", "Documents", "Docs"),
+            // Every member reads, files, renames and removes an attachment, while the organization's PDF
+            // report is the system admin's, the HR admin's and the project manager's, so it is a named read.
+            new Area("documents", "Documents", "Docs", List.of("read-reports")),
             area("chat", "Chat", "Chat"),
             area("org-admin", "Organisation Settings", "Setup"),
             area("access", "Roles & Permissions", "Setup"));

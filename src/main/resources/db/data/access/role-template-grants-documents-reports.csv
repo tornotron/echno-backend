@@ -1,0 +1,4 @@
+id,template_id,permission_key,scope
+3d1ed799-3f2e-5bb2-8654-b11d479bcfc3,ed34dfe6-5468-5f6e-b6ed-ef6eefccfce2,documents:read-reports,ALL
+dc86f1d0-f999-5882-9246-152f7c7ee629,0f205e55-9cf3-5a43-8fda-c0d6c92e5bef,documents:read-reports,ALL
+993c11b2-9789-5e9f-8644-cc7b8c177422,eed8ef8b-48a6-5997-8302-df4fe971bfd1,documents:read-reports,ALL

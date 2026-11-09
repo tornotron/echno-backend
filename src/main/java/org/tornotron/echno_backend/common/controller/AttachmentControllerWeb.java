@@ -50,7 +50,7 @@ public class AttachmentControllerWeb {
         this.fileStorageService = fileStorageService;
     }
 
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('documents', 'create')")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE,value = "/entityId/{entityId}/entityType/{entityType}")
     @Operation(
             summary = "Upload attachments directly",
@@ -61,7 +61,7 @@ public class AttachmentControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Attachments created"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "No attachments part was sent"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to attachments")
     })
     public ResponseEntity<List<AttachmentDto>> creatAttachment(@RequestParam(value = "attachments",required = true)List<MultipartFile> attachments,
                                                          @PathVariable String entityType,
@@ -89,7 +89,7 @@ public class AttachmentControllerWeb {
     //    URL for each. The client PUTs each file straight to storage.
     // 2. register: the client confirms the keys, and the server records them
     //    after verifying each object is actually present in storage.
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('documents', 'create')")
     @PostMapping("/presign/entityId/{entityId}/entityType/{entityType}")
     @Operation(
             summary = "Presign attachment uploads",
@@ -100,7 +100,7 @@ public class AttachmentControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Presigned upload URLs returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to attachments")
     })
     public ResponseEntity<List<PresignedUpload>> presignUploads(
             @RequestBody List<UploadRequest> uploads,
@@ -111,7 +111,7 @@ public class AttachmentControllerWeb {
                 AttachmentOwner.of(entityType, entityId).folder()));
     }
 
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('documents', 'create')")
     @PostMapping("/register/entityId/{entityId}/entityType/{entityType}")
     @Operation(
             summary = "Register presigned uploads",
@@ -122,7 +122,7 @@ public class AttachmentControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Attachments registered"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A referenced object is missing from storage, or a field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to attachments")
     })
     public ResponseEntity<List<AttachmentDto>> registerUploads(
             @RequestBody List<RegisterUploadRequest> uploads,
@@ -146,7 +146,7 @@ public class AttachmentControllerWeb {
                         }).toList());
     }
 
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('documents', 'read')")
     @GetMapping("/entityId/{entityId}/entityType/{entityType}")
     @Operation(
             summary = "List attachments for an entity",
@@ -155,14 +155,14 @@ public class AttachmentControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Attachments returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read attachments")
     })
     public ResponseEntity<List<AttachmentDto>> readAttachments(@PathVariable String entityType,
                                                                @PathVariable Long entityId) {
         return ResponseEntity.status(HttpStatus.OK).body(attachmentService.getAttachments(entityType,entityId));
     }
 
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('documents', 'edit')")
     @PatchMapping("/attachmentId/{attachmentId}/document")
     @Operation(
             summary = "Record what an attachment is and when it expires",
@@ -174,7 +174,7 @@ public class AttachmentControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Document metadata recorded"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to attachments"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No attachment with the given id in the caller's organization")
     })
     public ResponseEntity<AttachmentDto> updateDocumentMetadata(
@@ -183,7 +183,7 @@ public class AttachmentControllerWeb {
         return ResponseEntity.ok(attachmentService.updateDocumentMetadata(attachmentId, metadata));
     }
 
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('documents', 'delete')")
     @DeleteMapping("/attachmentId/{attachmentId}")
     @Operation(
             summary = "Delete an attachment",
@@ -191,7 +191,7 @@ public class AttachmentControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Attachment deleted"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to attachments"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No attachment with the given id")
     })
     public ResponseEntity<ApiResponse> deleteAttachment(@PathVariable Long attachmentId) {
