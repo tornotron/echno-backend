@@ -14,6 +14,7 @@ import org.tornotron.echno_backend.attendance.AttendanceRepository;
 import org.tornotron.echno_backend.attendance.AttendanceService;
 import org.tornotron.echno_backend.attendance.AttendanceSettings;
 import org.tornotron.echno_backend.attendance.MovementRecordRepository;
+import org.tornotron.echno_backend.attendance.RegularisationAccess;
 import org.tornotron.echno_backend.attendance.ShiftTimingRepository;
 import org.tornotron.echno_backend.attendance.dto.AttendanceCheckInDto;
 import org.tornotron.echno_backend.attendance.dto.AttendanceClockEventDto;
@@ -33,6 +34,7 @@ import org.tornotron.echno_backend.common.service.AttendanceSecurityService;
 import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.employee.Employee;
+import org.tornotron.echno_backend.modules.access.api.AccessPermission;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.organization.OrganizationRepository;
@@ -267,11 +269,17 @@ class AttendanceActorAuthorizationTest {
         AttendanceRegularizationMapper regularizationMapper =
                 org.mockito.Mockito.mock(AttendanceRegularizationMapper.class);
         SelfApprovalPolicy selfApprovalPolicy = org.mockito.Mockito.mock(SelfApprovalPolicy.class);
+        // Own scope only: the caller raises regularizations on their own attendance alone.
+        RegularisationAccess regularisationAccess = org.mockito.Mockito.mock(RegularisationAccess.class);
+        org.mockito.Mockito.doThrow(new AccessDeniedException("refused")).when(regularisationAccess)
+                .requireFor(org.mockito.ArgumentMatchers.eq(AccessPermission.CREATE),
+                        org.mockito.ArgumentMatchers.eq(COLLEAGUE_EMPLOYEE_ID),
+                        org.mockito.ArgumentMatchers.anyString());
         AttendanceRegularizationService regularizationService = new AttendanceRegularizationService(
                 regularizationRepository, attendanceRepository, organizationRepository,
                 settingsService, calculationService, regularizationMapper,
                 new AttendanceActorResolver(userContextService, employeeRepository),
-                selfApprovalPolicy, attendanceSecurity);
+                selfApprovalPolicy, regularisationAccess);
         when(organizationRepository.findById(ORG_ID)).thenReturn(Optional.of(organization()));
         when(attendanceRepository.findByIdAndOrganization_Id(ATTENDANCE_ID, ORG_ID))
                 .thenReturn(Optional.of(colleaguesAttendance()));

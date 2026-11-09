@@ -48,7 +48,7 @@ public class AttendanceRegularizationController {
     @PostMapping("/request")
     // Ownership is settled in AttendanceRegularizationService against the stored attendance
     // record's employee: the payload names only an attendance id, which is the caller's word.
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('leave-regularisation', 'create')")
     @Operation(
             summary = "Submit a regularization request",
             description = "Files a request to correct an attendance record, naming the missing clock "
@@ -59,7 +59,7 @@ public class AttendanceRegularizationController {
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Regularization request submitted"),
             @ApiResponse(responseCode = "400", description = "attendanceId, reason or missingEvents is missing or invalid"),
-            @ApiResponse(responseCode = "403", description = "Caller is neither the employee the attendance record belongs to nor a holder of an attendance record-management role"),
+            @ApiResponse(responseCode = "403", description = "Caller may not raise a regularization on this attendance record: it is not their own, and they may not raise them for every employee"),
             @ApiResponse(responseCode = "404", description = "No attendance record with the given attendanceId")
     })
     public ResponseEntity<AttendanceRegularizationDto> submitRequest(
@@ -70,8 +70,8 @@ public class AttendanceRegularizationController {
 
     @PostMapping("/request-by-date")
     // Ownership is settled in RegularizationCalendarService against the employee named in the
-    // payload: the caller must be that employee or hold an attendance record-management role.
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    // payload: the caller must be that employee or raise regularizations for every employee.
+    @PreAuthorize("@access.can('leave-regularisation', 'create')")
     @Operation(
             summary = "Regularize a day by its date",
             description = "Files a regularization for a day named by employee, project and date, "
@@ -86,7 +86,7 @@ public class AttendanceRegularizationController {
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Regularization request submitted"),
             @ApiResponse(responseCode = "400", description = "A field is missing or invalid, or the day cannot be regularized for one of the reasons above"),
-            @ApiResponse(responseCode = "403", description = "Caller is neither the employee named nor a holder of an attendance record-management role"),
+            @ApiResponse(responseCode = "403", description = "Caller may not raise a regularization for this employee: it is not their own attendance, and they may not raise them for every employee"),
             @ApiResponse(responseCode = "404", description = "No employee or project with the given id in this organization")
     })
     public ResponseEntity<AttendanceRegularizationDto> submitByDate(
@@ -95,18 +95,18 @@ public class AttendanceRegularizationController {
     }
 
     @GetMapping("/calendar")
-    @PreAuthorize("@attendanceSecurity.canViewEmployeeRecords(#employeeId)")
+    @PreAuthorize("@access.can('leave-regularisation', 'read')")
     @Operation(
             summary = "Regularization calendar for one month",
             description = "Returns every day of the month for one employee with what the day needs: "
                     + "complete, missing, incomplete, pending a regularization decision, on leave, a "
                     + "non-working day, or in the future, and whether the employee can act on it. "
-                    + "Readable by the employee and by holders of an attendance record-management role."
+                    + "Readable by the employee and by anyone who reads regularizations across the organization."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "One entry per day of the month, in date order"),
             @ApiResponse(responseCode = "400", description = "month is not between 1 and 12"),
-            @ApiResponse(responseCode = "403", description = "Caller may not view this employee's attendance"),
+            @ApiResponse(responseCode = "403", description = "Caller may not read this employee's regularizations"),
             @ApiResponse(responseCode = "404", description = "No employee with the given id in this organization")
     })
     public ResponseEntity<List<RegularizationCalendarDayDto>> calendar(
@@ -117,7 +117,7 @@ public class AttendanceRegularizationController {
     }
 
     @PostMapping("/{id}/process")
-    @PreAuthorize("@attendanceSecurity.canManageRecords()")
+    @PreAuthorize("@access.can('leave-regularisation', 'edit')")
     @Operation(
             summary = "Approve or reject a regularization request",
             description = "Sets the status of a pending regularization request. A rejection should carry "
@@ -131,7 +131,7 @@ public class AttendanceRegularizationController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Regularization request processed"),
             @ApiResponse(responseCode = "400", description = "status is missing or invalid, the request has already been actioned, or it is being approved by whoever raised it without the system-admin role"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks permission to manage attendance records"),
+            @ApiResponse(responseCode = "403", description = "Caller may not decide regularization requests"),
             @ApiResponse(responseCode = "404", description = "No regularization request with the given id")
     })
     public ResponseEntity<AttendanceRegularizationDto> process(
@@ -141,7 +141,7 @@ public class AttendanceRegularizationController {
     }
 
     @GetMapping("/pending")
-    @PreAuthorize("@attendanceSecurity.canManageRecords()")
+    @PreAuthorize("@access.can('leave-regularisation', 'read')")
     @Operation(
             summary = "List pending regularization requests",
             description = "Returns the regularization requests awaiting approval or rejection, one page "
@@ -149,7 +149,7 @@ public class AttendanceRegularizationController {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Pending regularization requests returned"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks permission to manage attendance records")
+            @ApiResponse(responseCode = "403", description = "Caller may not read every employee's regularization requests")
     })
     public ResponseEntity<Page<AttendanceRegularizationDto>> getPending(
             @Valid @ParameterObject PageQuery pageQuery) {
@@ -158,14 +158,14 @@ public class AttendanceRegularizationController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('leave-regularisation', 'read')")
     @Operation(
             summary = "Get a regularization request by id",
             description = "Returns a single regularization request including its approval state."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Regularization request found"),
-            @ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not read regularization requests"),
             @ApiResponse(responseCode = "404", description = "No regularization request with the given id")
     })
     public ResponseEntity<AttendanceRegularizationDto> getById(@PathVariable Long id) {

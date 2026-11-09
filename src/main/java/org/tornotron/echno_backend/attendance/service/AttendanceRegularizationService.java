@@ -4,6 +4,8 @@ import jakarta.validation.ValidationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.access.AccessDeniedException;
+import org.tornotron.echno_backend.attendance.RegularisationAccess;
+import org.tornotron.echno_backend.modules.access.api.AccessPermission;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.attendance.*;
@@ -16,7 +18,6 @@ import org.tornotron.echno_backend.attendance.service.AttendanceActorResolver.Ac
 import org.tornotron.echno_backend.common.approval.ApprovalParty;
 import org.tornotron.echno_backend.common.approval.SelfApprovalPolicy;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
-import org.tornotron.echno_backend.common.service.AttendanceSecurityService;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.organization.OrganizationRepository;
@@ -55,7 +56,7 @@ public class AttendanceRegularizationService {
     private final AttendanceRegularizationMapper regularizationMapper;
     private final AttendanceActorResolver actorResolver;
     private final SelfApprovalPolicy selfApprovalPolicy;
-    private final AttendanceSecurityService attendanceSecurity;
+    private final RegularisationAccess regularisationAccess;
 
     public AttendanceRegularizationService(AttendanceRegularizationRepository regularizationRepository,
                                             AttendanceRepository attendanceRepository,
@@ -65,7 +66,7 @@ public class AttendanceRegularizationService {
                                             AttendanceRegularizationMapper regularizationMapper,
                                             AttendanceActorResolver actorResolver,
                                             SelfApprovalPolicy selfApprovalPolicy,
-                                            AttendanceSecurityService attendanceSecurity) {
+                                            RegularisationAccess regularisationAccess) {
         this.regularizationRepository = regularizationRepository;
         this.attendanceRepository = attendanceRepository;
         this.organizationRepository = organizationRepository;
@@ -74,7 +75,7 @@ public class AttendanceRegularizationService {
         this.regularizationMapper = regularizationMapper;
         this.actorResolver = actorResolver;
         this.selfApprovalPolicy = selfApprovalPolicy;
-        this.attendanceSecurity = attendanceSecurity;
+        this.regularisationAccess = regularisationAccess;
     }
 
     /**
@@ -90,7 +91,7 @@ public class AttendanceRegularizationService {
      * @throws ValidationException if self-service regularization is off for the project, the
      *         monthly cap is reached, or a request is already pending for that record.
      * @throws AccessDeniedException if the caller is neither the employee the attendance record
-     *         belongs to nor a holder of an attendance record-management role.
+     *         belongs to nor someone who may raise regularizations for every employee.
      */
     @Transactional
     public AttendanceRegularizationDto submitRequest(RegularizationRequestDto dto) {
@@ -104,15 +105,13 @@ public class AttendanceRegularizationService {
                         "Attendance record with ID " + dto.getAttendanceId() + " was not found"));
 
         // The attendance record is chosen by the caller, so who it belongs to is settled here
-        // against the stored record: its own employee, or someone holding a record-management
-        // role. On a project configured to auto-approve, the corrections below are applied
-        // immediately, so without this check any member of the tenant could rewrite a
-        // colleague's clock events there.
-        if (!attendanceSecurity.canRecordFor(attendance.getEmployeeId())) {
-            throw new AccessDeniedException(
-                    "A regularization can only be raised on your own attendance, unless you hold "
-                            + "an attendance record-management role");
-        }
+        // against the stored record: its own employee, at own scope, or someone raising
+        // regularizations across the organization. On a project configured to auto-approve, the
+        // corrections below are applied immediately, so without this check any member of the
+        // tenant could rewrite a colleague's clock events there.
+        regularisationAccess.requireFor(AccessPermission.CREATE, attendance.getEmployeeId(),
+                "A regularization can only be raised on your own attendance, unless you may raise "
+                        + "them for every employee");
 
         return fileRequest(attendance, org, requester, dto.getReason(), dto.getMissingEvents(),
                 dto.getCorrectedEvents());
@@ -237,6 +236,8 @@ public class AttendanceRegularizationService {
         AttendanceRegularization regularization = regularizationRepository.findByIdAndOrganization_Id(regularizationId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Regularization request with ID " + regularizationId + " was not found"));
+        regularisationAccess.requireFor(AccessPermission.EDIT, regularization.getAttendance().getEmployeeId(),
+                "You may not decide this regularization request");
 
         if (regularization.getStatus() != RegularizationStatus.PENDING) {
             throw new ValidationException(
@@ -315,6 +316,7 @@ public class AttendanceRegularizationService {
      */
     @Transactional(readOnly = true)
     public Page<AttendanceRegularizationDto> getPendingRegularizations(int pageNo, int pageSize) {
+        regularisationAccess.requireAcrossOrganization(AccessPermission.READ);
         return regularizationRepository
                 .findByStatus(RegularizationStatus.PENDING, PageRequest.of(pageNo, pageSize, AttendanceRegularizationSpecifications.LIST_ORDER))
                 .map(regularizationMapper::toDto);
@@ -356,6 +358,7 @@ public class AttendanceRegularizationService {
                                                      Long requestedById,
                                                      int pageNo,
                                                      int pageSize) {
+        regularisationAccess.requireAcrossOrganization(AccessPermission.READ);
         return regularizationRepository
                 .findAll(AttendanceRegularizationSpecifications
                                 .withFilters(status, approvedById, requestedById),

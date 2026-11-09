@@ -24,7 +24,8 @@ import org.tornotron.echno_backend.attendance.enums.RegularizationCalendarState;
 import org.tornotron.echno_backend.attendance.enums.RegularizationStatus;
 import org.tornotron.echno_backend.attendance.service.AttendanceActorResolver.Actor;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
-import org.tornotron.echno_backend.common.service.AttendanceSecurityService;
+import org.tornotron.echno_backend.attendance.RegularisationAccess;
+import org.tornotron.echno_backend.modules.access.api.AccessPermission;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.holiday.WorkingCalendarService;
@@ -52,8 +53,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -78,7 +81,7 @@ class RegularizationCalendarServiceTest {
     @Mock private OrganizationRepository organizationRepository;
     @Mock private LeaveRequestRepository leaveRequestRepository;
     @Mock private WorkingCalendarService workingCalendarService;
-    @Mock private AttendanceSecurityService attendanceSecurity;
+    @Mock private RegularisationAccess regularisationAccess;
     @Mock private AttendanceActorResolver actorResolver;
     @Mock private AttendanceRegularizationService regularizationService;
 
@@ -92,7 +95,7 @@ class RegularizationCalendarServiceTest {
         Clock clock = Clock.fixed(Instant.parse("2026-09-25T06:00:00Z"), ZoneId.of("Asia/Kolkata"));
         service = new RegularizationCalendarService(attendanceRepository, employeeRepository,
                 projectRepository, organizationRepository, leaveRequestRepository,
-                workingCalendarService, attendanceSecurity, actorResolver, regularizationService, clock);
+                workingCalendarService, regularisationAccess, actorResolver, regularizationService, clock);
 
         org = new Organization();
         org.setId(ORG);
@@ -104,7 +107,6 @@ class RegularizationCalendarServiceTest {
         project.setId(PROJECT);
         project.setProjectName("Tower B");
 
-        lenient().when(attendanceSecurity.canRecordFor(EMP)).thenReturn(true);
         lenient().when(organizationRepository.findById(ORG)).thenReturn(Optional.of(org));
         lenient().when(employeeRepository.findByIdAndOrganizationId(EMP, ORG)).thenReturn(Optional.of(employee));
         lenient().when(projectRepository.findByIdAndOrganization_Id(PROJECT, ORG)).thenReturn(Optional.of(project));
@@ -219,7 +221,8 @@ class RegularizationCalendarServiceTest {
 
     @Test
     void submitByDate_forSomeoneElseWithoutTheRole_isForbidden() {
-        when(attendanceSecurity.canRecordFor(EMP)).thenReturn(false);
+        doThrow(new AccessDeniedException("refused")).when(regularisationAccess)
+                .requireFor(eq(AccessPermission.CREATE), eq(EMP), anyString());
 
         assertThatExceptionOfType(AccessDeniedException.class)
                 .isThrownBy(() -> service.submitByDate(request(DAY, LocalTime.of(9, 0), null)));
@@ -335,6 +338,16 @@ class RegularizationCalendarServiceTest {
         assertThat(day.getAttendanceId()).isEqualTo(rejectedDay.getId());
         assertThat(day.getRegularizationStatus()).isEqualTo(RegularizationStatus.REJECTED);
         assertThat(day.getRejectionReason()).isEqualTo("No site register entry");
+    }
+
+    @Test
+    void calendar_forSomeoneElseWithoutAnOrganizationWideRead_isForbidden() {
+        doThrow(new AccessDeniedException("refused")).when(regularisationAccess)
+                .requireFor(eq(AccessPermission.READ), eq(EMP), anyString());
+
+        assertThatExceptionOfType(AccessDeniedException.class)
+                .isThrownBy(() -> service.calendar(EMP, 2026, 9));
+        verify(attendanceRepository, never()).findByEmployeeIdAndAttendanceDateBetween(any(), any(), any());
     }
 
     @Test
