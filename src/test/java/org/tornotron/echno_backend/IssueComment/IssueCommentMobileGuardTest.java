@@ -16,9 +16,9 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
 import org.tornotron.echno_backend.common.configuration.RPTCache;
-import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
+import org.tornotron.echno_backend.modules.access.guard.AccessGuard;
 
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -45,8 +45,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * endpoint, which is the author's own, has no counterpart here and none is added: adding a route
  * is a contract change, and this repair deliberately changes no route.
  *
- * <p>Roles are stubbed as the exact list the guard names. A stub answering true to
- * {@code any(String[].class)} would keep passing if the delete quietly admitted every member.
+ * <p>Each persona's actions are stubbed exactly. A stub answering true to any action would keep
+ * passing if the delete quietly admitted every member.
+ *
+ * <p>The controller is on the access matrix now, so {@code @access} is mocked to answer as the
+ * baseline and the project manager's starting role do. That each role holds exactly what it did is
+ * {@code IssueCommentAccessEquivalenceIT}'s to show.
  */
 @WebMvcTest(IssueCommentController.class)
 @Import(IssueCommentMobileGuardTest.TestSecurityConfig.class)
@@ -54,8 +58,6 @@ class IssueCommentMobileGuardTest {
 
     private static final long COMMENT = 11L;
 
-    /** The pair the web twin's delete names. */
-    private static final String[] DELETE_ROLES = {"system-admin", "project-manager"};
 
     /**
      * Valid against {@code IssueCommentCreationDto}. Body validation runs while arguments are
@@ -72,9 +74,9 @@ class IssueCommentMobileGuardTest {
     @MockitoBean
     private IssueCommentService issueCommentService;
 
-    // Named to match the @orgSecurity bean the @PreAuthorize SpEL references.
-    @MockitoBean(name = "orgSecurity")
-    private OrganizationSecurityService orgSecurity;
+    // Named to match the @access bean the @PreAuthorize SpEL references.
+    @MockitoBean(name = "access")
+    private AccessGuard access;
 
     // Satisfies RPTExchangeFilter, a custom filter the web slice loads; unused here because
     // .with(jwt(...)) sets the authentication directly.
@@ -84,19 +86,23 @@ class IssueCommentMobileGuardTest {
     @MockitoBean
     private RPTCache rptCache;
 
+    /** No grant at all, as a caller outside the tenant has. */
     private void callerIsAnOutsider() {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(false);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(false);
+        when(access.can(anyString(), anyString())).thenReturn(false);
     }
 
+    /** An ordinary member of the tenant: the baseline's issue-comments actions. */
     private void callerIsAPlainMember() {
         callerIsAnOutsider();
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
+        when(access.can("issue-comments", "read")).thenReturn(true);
+        when(access.can("issue-comments", "create")).thenReturn(true);
+        when(access.can("issue-comments", "edit")).thenReturn(true);
     }
 
+    /** A project manager: the baseline plus the starting role's issue-comments actions. */
     private void callerIsAProjectManager() {
         callerIsAPlainMember();
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(DELETE_ROLES)).thenReturn(true);
+        when(access.can("issue-comments", "delete")).thenReturn(true);
     }
 
     @Test

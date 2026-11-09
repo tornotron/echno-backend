@@ -36,16 +36,18 @@ class AccessRoleTemplateSeedTest {
             "db/data/access/role-template-grants-payments.csv",
             "db/data/access/role-template-grants-finance-areas.csv",
             "db/data/access/role-template-grants-vendor-financials.csv",
-            "db/data/access/role-template-grants-labour.csv");
+            "db/data/access/role-template-grants-labour.csv",
+            "db/data/access/role-template-grants-issue-comments.csv");
 
     /**
      * Template grants a later changeset deleted, by template slug and key: access-011 takes the
      * baseline's finance:read, which it held only for expenses and receipts, now an area of their own;
      * access-013 takes the HR admin's construction writes, which it held only for labour, now an area of
-     * its own.
+     * its own; access-014 takes the baseline's issues:create and issues:edit, which it held only for
+     * comments, now an area of their own.
      */
     private static final Map<String, Set<String>> DELETED = Map.of(
-            BASELINE, Set.of("finance:read"),
+            BASELINE, Set.of("finance:read", "issues:create", "issues:edit"),
             "hr-admin", Set.of("construction:create", "construction:edit", "construction:delete"));
 
     private static final Map<String, String> SLUG_BY_ID = new HashMap<>();
@@ -192,6 +194,25 @@ class AccessRoleTemplateSeedTest {
         assertThat(KEYS_BY_SLUG.get(BASELINE)).contains("construction:read");
         assertThat(KEYS_BY_SLUG.get("project-manager"))
                 .contains("construction:create", "construction:edit", "construction:delete");
+    }
+
+    @Test
+    void everyMemberCommentsOnAnIssueAndOnlyThePairRaisesOne() {
+        // Before the matrix every member read issues and read, left and edited comments, while only
+        // the system admin and project manager raised, edited or deleted an issue, or deleted a comment.
+        assertThat(KEYS_BY_SLUG.get(BASELINE)).contains("issues:read",
+                "issue-comments:read", "issue-comments:create", "issue-comments:edit")
+                .doesNotContain("issues:create", "issues:edit", "issues:delete", "issue-comments:delete");
+        for (String slug : List.of("system-admin", "project-manager")) {
+            assertThat(KEYS_BY_SLUG.get(slug)).as(slug)
+                    .contains("issues:create", "issues:edit", "issues:delete", "issue-comments:delete");
+        }
+        KEYS_BY_SLUG.forEach((slug, keys) -> {
+            if (!slug.equals("system-admin") && !slug.equals("project-manager")) {
+                assertThat(keys).as(slug).doesNotContain(
+                        "issues:create", "issues:edit", "issues:delete", "issue-comments:delete");
+            }
+        });
     }
 
     @Test

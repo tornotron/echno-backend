@@ -31,9 +31,9 @@ import org.tornotron.echno_backend.issue.dto.IssueUpdateFieldsDto;
         name = "Issues",
         description = "A problem or defect raised against a task, optionally with attachments and "
                 + "comments. Endpoints cover reading a single issue, creating one with attachments, "
-                + "partial updates and deletion. Reads are open to any member of the tenant; creating, "
-                + "updating and deleting an issue belong to a system admin or project manager, the "
-                + "same pair that writes tasks."
+                + "partial updates and deletion. Reads need issues:read, which every member holds; "
+                + "creating, updating and deleting an issue need issues:create, issues:edit or "
+                + "issues:delete, which the system admin and project manager hold."
 )
 public class IssueController {
 
@@ -57,7 +57,7 @@ public class IssueController {
 
 
     @GetMapping("{id}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('issues', 'read')")
     @Operation(
             summary = "Get an issue by id",
             description = "Returns a single issue including its comments and attachments."
@@ -73,7 +73,7 @@ public class IssueController {
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('issues', 'create')")
     @Operation(
             summary = "Create an issue",
             description = "Creates an issue from a multipart request. The data part carries the issue "
@@ -95,7 +95,7 @@ public class IssueController {
     }
 
     @PatchMapping(value = "{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('issues', 'edit')")
     @Operation(
             summary = "Partially update an issue",
             description = "Applies field updates from a multipart request. The data part carries the "
@@ -105,7 +105,7 @@ public class IssueController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Issue updated"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The data part is not valid JSON, or a field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to issues"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No issue with the given id")
     })
     public ResponseEntity<IssueSimpleDto> partialUpdateAnIssue(
@@ -120,14 +120,14 @@ public class IssueController {
     }
 
     @DeleteMapping("{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('issues', 'delete')")
     @Operation(
             summary = "Delete an issue",
             description = "Deletes the issue with the given id."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Issue deleted"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to issues"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No issue with the given id")
     })
     public ResponseEntity<ApiResponse> deleteAnIssue(@PathVariable Long id) {

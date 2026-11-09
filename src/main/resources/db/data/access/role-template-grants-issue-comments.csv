@@ -1,0 +1,10 @@
+id,template_id,permission_key,scope
+b55cae24-7056-50e0-ba09-1e6c5aab52be,2e1db9db-3d7d-59a3-90b4-d05b10e5f687,issue-comments:read,ALL
+1735d0c0-61f4-59aa-9263-0cfc7d44f433,2e1db9db-3d7d-59a3-90b4-d05b10e5f687,issue-comments:create,ALL
+2c5d6320-c77d-5e2a-9824-fd48fd3a9af9,2e1db9db-3d7d-59a3-90b4-d05b10e5f687,issue-comments:edit,ALL
+9eef2869-e0c9-55fc-b533-bd805fd2e3fc,ed34dfe6-5468-5f6e-b6ed-ef6eefccfce2,issues:create,ALL
+520fbb58-152f-5492-8ddf-167c53f2356e,ed34dfe6-5468-5f6e-b6ed-ef6eefccfce2,issues:edit,ALL
+d2f87637-a668-5d9f-9eeb-f2758ac15c8b,ed34dfe6-5468-5f6e-b6ed-ef6eefccfce2,issue-comments:delete,ALL
+17122500-fb01-5d64-a6b1-86b82fd655b2,0f205e55-9cf3-5a43-8fda-c0d6c92e5bef,issues:create,ALL
+a8fbcb1d-eaf6-55b3-9088-d321edc9c095,0f205e55-9cf3-5a43-8fda-c0d6c92e5bef,issues:edit,ALL
+b4449eb5-3de7-55e1-a67f-f9ee3687eb3c,0f205e55-9cf3-5a43-8fda-c0d6c92e5bef,issue-comments:delete,ALL

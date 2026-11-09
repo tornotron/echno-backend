@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        issue-comments (echno-backend #914): the comments on an issue, which every member reads,
+        leaves and edits today (the author check on an edit is the service's), and which only the
+        system admin and project manager delete. An issue itself is read by every member and raised,
+        edited and deleted by the system admin and project manager alone. Create and edit differ
+        between the two, so comments become an area of their own and the move onto the matrix
+        changes nobody's access.
+
+        The baseline held issues:create and issues:edit only for comments, so they go here and the
+        baseline gets issue-comments read, create and edit instead. The system admin and project
+        manager get issues:create and issues:edit, which they reached through the baseline before,
+        and issue-comments:delete.
+
+        A file of its own because 008 loads role-template-grants.csv with no runOnChange. The
+        reconciler carries the template to every uncustomized role on the next boot, in both
+        directions; a customized role is left as its organization set it.
+    -->
+
+    <changeSet id="access-014-issue-comments" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT count(*) FROM access_role_template_grant
+                WHERE template_id = '2e1db9db-3d7d-59a3-90b4-d05b10e5f687'
+                  AND permission_key = 'issue-comments:read'
+            </sqlCheck>
+        </preConditions>
+        <delete tableName="access_role_template_grant">
+            <where>template_id = '2e1db9db-3d7d-59a3-90b4-d05b10e5f687'
+                AND permission_key IN ('issues:create', 'issues:edit')</where>
+        </delete>
+        <loadData tableName="access_role_template_grant" file="db/data/access/role-template-grants-issue-comments.csv" separator=",">
+            <column name="id" type="UUID"/>
+            <column name="template_id" type="UUID"/>
+            <column name="permission_key" type="STRING"/>
+            <column name="scope" type="STRING"/>
+        </loadData>
+    </changeSet>
+
+</databaseChangeLog>
