@@ -54607,7 +54607,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -54839,7 +54839,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -54961,7 +54961,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -55074,7 +55074,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -55186,7 +55186,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -55299,7 +55299,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -55543,7 +55543,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -55680,7 +55680,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -55794,7 +55794,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -56032,7 +56032,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -56154,7 +56154,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -56387,7 +56387,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -56623,7 +56623,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -56735,7 +56735,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -56847,7 +56847,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -56952,7 +56952,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -57073,7 +57073,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -57560,7 +57560,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -57795,7 +57795,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -58048,7 +58048,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -58153,7 +58153,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -58274,7 +58274,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -58739,7 +58739,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -58971,7 +58971,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -59076,7 +59076,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -59196,7 +59196,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -60082,7 +60082,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -60314,7 +60314,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -60436,7 +60436,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -60549,7 +60549,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -60661,7 +60661,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -60774,7 +60774,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -61018,7 +61018,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -61155,7 +61155,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -61269,7 +61269,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -61507,7 +61507,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -61629,7 +61629,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -61862,7 +61862,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -62098,7 +62098,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -62210,7 +62210,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -62322,7 +62322,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -62427,7 +62427,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -62548,7 +62548,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -63035,7 +63035,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -63270,7 +63270,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -63523,7 +63523,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -63628,7 +63628,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -63749,7 +63749,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -64214,7 +64214,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -64446,7 +64446,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -64551,7 +64551,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -64671,7 +64671,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to contractor bills"
           },
           "404": {
             "content": {
@@ -131688,7 +131688,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to the progress record"
           },
           "404": {
             "content": {
@@ -131947,7 +131947,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to the progress record"
           },
           "404": {
             "content": {
@@ -132303,7 +132303,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to the progress record"
           },
           "404": {
             "content": {
@@ -132432,7 +132432,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to the progress record"
           },
           "404": {
             "content": {
@@ -132788,7 +132788,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to the progress record"
           },
           "404": {
             "content": {
@@ -132917,7 +132917,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to the progress record"
           },
           "404": {
             "content": {
