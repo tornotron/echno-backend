@@ -106037,7 +106037,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read labour"
           },
           "404": {
             "content": {
@@ -106147,7 +106147,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to labour"
           },
           "404": {
             "content": {
@@ -106281,7 +106281,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read labour"
           },
           "404": {
             "content": {
@@ -106391,7 +106391,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to labour"
           },
           "404": {
             "content": {
@@ -106504,7 +106504,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to labour"
           },
           "404": {
             "content": {
@@ -106615,7 +106615,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read labour"
           },
           "404": {
             "content": {
@@ -106736,7 +106736,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to labour"
           },
           "404": {
             "content": {
@@ -106849,7 +106849,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to labour"
           },
           "404": {
             "content": {
@@ -106960,7 +106960,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read labour"
           },
           "404": {
             "content": {
@@ -107081,7 +107081,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to labour"
           },
           "404": {
             "content": {
@@ -155009,7 +155009,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read subcontracts"
           },
           "404": {
             "content": {
@@ -155119,7 +155119,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to subcontracts"
           },
           "404": {
             "content": {
@@ -155274,7 +155274,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read subcontracts"
           },
           "404": {
             "content": {
@@ -155379,7 +155379,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read subcontracts"
           },
           "404": {
             "content": {
@@ -155489,7 +155489,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to subcontracts"
           },
           "404": {
             "content": {
@@ -155644,7 +155644,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read subcontracts"
           },
           "404": {
             "content": {
@@ -155757,7 +155757,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to subcontracts"
           },
           "404": {
             "content": {
@@ -155868,7 +155868,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read subcontracts"
           },
           "404": {
             "content": {
@@ -155989,7 +155989,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to subcontracts"
           },
           "404": {
             "content": {
@@ -156102,7 +156102,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to subcontracts"
           },
           "404": {
             "content": {
@@ -156213,7 +156213,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read subcontracts"
           },
           "404": {
             "content": {
@@ -156334,7 +156334,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to subcontracts"
           },
           "404": {
             "content": {
@@ -169495,11 +169495,11 @@
       "name": "Keycloak Management"
     },
     {
-      "description": "Contract and daily-wage workforce records for the organization: masons, bar benders, electricians and similar site labour, with employment type, skill level, pay rate and bank details. Endpoints cover creating a labour record, listing, lookup by id, partial update and deletion, all restricted to admin and HR roles.",
+      "description": "Contract and daily-wage workforce records for the organization: masons, bar benders, electricians and similar site labour, with employment type, skill level, pay rate and bank details. Endpoints cover creating a labour record, listing, lookup by id, partial update and deletion. Each needs the labour permission it uses: labour:read for the reads, and labour:create, labour:edit or labour:delete for the changes.",
       "name": "Labour"
     },
     {
-      "description": "The tenant API path of the endpoints under /api/v1/labour/web, for the mobile client. Same handlers, request and response shapes and organization-role guards as the web endpoints; send X-Organization-Id to pick the organization.",
+      "description": "The tenant API path of the endpoints under /api/v1/labour/web, for the mobile client. Same handlers, request and response shapes and access permissions as the web endpoints; send X-Organization-Id to pick the organization.",
       "name": "Labour (Mobile)"
     },
     {
@@ -169735,11 +169735,11 @@
       "name": "Storage Locations (Web)"
     },
     {
-      "description": "Contracts placed with subcontractors for labor, material supply, equipment rental or services on a project, including payment milestones, ratings and completion tracking. Read access requires tenant membership; creating, updating and deleting are restricted to system-admin or project-manager.",
+      "description": "Contracts placed with subcontractors for labor, material supply, equipment rental or services on a project, including payment milestones, ratings and completion tracking. Reads need construction:read, which every member holds; creating, updating and deleting need construction:create, construction:edit or construction:delete.",
       "name": "Subcontracts"
     },
     {
-      "description": "The tenant API path of the endpoints under /api/v1/sub-contracts/web, for the mobile client. Same handlers, request and response shapes and organization-role guards as the web endpoints; send X-Organization-Id to pick the organization.",
+      "description": "The tenant API path of the endpoints under /api/v1/sub-contracts/web, for the mobile client. Same handlers, request and response shapes and access permissions as the web endpoints; send X-Organization-Id to pick the organization.",
       "name": "Subcontracts (Mobile)"
     },
     {
