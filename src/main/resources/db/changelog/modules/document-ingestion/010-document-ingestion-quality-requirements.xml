@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        The per-project inspection and test plan read from a tender's specification: one row per accepted
+        quality requirement, written only by the apply step, with provenance. Each row can name the
+        organization's inspection trade it was matched to and the checklist template it was copied into.
+
+        Design: docs/specs/2026-11-08-document-ingestion-design.md, sections 4.4 and 6.3.
+    -->
+
+    <changeSet id="document-ingestion-010-create-quality-requirement" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="doc_ingest_quality_requirement"/></not>
+        </preConditions>
+        <createTable tableName="doc_ingest_quality_requirement">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_doc_ingest_quality_requirement" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="package_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="project_id" type="BIGINT"/>
+            <column name="candidate_id" type="UUID"><constraints nullable="false" unique="true" uniqueConstraintName="uq_doc_ingest_quality_requirement_candidate"/></column>
+            <column name="subject" type="VARCHAR(200)"><constraints nullable="false"/></column>
+            <column name="activity" type="VARCHAR(255)"/>
+            <column name="trade_id" type="UUID"/>
+            <column name="trade_code" type="VARCHAR(50)"/>
+            <column name="trade_name" type="VARCHAR(200)"/>
+            <column name="material" type="VARCHAR(255)"/>
+            <column name="grade" type="VARCHAR(100)"/>
+            <column name="standards" type="TEXT[]"/>
+            <column name="test_name" type="VARCHAR(500)"/>
+            <column name="frequency" type="VARCHAR(1000)"/>
+            <column name="acceptance_criterion" type="VARCHAR(1000)"/>
+            <column name="hold_or_witness_point" type="VARCHAR(500)"/>
+            <column name="required_documents" type="TEXT[]"/>
+            <column name="source_class" type="VARCHAR(30)"/>
+            <column name="document_id" type="UUID"/>
+            <column name="template_id" type="UUID"/>
+            <column name="template_item_id" type="UUID"/>
+            <column name="template_version" type="INT"/>
+            <column name="copied_by" type="BIGINT"/>
+            <column name="copied_at" type="TIMESTAMP"/>
+            <column name="updated_by" type="BIGINT"/>
+            <column name="created_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="updated_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="doc_ingest_quality_requirement" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_doc_ingest_quality_requirement_organization"/>
+        <addForeignKeyConstraint baseTableName="doc_ingest_quality_requirement" baseColumnNames="package_id"
+                                 referencedTableName="doc_ingest_package" referencedColumnNames="id"
+                                 constraintName="fk_doc_ingest_quality_requirement_package"/>
+        <createIndex tableName="doc_ingest_quality_requirement" indexName="idx_doc_ingest_quality_requirement_package">
+            <column name="package_id"/>
+        </createIndex>
+        <createIndex tableName="doc_ingest_quality_requirement" indexName="idx_doc_ingest_quality_requirement_project">
+            <column name="project_id"/>
+        </createIndex>
+        <createIndex tableName="doc_ingest_quality_requirement" indexName="idx_doc_ingest_quality_requirement_org">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>
