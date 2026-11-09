@@ -36451,7 +36451,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to attachments"
           },
           "404": {
             "content": {
@@ -36574,7 +36574,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to attachments"
           },
           "404": {
             "content": {
@@ -36698,7 +36698,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read attachments"
           },
           "404": {
             "content": {
@@ -36841,7 +36841,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to attachments"
           },
           "404": {
             "content": {
@@ -36978,7 +36978,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to attachments"
           },
           "404": {
             "content": {
@@ -37115,7 +37115,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to attachments"
           },
           "404": {
             "content": {
@@ -37228,7 +37228,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to attachments"
           },
           "404": {
             "content": {
@@ -37351,7 +37351,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to attachments"
           },
           "404": {
             "content": {
@@ -37475,7 +37475,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read attachments"
           },
           "404": {
             "content": {
@@ -37618,7 +37618,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to attachments"
           },
           "404": {
             "content": {
@@ -37755,7 +37755,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to attachments"
           },
           "404": {
             "content": {
@@ -37892,7 +37892,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to attachments"
           },
           "404": {
             "content": {
@@ -82008,7 +82008,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read the organization's reports"
           },
           "404": {
             "content": {
@@ -169227,7 +169227,7 @@
       "name": "Attachments"
     },
     {
-      "description": "The tenant API path of the endpoints under /api/v1/attachment/web, for the mobile client. Same handlers, request and response shapes and organization-role guards as the web endpoints; send X-Organization-Id to pick the organization.",
+      "description": "The tenant API path of the endpoints under /api/v1/attachment/web, for the mobile client. Same handlers, request and response shapes and access permissions as the web endpoints; send X-Organization-Id to pick the organization.",
       "name": "Attachments (Mobile)"
     },
     {
