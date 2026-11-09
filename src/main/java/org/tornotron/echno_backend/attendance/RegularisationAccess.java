@@ -55,6 +55,28 @@ public class RegularisationAccess {
     }
 
     /**
+     * Whether the caller may read one request: the employee whose attendance it corrects, at own
+     * scope; anyone who reads regularizations across the organization; or whoever decided it.
+     *
+     * <p>The same three {@code AttendanceSecurityService.canViewAttendanceRecord} lets read an
+     * attendance record. The decider is let in on their own account, since somebody who decided a
+     * request has to be able to look at it again, whatever they hold now. Both ids are read off the
+     * stored request, never off the request the caller sent.
+     *
+     * @param employeeId The employee whose attendance the request corrects.
+     * @param approverId The employee who decided it, or null while it is pending.
+     * @return Whether the caller may read it.
+     */
+    public boolean mayRead(Long employeeId, Long approverId) {
+        if (allowsFor(AccessPermission.READ, employeeId)) {
+            return true;
+        }
+        return approverId != null && subject(TenantContext.getCurrentOrgId())
+                .map(subject -> approverId.equals(subject.employeeId()))
+                .orElse(false);
+    }
+
+    /**
      * Refuses unless the caller may act this way on every employee's requests. The register and the
      * pending queue list everyone's, so a grant reaching only the caller's own attendance does not
      * open them.
