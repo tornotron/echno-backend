@@ -19,7 +19,8 @@
         let every member read the subscription or assign a role, so both go; the HR admin held
         org-admin:edit only for the organization's details, which would have let it set dataset consent
         or change the plan, so that goes too. The baseline gets org-profile read and create, and the
-        system admin and HR admin get org-profile:edit.
+        system admin and HR admin get org-profile:edit. The system admin read and created org-admin
+        through the baseline, so it now holds org-admin:read and org-admin:create itself.
 
         A file of its own because 008 loads role-template-grants.csv with no runOnChange. The
         reconciler carries the template to every uncustomized role on the next boot, in both
