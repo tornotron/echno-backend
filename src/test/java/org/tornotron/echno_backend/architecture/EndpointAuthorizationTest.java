@@ -128,9 +128,8 @@ class EndpointAuthorizationTest {
             pin("IssueControllerWeb", ADMIN_OR_PM, "createIssue", "partialUpdateAnIssue", "deleteAnIssue"),
 
             // Storage locations: the stores tier reads, only the administrator shapes the list.
-            pin("StorageLocationControllerWeb", STORES_TIER, "get*"),
-            pin("StorageLocationControllerWeb", SYSTEM_ADMIN,
-                    "createStorageLocation", "updateStorageLocation", "deleteStorageLocation"),
+            // Storage locations are on the access matrix, and StorageLocationGuardsTest and
+            // StorageLocationAccessEquivalenceIT pin them.
 
             // Stock adjustments: the stores tier reads and raises; the pair decides and deletes.
             pin("StockAdjustmentControllerWeb", STORES_TIER, "read*", "createStockAdjustment", "updateStockAdjustment"),

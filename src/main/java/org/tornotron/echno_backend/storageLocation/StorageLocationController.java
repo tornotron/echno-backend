@@ -40,7 +40,7 @@ public class StorageLocationController {
     }
 
     @PostMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@access.can('storage-locations', 'create')")
     @Operation(
             summary = "Create a storage location",
             description = "Creates a storage location, such as \"Central Warehouse - Chennai\" or "
@@ -60,7 +60,7 @@ public class StorageLocationController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
+    @PreAuthorize("@access.can('storage-locations', 'read')")
     @Operation(
             summary = "Get a storage location by id",
             description = "Returns a single storage location, including its resolved project name and "
@@ -77,7 +77,7 @@ public class StorageLocationController {
     }
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
+    @PreAuthorize("@access.can('storage-locations', 'read')")
     @Operation(
             summary = "List all storage locations",
             description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
@@ -92,7 +92,7 @@ public class StorageLocationController {
     }
 
     @GetMapping("/all")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
+    @PreAuthorize("@access.can('storage-locations', 'read')")
     @Operation(
             summary = "List storage locations, paginated",
             description = "Returns a single page of storage locations. The pageNo and pageSize "
@@ -109,7 +109,7 @@ public class StorageLocationController {
     }
 
     @GetMapping("/project/{projectId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
+    @PreAuthorize("@access.can('storage-locations', 'read')")
     @Operation(
             summary = "List storage locations for a project",
             description = "Returns the storage locations linked to the given project id, for example the "
@@ -128,7 +128,7 @@ public class StorageLocationController {
     }
 
     @GetMapping("/type/{locationType}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
+    @PreAuthorize("@access.can('storage-locations', 'read')")
     @Operation(
             summary = "List storage locations by type",
             description = "Returns the storage locations of the given type, for example all WAREHOUSE "
