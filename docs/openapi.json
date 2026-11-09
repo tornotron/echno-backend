@@ -158180,7 +158180,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to toolbox talks"
           },
           "404": {
             "content": {
@@ -158459,7 +158459,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to toolbox talks"
           },
           "404": {
             "content": {
@@ -158691,7 +158691,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to toolbox talks"
           },
           "404": {
             "content": {
@@ -158813,7 +158813,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to toolbox talks"
           },
           "404": {
             "content": {
@@ -158934,7 +158934,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to toolbox talks"
           },
           "404": {
             "content": {
@@ -159291,7 +159291,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to toolbox talks"
           },
           "404": {
             "content": {
@@ -159420,7 +159420,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to toolbox talks"
           },
           "404": {
             "content": {
@@ -159533,7 +159533,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to toolbox talks"
           },
           "404": {
             "content": {
@@ -159765,7 +159765,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to toolbox talks"
           },
           "404": {
             "content": {
@@ -159887,7 +159887,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to toolbox talks"
           },
           "404": {
             "content": {
@@ -160008,7 +160008,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to toolbox talks"
           },
           "404": {
             "content": {
@@ -160365,7 +160365,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to toolbox talks"
           },
           "404": {
             "content": {
@@ -160494,7 +160494,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to toolbox talks"
           },
           "404": {
             "content": {
@@ -160607,7 +160607,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to toolbox talks"
           },
           "404": {
             "content": {
