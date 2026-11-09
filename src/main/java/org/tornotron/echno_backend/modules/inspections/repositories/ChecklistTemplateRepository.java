@@ -45,6 +45,9 @@ public interface ChecklistTemplateRepository
      */
     Optional<ChecklistTemplate> findByTradeRefAndActiveTrue(OrgTrade trade);
 
+    /** The trade's template, active or not; the unique constraint makes at most one row match. */
+    Optional<ChecklistTemplate> findByTradeRef(OrgTrade trade);
+
     /** Guard for the one-template-per-trade rule, checked before an insert. */
     boolean existsByTradeRef(OrgTrade trade);
 }
