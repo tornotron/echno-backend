@@ -15,7 +15,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
 import org.tornotron.echno_backend.common.configuration.RPTCache;
-import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
+import org.tornotron.echno_backend.modules.access.guard.AccessGuard;
 import org.tornotron.echno_backend.documentReversal.dto.DocumentReversalDto;
 import org.tornotron.echno_backend.documentReversal.dto.DocumentReversalRequestDto;
 
@@ -47,8 +47,23 @@ class DocumentReversalControllerWebAuthzTest {
     @MockitoBean
     private DocumentReversalService reversalService;
 
-    @MockitoBean(name = "orgSecurity")
-    private OrganizationSecurityService orgSecurity;
+    // Named to match the @access bean the @PreAuthorize SpEL references.
+    @MockitoBean(name = "access")
+    private AccessGuard access;
+
+    /** The baseline's reversal actions: every member reads, asks for and withdraws a reversal. */
+    private static final String[] MEMBER = {"document-reversals:read", "document-reversals:create", "document-reversals:edit"};
+    /** The system admin's and project manager's: the baseline plus deciding a reversal. */
+    private static final String[] PAIR = {"document-reversals:read", "document-reversals:create", "document-reversals:edit",
+            "document-reversals:approve"};
+
+    /** Stubs {@code @access} to allow exactly these area:action keys; every other check answers false. */
+    private void holds(String... permissions) {
+        for (String permission : permissions) {
+            String[] parts = permission.split(":");
+            when(access.can(parts[0], parts[1])).thenReturn(true);
+        }
+    }
 
     @MockitoBean
     private KeycloakAuthorizationService keycloakAuthorizationService;
@@ -58,7 +73,7 @@ class DocumentReversalControllerWebAuthzTest {
 
     @Test
     void list_isOk_forAnyMember() throws Exception {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
+        holds(MEMBER);
         when(reversalService.getAll(anyInt(), anyInt(), any())).thenReturn(Page.empty());
 
         mockMvc.perform(get(BASE).with(jwt())).andExpect(status().isOk());
@@ -66,14 +81,14 @@ class DocumentReversalControllerWebAuthzTest {
 
     @Test
     void list_isForbidden_forANonMember() throws Exception {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(false);
+        holds();
 
         mockMvc.perform(get(BASE).with(jwt())).andExpect(status().isForbidden());
     }
 
     @Test
     void eligibility_refusesAnUnknownKindOfDocument() throws Exception {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
+        holds(MEMBER);
 
         mockMvc.perform(get(BASE + "/eligibility")
                         .param("documentType", "STOCK_ADJUSTMENT")
@@ -84,7 +99,7 @@ class DocumentReversalControllerWebAuthzTest {
 
     @Test
     void request_isCreated_forAMember() throws Exception {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
+        holds(MEMBER);
         when(reversalService.request(any(DocumentReversalRequestDto.class))).thenReturn(new DocumentReversalDto());
 
         mockMvc.perform(post(BASE).with(jwt()).with(csrf())
@@ -95,7 +110,7 @@ class DocumentReversalControllerWebAuthzTest {
 
     @Test
     void request_withoutAReason_isBadRequest() throws Exception {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
+        holds(MEMBER);
 
         mockMvc.perform(post(BASE).with(jwt()).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -105,7 +120,7 @@ class DocumentReversalControllerWebAuthzTest {
 
     @Test
     void approve_isOk_forAnElevatedRoleHolder() throws Exception {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager")).thenReturn(true);
+        holds(PAIR);
         when(reversalService.approve(anyLong())).thenReturn(new DocumentReversalDto());
 
         mockMvc.perform(post(BASE + "/1/approve").with(jwt()).with(csrf())).andExpect(status().isOk());
@@ -113,15 +128,14 @@ class DocumentReversalControllerWebAuthzTest {
 
     @Test
     void approve_isForbidden_forAPlainMemberWithoutAnElevatedRole() throws Exception {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager")).thenReturn(false);
+        holds(MEMBER);
 
         mockMvc.perform(post(BASE + "/1/approve").with(jwt()).with(csrf())).andExpect(status().isForbidden());
     }
 
     @Test
     void reject_isOk_forAnElevatedRoleHolder() throws Exception {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager")).thenReturn(true);
+        holds(PAIR);
         when(reversalService.reject(anyLong(), anyString())).thenReturn(new DocumentReversalDto());
 
         mockMvc.perform(post(BASE + "/1/reject").with(jwt()).with(csrf())
@@ -132,8 +146,7 @@ class DocumentReversalControllerWebAuthzTest {
 
     @Test
     void reject_isForbidden_forAPlainMemberWithoutAnElevatedRole() throws Exception {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager")).thenReturn(false);
+        holds(MEMBER);
 
         mockMvc.perform(post(BASE + "/1/reject").with(jwt()).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -143,7 +156,7 @@ class DocumentReversalControllerWebAuthzTest {
 
     @Test
     void cancel_isOk_forAMember() throws Exception {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
+        holds(MEMBER);
         when(reversalService.cancel(anyLong())).thenReturn(new DocumentReversalDto());
 
         mockMvc.perform(post(BASE + "/1/cancel").with(jwt()).with(csrf())).andExpect(status().isOk());

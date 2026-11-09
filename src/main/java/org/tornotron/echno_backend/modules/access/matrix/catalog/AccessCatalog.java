@@ -52,7 +52,7 @@ public final class AccessCatalog {
             area("construction", "Subcontracts", "Projects"),
             area("labour", "Labour", "Projects"),
             area("assets", "Assets & Equipment", "Projects"),
-            area("compliance", "Risk & Compliance", "Projects"),
+            area("compliance", "Risk Register", "Projects"),
             area("progress", "Progress Tracking", "Progress"),
             // The last step of a bill's chain, finance paying it: the second signature on a payment.
             new Area("progress-bills", "Contractor Bills", "Bills",
@@ -71,6 +71,10 @@ public final class AccessCatalog {
             area("material-consumption", "Material Consumption", "Stores"),
             area("storage-locations", "Storage Locations", "Stores"),
             area("goods-receipts", "Goods Receipts", "Stores"),
+            // Whoever raised a site transfer, purchase order or goods receipt asks for its reversal and may
+            // withdraw the request, while only the system admin and project manager decide it, so
+            // reversals are an area of their own beside the risk register's compliance.
+            area("document-reversals", "Document Reversals", "Stores"),
             area("indents", "Material Requests", "Buying"),
             area("purchase-orders", "Purchase Orders", "Buying"),
             // A vendor's bank accounts, tax identifiers, payment terms and spend summary are read by the

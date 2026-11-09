@@ -30,12 +30,14 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
 import org.tornotron.echno_backend.common.configuration.RPTCache;
-import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
+import org.tornotron.echno_backend.modules.access.guard.AccessGuard;
 
 /**
- * The guard on every handler of both risk register twins, at the slice: reads need membership of
- * the tenant, writes need the system-admin or project-manager role, and each request is tried on
- * both prefixes so the twins cannot drift apart.
+ * The guard on every handler of both risk register twins, at the slice: reads need compliance:read,
+ * which every member holds through the baseline, writes need the compliance action they make, which
+ * the system admin and project manager hold, and each request is tried on both prefixes so the twins
+ * cannot drift apart. That each role holds exactly what it did is
+ * {@code ComplianceAccessEquivalenceIT}'s to show.
  */
 @WebMvcTest({ProjectRiskController.class, ProjectRiskControllerWeb.class})
 @Import(ProjectRiskControllerAuthzTest.TestSecurityConfig.class)
@@ -51,8 +53,22 @@ class ProjectRiskControllerAuthzTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockitoBean(name = "orgSecurity")
-    private OrganizationSecurityService orgSecurity;
+    // Named to match the @access bean the @PreAuthorize SpEL references.
+    @MockitoBean(name = "access")
+    private AccessGuard access;
+
+    /** The baseline's compliance action: every member reads the register. */
+    private static final String[] MEMBER = {"compliance:read"};
+    /** The system admin's and project manager's: the baseline plus every write. */
+    private static final String[] PAIR = {"compliance:read", "compliance:create", "compliance:edit", "compliance:delete"};
+
+    /** Stubs {@code @access} to allow exactly these area:action keys; every other check answers false. */
+    private void holds(String... permissions) {
+        for (String permission : permissions) {
+            String[] parts = permission.split(":");
+            when(access.can(parts[0], parts[1])).thenReturn(true);
+        }
+    }
 
     @MockitoBean
     private ProjectRiskService service;
@@ -80,36 +96,35 @@ class ProjectRiskControllerAuthzTest {
     @ParameterizedTest(name = "{0} on {1}")
     @MethodSource("reads")
     void aReadIsForbiddenForANonMember(String name, String prefix, Endpoint endpoint) throws Exception {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(false);
+        holds();
         mockMvc.perform(endpoint.on(prefix).with(memberOfOrgSeven())).andExpect(status().isForbidden());
     }
 
     @ParameterizedTest(name = "{0} on {1}")
     @MethodSource("reads")
     void aReadIsOkForAMember(String name, String prefix, Endpoint endpoint) throws Exception {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
+        holds(MEMBER);
         mockMvc.perform(endpoint.on(prefix).with(memberOfOrgSeven())).andExpect(status().is2xxSuccessful());
     }
 
     @ParameterizedTest(name = "{0} on {1}")
     @MethodSource("writes")
     void aWriteIsForbiddenForAMemberWithoutTheRole(String name, String prefix, Endpoint endpoint) throws Exception {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(false);
+        holds(MEMBER);
         mockMvc.perform(endpoint.on(prefix).with(memberOfOrgSeven())).andExpect(status().isForbidden());
     }
 
     @ParameterizedTest(name = "{0} on {1}")
     @MethodSource("writes")
     void aWriteIsAllowedForTheRole(String name, String prefix, Endpoint endpoint) throws Exception {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(true);
+        holds(PAIR);
         mockMvc.perform(endpoint.on(prefix).with(memberOfOrgSeven())).andExpect(status().is2xxSuccessful());
     }
 
     @ParameterizedTest(name = "{0} on {1}")
     @MethodSource("invalidBodies")
     void aBodyOutsideTheVocabularyIsRefused(String name, String prefix, String body) throws Exception {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(true);
+        holds(PAIR);
         mockMvc.perform(json(post(prefix), body).with(memberOfOrgSeven())).andExpect(status().isBadRequest());
     }
 

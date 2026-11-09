@@ -48,7 +48,7 @@ public class DocumentReversalControllerWeb {
     }
 
     @PostMapping
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('document-reversals', 'create')")
     @Operation(
             summary = "Request the reversal of a document",
             description = "Raises a pending reversal request on the named site transfer, purchase order or "
@@ -61,7 +61,7 @@ public class DocumentReversalControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Reversal request raised"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The document cannot be reversed, a request is already pending, or a field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant, or did not raise the document"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to document reversals, or did not raise the document"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No such document in this organization")
     })
     public ResponseEntity<DocumentReversalDto> requestReversal(@Valid @RequestBody DocumentReversalRequestDto request) {
@@ -69,7 +69,7 @@ public class DocumentReversalControllerWeb {
     }
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('document-reversals', 'read')")
     @Operation(
             summary = "List reversal requests, paginated",
             description = "Returns a page of reversal requests, most recently raised first, optionally "
@@ -77,7 +77,7 @@ public class DocumentReversalControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of reversal requests returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read document reversals")
     })
     public ResponseEntity<Page<DocumentReversalDto>> listReversals(
             @Valid @ParameterObject PageQuery pageQuery,
@@ -87,7 +87,7 @@ public class DocumentReversalControllerWeb {
     }
 
     @GetMapping("/by-document")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('document-reversals', 'read')")
     @Operation(
             summary = "List the reversal requests raised on one document",
             description = "Every request ever raised on the document, most recent first, so the "
@@ -97,7 +97,7 @@ public class DocumentReversalControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Reversal requests on the document returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "documentType is not a reversible kind of document"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read document reversals")
     })
     public ResponseEntity<List<DocumentReversalDto>> listReversalsByDocument(
             @RequestParam ReversibleDocumentType documentType,
@@ -106,7 +106,7 @@ public class DocumentReversalControllerWeb {
     }
 
     @GetMapping("/eligibility")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('document-reversals', 'read')")
     @Operation(
             summary = "Whether a document can be reversed, and whether the caller may ask",
             description = "Answers the two questions a document page needs before showing the request "
@@ -116,7 +116,7 @@ public class DocumentReversalControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Eligibility returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read document reversals"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No such document in this organization")
     })
     public ResponseEntity<DocumentReversalEligibilityDto> eligibility(
@@ -126,11 +126,11 @@ public class DocumentReversalControllerWeb {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('document-reversals', 'read')")
     @Operation(summary = "Get a reversal request by id")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Reversal request found"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read document reversals"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No reversal request with the given id")
     })
     public ResponseEntity<DocumentReversalDto> getReversal(@PathVariable Long id) {
@@ -138,7 +138,7 @@ public class DocumentReversalControllerWeb {
     }
 
     @PostMapping("/{id}/approve")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('document-reversals', 'approve')")
     @Operation(
             summary = "Approve a reversal request and undo the document",
             description = "Writes one correcting ledger entry per balance row the document moved, for the "
@@ -152,7 +152,7 @@ public class DocumentReversalControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Reversal approved and posted"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The request is not pending, is being approved by its requester without the system-admin role, or the document is now blocked"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to document reversals"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No reversal request with the given id")
     })
     public ResponseEntity<DocumentReversalDto> approveReversal(@PathVariable Long id) {
@@ -160,7 +160,7 @@ public class DocumentReversalControllerWeb {
     }
 
     @PostMapping("/{id}/reject")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('document-reversals', 'approve')")
     @Operation(
             summary = "Reject a reversal request, recording why",
             description = "Refuses the request and keeps the refusal and its reason on the record. Nothing "
@@ -169,7 +169,7 @@ public class DocumentReversalControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Reversal request rejected"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "No reason was given, or the request is not pending"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to document reversals"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No reversal request with the given id")
     })
     public ResponseEntity<DocumentReversalDto> rejectReversal(@PathVariable Long id,
@@ -178,7 +178,7 @@ public class DocumentReversalControllerWeb {
     }
 
     @PostMapping("/{id}/cancel")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('document-reversals', 'edit')")
     @Operation(
             summary = "Withdraw a pending reversal request",
             description = "Only the requester may withdraw their own request, and only while it is pending. "
@@ -187,7 +187,7 @@ public class DocumentReversalControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Reversal request withdrawn"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The request is not pending"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant, or did not raise the request"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to document reversals, or did not raise the request"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No reversal request with the given id")
     })
     public ResponseEntity<DocumentReversalDto> cancelReversal(@PathVariable Long id) {
