@@ -30,9 +30,10 @@ import org.tornotron.echno_backend.common.pagination.PageQuery;
         name = "Attendance Regularizations",
         description = "Requests to correct an attendance record that is missing clock events, for example "
                 + "a forgotten evening clock-out. An employee submits a request naming the missing events "
-                + "and, optionally, the corrected events; a manager approves or rejects it. Submitting and "
-                + "reading a request is tenant scoped, while listing pending requests and processing one is "
-                + "limited to callers who can manage attendance records."
+                + "and, optionally, the corrected events; a manager approves or rejects it. Access is the "
+                + "leave-regularisation area of the access matrix: an employee raises requests on, and reads, "
+                + "their own attendance; reading every employee's requests and deciding one need the area "
+                + "across the organization."
 )
 public class AttendanceRegularizationController {
 
