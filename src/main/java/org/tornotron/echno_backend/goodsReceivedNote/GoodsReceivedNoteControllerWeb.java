@@ -56,7 +56,7 @@ public class GoodsReceivedNoteControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Goods received note created"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation, or a line would take a material past the quantity its purchase order asked for and the over-receipt was not acknowledged"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to goods receipts")
     })
     public ResponseEntity<GoodsReceivedNoteDto> createGrn(@Valid @RequestBody GoodsReceivedNoteCreationDto creationDto) {
         GoodsReceivedNoteDto created = goodsReceivedNoteService.createGoodsReceivedNote(creationDto);
@@ -71,7 +71,7 @@ public class GoodsReceivedNoteControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Goods received note found"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read goods receipts"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No goods received note with the given id")
     })
     public ResponseEntity<GoodsReceivedNoteDto> getGrnById(@PathVariable Long id) {
@@ -87,7 +87,7 @@ public class GoodsReceivedNoteControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Goods received notes returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read goods receipts")
     })
     public ResponseEntity<List<GoodsReceivedNoteDto>> getAllGrns() {
         return UnpagedResultCap.respond(goodsReceivedNoteService.getAllGrns(0, UnpagedResultCap.MAX_ROWS));
@@ -101,7 +101,7 @@ public class GoodsReceivedNoteControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of goods received notes returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read goods receipts")
     })
     public ResponseEntity<Page<GoodsReceivedNoteDto>> getAllGrnsPaginated(
             @Valid @ParameterObject PageQuery pageQuery
@@ -118,7 +118,7 @@ public class GoodsReceivedNoteControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Goods received notes returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read goods receipts")
     })
     public ResponseEntity<List<GoodsReceivedNoteDto>> getGrnsByVendor(@PathVariable Long vendorId) {
         List<GoodsReceivedNoteDto> grns = goodsReceivedNoteService.getGrnsByVendor(vendorId);
@@ -134,7 +134,7 @@ public class GoodsReceivedNoteControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Goods received note updated"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to goods receipts"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No goods received note with the given id")
     })
     public ResponseEntity<GoodsReceivedNoteDto> updateGrn(@Valid @RequestBody GoodsReceivedNoteUpdateDto updateDto) {
@@ -151,7 +151,7 @@ public class GoodsReceivedNoteControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Goods received notes returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A date parameter is missing or malformed"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read goods receipts")
     })
     public ResponseEntity<List<GoodsReceivedNoteDto>> getGrnsByDateRange(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
