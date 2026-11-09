@@ -51,7 +51,7 @@ public class SubscriptionController {
      *
      * @return Active subscription or empty if none
      */
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@access.can('org-admin', 'read')")
     @GetMapping("/current")
     @Operation(
             summary = "Get the current organization's subscription",
@@ -61,7 +61,7 @@ public class SubscriptionController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Active subscription returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "204", description = "Caller has no active subscription"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read the organization's administration")
     })
     public ResponseEntity<SubscriptionDto> getCurrentSubscription() {
         return subscriptionService.getActiveSubscription(currentOrganizationId())
@@ -74,7 +74,7 @@ public class SubscriptionController {
      *
      * @return List of all subscriptions
      */
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@access.can('org-admin', 'read')")
     @GetMapping("/history")
     @Operation(
             summary = "Get the current organization's subscription history",
@@ -83,7 +83,7 @@ public class SubscriptionController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Subscription history returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read the organization's administration")
     })
     public ResponseEntity<List<SubscriptionDto>> getSubscriptionHistory() {
         return ResponseEntity.ok(subscriptionService.getSubscriptionHistory(currentOrganizationId()));
@@ -95,7 +95,7 @@ public class SubscriptionController {
      * @param dto Subscription creation data with plan code
      * @return Created subscription
      */
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@access.can('org-admin', 'create')")
     @PostMapping
     @Operation(
             summary = "Create a subscription",
@@ -109,7 +109,7 @@ public class SubscriptionController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Subscription created, or opened INCOMPLETE pending the buyer's authorization at the provider"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Validation failed on the request body"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to the organization's administration"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No plan with the given code"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "Organization already has an active subscription")
     })
@@ -127,7 +127,7 @@ public class SubscriptionController {
      * @param dto Plan change data
      * @return Updated subscription
      */
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@access.can('org-admin', 'edit')")
     @PutMapping("/change-plan")
     @Operation(
             summary = "Change the current organization's plan",
@@ -140,7 +140,7 @@ public class SubscriptionController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Subscription moved to the new plan"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Validation failed on the request body"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to the organization's administration"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Organization has no active subscription, or no plan with the given code"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "The new plan is paid and needs a checkout, or no provider is wired for a provider-backed subscription"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "422", description = "The new plan's cycle needs the buyer's per-charge acceptance")
@@ -155,7 +155,7 @@ public class SubscriptionController {
      * @param dto Cancellation options
      * @return Success message
      */
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@access.can('org-admin', 'create')")
     @PostMapping("/cancel")
     @Operation(
             summary = "Cancel the current organization's subscription",
@@ -166,7 +166,7 @@ public class SubscriptionController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Subscription canceled"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to the organization's administration"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Organization has no active subscription")
     })
     public ResponseEntity<ApiResponse> cancelSubscription(@RequestBody(required = false) SubscriptionCancelDto dto) {
@@ -184,7 +184,7 @@ public class SubscriptionController {
      * @param featureCode The feature code to check
      * @return Feature access result
      */
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('org-profile', 'read')")
     @GetMapping("/features/{featureCode}/access")
     @Operation(
             summary = "Check feature access",
@@ -193,7 +193,7 @@ public class SubscriptionController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Feature access result returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read the organization's profile")
     })
     public ResponseEntity<FeatureAccessResultDto> checkFeatureAccess(@PathVariable String featureCode) {
         FeatureAccessResultDto result = subscriptionService.checkFeatureAccess(currentOrganizationId(), featureCode);
@@ -206,7 +206,7 @@ public class SubscriptionController {
      * @param dto Usage record data
      * @return Success message
      */
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('org-profile', 'create')")
     @PostMapping("/usage")
     @Operation(
             summary = "Record feature usage",
@@ -216,7 +216,7 @@ public class SubscriptionController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Usage recorded"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Validation failed on the request body"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to the organization's profile"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No feature with the given code")
     })
     public ResponseEntity<ApiResponse> recordUsage(@Valid @RequestBody UsageRecordDto dto)

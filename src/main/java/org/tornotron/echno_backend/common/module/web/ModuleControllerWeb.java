@@ -38,7 +38,7 @@ public class ModuleControllerWeb {
     }
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@access.can('org-admin', 'read')")
     @Operation(
             summary = "List installed modules",
             description = "Every module compiled into this build, with whether its kill switch is on "
@@ -46,7 +46,7 @@ public class ModuleControllerWeb {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Installed modules"),
-            @ApiResponse(responseCode = "403", description = "Caller is not a system admin of the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read the organization's administration")
     })
     public List<ModuleDescriptorDto> installed() {
         Long organizationId = TenantContext.getCurrentOrgId();
@@ -56,7 +56,7 @@ public class ModuleControllerWeb {
     }
 
     @GetMapping("/enabled")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('org-profile', 'read')")
     @Operation(
             summary = "List modules enabled for the caller's organization",
             description = "The modules that are installed, switched on and entitled for the current "
@@ -64,7 +64,7 @@ public class ModuleControllerWeb {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Enabled modules"),
-            @ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read the organization's profile")
     })
     public List<ModuleDescriptorDto> enabled() {
         Long organizationId = TenantContext.getCurrentOrgId();

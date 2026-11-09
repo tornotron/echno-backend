@@ -143,20 +143,20 @@ public class OrganizationWebController {
 
     /**
      * Retrieves a single organization by its ID.
-     * User must be a member of the organization or a platform admin.
+     * Needs org-profile:read in the organization the request is for, which every member holds.
      *
      * @param id The ID of the organization to retrieve.
      * @return A {@link ResponseEntity} containing the organization DTO and HTTP status 200 (OK).
      */
     @GetMapping("{id}")
-    @PreAuthorize("@orgSecurity.isMemberOrAdmin(#id)")
+    @PreAuthorize("@orgSecurity.isCurrentTenant(#id) and @access.can('org-profile', 'read')")
     @Operation(
             summary = "Get an organization by id",
             description = "Returns a single organization by its numeric id."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Organization found"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither a member of the organization nor a platform admin"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read the organization's profile, or the path names an organization other than the one the request is for"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No organization with the given id")
     })
     public ResponseEntity<?> readAnOrganization(@PathVariable Long id) {
@@ -166,13 +166,13 @@ public class OrganizationWebController {
 
     /**
      * Partially updates an existing organization.
-     * Requires system-admin or hr-admin role in the organization, or platform admin access.
+     * Needs org-profile:edit in the organization the request is for (the system admin and HR admin).
      *
      * @param id      The ID of the organization to update.
      * @return A {@link ResponseEntity} with the updated organization's simple DTO and HTTP status 200 (OK).
      */
     @PatchMapping(value = "{id}",consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("@orgSecurity.hasAnyOrgRole(#id, 'system-admin', 'hr-admin')")
+    @PreAuthorize("@orgSecurity.isCurrentTenant(#id) and @access.can('org-profile', 'edit')")
     @Operation(
             summary = "Partially update an organization",
             description = "Applies the given field updates to the organization, from a multipart request. "
@@ -183,7 +183,7 @@ public class OrganizationWebController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Organization updated"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The data part is not valid JSON, or a field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the system-admin or hr-admin role in the organization"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to the organization's profile, or the path names an organization other than the one the request is for"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No organization with the given id")
     })
     public ResponseEntity<OrganizationSimpleDto> partialUpdateAnOrganization(
@@ -201,7 +201,7 @@ public class OrganizationWebController {
      * Requires the system-admin role in the organization.
      */
     @GetMapping("{id}/dataset-consent")
-    @PreAuthorize("@orgSecurity.hasOrgRole(#id, 'system-admin')")
+    @PreAuthorize("@orgSecurity.isCurrentTenant(#id) and @access.can('org-admin', 'read')")
     @Operation(
             summary = "Read the organization's dataset-consent flag",
             description = "Whether the organization has consented, in writing, to its inspection "
@@ -209,7 +209,7 @@ public class OrganizationWebController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "The flag"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the system-admin role in the organization"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read the organization's administration, or the path names an organization other than the one the request is for"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No organization with the given id")
     })
     public ResponseEntity<DatasetConsentDto> readDatasetConsent(@PathVariable Long id) {
@@ -222,7 +222,7 @@ public class OrganizationWebController {
      * organization's other fields, may not make this statement.
      */
     @PutMapping("{id}/dataset-consent")
-    @PreAuthorize("@orgSecurity.hasOrgRole(#id, 'system-admin')")
+    @PreAuthorize("@orgSecurity.isCurrentTenant(#id) and @access.can('org-admin', 'edit')")
     @Operation(
             summary = "Set the organization's dataset-consent flag",
             description = "Records (true) or withdraws (false) the client's written consent to its "
@@ -232,7 +232,7 @@ public class OrganizationWebController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "The flag as stored"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The body carries no datasetConsent value"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the system-admin role in the organization"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to the organization's administration, or the path names an organization other than the one the request is for"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No organization with the given id")
     })
     public ResponseEntity<DatasetConsentDto> setDatasetConsent(@PathVariable Long id,
@@ -242,20 +242,20 @@ public class OrganizationWebController {
 
     /**
      * Deletes an organization by its ID.
-     * Requires system-admin role in the organization or platform admin access.
+     * Needs org-admin:delete in the organization the request is for (the system admin).
      *
      * @param id The ID of the organization to delete.
      * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
      */
     @DeleteMapping("{id}")
-    @PreAuthorize("@orgSecurity.hasOrgRole(#id, 'system-admin')")
+    @PreAuthorize("@orgSecurity.isCurrentTenant(#id) and @access.can('org-admin', 'delete')")
     @Operation(
             summary = "Delete an organization",
             description = "Deletes the organization with the given id."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Organization deleted"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the system-admin role in the organization"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to the organization's administration, or the path names an organization other than the one the request is for"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No organization with the given id")
     })
     public ResponseEntity<ApiResponse> deleteOrganization(@PathVariable Long id) {

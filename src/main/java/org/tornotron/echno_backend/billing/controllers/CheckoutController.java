@@ -53,7 +53,7 @@ public class CheckoutController {
         return TenantContext.getCurrentOrgId();
     }
 
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('org-profile', 'read')")
     @GetMapping("/provider")
     @Operation(
             summary = "Get the billing provider",
@@ -63,13 +63,13 @@ public class CheckoutController {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Provider information returned"),
-            @ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read the organization's profile")
     })
     public ResponseEntity<BillingProviderInfoDto> getProvider() {
         return ResponseEntity.ok(checkoutService.providerInfo());
     }
 
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@access.can('org-admin', 'create')")
     @PostMapping("/sessions")
     @Operation(
             summary = "Open a checkout session",
@@ -80,7 +80,7 @@ public class CheckoutController {
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Checkout session opened"),
             @ApiResponse(responseCode = "400", description = "Validation failed on the request body"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to the organization's administration"),
             @ApiResponse(responseCode = "404", description = "No plan with the given code"),
             @ApiResponse(responseCode = "409", description = "No billing provider is configured, or the organization is already subscribed to the plan"),
             @ApiResponse(responseCode = "422", description = "The plan breaks a mandate rule: above the RBI cap without acceptance, or no channel for the pre-debit notice")
@@ -91,7 +91,7 @@ public class CheckoutController {
         return ResponseEntity.status(HttpStatus.CREATED).body(checkoutService.createSession(currentOrganizationId(), userId, dto));
     }
 
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@access.can('org-admin', 'approve')")
     @PostMapping("/verify")
     @Operation(
             summary = "Verify a checkout result",
@@ -102,7 +102,7 @@ public class CheckoutController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Signature verified; the projected subscription returned"),
             @ApiResponse(responseCode = "400", description = "The signature does not verify, or the body is invalid"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to the organization's administration"),
             @ApiResponse(responseCode = "404", description = "No checkout session matches the payment result"),
             @ApiResponse(responseCode = "409", description = "No billing provider is configured")
     })
@@ -110,7 +110,7 @@ public class CheckoutController {
         return ResponseEntity.ok(checkoutService.verify(currentOrganizationId(), dto));
     }
 
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@access.can('org-admin', 'read')")
     @GetMapping("/mandate")
     @Operation(
             summary = "Get the organization's mandate",
@@ -120,7 +120,7 @@ public class CheckoutController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Mandate returned"),
             @ApiResponse(responseCode = "204", description = "No mandate registered"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read the organization's administration")
     })
     public ResponseEntity<MandateDto> getMandate() {
         return checkoutService.currentMandate(currentOrganizationId())
@@ -128,7 +128,7 @@ public class CheckoutController {
                 .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@access.can('org-admin', 'create')")
     @PostMapping("/mandate")
     @Operation(
             summary = "Acknowledge the mandate terms",
@@ -139,7 +139,7 @@ public class CheckoutController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Terms returned and the acknowledgement recorded"),
             @ApiResponse(responseCode = "400", description = "Validation failed on the request body"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to the organization's administration"),
             @ApiResponse(responseCode = "404", description = "No plan with the given code"),
             @ApiResponse(responseCode = "422", description = "The terms break a mandate rule")
     })

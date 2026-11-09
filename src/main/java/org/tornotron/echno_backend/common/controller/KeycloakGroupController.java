@@ -49,7 +49,7 @@ public class KeycloakGroupController {
         this.userIdentityLookup = userIdentityLookup;
     }
 
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@access.can('org-admin', 'create')")
     @PostMapping("/assign")
     @Operation(
             summary = "Add a user to the tenant's Keycloak organization",
@@ -58,7 +58,7 @@ public class KeycloakGroupController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "User added to the Keycloak organization"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to the organization's administration"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No user with the given id")
     })
     public ResponseEntity<ApiResponse> assignUserToKeycloakOrg(
@@ -75,7 +75,7 @@ public class KeycloakGroupController {
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("User added to keycloak Org"));
     }
 
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@access.can('org-admin', 'create')")
     @PostMapping("/assignRole")
     @Operation(
             summary = "Assign an org role to an employee",
@@ -83,7 +83,7 @@ public class KeycloakGroupController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Role assigned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to the organization's administration"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No employee with the given id, or the employee has no Keycloak user")
     })
     public ResponseEntity<ApiResponse> assignOrgRole(
@@ -102,7 +102,7 @@ public class KeycloakGroupController {
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse("User assigned a role"));
     }
 
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@access.can('org-admin', 'create')")
     @PostMapping("/unassignRole")
     @Operation(
             summary = "Remove an org role from an employee",
@@ -110,7 +110,7 @@ public class KeycloakGroupController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Role unassigned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to the organization's administration"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No employee with the given id, or the employee has no Keycloak user")
     })
     public ResponseEntity<ApiResponse> unassignOrgRole(

@@ -144,14 +144,14 @@ public class OrganizationController {
      * @return A {@link ResponseEntity} containing the organization DTO and HTTP status 200 (OK).
      */
     @GetMapping("{id}")
-    @PreAuthorize("@orgSecurity.isMemberOrAdmin(#id)")
+    @PreAuthorize("@orgSecurity.isCurrentTenant(#id) and @access.can('org-profile', 'read')")
     @Operation(
             summary = "Get an organization by id",
             description = "Returns a single organization by its numeric id."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Organization found"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither a member of the organization nor a platform admin"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read the organization's profile, or the path names an organization other than the one the request is for"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No organization with the given id")
     })
     public ResponseEntity<?> readAnOrganization(@PathVariable Long id) {
@@ -205,14 +205,14 @@ public class OrganizationController {
      * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
      */
     @DeleteMapping("{id}")
-    @PreAuthorize("@orgSecurity.hasOrgRole(#id, 'system-admin')")
+    @PreAuthorize("@orgSecurity.isCurrentTenant(#id) and @access.can('org-admin', 'delete')")
     @Operation(
             summary = "Delete an organization",
             description = "Deletes the organization with the given id."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Organization deleted"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a system admin of the organization"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to the organization's administration, or the path names an organization other than the one the request is for"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No organization with the given id")
     })
     public ResponseEntity<ApiResponse> deleteOrganization(@PathVariable Long id) {

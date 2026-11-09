@@ -23,6 +23,10 @@ import org.springframework.http.HttpMethod;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.tornotron.echno_backend.modules.access.matrix.AccessFixtures;
+import org.tornotron.echno_backend.modules.access.matrix.service.AccessRoleReconciler;
+import org.tornotron.echno_backend.organization.Organization;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
@@ -71,7 +75,19 @@ class DocumentIngestionOffByDefaultIT extends AbstractIntegrationTest {
     @Qualifier("requestMappingHandlerMapping")
     RequestMappingHandlerMapping handlerMapping;
 
+    @Autowired
+    TransactionTemplate transactions;
+
+    @Autowired
+    jakarta.persistence.EntityManager em;
+
+    @Autowired
+    AccessRoleReconciler reconciler;
+
     Long organizationId;
+
+    /** The member's sign-in subject; the enabled-modules list is asked of the matrix, which needs an employee. */
+    String memberSubject;
 
     @BeforeEach
     void anOrganizationWithNoSubscription() {
@@ -80,10 +96,17 @@ class DocumentIngestionOffByDefaultIT extends AbstractIntegrationTest {
                 "INSERT INTO organization (organization_name, organization_address, organization_email, "
                         + "organization_phone) VALUES (?, ?, ?, ?) RETURNING id",
                 Long.class, name, name, UUID.randomUUID() + "@example.test", "0000000000");
+        String member = "ingestion-member-" + UUID.randomUUID();
+        memberSubject = "kc-" + member;
+        transactions.executeWithoutResult(status -> {
+            new AccessFixtures(em).employee(em.find(Organization.class, organizationId), member);
+            reconciler.ensureStartingRoles(organizationId);
+        });
     }
 
     RequestPostProcessor member() {
-        return jwt().authorities(new SimpleGrantedAuthority("ORG_MEMBER_" + organizationId));
+        return jwt().jwt(token -> token.subject(memberSubject))
+                .authorities(new SimpleGrantedAuthority("ORG_MEMBER_" + organizationId));
     }
 
     @Test
