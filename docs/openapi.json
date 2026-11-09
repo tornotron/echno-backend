@@ -39067,7 +39067,7 @@
     },
     "/api/v1/attendance-regularizations/web/{id}": {
       "get": {
-        "description": "Returns a single regularization request including its approval state.",
+        "description": "Returns a single regularization request including its approval state. Readable by the employee whose attendance it corrects, by whoever decided it, and by anyone who reads regularizations across the organization.",
         "operationId": "AttendanceRegularizationControllerWeb_getById",
         "parameters": [
           {
@@ -39119,7 +39119,7 @@
                 }
               }
             },
-            "description": "Caller may not read regularization requests"
+            "description": "Caller is not the employee the request is for, not whoever decided it, and may not read every employee's regularization requests"
           },
           "404": {
             "content": {
@@ -39303,7 +39303,7 @@
     },
     "/api/v1/attendance-regularizations/{id}": {
       "get": {
-        "description": "Returns a single regularization request including its approval state.",
+        "description": "Returns a single regularization request including its approval state. Readable by the employee whose attendance it corrects, by whoever decided it, and by anyone who reads regularizations across the organization.",
         "operationId": "AttendanceRegularizationController_getById",
         "parameters": [
           {
@@ -39355,7 +39355,7 @@
                 }
               }
             },
-            "description": "Caller may not read regularization requests"
+            "description": "Caller is not the employee the request is for, not whoever decided it, and may not read every employee's regularization requests"
           },
           "404": {
             "content": {
@@ -169239,11 +169239,11 @@
       "name": "Attendance (Web)"
     },
     {
-      "description": "Requests to correct an attendance record that is missing clock events, for example a forgotten evening clock-out. An employee submits a request naming the missing events and, optionally, the corrected events; a manager approves or rejects it. Submitting and reading a request is tenant scoped, while listing pending requests and processing one is limited to callers who can manage attendance records.",
+      "description": "Requests to correct an attendance record that is missing clock events, for example a forgotten evening clock-out. An employee submits a request naming the missing events and, optionally, the corrected events; a manager approves or rejects it. Access is the leave-regularisation area of the access matrix: an employee raises requests on, and reads, their own attendance; reading every employee's requests and deciding one need the area across the organization.",
       "name": "Attendance Regularizations"
     },
     {
-      "description": "Requests to correct an attendance record that is missing clock events, for example a forgotten evening clock-out, for the web client. An employee submits a request naming the missing events and, optionally, the corrected events; a manager approves or rejects it. Submitting and reading a request is tenant scoped, while listing pending requests and processing one is limited to callers who can manage attendance records.",
+      "description": "Requests to correct an attendance record that is missing clock events, for example a forgotten evening clock-out, for the web client. An employee submits a request naming the missing events and, optionally, the corrected events; a manager approves or rejects it. Access is the leave-regularisation area of the access matrix: an employee raises requests on, and reads, their own attendance; reading every employee's requests and deciding one need the area across the organization.",
       "name": "Attendance Regularizations (Web)"
     },
     {
