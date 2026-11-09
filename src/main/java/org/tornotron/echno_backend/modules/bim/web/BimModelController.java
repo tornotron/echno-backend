@@ -59,7 +59,7 @@ public class BimModelController {
     private final BimTileService tileService;
 
     @GetMapping("/projects/{projectId}/models")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('bim', 'read')")
     @Operation(summary = "List the BIM models of a project, each with its versions newest first")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "The models"),
@@ -70,11 +70,11 @@ public class BimModelController {
     }
 
     @PostMapping("/projects/{projectId}/models")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('bim', 'create')")
     @Operation(summary = "Register a BIM model on a project")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Model created"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to 3D models"),
             @ApiResponse(responseCode = "404", description = "No such project in the current tenant"),
             @ApiResponse(responseCode = "409", description = "A model of that name already exists on the project")
     })
@@ -84,7 +84,7 @@ public class BimModelController {
     }
 
     @GetMapping("/models/{modelId}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('bim', 'read')")
     @Operation(summary = "Get a BIM model with its versions")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "The model"),
@@ -95,7 +95,7 @@ public class BimModelController {
     }
 
     @GetMapping("/models/{modelId}/versions/{versionId}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('bim', 'read')")
     @Operation(summary = "Get one version of a model")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "The version"),
@@ -106,7 +106,7 @@ public class BimModelController {
     }
 
     @PostMapping("/models/{modelId}/versions/presign")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('bim', 'create')")
     @Operation(summary = "Start an IFC upload: create the next version and presign the PUT for its source file",
             description = "The browser PUTs the file straight to the object store at the returned URL (the file never "
                     + "passes through the API), then calls register. Files over the cap (1 GB by default) are refused "
@@ -114,7 +114,7 @@ public class BimModelController {
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Version created and upload URL issued"),
             @ApiResponse(responseCode = "400", description = "Not an IFC, or over the size cap"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to 3D models"),
             @ApiResponse(responseCode = "404", description = "No such model in the current tenant")
     })
     public ResponseEntity<BimSourceUploadDto> presignSource(@PathVariable UUID modelId,
@@ -123,12 +123,12 @@ public class BimModelController {
     }
 
     @PostMapping("/models/{modelId}/versions/{versionId}/register")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('bim', 'create')")
     @Operation(summary = "Finish an IFC upload: verify the object is in storage, file it as an attachment, queue the import")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "The version, now QUEUED for the worker"),
             @ApiResponse(responseCode = "400", description = "The object is not in storage, or the version was already registered"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to 3D models"),
             @ApiResponse(responseCode = "404", description = "No such model or version in the current tenant")
     })
     public BimModelVersionDto registerSource(@PathVariable UUID modelId, @PathVariable UUID versionId) {
@@ -136,7 +136,7 @@ public class BimModelController {
     }
 
     @GetMapping("/models/{modelId}/versions/{versionId}/tiles")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('bim', 'read')")
     @Operation(summary = "Presigned GET URLs for a READY version's glTF tiles, one per storey plus the coarse model",
             description = "URLs are short-lived and signed for keys under this version's prefix only; the viewer "
                     + "fetches the floors it opens straight from the object store.")
@@ -150,7 +150,7 @@ public class BimModelController {
     }
 
     @GetMapping("/models/{modelId}/elements")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('bim', 'read')")
     @Operation(summary = "Page through the elements of a model",
             description = "Filter by storey GlobalId to load one floor. Retired elements (present in an "
                     + "earlier version, missing from the latest) are excluded unless asked for.")
@@ -167,7 +167,7 @@ public class BimModelController {
     }
 
     @GetMapping("/elements/{elementId}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('bim', 'read')")
     @Operation(summary = "Get one element by its Echno id")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "The element"),
@@ -178,7 +178,7 @@ public class BimModelController {
     }
 
     @GetMapping("/versions/{versionId}/elements/by-guid/{globalId}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('bim', 'read')")
     @Operation(summary = "Get one element by its IFC GlobalId within a model version",
             description = "Resolves the element the viewer is looking at without paging its storey. "
                     + "The element must have been present in the given version: one first seen "
@@ -193,7 +193,7 @@ public class BimModelController {
     }
 
     @PostMapping("/elements/{elementId}/merge")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('bim', 'create')")
     @Operation(summary = "Merge a retired element into the element that replaced it",
             description = "For a GlobalId an authoring tool regenerated: the retired row's construction "
                     + "element moves to the target, the spatial node's bimElementGuid follows, and the "
@@ -201,7 +201,7 @@ public class BimModelController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "The target element with the carried link"),
             @ApiResponse(responseCode = "400", description = "Source not retired, target retired or merged, different models, or both linked"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to 3D models"),
             @ApiResponse(responseCode = "404", description = "No such element in the current tenant")
     })
     public BimElementDto merge(@PathVariable UUID elementId, @Valid @RequestBody MergeBimElementRequest req) {
@@ -209,7 +209,7 @@ public class BimModelController {
     }
 
     @GetMapping("/models/{modelId}/versions/{versionId}/hierarchy/proposal")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('bim', 'read')")
     @Operation(summary = "The site structure proposed from this version's IFC containment",
             description = "Building > Floor > Zone > Element from IfcBuilding, IfcBuildingStorey and IfcSpace, with "
                     + "the construction elements under each. Entries carrying matchedNodeId already have a spatial "
@@ -223,12 +223,12 @@ public class BimModelController {
     }
 
     @PostMapping("/models/{modelId}/versions/{versionId}/hierarchy/proposal")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('bim', 'create')")
     @Operation(summary = "Rebuild the proposal from the stored structure, picking up nodes created since")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "The rebuilt proposal"),
             @ApiResponse(responseCode = "400", description = "The version is not READY"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to 3D models"),
             @ApiResponse(responseCode = "404", description = "No such model or version in the current tenant")
     })
     public BimHierarchyProposalDto regenerateHierarchyProposal(@PathVariable UUID modelId, @PathVariable UUID versionId) {
@@ -236,14 +236,14 @@ public class BimModelController {
     }
 
     @PostMapping("/models/{modelId}/versions/{versionId}/hierarchy/confirm")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('bim', 'approve')")
     @Operation(summary = "Confirm the proposal into the project's site structure",
             description = "Creates the buildings, floors, zones and elements that have no node yet, matches the "
                     + "ones that do by GlobalId, and links each element row to its node. Idempotent: confirming "
                     + "again matches everything the first run created.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "The proposal with the confirmation result and refreshed matches"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to 3D models"),
             @ApiResponse(responseCode = "404", description = "No such version, or no proposal to confirm")
     })
     public BimHierarchyProposalDto confirmHierarchy(@PathVariable UUID modelId, @PathVariable UUID versionId,
@@ -252,7 +252,7 @@ public class BimModelController {
     }
 
     @GetMapping("/models/{modelId}/versions/{versionId}/jobs")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('bim', 'read')")
     @Operation(summary = "List the import jobs of a version, newest first")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "The jobs"),
@@ -263,12 +263,12 @@ public class BimModelController {
     }
 
     @PostMapping("/models/{modelId}/versions/{versionId}/jobs")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('bim', 'create')")
     @Operation(summary = "Queue (or re-queue after a failure) the worker import of a version")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Job queued"),
             @ApiResponse(responseCode = "400", description = "The version is not in a state that can be queued, or a job is already open"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to 3D models"),
             @ApiResponse(responseCode = "404", description = "No such model or version in the current tenant")
     })
     public ResponseEntity<BimImportJobDto> enqueue(@PathVariable UUID modelId, @PathVariable UUID versionId) {
@@ -276,7 +276,7 @@ public class BimModelController {
     }
 
     @GetMapping("/jobs/{jobId}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('bim', 'read')")
     @Operation(summary = "Get an import job")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "The job"),
