@@ -138070,7 +138070,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read the WBS and schedule"
           },
           "404": {
             "content": {
@@ -138191,7 +138191,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to the WBS and schedule"
           },
           "404": {
             "content": {
@@ -138317,7 +138317,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to the WBS and schedule"
           },
           "404": {
             "content": {
@@ -138440,7 +138440,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to the WBS and schedule"
           },
           "404": {
             "content": {
@@ -138561,7 +138561,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to the WBS and schedule"
           },
           "404": {
             "content": {
@@ -138677,7 +138677,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read the WBS and schedule"
           },
           "404": {
             "content": {
@@ -138790,7 +138790,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read the WBS and schedule"
           },
           "404": {
             "content": {
@@ -138906,7 +138906,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read the WBS and schedule"
           },
           "404": {
             "content": {
@@ -139022,7 +139022,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read the WBS and schedule"
           },
           "404": {
             "content": {
@@ -139143,7 +139143,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to the WBS and schedule"
           },
           "404": {
             "content": {
@@ -139269,7 +139269,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to the WBS and schedule"
           },
           "404": {
             "content": {
@@ -139392,7 +139392,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to the WBS and schedule"
           },
           "404": {
             "content": {
@@ -139513,7 +139513,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to the WBS and schedule"
           },
           "404": {
             "content": {
@@ -139629,7 +139629,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read the WBS and schedule"
           },
           "404": {
             "content": {
@@ -139742,7 +139742,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read the WBS and schedule"
           },
           "404": {
             "content": {
@@ -139858,7 +139858,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read the WBS and schedule"
           },
           "404": {
             "content": {
@@ -139980,7 +139980,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to the WBS and schedule"
           },
           "404": {
             "content": {
@@ -140100,7 +140100,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read the WBS and schedule"
           },
           "404": {
             "content": {
@@ -140230,7 +140230,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to the WBS and schedule"
           },
           "404": {
             "content": {
@@ -140362,7 +140362,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to the WBS and schedule"
           },
           "404": {
             "content": {
@@ -140484,7 +140484,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to the WBS and schedule"
           },
           "404": {
             "content": {
@@ -140606,7 +140606,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to the WBS and schedule"
           },
           "404": {
             "content": {
@@ -140726,7 +140726,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read the WBS and schedule"
           },
           "404": {
             "content": {
@@ -140856,7 +140856,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to the WBS and schedule"
           },
           "404": {
             "content": {
@@ -140988,7 +140988,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to the WBS and schedule"
           },
           "404": {
             "content": {
@@ -141110,7 +141110,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to the WBS and schedule"
           },
           "404": {
             "content": {
