@@ -234,21 +234,26 @@ date, and a person decides what it means.
 
 ## 5. How reliable each part can be
 
-These are expectations. No tender corpus exists yet, so step 1 builds one and each extractor has a gate
+These are expectations. No tender corpus existed when they were set, so step 1 built one and each extractor has a gate
 measured on it. A gate missed means that part ships flagged for row-by-row checking, or waits.
 
-| Part | Text PDF or Excel | Scanned | Gate on the corpus |
-|---|---|---|---|
-| BOQ from Excel | High; deterministic | n/a | Rows captured 99%; numbers exact 99.5% on captured rows |
-| BOQ from PDF tables | Medium; ruled tables go well, borderless ones less so | Low; flagged always | Rows captured 90% on text PDF; report scanned separately |
-| Document class | High for the 13 classes | Medium | 90% correct per document |
-| Project and contract terms | High when stated plainly | Medium, tied to OCR | Precision 95%, recall 85% on text PDF |
-| Obligations with deadlines | Medium | Low | Precision 85%; recall reported, no target |
-| Quality requirements | Medium | Low | Precision 90% on stated values; zero values with no quote |
-| Milestones | High in Excel, medium in PDF | Low | Rows 95% |
-| Title block | High on one drafting style, varies across offices | Medium | Number and revision 90% on text PDF |
-| Corrigendum | High for a revised file; medium for prose | Low | Revised file 100%; prose precision 90% |
-| Quantities or objects from drawings | **Not reliable** | **Not reliable** | Out of scope |
+The last column is the deterministic run of step 24 on the seed corpus (23 documents, 21 parsed; worker
+0.3.0), made by `CorpusGateHarnessTest` and scored with the corpus scorer. Gates are judged on text PDF
+and Excel. The gates that need the LLM wait for an endpoint key. The full figures and how to repeat the run
+are in the operator runbook (`docs/runbooks/document-ingestion.md` in echno-deployment).
+
+| Part | Text PDF or Excel | Scanned | Gate on the corpus | Corpus run, 9 Nov 2026 |
+|---|---|---|---|---|
+| BOQ from Excel | High; deterministic | n/a | Rows captured 99%; numbers exact 99.5% on captured rows | Pass: rows 15 of 15, numbers 45 of 45 with the confirmed mapping (detected mapping alone: 15 of 45 numbers) |
+| BOQ from PDF tables | Medium; ruled tables go well, borderless ones less so | Low; flagged always | Rows captured 90% on text PDF; report scanned separately | Not built: no PDF BOQ reader in this version |
+| Document class | High for the 13 classes | Medium | 90% correct per document | Pass on the deterministic reading: 15 of 15 text documents. LLM fallback pending: no endpoint key |
+| Project and contract terms | High when stated plainly | Medium, tied to OCR | Precision 95%, recall 85% on text PDF | Pending: no endpoint key |
+| Obligations with deadlines | Medium | Low | Precision 85%; recall reported, no target | Pending: no endpoint key |
+| Quality requirements | Medium | Low | Precision 90% on stated values; zero values with no quote | Pending: no endpoint key |
+| Milestones | High in Excel, medium in PDF | Low | Rows 95% | Pass: 4 of 4 rows from the tables |
+| Title block | High on one drafting style, varies across offices | Medium | Number and revision 90% on text PDF | Not measured: no drawing in the corpus |
+| Corrigendum | High for a revised file; medium for prose | Low | Revised file 100%; prose precision 90% | Revised file not measured (none in the corpus); prose pending: no endpoint key |
+| Quantities or objects from drawings | **Not reliable** | **Not reliable** | Out of scope | n/a |
 
 ## 6. Design
 
