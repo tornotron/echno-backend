@@ -43898,7 +43898,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read the organization's administration"
           },
           "404": {
             "content": {
@@ -44008,7 +44008,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to the organization's administration"
           },
           "404": {
             "content": {
@@ -44110,7 +44110,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read the organization's profile"
           },
           "404": {
             "content": {
@@ -44222,7 +44222,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to the organization's administration"
           },
           "404": {
             "content": {
@@ -44334,7 +44334,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to the organization's administration"
           },
           "404": {
             "content": {
@@ -44439,7 +44439,7 @@
                 }
               }
             },
-            "description": "Caller lacks the system-admin role in the current tenant"
+            "description": "Caller may not read the organization's administration"
           },
           "404": {
             "content": {
@@ -46575,7 +46575,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to the organization's administration"
           },
           "404": {
             "content": {
@@ -46686,7 +46686,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to the organization's administration"
           },
           "404": {
             "content": {
@@ -46798,7 +46798,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to the organization's administration"
           },
           "404": {
             "content": {
@@ -46910,7 +46910,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read the organization's administration"
           },
           "404": {
             "content": {
@@ -47022,7 +47022,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read the organization's profile"
           },
           "404": {
             "content": {
@@ -47127,7 +47127,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read the organization's administration"
           },
           "404": {
             "content": {
@@ -47844,7 +47844,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to the organization's profile"
           },
           "404": {
             "content": {
@@ -105661,7 +105661,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to the organization's administration"
           },
           "404": {
             "content": {
@@ -105782,7 +105782,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to the organization's administration"
           },
           "404": {
             "content": {
@@ -105903,7 +105903,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to the organization's administration"
           },
           "404": {
             "content": {
@@ -122080,7 +122080,7 @@
                 }
               }
             },
-            "description": "Caller is not a system admin of the current tenant"
+            "description": "Caller may not read the organization's administration"
           },
           "404": {
             "content": {
@@ -122185,7 +122185,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read the organization's profile"
           },
           "404": {
             "content": {
@@ -129063,7 +129063,7 @@
                 }
               }
             },
-            "description": "Caller lacks the system-admin role in the organization"
+            "description": "Caller may not make this change to the organization's administration in the organization the path names"
           },
           "404": {
             "content": {
@@ -129174,7 +129174,7 @@
                 }
               }
             },
-            "description": "Caller is neither a member of the organization nor a platform admin"
+            "description": "Caller may not read the organization's profile in the organization the path names"
           },
           "404": {
             "content": {
@@ -129315,7 +129315,7 @@
                 }
               }
             },
-            "description": "Caller lacks the system-admin or hr-admin role in the organization"
+            "description": "Caller may not make this change to the organization's profile in the organization the path names"
           },
           "404": {
             "content": {
@@ -129428,7 +129428,7 @@
                 }
               }
             },
-            "description": "Caller lacks the system-admin role in the organization"
+            "description": "Caller may not read the organization's administration in the organization the path names"
           },
           "404": {
             "content": {
@@ -129549,7 +129549,7 @@
                 }
               }
             },
-            "description": "Caller lacks the system-admin role in the organization"
+            "description": "Caller may not make this change to the organization's administration in the organization the path names"
           },
           "404": {
             "content": {
@@ -129662,7 +129662,7 @@
                 }
               }
             },
-            "description": "Caller is not a system admin of the organization"
+            "description": "Caller may not make this change to the organization's administration in the organization the path names"
           },
           "404": {
             "content": {
@@ -129773,7 +129773,7 @@
                 }
               }
             },
-            "description": "Caller is neither a member of the organization nor a platform admin"
+            "description": "Caller may not read the organization's profile in the organization the path names"
           },
           "404": {
             "content": {
