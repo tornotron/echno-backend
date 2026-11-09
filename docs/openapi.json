@@ -7105,6 +7105,51 @@
         },
         "type": "object"
       },
+      "CopyToTemplateRequest": {
+        "description": "Rows of the inspection and test plan to copy as check points into the checklist template of their trade.",
+        "properties": {
+          "requirementIds": {
+            "description": "Ids of rows of the inspection and test plan (not candidate ids).",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 200,
+            "minItems": 1,
+            "type": "array"
+          },
+          "tradeId": {
+            "description": "The trade whose template every row goes into. Left out, each row goes into the template of the trade it was matched to, and a row with no trade is skipped.",
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "requirementIds"
+        ],
+        "type": "object"
+      },
+      "CopyToTemplateResultDto": {
+        "description": "The checklist templates the rows were copied into, and the outcome of each row.",
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/RowOutcome"
+            },
+            "type": "array"
+          },
+          "templates": {
+            "items": {
+              "$ref": "#/components/schemas/TemplateCopy"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "CostCategoryDto": {
         "description": "A budget head (cost category) in the org-level master list, optionally aligned to a ledger expense account.",
         "properties": {
@@ -21262,6 +21307,52 @@
         },
         "type": "object"
       },
+      "PageQualityRequirementEntryDto": {
+        "properties": {
+          "content": {
+            "items": {
+              "$ref": "#/components/schemas/QualityRequirementEntryDto"
+            },
+            "type": "array"
+          },
+          "empty": {
+            "type": "boolean"
+          },
+          "first": {
+            "type": "boolean"
+          },
+          "last": {
+            "type": "boolean"
+          },
+          "number": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "numberOfElements": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "pageable": {
+            "$ref": "#/components/schemas/PageableObject"
+          },
+          "size": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "sort": {
+            "$ref": "#/components/schemas/SortObject"
+          },
+          "totalElements": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "totalPages": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "PageReceiptDto": {
         "properties": {
           "content": {
@@ -24384,6 +24475,186 @@
         ],
         "type": "object"
       },
+      "QualityRequirementEntryDto": {
+        "description": "One quality requirement as the specification prints it and a person accepted it, with citations. A frequency or acceptance criterion the specification does not state is null and named in notStated.",
+        "properties": {
+          "acceptanceCriterion": {
+            "description": "As printed; null when the specification does not state one.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "activity": {
+            "example": "Concreting",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "candidateId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "citations": {
+            "description": "Where each value came from: page, box and quote.",
+            "items": {
+              "$ref": "#/components/schemas/SourceRefDto"
+            },
+            "type": "array"
+          },
+          "copiedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "documentId": {
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "frequency": {
+            "description": "As printed; null when the specification does not state one.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "grade": {
+            "example": "M25",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "holdOrWitnessPoint": {
+            "example": "Pre-pour inspection",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "material": {
+            "example": "Concrete",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "notStated": {
+            "description": "Fields the specification does not state: frequency, acceptance_criterion.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "packageId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "projectId": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "requiredDocuments": {
+            "description": "Documents to be given, as printed.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "sourceClass": {
+            "example": "SPECIFICATION",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "standards": {
+            "description": "Standards cited, as printed.",
+            "example": [
+              "IS 456:2000"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "subject": {
+            "description": "The material or subject as printed.",
+            "example": "Concrete",
+            "type": "string"
+          },
+          "templateId": {
+            "description": "The checklist template the row was copied into, if it was.",
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "templateItemId": {
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "templateVersion": {
+            "description": "The template's revision after the copy.",
+            "format": "int32",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "test": {
+            "example": "Cube compressive strength",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tradeCode": {
+            "example": "rcc",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tradeId": {
+            "description": "The organization's inspection trade the activity was matched to.",
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tradeName": {
+            "example": "RCC",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "QueueVisionRunRequest": {
         "description": "Runs models on evidence images now. Name exactly one of inspectionId, observationId and attachmentIds.",
         "properties": {
@@ -26510,6 +26781,45 @@
         "required": [
           "name"
         ],
+        "type": "object"
+      },
+      "RowOutcome": {
+        "description": "The outcome of one row asked for.",
+        "properties": {
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "outcome": {
+            "enum": [
+              "COPIED",
+              "ALREADY_COPIED",
+              "NO_TRADE",
+              "NOT_FOUND"
+            ],
+            "type": "string"
+          },
+          "requirementId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "templateId": {
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "templateItemId": {
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
         "type": "object"
       },
       "ScheduleReinspectionRequest": {
@@ -29682,6 +29992,40 @@
               "string",
               "null"
             ]
+          }
+        },
+        "type": "object"
+      },
+      "TemplateCopy": {
+        "description": "A checklist template the call added check points to.",
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "created": {
+            "type": "boolean"
+          },
+          "itemsAdded": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "templateId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "templateName": {
+            "type": "string"
+          },
+          "tradeId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "tradeName": {
+            "type": "string"
+          },
+          "version": {
+            "format": "int32",
+            "type": "integer"
           }
         },
         "type": "object"
@@ -67786,6 +68130,139 @@
         ]
       }
     },
+    "/api/v1/document-ingestion/packages/{packageId}/quality-requirements": {
+      "get": {
+        "description": "One row per quality requirement applied from the specification, each value as printed, with the page, box and quote behind it. A frequency or acceptance criterion the specification does not state is null and named in notStated; Echno does not fill one in. Written only by applying accepted QUALITY_REQUIREMENT candidates; provenance is under GET /provenance with target type QUALITY_REQUIREMENT.",
+        "operationId": "DocumentIngestionQualityController_listForPackage",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "packageId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "size",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageQualityRequirementEntryDto"
+                }
+              }
+            },
+            "description": "A page of rows, by trade and activity"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such package in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List a package's inspection and test plan",
+        "tags": [
+          "Document Ingestion"
+        ]
+      }
+    },
     "/api/v1/document-ingestion/packages/{packageId}/tender-profile": {
       "get": {
         "description": "The accepted tender facts that a project has no field for: client, estimated value, EMD, tender fee, bid due date, bid validity, duration, consultant, engineer and scope, each as printed, with a typed value where the text reads plainly as one. Written only by applying accepted project fields; provenance for each field is under GET /provenance with target type TENDER_PROFILE.",
@@ -67894,6 +68371,139 @@
           }
         },
         "summary": "Get a package's tender profile",
+        "tags": [
+          "Document Ingestion"
+        ]
+      }
+    },
+    "/api/v1/document-ingestion/projects/{projectId}/quality-requirements": {
+      "get": {
+        "description": "The rows of every package on the project, with citations, as for the package list.",
+        "operationId": "DocumentIngestionQualityController_listForProject",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "size",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageQualityRequirementEntryDto"
+                }
+              }
+            },
+            "description": "A page of rows, by trade and activity"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such project in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List a project's inspection and test plan",
         "tags": [
           "Document Ingestion"
         ]
@@ -68016,6 +68626,118 @@
           }
         },
         "summary": "Say where each field of a live record came from",
+        "tags": [
+          "Document Ingestion"
+        ]
+      }
+    },
+    "/api/v1/document-ingestion/quality-requirements/copy-to-template": {
+      "post": {
+        "description": "Adds each row as a check point at the end of the checklist template of its trade (or of tradeId), in a new revision, defining the template when the trade has none. Existing check points are kept. A row copied before is reported as ALREADY_COPIED, a row with no trade as NO_TRADE. Needs the role that defines checklists, and the inspections module on for the organization.",
+        "operationId": "DocumentIngestionQualityController_copyToTemplate",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CopyToTemplateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/CopyToTemplateResultDto"
+                }
+              }
+            },
+            "description": "The templates changed and each row's outcome"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Site inspections are off for the organization, or a value breaks a template limit"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "MODULE_DISABLED, or the caller cannot define checklists"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The trade named is not one of the organization's"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Copy rows of the inspection and test plan into checklist templates",
         "tags": [
           "Document Ingestion"
         ]
