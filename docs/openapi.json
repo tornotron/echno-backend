@@ -129878,7 +129878,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read payables"
           },
           "404": {
             "content": {
@@ -129988,7 +129988,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to payables"
           },
           "404": {
             "content": {
@@ -130119,7 +130119,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read payables"
           },
           "404": {
             "content": {
@@ -130250,7 +130250,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read payables"
           },
           "404": {
             "content": {
@@ -130390,7 +130390,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read payables"
           },
           "404": {
             "content": {
@@ -130495,7 +130495,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read payables"
           },
           "404": {
             "content": {
@@ -130605,7 +130605,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to payables"
           },
           "404": {
             "content": {
@@ -130736,7 +130736,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read payables"
           },
           "404": {
             "content": {
@@ -130841,7 +130841,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read payables"
           },
           "404": {
             "content": {
@@ -130957,7 +130957,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read payables"
           },
           "404": {
             "content": {
@@ -131070,7 +131070,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read payables"
           },
           "404": {
             "content": {
@@ -131193,7 +131193,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to payables"
           },
           "404": {
             "content": {
@@ -131306,7 +131306,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read payables"
           },
           "404": {
             "content": {
@@ -131429,7 +131429,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to payables"
           },
           "404": {
             "content": {
@@ -169615,11 +169615,11 @@
       "name": "PDF Reports"
     },
     {
-      "description": "Amounts owed to vendors, tracked from creation through to settlement. A payable carries its vendor, amount and outstanding balance, and accepts payment records that reduce that balance. Endpoints cover creating payables, recording payments, browsing and filtering by vendor, and listing outstanding items. Access is tenant scoped and follows the organization roles of the /web twin, endpoint for endpoint.",
+      "description": "Amounts owed to vendors, tracked from creation through to settlement. A payable carries its vendor, amount and outstanding balance, and accepts payment records that reduce that balance. Endpoints cover creating payables, recording payments, browsing and filtering by vendor, and listing outstanding items. Access is tenant scoped and carries the payables permissions of the /web twin, endpoint for endpoint, and a payable outside the caller's scope reads as not found.",
       "name": "Payables"
     },
     {
-      "description": "Web-console counterpart of the payables API, restricted to the system-admin role for the current tenant instead of the flat payable authorities used by the mobile variant. Covers the same create, payment-recording, browse, filter-by-vendor and outstanding-list operations, for use from the admin web console.",
+      "description": "Web-console counterpart of the payables API, guarded by the payables permissions instead of the flat payable authorities used by the mobile variant: read for the lists and a single payable, create to record one and edit to record a payment against one. Covers the same create, payment-recording, browse, filter-by-vendor and outstanding-list operations, for use from the web console. A payable outside the caller's scope reads as not found.",
       "name": "Payables (Web)"
     },
     {
