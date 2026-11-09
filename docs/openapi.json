@@ -51959,7 +51959,7 @@
                 }
               }
             },
-            "description": "Caller may not make this change to chat, or is not a participant of the room"
+            "description": "Caller may not read chat, or is not a participant of the room"
           },
           "404": {
             "content": {
@@ -169295,7 +169295,7 @@
       "name": "Categories (Web)"
     },
     {
-      "description": "One-to-one and group chat between employees of the organization: rooms the caller participates in, their unread counts and last message, and the send/edit message flow. Reading needs chat:read, and opening a room, posting, reacting, marking a room read and archiving need chat:create, editing a message chat:edit and deleting one chat:delete. Every member holds all four through the employee baseline, so any member of the tenant may chat; access to a specific room is limited to its participants.",
+      "description": "One-to-one and group chat between employees of the organization: rooms the caller participates in, their unread counts and last message, and the send/edit message flow. Reading, the stream and marking a room read need chat:read, and opening a room, posting, reacting and archiving need chat:create, editing a message chat:edit and deleting one chat:delete. Every member holds all four through the employee baseline, so any member of the tenant may chat; access to a specific room is limited to its participants.",
       "name": "Chat"
     },
     {
