@@ -55,7 +55,7 @@ public class GoodsReceivedNoteController {
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "GRN created and returned"),
             @ApiResponse(responseCode = "400", description = "Validation failed on the request body, or a line would take a material past the quantity its purchase order asked for and the over-receipt was not acknowledged"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to goods receipts"),
             @ApiResponse(responseCode = "404", description = "A referenced vendor, project, storage location or material was not found")
     })
     public ResponseEntity<GoodsReceivedNoteDto> createGrn(@Valid @RequestBody GoodsReceivedNoteCreationDto creationDto) {
@@ -71,7 +71,7 @@ public class GoodsReceivedNoteController {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "GRN found"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not read goods receipts"),
             @ApiResponse(responseCode = "404", description = "No GRN with the given id")
     })
     public ResponseEntity<GoodsReceivedNoteDto> getGrnById(@PathVariable Long id) {
@@ -87,7 +87,7 @@ public class GoodsReceivedNoteController {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "List of GRNs"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read goods receipts")
     })
     public ResponseEntity<List<GoodsReceivedNoteDto>> getAllGrns() {
         return UnpagedResultCap.respond(
@@ -103,7 +103,7 @@ public class GoodsReceivedNoteController {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Page of GRNs"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read goods receipts")
     })
     public ResponseEntity<Page<GoodsReceivedNoteDto>> getAllGrnsPaginated(
             @Valid @ParameterObject PageQuery pageQuery
@@ -120,7 +120,7 @@ public class GoodsReceivedNoteController {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "List of GRNs for the vendor"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read goods receipts")
     })
     public ResponseEntity<Page<GoodsReceivedNoteDto>> getGrnsByVendor(
             @PathVariable Long vendorId,
@@ -141,7 +141,7 @@ public class GoodsReceivedNoteController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "GRN updated"),
             @ApiResponse(responseCode = "400", description = "Validation failed on the request body"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to goods receipts"),
             @ApiResponse(responseCode = "404", description = "No GRN with the given id")
     })
     public ResponseEntity<GoodsReceivedNoteDto> updateGrn(@Valid @RequestBody GoodsReceivedNoteUpdateDto updateDto) {
@@ -159,7 +159,7 @@ public class GoodsReceivedNoteController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "List of GRNs in the range"),
             @ApiResponse(responseCode = "400", description = "startDate or endDate is missing or not a valid ISO date-time"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read goods receipts")
     })
     public ResponseEntity<Page<GoodsReceivedNoteDto>> getGrnsByDateRange(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
