@@ -41,7 +41,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * <p>Consent is a legal statement about the client's data, so the guard is the organization's
  * system-admin alone: hr-admin, who may edit the organization's other fields through the patch
  * endpoint, is refused here. These tests pin that the guard is {@code org-admin} on the matrix in
- * the organization the path names, which must be the request's, that a refusal never reaches the service, and that the body must carry an
+ * the organization the path names, that a refusal never reaches the service, and that the body must carry an
  * explicit value.
  */
 @WebMvcTest(OrganizationWebController.class)
@@ -62,11 +62,10 @@ class OrganizationDatasetConsentAuthzTest {
     @MockitoBean(name = "access")
     private AccessGuard access;
 
-    /** The system admin of organization {@code id}, with {@code id} the organization the request is for. */
+    /** Whether the caller is the system admin of organization {@code id}. */
     private void systemAdminOf(long id, boolean admin) {
-        when(orgSecurity.isCurrentTenant(id)).thenReturn(true);
-        when(access.can("org-admin", "read")).thenReturn(admin);
-        when(access.can("org-admin", "edit")).thenReturn(admin);
+        when(access.canIn(id, "org-admin", "read")).thenReturn(admin);
+        when(access.canIn(id, "org-admin", "edit")).thenReturn(admin);
     }
 
     @MockitoBean
@@ -111,9 +110,9 @@ class OrganizationDatasetConsentAuthzTest {
 
     @Test
     void setDatasetConsent_guardsOnTheOrganizationInThePath() throws Exception {
-        // system-admin of organization 7, the request's, gets nothing on organization 8.
+        // system-admin of organization 7 gets nothing on organization 8.
         systemAdminOf(7L, true);
-        when(orgSecurity.isCurrentTenant(8L)).thenReturn(false);
+        systemAdminOf(8L, false);
 
         mockMvc.perform(put("/api/v1/organization/web/8/dataset-consent").with(jwt())
                         .contentType(MediaType.APPLICATION_JSON)

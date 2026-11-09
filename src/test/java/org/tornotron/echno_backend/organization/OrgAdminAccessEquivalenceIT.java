@@ -32,8 +32,7 @@ import org.tornotron.echno_backend.modules.access.matrix.assignment.RoleAssignme
  * <p>Roles are given the way the old screens give them, through the assignment writer, so its legacy
  * mirror writes the {@code employee_org_roles} row the old checks read in the same transaction.
  * Neither area is scope aware, so the check is on the area alone. The handlers that name the
- * organization in their path also check that it is the request's, which is the same for every role
- * and is pinned by {@link OrgAdminGuardsTest}.
+ * organization in their path ask in that organization, which here is the caller's own.
  */
 class OrgAdminAccessEquivalenceIT extends RoleAssignmentITSupport {
 

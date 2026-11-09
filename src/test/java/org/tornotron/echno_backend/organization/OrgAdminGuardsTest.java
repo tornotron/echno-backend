@@ -22,7 +22,7 @@ import org.tornotron.echno_backend.common.module.web.ModuleControllerWeb;
  * Pins the access matrix action each handler of the organization's administration and profile
  * needs: the organization endpoints on both paths, the subscription, checkout and billing history,
  * group and role assignment, and the modules. A handler that names the organization in its path
- * also checks that it is the organization the request is for (marked {@code #id}).
+ * asks in that organization, through {@code @access.canIn(#id, ...)} (marked {@code #id}).
  *
  * <p>The platform administrator's handlers, the open ones and the ones shut with {@code denyAll()}
  * are not organization-scoped and keep their own guards, so only handlers asking {@code @access}
@@ -58,8 +58,6 @@ class OrgAdminGuardsTest {
             Map.entry("OrganizationWebController#setDatasetConsent", "#id org-admin:edit"),
             Map.entry("OrganizationWebController#deleteOrganization", "#id org-admin:delete"));
 
-    private static final String ON_THE_PATH = "@orgSecurity.isCurrentTenant(#id) and ";
-
     @Test
     void everyHandlerNeedsTheActionItPerforms() {
         Map<String, String> guards = handlers().stream().collect(Collectors.toMap(OrgAdminGuardsTest::key,
@@ -69,8 +67,8 @@ class OrgAdminGuardsTest {
         PERMISSION_BY_HANDLER.forEach((handler, permission) -> {
             boolean onThePath = permission.startsWith("#id ");
             String[] parts = permission.replace("#id ", "").split(":");
-            assertThat(guards.get(handler)).as(handler).isEqualTo(
-                    (onThePath ? ON_THE_PATH : "") + "@access.can('" + parts[0] + "', '" + parts[1] + "')");
+            assertThat(guards.get(handler)).as(handler).isEqualTo((onThePath ? "@access.canIn(#id, '" : "@access.can('")
+                    + parts[0] + "', '" + parts[1] + "')");
         });
     }
 
