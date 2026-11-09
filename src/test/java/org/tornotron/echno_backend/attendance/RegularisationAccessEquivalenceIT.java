@@ -12,6 +12,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Import;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.tornotron.echno_backend.common.enums.OrgRole;
@@ -39,6 +40,7 @@ import org.tornotron.echno_backend.modules.access.matrix.assignment.RoleAssignme
  * <p>Roles are given the way the old screens give them, through the assignment writer, so its legacy
  * mirror writes the {@code employee_org_roles} row the old checks read in the same transaction.
  */
+@Import(RegularisationAccess.class)
 class RegularisationAccessEquivalenceIT extends RoleAssignmentITSupport {
 
     /** The record-management roles. */
