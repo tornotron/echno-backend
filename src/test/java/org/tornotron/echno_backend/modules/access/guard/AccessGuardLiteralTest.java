@@ -44,6 +44,18 @@ class AccessGuardLiteralTest {
         @PreAuthorize("@access.can('harbour', 'read')")
         public void undeclared() {
         }
+
+        @PreAuthorize("@access.canIn(#id, 'finance', 'read')")
+        public void validIn(Long id) {
+        }
+
+        @PreAuthorize("@access.canIn(#id, 'harbour', 'read')")
+        public void undeclaredIn(Long id) {
+        }
+
+        @PreAuthorize("@access.canIn('finance', 'read')")
+        public void withoutItsOrganization() {
+        }
     }
 
     @Test
@@ -55,7 +67,9 @@ class AccessGuardLiteralTest {
     void aMalformedLiteralIsWhatTheCheckCatches() {
         assertThat(problems(List.of(PlantedGuards.class))).containsExactlyInAnyOrder(
                 PlantedGuards.class.getName() + ": @access.can('Finance', 'read')",
-                PlantedGuards.class.getName() + ": harbour:read is not declared");
+                PlantedGuards.class.getName() + ": harbour:read is not declared",
+                PlantedGuards.class.getName() + ": harbour:read is not declared",
+                PlantedGuards.class.getName() + ": @access.canIn('finance', 'read')");
     }
 
     private static List<String> problems(List<Class<?>> classes) {

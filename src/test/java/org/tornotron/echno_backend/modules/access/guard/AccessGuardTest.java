@@ -20,6 +20,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
+import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.modules.access.api.AccessPermission;
 import org.tornotron.echno_backend.modules.access.api.AccessService;
 import org.tornotron.echno_backend.modules.access.api.AccessSubject;
@@ -75,6 +76,11 @@ class AccessGuardTest {
         public String readNotices() {
             return "read";
         }
+
+        @PreAuthorize("@access.canIn(#organizationId, 'org-admin', 'delete')")
+        public String deleteOrganization(Long organizationId) {
+            return "deleted";
+        }
     }
 
     @Autowired
@@ -126,6 +132,57 @@ class AccessGuardTest {
 
         assertThatThrownBy(guarded::editWbs).isInstanceOf(AccessDeniedException.class);
         assertThatThrownBy(guarded::readNotices).isInstanceOf(AccessDeniedException.class);
+    }
+
+    /** Alice is a member of organization 7, the request's; Bob is a member of organization 8 only. */
+    private static final AccessSubject BOB_IN_8 = new AccessSubject(8L, 2L, 12L);
+
+    /** Resolves the caller as the given membership in each organization, from the request's organization at the time. */
+    private void memberships(Long organization, AccessSubject subject) {
+        when(current.resolve()).thenAnswer(call -> organization.equals(TenantContext.getCurrentOrgId())
+                ? Optional.of(subject) : Optional.empty());
+    }
+
+    @Test
+    void canInAnswersForAMemberOfTheOrganizationItNames() {
+        TenantContext.setCurrentOrgId(7L);
+        try {
+            memberships(8L, BOB_IN_8);
+            when(access.check(BOB_IN_8, AccessPermission.of("org-admin:delete"))).thenReturn(true);
+
+            assertThat(guarded.deleteOrganization(8L)).isEqualTo("deleted");
+            assertThat(TenantContext.getCurrentOrgId()).as("the request's organization is restored").isEqualTo(7L);
+        } finally {
+            TenantContext.clear();
+        }
+    }
+
+    @Test
+    void canInRefusesAMemberOfOnlyTheRequestsOrganization() {
+        TenantContext.setCurrentOrgId(7L);
+        try {
+            memberships(7L, ALICE);
+            when(access.check(ALICE, AccessPermission.of("org-admin:delete"))).thenReturn(true);
+
+            assertThatThrownBy(() -> guarded.deleteOrganization(8L)).isInstanceOf(AccessDeniedException.class);
+            assertThat(TenantContext.getCurrentOrgId()).isEqualTo(7L);
+        } finally {
+            TenantContext.clear();
+        }
+    }
+
+    @Test
+    void canInRefusesSomeoneWhoIsAMemberOfNeither() {
+        TenantContext.setCurrentOrgId(7L);
+        try {
+            when(current.resolve()).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> guarded.deleteOrganization(8L)).isInstanceOf(AccessDeniedException.class);
+            assertThat(guard.canIn(null, "org-admin", "delete")).isFalse();
+            assertThat(guard.canIn(8L, "Org", "delete")).isFalse();
+        } finally {
+            TenantContext.clear();
+        }
     }
 
     @Test

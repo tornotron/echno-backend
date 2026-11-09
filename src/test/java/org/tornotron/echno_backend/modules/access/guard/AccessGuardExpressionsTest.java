@@ -28,6 +28,23 @@ class AccessGuardExpressionsTest {
     }
 
     @Test
+    void readsTheLiteralsAfterCanInsOrganization() {
+        AccessGuardExpressions.Parsed parsed = AccessGuardExpressions.parse(
+                "@access.canIn(#id, 'org-admin', 'delete') or @access.can('wbs', 'read')");
+
+        assertThat(parsed.permissions()).containsExactlyInAnyOrder(
+                AccessPermission.of("org-admin:delete"), AccessPermission.of("wbs:read"));
+        assertThat(parsed.malformed()).isEmpty();
+    }
+
+    @Test
+    void aCanInWithoutItsOrganizationOrWithABadKeyIsMalformed() {
+        assertThat(AccessGuardExpressions.parse("@access.canIn('org-admin', 'delete')").malformed()).hasSize(1);
+        assertThat(AccessGuardExpressions.parse("@access.canIn(#id, 'Org', 'delete')").malformed()).hasSize(1);
+        assertThat(AccessGuardExpressions.parse("@access.canIn(#id, 'org-admin')").malformed()).hasSize(1);
+    }
+
+    @Test
     void aBadKeyOrANonLiteralArgumentIsMalformed() {
         assertThat(AccessGuardExpressions.parse("@access.can('Finance', 'read')").malformed()).hasSize(1);
         assertThat(AccessGuardExpressions.parse("@access.can('finance', 'read:all')").malformed()).hasSize(1);
