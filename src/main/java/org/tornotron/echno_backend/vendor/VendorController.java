@@ -51,7 +51,7 @@ public class VendorController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Vendor created"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to vendors")
     })
     public ResponseEntity<VendorDto> createVendor(@Valid @RequestBody VendorCreationDto creationDto) {
         VendorDto created = vendorService.createVendor(creationDto);
@@ -66,7 +66,7 @@ public class VendorController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Vendor found"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read vendors"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No vendor with the given id")
     })
     public ResponseEntity<VendorDto> getVendorById(@PathVariable Long id) {
@@ -82,7 +82,7 @@ public class VendorController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Vendors returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read vendors")
     })
     public ResponseEntity<List<VendorDto>> getAllVendors() {
         return UnpagedResultCap.respond(vendorService.getAllVendors(0, UnpagedResultCap.MAX_ROWS));
@@ -96,7 +96,7 @@ public class VendorController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of vendors returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read vendors")
     })
     public ResponseEntity<Page<VendorDto>> getAllVendorsPaginated(
             @Valid @ParameterObject PageQuery pageQuery
@@ -113,7 +113,7 @@ public class VendorController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Matching vendors returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read vendors")
     })
     public ResponseEntity<Page<VendorDto>> searchVendors(
             @RequestParam String name,
@@ -132,7 +132,7 @@ public class VendorController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Vendor updated"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to vendors"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No vendor with the given id")
     })
     public ResponseEntity<VendorDto> updateVendor(
@@ -151,7 +151,7 @@ public class VendorController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Vendor deleted"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to vendors"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No vendor with the given id")
     })
     public ResponseEntity<ApiResponse> deleteVendor(@PathVariable Long id) {
@@ -169,7 +169,7 @@ public class VendorController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Vendor summary returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read a vendor's financial details"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No vendor with the given id")
     })
     public ResponseEntity<VendorSummaryDto> getVendorSummary(@PathVariable Long vendorId) {
@@ -186,7 +186,7 @@ public class VendorController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Contacts returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read vendors"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No vendor with the given id")
     })
     public ResponseEntity<List<VendorContactDto>> getContacts(@PathVariable Long vendorId) {
@@ -202,7 +202,7 @@ public class VendorController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Contact created"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to vendors"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No vendor with the given id")
     })
     public ResponseEntity<VendorContactDto> addContact(
@@ -221,7 +221,7 @@ public class VendorController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Contact updated"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to vendors"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No vendor or contact with the given id")
     })
     public ResponseEntity<VendorContactDto> updateContact(
@@ -240,7 +240,7 @@ public class VendorController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Contact deleted"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to vendors"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No vendor or contact with the given id")
     })
     public ResponseEntity<ApiResponse> deleteContact(
@@ -261,7 +261,7 @@ public class VendorController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Tax identifiers returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read a vendor's financial details"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No vendor with the given id")
     })
     public ResponseEntity<List<VendorTaxIdentifierDto>> getTaxIdentifiers(@PathVariable Long vendorId) {
@@ -277,7 +277,7 @@ public class VendorController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Tax identifier created"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to vendors"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No vendor with the given id")
     })
     public ResponseEntity<VendorTaxIdentifierDto> addTaxIdentifier(
@@ -296,7 +296,7 @@ public class VendorController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Tax identifier updated"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to vendors"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No vendor or tax identifier with the given id")
     })
     public ResponseEntity<VendorTaxIdentifierDto> updateTaxIdentifier(
@@ -315,7 +315,7 @@ public class VendorController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Tax identifier deleted"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to vendors"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No vendor or tax identifier with the given id")
     })
     public ResponseEntity<ApiResponse> deleteTaxIdentifier(
@@ -336,7 +336,7 @@ public class VendorController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Bank accounts returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read a vendor's financial details"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No vendor with the given id")
     })
     public ResponseEntity<List<VendorBankAccountDto>> getBankAccounts(@PathVariable Long vendorId) {
@@ -352,7 +352,7 @@ public class VendorController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Bank account created"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to vendors"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No vendor with the given id")
     })
     public ResponseEntity<VendorBankAccountDto> addBankAccount(
@@ -371,7 +371,7 @@ public class VendorController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Bank account updated"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to vendors"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No vendor or bank account with the given id")
     })
     public ResponseEntity<VendorBankAccountDto> updateBankAccount(
@@ -390,7 +390,7 @@ public class VendorController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Bank account deleted"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to vendors"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No vendor or bank account with the given id")
     })
     public ResponseEntity<ApiResponse> deleteBankAccount(
@@ -411,7 +411,7 @@ public class VendorController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Payment terms returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read a vendor's financial details"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No vendor with the given id")
     })
     public ResponseEntity<VendorPaymentTermsDto> getPaymentTerms(@PathVariable Long vendorId) {
@@ -427,7 +427,7 @@ public class VendorController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Payment terms set"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to vendors"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No vendor with the given id")
     })
     public ResponseEntity<VendorPaymentTermsDto> setPaymentTerms(
@@ -445,7 +445,7 @@ public class VendorController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Payment terms deleted"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to vendors"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No vendor with the given id")
     })
     public ResponseEntity<ApiResponse> deletePaymentTerms(@PathVariable Long vendorId) {
