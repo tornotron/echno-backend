@@ -35,14 +35,18 @@ class AccessRoleTemplateSeedTest {
             "db/data/access/role-template-grants-purchasing.csv",
             "db/data/access/role-template-grants-payments.csv",
             "db/data/access/role-template-grants-finance-areas.csv",
-            "db/data/access/role-template-grants-vendor-financials.csv");
+            "db/data/access/role-template-grants-vendor-financials.csv",
+            "db/data/access/role-template-grants-labour.csv");
 
     /**
      * Template grants a later changeset deleted, by template slug and key: access-011 takes the
-     * baseline's finance:read, which it held only for expenses and receipts, now an area of their own.
+     * baseline's finance:read, which it held only for expenses and receipts, now an area of their own;
+     * access-013 takes the HR admin's construction writes, which it held only for labour, now an area of
+     * its own.
      */
     private static final Map<String, Set<String>> DELETED = Map.of(
-            BASELINE, Set.of("finance:read"));
+            BASELINE, Set.of("finance:read"),
+            "hr-admin", Set.of("construction:create", "construction:edit", "construction:delete"));
 
     private static final Map<String, String> SLUG_BY_ID = new HashMap<>();
     private static final Map<String, String> LEGACY_BY_SLUG = new HashMap<>();
@@ -169,6 +173,25 @@ class AccessRoleTemplateSeedTest {
                 assertThat(keys).as(slug).doesNotContain("vendors:read-financials");
             }
         });
+    }
+
+    @Test
+    void onlyTheSystemAdminAndTheHrAdminHoldLabour() {
+        // Labour was the system admin's and the HR admin's alone before the matrix, reads included,
+        // while every member reads the subcontracts and the system admin and project manager change
+        // them. The HR admin keeps no subcontract write.
+        Set<String> labour = Set.of("labour:read", "labour:create", "labour:edit", "labour:delete");
+        assertThat(KEYS_BY_SLUG.get("system-admin")).containsAll(labour);
+        assertThat(KEYS_BY_SLUG.get("hr-admin")).containsAll(labour)
+                .noneMatch(key -> key.startsWith("construction:"));
+        KEYS_BY_SLUG.forEach((slug, keys) -> {
+            if (!slug.equals("system-admin") && !slug.equals("hr-admin")) {
+                assertThat(keys).as(slug).noneMatch(key -> key.startsWith("labour:"));
+            }
+        });
+        assertThat(KEYS_BY_SLUG.get(BASELINE)).contains("construction:read");
+        assertThat(KEYS_BY_SLUG.get("project-manager"))
+                .contains("construction:create", "construction:edit", "construction:delete");
     }
 
     @Test

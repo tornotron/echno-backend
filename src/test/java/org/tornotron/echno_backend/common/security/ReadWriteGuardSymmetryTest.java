@@ -22,8 +22,6 @@ import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.issue.IssueControllerWeb;
 import org.tornotron.echno_backend.issue.IssueService;
-import org.tornotron.echno_backend.subcontract.SubContractControllerWeb;
-import org.tornotron.echno_backend.subcontract.SubContractService;
 
 import java.util.stream.Stream;
 
@@ -38,7 +36,7 @@ import org.tornotron.echno_backend.common.payload.JsonPartBinder;
 import org.tornotron.echno_backend.common.payload.PayloadValidator;
 
 /**
- * Locks in the read guards across the three controllers that carried the asymmetry fixed for
+ * Locks in the read guards across the two controllers that still carry the asymmetry fixed for
  * projects in #399: their reads gated on tenant membership while their writes gated on the
  * system-admin or project-manager org role.
  *
@@ -48,7 +46,8 @@ import org.tornotron.echno_backend.common.payload.PayloadValidator;
  * eighth and work categories the seventh until they moved onto the access matrix, where
  * {@code AssetAccessEquivalenceIT} and {@code ProjectAccessEquivalenceIT} hold every role to the
  * reads it had. Expenses and receipts left the same way, and {@code ExpenseAccessEquivalenceIT}
- * holds them. Tasks left too, for {@code TaskAccessEquivalenceIT}.
+ * holds them. Tasks left too, for {@code TaskAccessEquivalenceIT}, and sub-contracts, for
+ * {@code SubContractAccessEquivalenceIT}.
  *
  * <p><b>The role-without-membership case this class used to assert has been removed, because it
  * asserted an outcome for a state the real beans cannot produce.</b> It stubbed
@@ -73,12 +72,11 @@ import org.tornotron.echno_backend.common.payload.PayloadValidator;
  * expression without building JWT authorities; what was wrong was stubbing a combination the
  * bean cannot return, and that is now a test failure at the point of stubbing.
  *
- * <p>Deliberately one @WebMvcTest over all three controllers rather than three separate slices.
- * Spring caches a context per distinct slice and the test JVM is capped, so three new contexts
+ * <p>Deliberately one @WebMvcTest over both controllers rather than separate slices.
+ * Spring caches a context per distinct slice and the test JVM is capped, so two new contexts
  * would be a real cost; this adds exactly one.
  */
 @WebMvcTest({
-        SubContractControllerWeb.class,
         IssueControllerWeb.class,
         IssueCommentControllerWeb.class
 })
@@ -88,7 +86,6 @@ class ReadWriteGuardSymmetryTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockitoBean private SubContractService subContractService;
     @MockitoBean private IssueService issueService;
     @MockitoBean private IssueCommentService issueCommentService;
 
@@ -106,7 +103,6 @@ class ReadWriteGuardSymmetryTest {
     /** The list endpoint of each controller whose read guard was widened. */
     static Stream<String> widenedReadEndpoints() {
         return Stream.of(
-                "/api/v1/sub-contracts/web",
                 "/api/v1/issues/web",
                 "/api/v1/issues/comments/web"
         );
@@ -115,7 +111,6 @@ class ReadWriteGuardSymmetryTest {
     @BeforeEach
     void stubEmptyResults() {
         // The handlers that page call getContent() on the result, so these cannot be left null.
-        when(subContractService.getPaginated(anyInt(), anyInt(), any(), any(), any())).thenReturn(Page.empty());
         when(issueService.getAllIssuesPaginated(anyInt(), anyInt(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(Page.empty());
         when(issueCommentService.getAllIssueComments(anyInt(), anyInt())).thenReturn(Page.empty());

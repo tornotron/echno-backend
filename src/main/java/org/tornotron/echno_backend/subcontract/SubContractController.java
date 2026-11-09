@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(
         name = "Subcontracts (Mobile)",
         description = "The tenant API path of the endpoints under /api/v1/sub-contracts/web, for the mobile client. "
-                + "Same handlers, request and response shapes and organization-role guards as the web "
+                + "Same handlers, request and response shapes and access permissions as the web "
                 + "endpoints; send X-Organization-Id to pick the organization."
 )
 public class SubContractController extends SubContractControllerWeb {

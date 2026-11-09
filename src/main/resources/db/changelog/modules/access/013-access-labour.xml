@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        labour (echno-backend #914): the workforce register, which only the system admin and the HR
+        admin read and change today. The subcontracts stay in construction, which every member reads
+        and the system admin and project manager change. One area for both would either open labour
+        to every member and to the project manager, or give the HR admin the subcontract writes, so
+        labour becomes an area of its own and the move onto the matrix changes nobody's access.
+
+        The HR admin held construction:create, edit and delete only for labour, so they go here, and
+        the system admin and HR admin get every labour action. The baseline gets no labour read.
+
+        A file of its own because 008 loads role-template-grants.csv with no runOnChange. The
+        reconciler carries the template to every uncustomized role on the next boot, in both
+        directions; a customized role is left as its organization set it.
+    -->
+
+    <changeSet id="access-013-labour" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT count(*) FROM access_role_template_grant
+                WHERE template_id = 'ed34dfe6-5468-5f6e-b6ed-ef6eefccfce2'
+                  AND permission_key = 'labour:read'
+            </sqlCheck>
+        </preConditions>
+        <delete tableName="access_role_template_grant">
+            <where>template_id = 'eed8ef8b-48a6-5997-8302-df4fe971bfd1'
+                AND permission_key IN ('construction:create', 'construction:edit', 'construction:delete')</where>
+        </delete>
+        <loadData tableName="access_role_template_grant" file="db/data/access/role-template-grants-labour.csv" separator=",">
+            <column name="id" type="UUID"/>
+            <column name="template_id" type="UUID"/>
+            <column name="permission_key" type="STRING"/>
+            <column name="scope" type="STRING"/>
+        </loadData>
+    </changeSet>
+
+</databaseChangeLog>
