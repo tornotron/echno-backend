@@ -97789,7 +97789,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read the whole stock ledger"
           },
           "404": {
             "content": {
@@ -97920,7 +97920,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read the whole stock ledger"
           },
           "404": {
             "content": {
@@ -98069,7 +98069,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read the whole stock ledger"
           },
           "404": {
             "content": {
@@ -98209,7 +98209,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inventory"
           },
           "404": {
             "content": {
@@ -98349,7 +98349,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inventory"
           },
           "404": {
             "content": {
@@ -98462,7 +98462,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inventory"
           },
           "404": {
             "content": {
@@ -98602,7 +98602,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inventory"
           },
           "404": {
             "content": {
@@ -98718,7 +98718,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inventory"
           },
           "404": {
             "content": {
@@ -98858,7 +98858,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inventory"
           },
           "404": {
             "content": {
@@ -98971,7 +98971,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inventory"
           },
           "404": {
             "content": {
@@ -99111,7 +99111,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inventory"
           },
           "404": {
             "content": {
@@ -99270,7 +99270,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read the whole stock ledger"
           },
           "404": {
             "content": {
@@ -99375,7 +99375,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read the whole stock ledger"
           },
           "404": {
             "content": {
@@ -99506,7 +99506,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read the whole stock ledger"
           },
           "404": {
             "content": {
@@ -99631,7 +99631,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read the whole stock ledger"
           },
           "404": {
             "content": {
@@ -99747,7 +99747,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inventory"
           },
           "404": {
             "content": {
@@ -99887,7 +99887,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inventory"
           },
           "404": {
             "content": {
@@ -100000,7 +100000,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inventory"
           },
           "404": {
             "content": {
@@ -100116,7 +100116,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inventory"
           },
           "404": {
             "content": {
@@ -100232,7 +100232,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inventory"
           },
           "404": {
             "content": {
@@ -100348,7 +100348,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inventory"
           },
           "404": {
             "content": {
@@ -100482,7 +100482,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inventory"
           },
           "404": {
             "content": {
@@ -100595,7 +100595,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inventory"
           },
           "404": {
             "content": {
@@ -100711,7 +100711,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inventory"
           },
           "404": {
             "content": {
@@ -100846,7 +100846,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read the whole stock ledger"
           },
           "404": {
             "content": {
@@ -100959,7 +100959,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inventory"
           },
           "404": {
             "content": {
@@ -101072,7 +101072,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inventory"
           },
           "404": {
             "content": {
@@ -119049,7 +119049,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read materials"
           },
           "404": {
             "content": {
@@ -119159,7 +119159,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to materials"
           },
           "404": {
             "content": {
@@ -119290,7 +119290,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read materials"
           },
           "404": {
             "content": {
@@ -119439,7 +119439,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read materials"
           },
           "404": {
             "content": {
@@ -119578,7 +119578,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read materials"
           },
           "404": {
             "content": {
@@ -119683,7 +119683,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read materials"
           },
           "404": {
             "content": {
@@ -119793,7 +119793,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to materials"
           },
           "404": {
             "content": {
@@ -119924,7 +119924,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read materials"
           },
           "404": {
             "content": {
@@ -120073,7 +120073,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read materials"
           },
           "404": {
             "content": {
@@ -120188,7 +120188,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read materials"
           },
           "404": {
             "content": {
@@ -120301,7 +120301,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read materials"
           },
           "404": {
             "content": {
@@ -120414,7 +120414,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to materials"
           },
           "404": {
             "content": {
@@ -120525,7 +120525,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read materials"
           },
           "404": {
             "content": {
@@ -120646,7 +120646,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to materials"
           },
           "404": {
             "content": {
@@ -120777,7 +120777,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read materials"
           },
           "404": {
             "content": {
@@ -120893,7 +120893,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read materials"
           },
           "404": {
             "content": {
@@ -121008,7 +121008,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to materials"
           },
           "404": {
             "content": {
@@ -121138,7 +121138,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to materials"
           },
           "404": {
             "content": {
@@ -121251,7 +121251,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to materials"
           },
           "404": {
             "content": {
@@ -121362,7 +121362,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read materials"
           },
           "404": {
             "content": {
@@ -121483,7 +121483,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to materials"
           },
           "404": {
             "content": {
@@ -121614,7 +121614,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read materials"
           },
           "404": {
             "content": {
@@ -121730,7 +121730,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read materials"
           },
           "404": {
             "content": {
@@ -121845,7 +121845,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to materials"
           },
           "404": {
             "content": {
@@ -121975,7 +121975,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to materials"
           },
           "404": {
             "content": {
@@ -148512,7 +148512,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read site transfers"
           },
           "404": {
             "content": {
@@ -148622,7 +148622,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to site transfers"
           },
           "404": {
             "content": {
@@ -148753,7 +148753,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read site transfers"
           },
           "404": {
             "content": {
@@ -148893,7 +148893,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read site transfers"
           },
           "404": {
             "content": {
@@ -149033,7 +149033,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read site transfers"
           },
           "404": {
             "content": {
@@ -149179,7 +149179,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read site transfers"
           },
           "404": {
             "content": {
@@ -149284,7 +149284,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read site transfers"
           },
           "404": {
             "content": {
@@ -149394,7 +149394,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to site transfers"
           },
           "404": {
             "content": {
@@ -149525,7 +149525,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read site transfers"
           },
           "404": {
             "content": {
@@ -149641,7 +149641,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read site transfers"
           },
           "404": {
             "content": {
@@ -149766,7 +149766,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read site transfers"
           },
           "404": {
             "content": {
@@ -149882,7 +149882,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read site transfers"
           },
           "404": {
             "content": {
@@ -150004,7 +150004,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read site transfers"
           },
           "404": {
             "content": {
@@ -150117,7 +150117,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read site transfers"
           },
           "404": {
             "content": {
@@ -150240,7 +150240,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to site transfers"
           },
           "404": {
             "content": {
@@ -150363,7 +150363,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to site transfers"
           },
           "404": {
             "content": {
@@ -150492,7 +150492,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to site transfers"
           },
           "404": {
             "content": {
@@ -150632,7 +150632,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read site transfers"
           },
           "404": {
             "content": {
@@ -150745,7 +150745,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read site transfers"
           },
           "404": {
             "content": {
@@ -150868,7 +150868,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to site transfers"
           },
           "404": {
             "content": {
@@ -150991,7 +150991,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to site transfers"
           },
           "404": {
             "content": {
@@ -151120,7 +151120,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to site transfers"
           },
           "404": {
             "content": {
@@ -151225,7 +151225,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inventory"
           },
           "404": {
             "content": {
@@ -151335,7 +151335,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inventory"
           },
           "404": {
             "content": {
@@ -151462,7 +151462,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inventory"
           },
           "404": {
             "content": {
@@ -151593,7 +151593,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inventory"
           },
           "404": {
             "content": {
@@ -151698,7 +151698,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inventory"
           },
           "404": {
             "content": {
@@ -151808,7 +151808,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inventory"
           },
           "404": {
             "content": {
@@ -151935,7 +151935,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inventory"
           },
           "404": {
             "content": {
@@ -152066,7 +152066,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inventory"
           },
           "404": {
             "content": {
@@ -152179,7 +152179,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inventory"
           },
           "404": {
             "content": {
@@ -152290,7 +152290,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inventory"
           },
           "404": {
             "content": {
@@ -152411,7 +152411,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inventory"
           },
           "404": {
             "content": {
@@ -152524,7 +152524,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inventory"
           },
           "404": {
             "content": {
@@ -152647,7 +152647,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inventory"
           },
           "404": {
             "content": {
@@ -152760,7 +152760,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inventory"
           },
           "404": {
             "content": {
@@ -152871,7 +152871,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read inventory"
           },
           "404": {
             "content": {
@@ -152992,7 +152992,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inventory"
           },
           "404": {
             "content": {
@@ -153105,7 +153105,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inventory"
           },
           "404": {
             "content": {
@@ -153228,7 +153228,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to inventory"
           },
           "404": {
             "content": {
