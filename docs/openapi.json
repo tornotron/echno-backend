@@ -37953,7 +37953,7 @@
     },
     "/api/v1/attendance-regularizations/calendar": {
       "get": {
-        "description": "Returns every day of the month for one employee with what the day needs: complete, missing, incomplete, pending a regularization decision, on leave, a non-working day, or in the future, and whether the employee can act on it. Readable by the employee and by holders of an attendance record-management role.",
+        "description": "Returns every day of the month for one employee with what the day needs: complete, missing, incomplete, pending a regularization decision, on leave, a non-working day, or in the future, and whether the employee can act on it. Readable by the employee and by anyone who reads regularizations across the organization.",
         "operationId": "AttendanceRegularizationController_calendar",
         "parameters": [
           {
@@ -38026,7 +38026,7 @@
                 }
               }
             },
-            "description": "Caller may not view this employee's attendance"
+            "description": "Caller may not read this employee's regularizations"
           },
           "404": {
             "content": {
@@ -38157,7 +38157,7 @@
                 }
               }
             },
-            "description": "Caller lacks permission to manage attendance records"
+            "description": "Caller may not read every employee's regularization requests"
           },
           "404": {
             "content": {
@@ -38269,7 +38269,7 @@
                 }
               }
             },
-            "description": "Caller is neither the employee the attendance record belongs to nor a holder of an attendance record-management role"
+            "description": "Caller may not raise a regularization on this attendance record: it is not their own, and they may not raise them for every employee"
           },
           "404": {
             "content": {
@@ -38381,7 +38381,7 @@
                 }
               }
             },
-            "description": "Caller is neither the employee named nor a holder of an attendance record-management role"
+            "description": "Caller may not raise a regularization for this employee: it is not their own attendance, and they may not raise them for every employee"
           },
           "404": {
             "content": {
@@ -38543,7 +38543,7 @@
                 }
               }
             },
-            "description": "Caller lacks permission to manage attendance records"
+            "description": "Caller may not read every employee's regularization requests"
           },
           "404": {
             "content": {
@@ -38604,7 +38604,7 @@
     },
     "/api/v1/attendance-regularizations/web/calendar": {
       "get": {
-        "description": "Returns every day of the month for one employee with what the day needs: complete, missing, incomplete, pending a regularization decision, on leave, a non-working day, or in the future, and whether the employee can act on it. Readable by the employee and by holders of an attendance record-management role.",
+        "description": "Returns every day of the month for one employee with what the day needs: complete, missing, incomplete, pending a regularization decision, on leave, a non-working day, or in the future, and whether the employee can act on it. Readable by the employee and by anyone who reads regularizations across the organization.",
         "operationId": "AttendanceRegularizationControllerWeb_calendar",
         "parameters": [
           {
@@ -38677,7 +38677,7 @@
                 }
               }
             },
-            "description": "Caller may not view this employee's attendance"
+            "description": "Caller may not read this employee's regularizations"
           },
           "404": {
             "content": {
@@ -38782,7 +38782,7 @@
                 }
               }
             },
-            "description": "Caller lacks permission to manage attendance records"
+            "description": "Caller may not read every employee's regularization requests"
           },
           "404": {
             "content": {
@@ -38894,7 +38894,7 @@
                 }
               }
             },
-            "description": "Caller is neither the employee the attendance record belongs to nor a holder of an attendance record-management role"
+            "description": "Caller may not raise a regularization on this attendance record: it is not their own, and they may not raise them for every employee"
           },
           "404": {
             "content": {
@@ -39006,7 +39006,7 @@
                 }
               }
             },
-            "description": "Caller is neither the employee named nor a holder of an attendance record-management role"
+            "description": "Caller may not raise a regularization for this employee: it is not their own attendance, and they may not raise them for every employee"
           },
           "404": {
             "content": {
@@ -39119,7 +39119,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read regularization requests"
           },
           "404": {
             "content": {
@@ -39242,7 +39242,7 @@
                 }
               }
             },
-            "description": "Caller lacks permission to manage attendance records"
+            "description": "Caller may not decide regularization requests"
           },
           "404": {
             "content": {
@@ -39355,7 +39355,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read regularization requests"
           },
           "404": {
             "content": {
@@ -39478,7 +39478,7 @@
                 }
               }
             },
-            "description": "Caller lacks permission to manage attendance records"
+            "description": "Caller may not decide regularization requests"
           },
           "404": {
             "content": {
