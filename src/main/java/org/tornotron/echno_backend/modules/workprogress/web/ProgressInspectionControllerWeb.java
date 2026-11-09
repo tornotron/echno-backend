@@ -44,7 +44,7 @@ public class ProgressInspectionControllerWeb {
     private final ProgressInspectionService service;
 
     @GetMapping
-    @PreAuthorize(WorkProgressModule.READ_GUARD)
+    @PreAuthorize("@access.can('progress', 'read')")
     @Operation(summary = "List progress inspections, newest first",
             description = "Filter by project and by activity; both are optional.")
     @ApiResponses(@ApiResponse(responseCode = "200", description = "A page of progress inspections"))
@@ -55,7 +55,7 @@ public class ProgressInspectionControllerWeb {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize(WorkProgressModule.READ_GUARD)
+    @PreAuthorize("@access.can('progress', 'read')")
     @Operation(summary = "Get one progress inspection")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "The progress inspection"),
@@ -66,7 +66,7 @@ public class ProgressInspectionControllerWeb {
     }
 
     @PostMapping
-    @PreAuthorize(WorkProgressModule.RECORD_GUARD)
+    @PreAuthorize("@access.can('progress', 'create')")
     @Operation(summary = "Record a progress inspection of an activity",
             description = "Records whether the activity was done, partly done or not done on the inspection date, with the "
                     + "actual dates, a forecast finish and the reason for any delay, and applies it to the activity. The "
@@ -74,7 +74,7 @@ public class ProgressInspectionControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Progress inspection recorded and applied to the activity"),
             @ApiResponse(responseCode = "400", description = "A value breaks a rule: the outcome and percent disagree, a date is missing or out of order, a delay has no reason, or the activity is not a leaf or is already completed"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to the progress record"),
             @ApiResponse(responseCode = "404", description = "No such activity in the current tenant")
     })
     public ResponseEntity<ProgressInspectionDto> record(@Valid @RequestBody RecordProgressInspectionRequest req) {
@@ -82,7 +82,7 @@ public class ProgressInspectionControllerWeb {
     }
 
     @GetMapping("/{id}/evidence")
-    @PreAuthorize(WorkProgressModule.READ_GUARD)
+    @PreAuthorize("@access.can('progress', 'read')")
     @Operation(summary = "List a progress inspection's evidence")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Evidence returned"),
@@ -93,13 +93,13 @@ public class ProgressInspectionControllerWeb {
     }
 
     @PostMapping("/{id}/evidence/presign")
-    @PreAuthorize(WorkProgressModule.RECORD_GUARD)
+    @PreAuthorize("@access.can('progress', 'create')")
     @Operation(summary = "Presign evidence uploads for a progress inspection",
             description = "Step one of the direct-to-storage path, as for inspection evidence.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Presigned upload URLs returned"),
             @ApiResponse(responseCode = "400", description = "A file was declared twice, or is already attached"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to the progress record"),
             @ApiResponse(responseCode = "404", description = "No such progress inspection in the current tenant")
     })
     public List<PresignedUpload> presignEvidence(@PathVariable UUID id, @RequestBody List<UploadRequest> uploads) {
@@ -107,13 +107,13 @@ public class ProgressInspectionControllerWeb {
     }
 
     @PostMapping("/{id}/evidence/register")
-    @PreAuthorize(WorkProgressModule.RECORD_GUARD)
+    @PreAuthorize("@access.can('progress', 'create')")
     @Operation(summary = "Register presigned evidence uploads for a progress inspection",
             description = "Step two of the direct-to-storage path: confirms the keys once each object is verified present in storage.")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Evidence registered"),
             @ApiResponse(responseCode = "400", description = "A referenced object is missing from storage, or its key was not presigned for this inspection"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to the progress record"),
             @ApiResponse(responseCode = "404", description = "No such progress inspection in the current tenant")
     })
     public ResponseEntity<List<AttachmentDto>> registerEvidence(@PathVariable UUID id,

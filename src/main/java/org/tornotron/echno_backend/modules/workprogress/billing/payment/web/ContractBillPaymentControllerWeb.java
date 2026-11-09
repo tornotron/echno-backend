@@ -39,7 +39,7 @@ public class ContractBillPaymentControllerWeb {
     private final BillPaymentService payments;
 
     @GetMapping("/bills/{id}/payments")
-    @PreAuthorize(WorkProgressModule.READ_GUARD)
+    @PreAuthorize("@access.can('progress-bills', 'read')")
     @Operation(summary = "A bill's payments and what is left to pay")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "The payments, newest first, with the payable's figures"),
@@ -50,7 +50,7 @@ public class ContractBillPaymentControllerWeb {
     }
 
     @GetMapping("/projects/{projectId}/payment-authorizer")
-    @PreAuthorize(WorkProgressModule.READ_GUARD)
+    @PreAuthorize("@access.can('progress-bills', 'read')")
     @Operation(summary = "Who authorizes payments on a project's bills", description = "The employee the project names, whether the reader is that person or may change it, and the latest changes.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "The project's payment authorizer, or none"),
@@ -61,12 +61,12 @@ public class ContractBillPaymentControllerWeb {
     }
 
     @PutMapping("/projects/{projectId}/payment-authorizer")
-    @PreAuthorize(WorkProgressModule.PAYMENT_AUTHORIZER_SETUP_GUARD)
+    @PreAuthorize("@access.can('progress-bills', 'edit')")
     @Operation(summary = "Name a project's payment authorizer", description = "Replaces the one before; the change is kept with who made it. Holding the role to do this does not let the caller authorize payments.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Named"),
             @ApiResponse(responseCode = "400", description = "The employee is no longer active"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to contractor bills"),
             @ApiResponse(responseCode = "404", description = "No such project or employee in the current tenant")
     })
     public ProjectPaymentAuthorizerDto setAuthorizer(@PathVariable Long projectId,
@@ -75,11 +75,11 @@ public class ContractBillPaymentControllerWeb {
     }
 
     @DeleteMapping("/projects/{projectId}/payment-authorizer")
-    @PreAuthorize(WorkProgressModule.PAYMENT_AUTHORIZER_SETUP_GUARD)
+    @PreAuthorize("@access.can('progress-bills', 'edit')")
     @Operation(summary = "Leave a project with no payment authorizer", description = "Its payments wait until one is named. The change is kept.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Cleared"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to contractor bills"),
             @ApiResponse(responseCode = "404", description = "No such project in the current tenant")
     })
     public ProjectPaymentAuthorizerDto clearAuthorizer(@PathVariable Long projectId) {
@@ -87,12 +87,12 @@ public class ContractBillPaymentControllerWeb {
     }
 
     @PostMapping("/bills/{id}/payments")
-    @PreAuthorize(WorkProgressModule.BILL_PAY_REQUEST_GUARD)
+    @PreAuthorize("@access.can('progress-bills', 'approve')")
     @Operation(summary = "Raise a payment on an approved bill", description = "An amount up to what is due; less is a part payment. It then waits for the second signature. A bill has one payment in flight at a time.")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Raised"),
             @ApiResponse(responseCode = "400", description = "Not approved, nothing due, more than is due, one already in flight, or no bank details for a provider to pay"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to contractor bills"),
             @ApiResponse(responseCode = "404", description = "No such bill in the current tenant")
     })
     public ResponseEntity<BillPaymentsDto> raise(@PathVariable UUID id, @Valid @RequestBody RaiseBillPaymentRequest req) {
@@ -100,7 +100,7 @@ public class ContractBillPaymentControllerWeb {
     }
 
     @PostMapping("/bill-payments/{paymentId}/authorize")
-    @PreAuthorize(WorkProgressModule.BILL_PAY_AUTHORIZE_GUARD)
+    @PreAuthorize("@access.can('progress-bills', 'read')")
     @Operation(summary = "Authorize a payment", description = "The second signature, which only the project's payment authorizer gives, and never on a payment they raised. Sends it when a provider is configured. A send with no answer stays authorized and shows the error; sync tries again safely.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Authorized, and sent if a provider carries it"),
@@ -113,7 +113,7 @@ public class ContractBillPaymentControllerWeb {
     }
 
     @PostMapping("/bill-payments/{paymentId}/reject")
-    @PreAuthorize(WorkProgressModule.BILL_PAY_AUTHORIZE_GUARD)
+    @PreAuthorize("@access.can('progress-bills', 'read')")
     @Operation(summary = "Reject a payment", description = "With a reason, before a provider has acknowledged it.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Rejected"),
@@ -126,7 +126,7 @@ public class ContractBillPaymentControllerWeb {
     }
 
     @PostMapping("/bill-payments/{paymentId}/record")
-    @PreAuthorize(WorkProgressModule.BILL_PAY_AUTHORIZE_GUARD)
+    @PreAuthorize("@access.can('progress-bills', 'read')")
     @Operation(summary = "Record that a manual payment was made", description = "With the bank reference and date. This settles it and records it on the payable.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Settled"),
@@ -139,7 +139,7 @@ public class ContractBillPaymentControllerWeb {
     }
 
     @PostMapping("/bill-payments/{paymentId}/sync")
-    @PreAuthorize(WorkProgressModule.BILL_PAY_AUTHORIZE_GUARD)
+    @PreAuthorize("@access.can('progress-bills', 'read')")
     @Operation(summary = "Send again or ask the provider", description = "Sends again a payment whose send got no answer, with the same idempotency key, or asks where one stands.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "What is now known"),

@@ -29,7 +29,7 @@ import org.tornotron.echno_backend.project.ProjectRepository;
  * Who may give the second signature on a project's bill payments, and naming that person.
  *
  * <p>Each project names one employee as its payment authorizer. Whoever may manage the project (a
- * system admin or a project manager, {@code WorkProgressModule.PAYMENT_AUTHORIZER_SETUP_GUARD}) names
+ * system admin or a project manager, who hold {@code progress-bills:edit}) names
  * or changes them, so an organization cannot lock itself out; holding either role does not by itself
  * let anyone authorize a payment. The authority is checked here, inside the transaction that changes
  * the payment, so a change of authorizer and a signature cannot cross.

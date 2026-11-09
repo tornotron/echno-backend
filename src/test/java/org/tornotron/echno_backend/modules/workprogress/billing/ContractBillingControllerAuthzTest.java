@@ -1,6 +1,5 @@
 package org.tornotron.echno_backend.modules.workprogress.billing;
 
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -30,7 +29,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
 import org.tornotron.echno_backend.common.configuration.RPTCache;
-import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
+import org.tornotron.echno_backend.modules.access.guard.AccessGuard;
 import org.tornotron.echno_backend.modules.workprogress.billing.service.ContractBillPdfService;
 import org.tornotron.echno_backend.modules.workprogress.billing.service.ContractBillService;
 import org.tornotron.echno_backend.modules.workprogress.billing.service.ContractBillingService;
@@ -38,9 +37,11 @@ import org.tornotron.echno_backend.modules.workprogress.billing.web.ContractBill
 import org.tornotron.echno_backend.modules.workprogress.billing.web.ContractBillingControllerWeb;
 
 /**
- * The guard on every handler of both billing twins, at the slice: reads need membership of the
- * tenant, every write needs one of its roles, and each request is tried on both prefixes so the
- * twins cannot drift apart. Which roles each guard names is pinned in {@code WorkProgressModuleTest}.
+ * The guard on every handler of both billing twins, at the slice: reads need progress-bills:read,
+ * which every member holds through the baseline, every write needs the progress-bills action it
+ * makes, and each request is tried on both prefixes so the twins cannot drift apart. Which action
+ * each handler asks is pinned in {@code WorkProgressGuardsTest}, and that each role holds exactly
+ * what it did is {@code WorkProgressAccessEquivalenceIT}'s to show.
  */
 @WebMvcTest({ContractBillingController.class, ContractBillingControllerWeb.class})
 @Import(ContractBillingControllerAuthzTest.TestSecurityConfig.class)
@@ -58,8 +59,22 @@ class ContractBillingControllerAuthzTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockitoBean(name = "orgSecurity")
-    private OrganizationSecurityService orgSecurity;
+    // Named to match the @access bean the @PreAuthorize SpEL references.
+    @MockitoBean(name = "access")
+    private AccessGuard access;
+
+    /** The baseline's actions: every member reads. */
+    private static final String[] MEMBER = {"progress-bills:read"};
+    /** The system admin's and project manager's: the baseline plus every change. */
+    private static final String[] PAIR = {"progress-bills:read", "progress-bills:edit", "progress-bills:prepare", "progress-bills:verify", "progress-bills:certify", "progress-bills:approve"};
+
+    /** Stubs {@code @access} to allow exactly these area:action keys; every other check answers false. */
+    private void holds(String... permissions) {
+        for (String permission : permissions) {
+            String[] parts = permission.split(":");
+            when(access.can(parts[0], parts[1])).thenReturn(true);
+        }
+    }
 
     @MockitoBean
     private ContractBillingService billing;
@@ -123,29 +138,28 @@ class ContractBillingControllerAuthzTest {
     @ParameterizedTest(name = "{0} on {1}")
     @MethodSource("reads")
     void aReadIsForbiddenForANonMember(String name, String prefix, Endpoint endpoint) throws Exception {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(false);
+        holds();
         mockMvc.perform(endpoint.on(prefix).with(memberOfOrgSeven())).andExpect(status().isForbidden());
     }
 
     @ParameterizedTest(name = "{0} on {1}")
     @MethodSource("reads")
     void aReadIsOkForAMember(String name, String prefix, Endpoint endpoint) throws Exception {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
+        holds(MEMBER);
         mockMvc.perform(endpoint.on(prefix).with(memberOfOrgSeven())).andExpect(status().is2xxSuccessful());
     }
 
     @ParameterizedTest(name = "{0} on {1}")
     @MethodSource("writes")
     void aWriteIsForbiddenForAMemberWithoutTheRole(String name, String prefix, Endpoint endpoint) throws Exception {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(false);
+        holds(MEMBER);
         mockMvc.perform(endpoint.on(prefix).with(memberOfOrgSeven())).andExpect(status().isForbidden());
     }
 
     @ParameterizedTest(name = "{0} on {1}")
     @MethodSource("writes")
     void aWriteIsAllowedForTheRole(String name, String prefix, Endpoint endpoint) throws Exception {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(true);
+        holds(PAIR);
         mockMvc.perform(endpoint.on(prefix).with(memberOfOrgSeven())).andExpect(status().is2xxSuccessful());
     }
 
