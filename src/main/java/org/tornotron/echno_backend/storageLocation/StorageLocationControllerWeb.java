@@ -26,14 +26,13 @@ import java.util.List;
 @Validated
 @Tag(
         name = "Storage Locations (Web)",
-        description = "Web-console counterpart of the storage location API, gated by organization role "
-                + "instead of a flat authority. Covers the same create, read and lookup operations as the "
-                + "mobile API plus partial update and delete, which the mobile API does not expose. Reads "
-                + "are open to the system-admin, project-manager and store-keeper roles in the caller's "
-                + "current tenant, because a project manager raises and approves stock adjustments and "
-                + "cannot pick a location to count without them, and every stores document names the "
-                + "location the material came from or went to. Creating, editing and deleting a location "
-                + "stays with system-admin."
+        description = "Web-console counterpart of the storage location API. Covers the same create, read "
+                + "and lookup operations as the mobile API plus partial update and delete, which the mobile "
+                + "API does not expose. Reads need storage-locations:read, and creating, editing and "
+                + "deleting a location need storage-locations:create, edit and delete. The starting roles "
+                + "give read to the system admin, project manager and store keeper, because a project "
+                + "manager counts stock at a location and every stores document names one, and the "
+                + "writes to the system admin alone."
 )
 public class StorageLocationControllerWeb {
 

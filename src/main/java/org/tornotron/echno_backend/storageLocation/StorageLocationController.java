@@ -28,8 +28,8 @@ import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
         description = "Physical places where inventory is held, such as a site store, a central warehouse "
                 + "or a godown. A location carries a name, type, optional project link and coordinates. "
                 + "Endpoints cover creating a location and listing or looking one up by id, project or "
-                + "type. Access follows the organization roles of the /web twin, endpoint for "
-                + "endpoint."
+                + "type. Each endpoint needs the storage-locations permission its /web twin needs: "
+                + "storage-locations:read for the reads and storage-locations:create to add a location."
 )
 public class StorageLocationController {
 
