@@ -40,7 +40,7 @@ public class LeavePolicyController {
 
     @PostMapping
 //    @PreAuthorize("hasAuthority('leave:admin')")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@access.can('leave-policies', 'create')")
     @Operation(
             summary = "Create a leave policy",
             description = "Creates a leave policy for an organization from the given quota, accrual and "
@@ -49,7 +49,7 @@ public class LeavePolicyController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Policy created"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The policy payload failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to leave policies")
     })
     public ResponseEntity<LeavePolicyDto> createPolicy(
             @Valid @RequestBody LeavePolicyCreationDto dto) {
@@ -59,14 +59,14 @@ public class LeavePolicyController {
 
     @GetMapping("/{policyId}")
 //    @PreAuthorize("hasAuthority('leave:read') or hasAuthority('leave:admin')")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @PreAuthorize("@access.can('leave-policies', 'read')")
     @Operation(
             summary = "Get a leave policy by id",
             description = "Returns a single leave policy with its quota, accrual and eligibility rules."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Policy found"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read leave policies"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No leave policy with the given id")
     })
     public ResponseEntity<LeavePolicyDto> getPolicy(@PathVariable Long policyId) {
@@ -74,22 +74,21 @@ public class LeavePolicyController {
     }
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @PreAuthorize("@access.can('leave-policies', 'read')")
     @Operation(
             summary = "List all leave policies",
             description = "Returns every leave policy across all organizations, regardless of active status."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Policies returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read leave policies")
     })
     public ResponseEntity<List<LeavePolicyDto>> getAllPolicies() {
         return ResponseEntity.status(HttpStatus.OK).body(policyService.getAllPolicies());
     }
 
     @GetMapping("/organization/{organizationId}")
-    @PreAuthorize("@orgSecurity.isCurrentTenant(#organizationId) "
-            + "and @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @PreAuthorize("@orgSecurity.isCurrentTenant(#organizationId) and @access.can('leave-policies', 'read')")
     @Operation(
             summary = "List an organization's leave policies",
             description = "Returns the leave policies configured for the organization. Active policies "
@@ -97,7 +96,7 @@ public class LeavePolicyController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Policies returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not entitled to the organization named, or lacks the required role in it"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read leave policies, or lacks the required role in it"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No organization with the given id")
     })
     public ResponseEntity<List<LeavePolicyDto>> getPoliciesByOrganization(
@@ -110,7 +109,7 @@ public class LeavePolicyController {
     }
 
     @GetMapping("/employee/{employeeId}")
-    @PreAuthorize("@orgSecurity.isSelfOrHasAnyOrgRole(#employeeId, 'system-admin', 'hr-admin')")
+    @PreAuthorize("@access.can('leave', 'read') and @leaveAccess.allowsFor('read', #employeeId)")
     @Operation(
             summary = "List policies applicable to an employee",
             description = "Returns the leave policies the employee is eligible for, filtered by their "
@@ -118,7 +117,7 @@ public class LeavePolicyController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Applicable policies returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither the employee identified by the id nor a holder of the system-admin or hr-admin role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read leave policies"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No employee with the given id")
     })
     public ResponseEntity<List<LeavePolicyDto>> getApplicablePoliciesForEmployee(
@@ -128,7 +127,7 @@ public class LeavePolicyController {
 
     @PatchMapping("/{policyId}")
 //    @PreAuthorize("hasAuthority('leave:admin')")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @PreAuthorize("@access.can('leave-policies', 'maintain')")
     @Operation(
             summary = "Partially update a leave policy",
             description = "Applies the given field updates to the policy and returns the updated record."
@@ -136,7 +135,7 @@ public class LeavePolicyController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Policy updated"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "One of the update fields failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to leave policies"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No leave policy with the given id")
     })
     public ResponseEntity<LeavePolicyDto> updatePolicy(
@@ -149,7 +148,7 @@ public class LeavePolicyController {
 
     @DeleteMapping("/{policyId}")
 //    @PreAuthorize("hasAuthority('leave:admin')")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @PreAuthorize("@access.can('leave-policies', 'maintain')")
     @Operation(
             summary = "Deactivate a leave policy",
             description = "Marks the policy inactive so it stops applying to new leave requests. Existing "
@@ -157,7 +156,7 @@ public class LeavePolicyController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Policy deactivated"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to leave policies"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No leave policy with the given id")
     })
     public ResponseEntity<ApiResponse> deactivatePolicy(@PathVariable Long policyId) {
@@ -167,7 +166,7 @@ public class LeavePolicyController {
 
     @PostMapping("/{policyId}/activate")
 //    @PreAuthorize("hasAuthority('leave:admin')")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @PreAuthorize("@access.can('leave-policies', 'maintain')")
     @Operation(
             summary = "Reactivate a leave policy",
             description = "Marks a previously deactivated policy active again so it resumes applying to "
@@ -175,7 +174,7 @@ public class LeavePolicyController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Policy activated"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to leave policies"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No leave policy with the given id")
     })
     public ResponseEntity<ApiResponse> activatePolicy(@PathVariable Long policyId) {
@@ -224,8 +223,8 @@ public class LeavePolicyController {
      *                             the same role.
      */
     @PostMapping("/{policyId}/duplicate")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')"
-            + " and @orgSecurity.hasAnyOrgRole(#targetOrganizationId, 'system-admin', 'hr-admin')")
+    @PreAuthorize("@access.can('leave-policies', 'maintain')"
+            + " and @access.canIn(#targetOrganizationId, 'leave-policies', 'maintain')")
     @Operation(
             summary = "Duplicate a leave policy into another organization",
             description = "Copies the policy's quota, accrual and eligibility rules into a new policy owned "
@@ -234,7 +233,7 @@ public class LeavePolicyController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Policy duplicated"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant or in the target organization"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not keep leave policies here or in the target organization"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No leave policy or target organization with the given id"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "The target organization already holds a policy with that leave-type code")
     })

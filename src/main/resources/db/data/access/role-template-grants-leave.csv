@@ -1,0 +1,8 @@
+id,template_id,permission_key,scope
+663ba638-ab2a-5317-8f9f-ae73281d577b,ed34dfe6-5468-5f6e-b6ed-ef6eefccfce2,leave:adjust-balances,ALL
+fc69f874-2956-5c2b-99e4-1d410c012f14,eed8ef8b-48a6-5997-8302-df4fe971bfd1,leave:adjust-balances,ALL
+12d07281-f056-50a2-9555-04aa9dc51d08,ed34dfe6-5468-5f6e-b6ed-ef6eefccfce2,leave-policies:read,ALL
+f368ef2f-8eac-5ce1-955b-a14debee3ba7,eed8ef8b-48a6-5997-8302-df4fe971bfd1,leave-policies:read,ALL
+eb06eae4-6288-5bbb-a231-0cc6ca0da97b,ed34dfe6-5468-5f6e-b6ed-ef6eefccfce2,leave-policies:create,ALL
+a7c3259a-c730-5ffb-ade7-454090d825e4,ed34dfe6-5468-5f6e-b6ed-ef6eefccfce2,leave-policies:maintain,ALL
+2f789c53-7909-582a-a0bc-55ce2f860f99,eed8ef8b-48a6-5997-8302-df4fe971bfd1,leave-policies:maintain,ALL

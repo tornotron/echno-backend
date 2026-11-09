@@ -552,7 +552,7 @@ class PartialUpdateNullBehaviourTest {
         @Mock private LeaveApprovalService approvalService;
         @Mock private LeaveRequestValidator leaveRequestValidator;
         @Mock private LeaveRequestMapper leaveRequestMapper;
-        @Mock private OrganizationSecurityService orgSecurity;
+        @Mock private org.tornotron.echno_backend.leave.LeaveAccess leaveAccess;
 
         @InjectMocks private LeaveRequestService service;
 
@@ -569,7 +569,7 @@ class PartialUpdateNullBehaviourTest {
                 when(requestRepository.findByIdAndOrganization_Id(any(), any()))
                         .thenReturn(Optional.of(request));
                 when(requestRepository.save(any(LeaveRequest.class))).thenAnswer(i -> i.getArgument(0));
-                when(orgSecurity.isSelfInCurrentTenant(any())).thenReturn(true);
+                when(leaveAccess.allowsFor(any(), any())).thenReturn(true);
                 when(leaveRequestValidator.charge(any(), any(), any(), any(), any()))
                         .thenReturn(new org.tornotron.echno_backend.leave.LeaveCharge(5.0, 5.0, 0,
                                 org.tornotron.echno_backend.leave.enums.WeekendHolidayTreatment.CHARGE_ALL_DAYS));

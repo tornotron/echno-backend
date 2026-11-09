@@ -12,7 +12,6 @@ import org.tornotron.echno_backend.common.documentnumber.DocumentNumberAllocator
 import org.tornotron.echno_backend.common.retry.TransactionRetryTemplate;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.CurrentEmployeeService;
-import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.leave.dto.LeaveRequestDto;
@@ -63,7 +62,7 @@ class LeaveHandoverNameIsReadInTenantTest {
     @Mock private LeaveApprovalService approvalService;
     @Mock private LeaveRequestValidator leaveRequestValidator;
     @Mock private LeaveRequestMapper leaveRequestMapper;
-    @Mock private OrganizationSecurityService orgSecurity;
+    @Mock private LeaveAccess leaveAccess;
     @Mock private CurrentEmployeeService currentEmployeeService;
     @Mock private TransactionRetryTemplate retryTemplate;
 
@@ -81,7 +80,7 @@ class LeaveHandoverNameIsReadInTenantTest {
                 approvalService,
                 leaveRequestValidator,
                 leaveRequestMapper,
-                orgSecurity,
+                leaveAccess,
                 currentEmployeeService,
                 retryTemplate);
 

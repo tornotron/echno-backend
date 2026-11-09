@@ -10,7 +10,6 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.common.service.CurrentEmployeeService;
-import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.leave.enums.LeaveApproverRole;
@@ -46,7 +45,7 @@ class LeaveApproverRoleChainTest {
     @Mock private LeaveTransactionRepository transactionRepository;
     @Mock private EmployeeRepository employeeRepository;
     @Mock private CurrentEmployeeService currentEmployeeService;
-    @Mock private OrganizationSecurityService orgSecurity;
+    @Mock private LeaveAccess leaveAccess;
     @Mock private LeaveCalendarService calendarService;
     @Mock private NotificationService notificationService;
     @Mock private LeaveRequestMapper leaveRequestMapper;
@@ -60,7 +59,7 @@ class LeaveApproverRoleChainTest {
     @BeforeEach
     void setUp() {
         service = new LeaveApprovalService(approvalRepository, requestRepository, balanceRepository,
-                transactionRepository, employeeRepository, currentEmployeeService, orgSecurity,
+                transactionRepository, employeeRepository, currentEmployeeService, leaveAccess,
                 calendarService, notificationService, leaveRequestMapper, leaveRequestValidator);
         org = new Organization();
         org.setId(1L);

@@ -11,7 +11,6 @@ import org.tornotron.echno_backend.common.documentnumber.DocumentNumberAllocator
 import org.tornotron.echno_backend.common.retry.TransactionRetryTemplate;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.CurrentEmployeeService;
-import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.leave.dto.LeaveRequestCreationDto;
@@ -30,6 +29,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -68,7 +68,7 @@ class LeaveRequestActorAuthorizationTest {
     @Mock private LeaveApprovalService approvalService;
     @Mock private LeaveRequestValidator leaveRequestValidator;
     @Mock private LeaveRequestMapper leaveRequestMapper;
-    @Mock private OrganizationSecurityService orgSecurity;
+    @Mock private LeaveAccess leaveAccess;
     @Mock private CurrentEmployeeService currentEmployeeService;
     @Mock private TransactionRetryTemplate retryTemplate;
 
@@ -94,7 +94,7 @@ class LeaveRequestActorAuthorizationTest {
                 approvalService,
                 leaveRequestValidator,
                 leaveRequestMapper,
-                orgSecurity,
+                leaveAccess,
                 currentEmployeeService,
                 retryTemplate);
     }
@@ -135,8 +135,7 @@ class LeaveRequestActorAuthorizationTest {
 
     /** Nobody in particular: a plain member of the tenant, holding no leave-admin role. */
     private void callerIsAPlainMember() {
-        lenient().when(orgSecurity.isSelfInCurrentTenant(anyLong())).thenReturn(false);
-        lenient().when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(false);
+        lenient().when(leaveAccess.allowsFor(anyString(), anyLong())).thenReturn(false);
     }
 
     @Test
@@ -155,7 +154,7 @@ class LeaveRequestActorAuthorizationTest {
     @Test
     void createRequest_isAllowed_forYourself() {
         // The ordinary case has to keep working: this is how everyone files their own leave.
-        when(orgSecurity.isSelfInCurrentTenant(CALLER_EMPLOYEE_ID)).thenReturn(true);
+        when(leaveAccess.allowsFor(anyString(), eq(CALLER_EMPLOYEE_ID))).thenReturn(true);
         when(employeeRepository.findByIdAndOrganizationId(CALLER_EMPLOYEE_ID, ORG_ID))
                 .thenReturn(Optional.of(employee(CALLER_EMPLOYEE_ID)));
 
@@ -169,8 +168,8 @@ class LeaveRequestActorAuthorizationTest {
     @Test
     void createRequest_isAllowed_forSomebodyElse_byALeaveAdmin() {
         // HR filing on an employee's behalf is a real workflow and must not be caught by the fix.
-        when(orgSecurity.isSelfInCurrentTenant(COLLEAGUE_EMPLOYEE_ID)).thenReturn(false);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(true);
+        // Raising leave for a colleague is what the HR admin's grant across the organization reaches.
+        when(leaveAccess.allowsFor(anyString(), eq(COLLEAGUE_EMPLOYEE_ID))).thenReturn(true);
         when(employeeRepository.findByIdAndOrganizationId(COLLEAGUE_EMPLOYEE_ID, ORG_ID))
                 .thenReturn(Optional.of(employee(COLLEAGUE_EMPLOYEE_ID)));
         when(policyRepository.findByIdAndOrganization_Id(3L, ORG_ID)).thenReturn(Optional.empty());
@@ -242,7 +241,7 @@ class LeaveRequestActorAuthorizationTest {
         LeaveRequest own = colleaguesApprovedRequest();
         own.setEmployee(employee(CALLER_EMPLOYEE_ID));
         own.setStatus(LeaveStatus.DRAFT);
-        when(orgSecurity.isSelfInCurrentTenant(CALLER_EMPLOYEE_ID)).thenReturn(true);
+        when(leaveAccess.allowsFor(anyString(), eq(CALLER_EMPLOYEE_ID))).thenReturn(true);
         when(requestRepository.findByIdAndOrganization_Id(REQUEST_ID, ORG_ID))
                 .thenReturn(Optional.of(own));
         when(requestRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));

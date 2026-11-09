@@ -5,9 +5,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.CurrentEmployeeService;
-import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
+import org.tornotron.echno_backend.modules.access.api.AccessPermission;
 
 /**
  * Who may read an employee's leave balances, settled against the approve grant.
@@ -35,21 +35,20 @@ import org.tornotron.echno_backend.employee.EmployeeRepository;
 @Service("leaveSecurity")
 public class LeaveSecurityService {
 
-    private static final String[] LEAVE_ADMIN_ROLES = {"system-admin", "hr-admin"};
 
-    private final OrganizationSecurityService orgSecurity;
+    private final LeaveAccess leaveAccess;
     private final CurrentEmployeeService currentEmployeeService;
     private final EmployeeRepository employeeRepository;
     private final LeaveApprovalRepository approvalRepository;
     private final LeaveApprovalService approvalService;
 
     public LeaveSecurityService(
-            OrganizationSecurityService orgSecurity,
+            LeaveAccess leaveAccess,
             CurrentEmployeeService currentEmployeeService,
             EmployeeRepository employeeRepository,
             LeaveApprovalRepository approvalRepository,
             LeaveApprovalService approvalService) {
-        this.orgSecurity = orgSecurity;
+        this.leaveAccess = leaveAccess;
         this.currentEmployeeService = currentEmployeeService;
         this.employeeRepository = employeeRepository;
         this.approvalRepository = approvalRepository;
@@ -71,7 +70,7 @@ public class LeaveSecurityService {
         if (employeeId == null) {
             return false;
         }
-        if (orgSecurity.isSelfOrHasAnyOrgRole(employeeId, LEAVE_ADMIN_ROLES)) {
+        if (leaveAccess.allowsFor(AccessPermission.READ, employeeId)) {
             return true;
         }
 

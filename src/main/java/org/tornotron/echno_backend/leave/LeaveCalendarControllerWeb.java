@@ -51,7 +51,7 @@ public class LeaveCalendarControllerWeb {
     }
 
     @GetMapping("/organization")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @PreAuthorize("@access.can('leave', 'read') and @leaveAccess.acrossOrganization('read')")
     @Operation(
             summary = "Get your organization's leave calendar",
             description = "Returns every leave calendar entry for the caller's organization between "
@@ -61,7 +61,7 @@ public class LeaveCalendarControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Calendar entries returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read leave")
     })
     public ResponseEntity<List<LeaveCalendarDto>> getOrganizationCalendar(
             @RequestParam LocalDate startDate,
@@ -71,7 +71,7 @@ public class LeaveCalendarControllerWeb {
     }
 
     @GetMapping("/department")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @PreAuthorize("@access.can('leave', 'read') and @leaveAccess.acrossOrganization('read')")
     @Operation(
             summary = "Get a department's leave calendar",
             description = "Returns every leave calendar entry for the named department within the "
@@ -79,7 +79,7 @@ public class LeaveCalendarControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Calendar entries returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read leave")
     })
     public ResponseEntity<List<LeaveCalendarDto>> getDepartmentCalendar(
             @RequestParam String department,
@@ -90,7 +90,7 @@ public class LeaveCalendarControllerWeb {
     }
 
     @GetMapping("/employee")
-    @PreAuthorize("@orgSecurity.isSelfOrHasAnyOrgRole(#employeeId, 'system-admin', 'hr-admin')")
+    @PreAuthorize("@access.can('leave', 'read') and @leaveAccess.allowsFor('read', #employeeId)")
     @Operation(
             summary = "Get an employee's leave calendar",
             description = "Returns every leave calendar entry for the employee between startDate and "
@@ -98,7 +98,7 @@ public class LeaveCalendarControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Calendar entries returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither the employee named nor a holder of the system-admin or hr-admin role"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read leave"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No employee with the given id")
     })
     public ResponseEntity<List<LeaveCalendarDto>> getEmployeeCalendar(
@@ -110,7 +110,7 @@ public class LeaveCalendarControllerWeb {
     }
 
     @GetMapping("/team")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('leave', 'read')")
     @Operation(
             summary = "Get your team's leave calendar",
             description = "Returns every leave calendar entry for the signed-in caller's direct reports "
@@ -122,7 +122,7 @@ public class LeaveCalendarControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Calendar entries returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant, or has no employee record in it, so there is no team to serve")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read leave, or has no employee record in it, so there is no team to serve")
     })
     public ResponseEntity<List<LeaveCalendarDto>> getTeamCalendar(
             @RequestParam LocalDate startDate,
@@ -132,7 +132,7 @@ public class LeaveCalendarControllerWeb {
     }
 
     @GetMapping("/grouped")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @PreAuthorize("@access.can('leave', 'read') and @leaveAccess.acrossOrganization('read')")
     @Operation(
             summary = "Get your organization's leave calendar grouped by date",
             description = "Returns the caller's organization's leave calendar entries between startDate "
@@ -140,7 +140,7 @@ public class LeaveCalendarControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Grouped calendar returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read leave")
     })
     public ResponseEntity<Map<LocalDate, List<LeaveCalendarDto>>> getCalendarGroupedByDate(
             @RequestParam LocalDate startDate,
@@ -150,7 +150,7 @@ public class LeaveCalendarControllerWeb {
     }
 
     @GetMapping("/count")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @PreAuthorize("@access.can('leave', 'read') and @leaveAccess.acrossOrganization('read')")
     @Operation(
             summary = "Count employees on leave for a day",
             description = "Returns the number of employees in the caller's organization who are on leave "
@@ -158,7 +158,7 @@ public class LeaveCalendarControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Count returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read leave")
     })
     public ResponseEntity<Map<String, Long>> getEmployeesOnLeaveCount(
             @RequestParam LocalDate date) {

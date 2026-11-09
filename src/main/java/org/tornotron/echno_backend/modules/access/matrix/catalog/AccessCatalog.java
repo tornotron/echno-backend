@@ -99,7 +99,14 @@ public final class AccessCatalog {
             new Area("finance", "Finance", "Money", List.of("configure")),
             area("payables", "Payables", "Money"),
             area("team", "Team & Attendance", "People"),
-            area("leave", "Leave", "People"),
+            // Every employee raises, changes and decides leave on their own, while the system admin and
+            // HR admin act on anyone's; recalculating or adjusting a balance is theirs alone, so it is a
+            // named action.
+            new Area("leave", "Leave", "People", List.of("adjust-balances")),
+            // Leave policies are read and kept by the system admin and HR admin, while only the system
+            // admin creates one, so keeping a policy (changing, activating, deactivating or copying it)
+            // is a named action rather than edit, which would have to come with create.
+            new Area("leave-policies", "Leave Policies", "People", List.of("maintain")),
             area("leave-regularisation", "Attendance Regularisation", "People"),
             // Every member reads, files, renames and removes an attachment, while the organization's PDF
             // report is the system admin's, the HR admin's and the project manager's, so it is a named read.

@@ -58,7 +58,7 @@ public class NotificationControllerWeb {
     }
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('leave', 'read')")
     @Operation(
             summary = "List your notifications",
             description = "Returns a page of the notifications addressed to the signed-in caller, newest "
@@ -68,14 +68,14 @@ public class NotificationControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of notifications returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant, or has no employee record in it, so there is no inbox to serve")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read leave, or has no employee record in it, so there is no inbox to serve")
     })
     public ResponseEntity<Page<NotificationDto>> getNotifications(Pageable pageable) {
         return ResponseEntity.ok(notificationService.getMyNotifications(pageable));
     }
 
     @GetMapping("/unread")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('leave', 'read')")
     @Operation(
             summary = "List your unread notifications",
             description = "Returns every notification addressed to the signed-in caller that has not yet "
@@ -83,14 +83,14 @@ public class NotificationControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Unread notifications returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant, or has no employee record in it, so there is no inbox to serve")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read leave, or has no employee record in it, so there is no inbox to serve")
     })
     public ResponseEntity<List<NotificationDto>> getUnreadNotifications() {
         return ResponseEntity.ok(notificationService.getMyUnreadNotifications());
     }
 
     @GetMapping("/unread-count")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('leave', 'read')")
     @Operation(
             summary = "Count your unread notifications",
             description = "Returns the number of notifications addressed to the signed-in caller that "
@@ -98,7 +98,7 @@ public class NotificationControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Count returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant, or has no employee record in it, so there is no inbox to count")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read leave, or has no employee record in it, so there is no inbox to count")
     })
     public ResponseEntity<Map<String, Long>> getUnreadCount() {
         long count = notificationService.getMyUnreadCount();
@@ -106,7 +106,7 @@ public class NotificationControllerWeb {
     }
 
     @PatchMapping("/read")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('leave', 'read')")
     @Operation(
             summary = "Mark one of your notifications as read",
             description = "Marks the given notification read and records the time it was read. Ownership "
@@ -117,7 +117,7 @@ public class NotificationControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Notification marked as read"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "The notification is addressed to somebody else, or the caller is not a member of the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read leave, or the caller is not a member of the current tenant"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No notification with the given id in this organization")
     })
     public ResponseEntity<ApiResponse> markAsRead(@RequestParam Long notificationId) {
@@ -126,7 +126,7 @@ public class NotificationControllerWeb {
     }
 
     @PostMapping("/mark-all-read")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('leave', 'read')")
     @Operation(
             summary = "Mark all of your notifications as read",
             description = "Marks every unread notification addressed to the signed-in caller as read and "
@@ -134,7 +134,7 @@ public class NotificationControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Notifications marked as read"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant, or has no employee record in it, so there is no inbox to update")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read leave, or has no employee record in it, so there is no inbox to update")
     })
     public ResponseEntity<Map<String, Integer>> markAllAsRead() {
         int count = notificationService.markAllAsRead();
