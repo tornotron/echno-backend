@@ -38,7 +38,7 @@ public class WbsElementController {
     }
 
     @PostMapping
-    @PreAuthorize(WbsAccess.MANAGE_GUARD)
+    @PreAuthorize("@access.can('wbs', 'create')")
     @Operation(
             summary = "Create a WBS element",
             description = "Creates a single work breakdown structure element under the given project, "
@@ -49,7 +49,7 @@ public class WbsElementController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "WBS element created"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The request body failed validation, or the parent element belongs to a different project"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to the WBS and schedule"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No project, or no parent element, with the given id in this organization"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "wbsCode already exists in this project")
     })
@@ -62,7 +62,7 @@ public class WbsElementController {
     }
 
     @PostMapping("/bulk")
-    @PreAuthorize(WbsAccess.MANAGE_GUARD)
+    @PreAuthorize("@access.can('wbs', 'create')")
     @Operation(
             summary = "Bulk create WBS elements",
             description = "Creates a batch of work breakdown structure elements under the given project "
@@ -73,7 +73,7 @@ public class WbsElementController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "WBS elements created"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The elements list is missing or one entry failed validation, or a parent element belongs to a different project"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to the WBS and schedule"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No project, or no parent element, with the given id in this organization"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "wbsCode already exists in this project for one of the entries")
     })
@@ -86,7 +86,7 @@ public class WbsElementController {
     }
 
     @GetMapping("/tree")
-    @PreAuthorize(WbsAccess.READ_GUARD)
+    @PreAuthorize("@access.can('wbs', 'read')")
     @Operation(
             summary = "Get the WBS tree",
             description = "Returns the project's work breakdown structure as a tree, starting from the "
@@ -94,7 +94,7 @@ public class WbsElementController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "WBS tree returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read the WBS and schedule"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No project with the given id in this organization")
     })
     public ResponseEntity<List<WbsElementDto>> getWbsTree(@PathVariable Long projectId) {
@@ -103,7 +103,7 @@ public class WbsElementController {
     }
 
     @GetMapping
-    @PreAuthorize(WbsAccess.READ_GUARD)
+    @PreAuthorize("@access.can('wbs', 'read')")
     @Operation(
             summary = "List WBS elements",
             description = "Returns every WBS element in the project as a flat list ordered by wbsCode, "
@@ -111,7 +111,7 @@ public class WbsElementController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "WBS elements returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read the WBS and schedule"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No project with the given id in this organization")
     })
     public ResponseEntity<List<WbsElementFlatDto>> getWbsFlatList(@PathVariable Long projectId) {
@@ -120,7 +120,7 @@ public class WbsElementController {
     }
 
     @GetMapping("/{elementId}")
-    @PreAuthorize(WbsAccess.READ_GUARD)
+    @PreAuthorize("@access.can('wbs', 'read')")
     @Operation(
             summary = "Get a WBS element by id",
             description = "Returns a single WBS element and its children, for example the \"Foundation "
@@ -128,7 +128,7 @@ public class WbsElementController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "WBS element found"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read the WBS and schedule"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No WBS element with the given id in this organization")
     })
     public ResponseEntity<WbsElementDto> getWbsElementById(@PathVariable Long projectId,
@@ -138,7 +138,7 @@ public class WbsElementController {
     }
 
     @PutMapping("/{elementId}")
-    @PreAuthorize(WbsAccess.MANAGE_GUARD)
+    @PreAuthorize("@access.can('wbs', 'edit')")
     @Operation(
             summary = "Update a WBS element",
             description = "Applies a partial update to a WBS element: only the fields present in the "
@@ -148,7 +148,7 @@ public class WbsElementController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "WBS element updated"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The request body failed validation, or progress was set on an element that is not a leaf"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to the WBS and schedule"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No WBS element with the given id in this organization")
     })
     public ResponseEntity<WbsElementDto> updateWbsElement(@PathVariable Long projectId,
@@ -160,7 +160,7 @@ public class WbsElementController {
     }
 
     @DeleteMapping("/{elementId}")
-    @PreAuthorize(WbsAccess.MANAGE_GUARD)
+    @PreAuthorize("@access.can('wbs', 'delete')")
     @Operation(
             summary = "Delete a WBS element",
             description = "Deletes the WBS element with the given id. If it was the last remaining child "
@@ -169,7 +169,7 @@ public class WbsElementController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "WBS element deleted"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to the WBS and schedule"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No WBS element with the given id in this organization")
     })
     public ResponseEntity<ApiResponse> deleteWbsElement(@PathVariable Long projectId,
@@ -180,7 +180,7 @@ public class WbsElementController {
     }
 
     @PostMapping("/{elementId}/move")
-    @PreAuthorize(WbsAccess.MANAGE_GUARD)
+    @PreAuthorize("@access.can('wbs', 'edit')")
     @Operation(
             summary = "Move a WBS element",
             description = "Reparents a WBS element under a different parent (or to the project root when "
@@ -190,7 +190,7 @@ public class WbsElementController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "WBS element moved"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The new parent belongs to a different project, or the move would place the element under its own descendant"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to the WBS and schedule"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No WBS element, or no new parent element, with the given id in this organization"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "newWbsCode already exists in this project on a different element")
     })
@@ -203,7 +203,7 @@ public class WbsElementController {
     }
 
     @GetMapping("/leaves")
-    @PreAuthorize(WbsAccess.READ_GUARD)
+    @PreAuthorize("@access.can('wbs', 'read')")
     @Operation(
             summary = "List leaf WBS elements",
             description = "Returns the leaf elements of the project's WBS, the elements with no children, "
@@ -211,7 +211,7 @@ public class WbsElementController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Leaf WBS elements returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read the WBS and schedule"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No project with the given id in this organization")
     })
     public ResponseEntity<List<WbsElementFlatDto>> getLeafElements(@PathVariable Long projectId) {
@@ -220,7 +220,7 @@ public class WbsElementController {
     }
 
     @PostMapping("/{elementId}/recalculate")
-    @PreAuthorize(WbsAccess.MANAGE_GUARD)
+    @PreAuthorize("@access.can('wbs', 'edit')")
     @Operation(
             summary = "Recalculate a WBS element",
             description = "Recomputes the actual cost and progress of a non-leaf WBS element from its "
@@ -229,7 +229,7 @@ public class WbsElementController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "WBS element recalculated"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to the WBS and schedule"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No WBS element with the given id in this organization")
     })
     public ResponseEntity<WbsElementDto> recalculateElement(@PathVariable Long projectId,
@@ -240,7 +240,7 @@ public class WbsElementController {
     }
 
     @GetMapping("/schedule")
-    @PreAuthorize(WbsAccess.READ_GUARD)
+    @PreAuthorize("@access.can('wbs', 'read')")
     @Operation(
             summary = "Get the project schedule",
             description = "Returns every WBS element of the project as a flat row ordered by wbsCode, with "
@@ -250,7 +250,7 @@ public class WbsElementController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Schedule returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read the WBS and schedule"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No project with the given id in this organization")
     })
     public ResponseEntity<WbsScheduleDto> getSchedule(@PathVariable Long projectId) {
@@ -258,7 +258,7 @@ public class WbsElementController {
     }
 
     @PostMapping("/dependencies")
-    @PreAuthorize(WbsAccess.MANAGE_GUARD)
+    @PreAuthorize("@access.can('wbs', 'edit')")
     @Operation(
             summary = "Link two activities",
             description = "Records that one activity depends on another in the same project, finish-to-start "
@@ -268,7 +268,7 @@ public class WbsElementController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Link recorded"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The body failed validation, the two ids are the same activity, or the link would close a loop"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to the WBS and schedule"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No project, or no such activity in this project"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "The two activities are already linked")
     })
@@ -278,11 +278,11 @@ public class WbsElementController {
     }
 
     @DeleteMapping("/dependencies/{dependencyId}")
-    @PreAuthorize(WbsAccess.MANAGE_GUARD)
+    @PreAuthorize("@access.can('wbs', 'edit')")
     @Operation(summary = "Remove a link between two activities")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Link removed"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to the WBS and schedule"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No such link in this project")
     })
     public ResponseEntity<ApiResponse> removeDependency(@PathVariable Long projectId, @PathVariable Long dependencyId) {
