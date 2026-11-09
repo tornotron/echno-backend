@@ -18,6 +18,7 @@ import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationSer
 import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
+import org.tornotron.echno_backend.modules.access.guard.AccessGuard;
 import org.tornotron.echno_backend.common.payload.JsonPartBinder;
 import org.tornotron.echno_backend.common.payload.PayloadValidator;
 import org.tornotron.echno_backend.organization.dto.DatasetConsentDto;
@@ -39,8 +40,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *
  * <p>Consent is a legal statement about the client's data, so the guard is the organization's
  * system-admin alone: hr-admin, who may edit the organization's other fields through the patch
- * endpoint, is refused here. These tests pin that the guard is the {@code hasOrgRole} check on
- * the path id, that a refusal never reaches the service, and that the body must carry an
+ * endpoint, is refused here. These tests pin that the guard is {@code org-admin} on the matrix in
+ * the organization the path names, which must be the request's, that a refusal never reaches the service, and that the body must carry an
  * explicit value.
  */
 @WebMvcTest(OrganizationWebController.class)
@@ -57,6 +58,17 @@ class OrganizationDatasetConsentAuthzTest {
     @MockitoBean(name = "orgSecurity")
     private OrganizationSecurityService orgSecurity;
 
+    // Named to match the @access bean the @PreAuthorize SpEL references.
+    @MockitoBean(name = "access")
+    private AccessGuard access;
+
+    /** The system admin of organization {@code id}, with {@code id} the organization the request is for. */
+    private void systemAdminOf(long id, boolean admin) {
+        when(orgSecurity.isCurrentTenant(id)).thenReturn(true);
+        when(access.can("org-admin", "read")).thenReturn(admin);
+        when(access.can("org-admin", "edit")).thenReturn(admin);
+    }
+
     @MockitoBean
     private KeycloakAuthorizationService keycloakAuthorizationService;
 
@@ -71,7 +83,7 @@ class OrganizationDatasetConsentAuthzTest {
 
     @Test
     void setDatasetConsent_recordsTheValueForTheOrganizationsSystemAdmin() throws Exception {
-        when(orgSecurity.hasOrgRole(7L, "system-admin")).thenReturn(true);
+        systemAdminOf(7L, true);
         when(organizationService.setDatasetConsent(7L, true)).thenReturn(new DatasetConsentDto(7L, true));
 
         mockMvc.perform(put("/api/v1/organization/web/7/dataset-consent").with(jwt())
@@ -86,8 +98,8 @@ class OrganizationDatasetConsentAuthzTest {
 
     @Test
     void setDatasetConsent_isRefusedForAMemberWithoutTheSystemAdminRole() throws Exception {
-        // hr-admin can patch the organization but may not make this statement.
-        when(orgSecurity.hasOrgRole(7L, "system-admin")).thenReturn(false);
+        // hr-admin can patch the organization (org-profile:edit) but may not make this statement.
+        systemAdminOf(7L, false);
 
         mockMvc.perform(put("/api/v1/organization/web/7/dataset-consent").with(jwt())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -99,9 +111,9 @@ class OrganizationDatasetConsentAuthzTest {
 
     @Test
     void setDatasetConsent_guardsOnTheOrganizationInThePath() throws Exception {
-        // system-admin of organization 7 gets nothing on organization 8.
-        when(orgSecurity.hasOrgRole(7L, "system-admin")).thenReturn(true);
-        when(orgSecurity.hasOrgRole(8L, "system-admin")).thenReturn(false);
+        // system-admin of organization 7, the request's, gets nothing on organization 8.
+        systemAdminOf(7L, true);
+        when(orgSecurity.isCurrentTenant(8L)).thenReturn(false);
 
         mockMvc.perform(put("/api/v1/organization/web/8/dataset-consent").with(jwt())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -114,7 +126,7 @@ class OrganizationDatasetConsentAuthzTest {
     @Test
     void setDatasetConsent_rejectsABodyWithNoValue() throws Exception {
         // An absent value is not "false"; a retried or malformed request must not withdraw consent.
-        when(orgSecurity.hasOrgRole(7L, "system-admin")).thenReturn(true);
+        systemAdminOf(7L, true);
 
         mockMvc.perform(put("/api/v1/organization/web/7/dataset-consent").with(jwt())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -126,14 +138,14 @@ class OrganizationDatasetConsentAuthzTest {
 
     @Test
     void readDatasetConsent_isOkForTheSystemAdminAndRefusedOtherwise() throws Exception {
-        when(orgSecurity.hasOrgRole(7L, "system-admin")).thenReturn(true);
+        systemAdminOf(7L, true);
         when(organizationService.getDatasetConsent(7L)).thenReturn(new DatasetConsentDto(7L, false));
 
         mockMvc.perform(get("/api/v1/organization/web/7/dataset-consent").with(jwt()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.datasetConsent").value(false));
 
-        when(orgSecurity.hasOrgRole(7L, "system-admin")).thenReturn(false);
+        systemAdminOf(7L, false);
         mockMvc.perform(get("/api/v1/organization/web/7/dataset-consent").with(jwt()))
                 .andExpect(status().isForbidden());
     }

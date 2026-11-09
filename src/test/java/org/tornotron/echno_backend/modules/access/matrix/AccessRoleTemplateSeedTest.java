@@ -40,7 +40,8 @@ class AccessRoleTemplateSeedTest {
             "db/data/access/role-template-grants-issue-comments.csv",
             "db/data/access/role-template-grants-stores.csv",
             "db/data/access/role-template-grants-document-reversals.csv",
-            "db/data/access/role-template-grants-documents-reports.csv");
+            "db/data/access/role-template-grants-documents-reports.csv",
+            "db/data/access/role-template-grants-org-profile.csv");
 
     /**
      * Template grants a later changeset deleted, by template slug and key: access-011 takes the
@@ -48,11 +49,14 @@ class AccessRoleTemplateSeedTest {
      * access-013 takes the HR admin's construction writes, which it held only for labour, now an area of
      * its own; access-014 takes the baseline's issues:create and issues:edit, which it held only for
      * comments, now an area of their own; access-016 takes the baseline's compliance:approve, which it
-     * held only for document reversals, now an area of their own.
+     * held only for document reversals, now an area of their own; access-018 takes the baseline's
+     * org-admin:read and org-admin:create and the HR admin's org-admin:edit, which they held only for
+     * the organization's profile, now an area of their own.
      */
     private static final Map<String, Set<String>> DELETED = Map.of(
-            BASELINE, Set.of("finance:read", "issues:create", "issues:edit", "compliance:approve"),
-            "hr-admin", Set.of("construction:create", "construction:edit", "construction:delete"));
+            BASELINE, Set.of("finance:read", "issues:create", "issues:edit", "compliance:approve",
+                    "org-admin:read", "org-admin:create"),
+            "hr-admin", Set.of("construction:create", "construction:edit", "construction:delete", "org-admin:edit"));
 
     private static final Map<String, String> SLUG_BY_ID = new HashMap<>();
     private static final Map<String, String> LEGACY_BY_SLUG = new HashMap<>();
@@ -282,6 +286,28 @@ class AccessRoleTemplateSeedTest {
             if (!slug.equals("system-admin") && !slug.equals("project-manager")) {
                 assertThat(keys).as(slug).doesNotContain(
                         "issues:create", "issues:edit", "issues:delete", "issue-comments:delete");
+            }
+        });
+    }
+
+    @Test
+    void everyMemberReadsTheOrganizationAndOnlyTheSystemAdminAdministersIt() {
+        // Before the matrix every member read the organization, its modules and its plan's features,
+        // and recorded usage; the system admin and HR admin changed its details; everything else in
+        // the organization's administration was the system admin's alone.
+        assertThat(KEYS_BY_SLUG.get(BASELINE)).contains("org-profile:read", "org-profile:create")
+                .noneMatch(key -> key.startsWith("org-admin:"));
+        for (String slug : List.of("system-admin", "hr-admin")) {
+            assertThat(KEYS_BY_SLUG.get(slug)).as(slug).contains("org-profile:edit");
+        }
+        assertThat(KEYS_BY_SLUG.get("system-admin")).contains("org-admin:read", "org-admin:create",
+                "org-admin:edit", "org-admin:approve", "org-admin:delete");
+        KEYS_BY_SLUG.forEach((slug, keys) -> {
+            if (!slug.equals("system-admin")) {
+                assertThat(keys).as(slug).noneMatch(key -> key.startsWith("org-admin:"));
+            }
+            if (!slug.equals("system-admin") && !slug.equals("hr-admin")) {
+                assertThat(keys).as(slug).doesNotContain("org-profile:edit", "org-profile:delete");
             }
         });
     }

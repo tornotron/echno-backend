@@ -23,6 +23,7 @@ import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.payload.JsonPartBinder;
 import org.tornotron.echno_backend.common.payload.PayloadValidator;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
+import org.tornotron.echno_backend.modules.access.guard.AccessGuard;
 import org.tornotron.echno_backend.organization.dto.OrganizationSimpleDto;
 
 import java.nio.charset.StandardCharsets;
@@ -68,6 +69,10 @@ class OrganizationPatchAttachmentsArgumentTest {
     @MockitoBean(name = "orgSecurity")
     private OrganizationSecurityService orgSecurity;
 
+    // Named to match the @access bean the @PreAuthorize SpEL references.
+    @MockitoBean(name = "access")
+    private AccessGuard access;
+
     @MockitoBean
     private KeycloakAuthorizationService keycloakAuthorizationService;
 
@@ -77,7 +82,8 @@ class OrganizationPatchAttachmentsArgumentTest {
     @BeforeEach
     void allowTheCaller() {
         TenantContext.setCurrentOrgId(ORG_ID);
-        when(orgSecurity.hasAnyOrgRole(anyLong(), anyString(), anyString())).thenReturn(true);
+        when(orgSecurity.isCurrentTenant(anyLong())).thenReturn(true);
+        when(access.can("org-profile", "edit")).thenReturn(true);
     }
 
     @AfterEach

@@ -94,6 +94,11 @@ public final class AccessCatalog {
             // report is the system admin's, the HR admin's and the project manager's, so it is a named read.
             new Area("documents", "Documents", "Docs", List.of("read-reports")),
             area("chat", "Chat", "Chat"),
+            // Every member reads the organization, its switched-on modules and its plan's features, and
+            // records usage, while the system admin and HR admin change its details; the rest of the
+            // organization's administration is the system admin's alone, so the member side is an area
+            // of its own.
+            area("org-profile", "Organisation Profile", "Setup"),
             area("org-admin", "Organisation Settings", "Setup"),
             area("access", "Roles & Permissions", "Setup"));
 

@@ -21,11 +21,10 @@ import org.tornotron.echno_backend.common.module.ModuleEntitlementResolver;
 import org.tornotron.echno_backend.common.module.ModuleManifest;
 import org.tornotron.echno_backend.common.module.ModuleRegistry;
 import org.tornotron.echno_backend.common.module.NavDescriptor;
-import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
+import org.tornotron.echno_backend.modules.access.guard.AccessGuard;
 
 import java.util.List;
 
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -35,7 +34,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * Authorization on both module routes, plus the response shape the web loader depends on.
  *
- * <p>Method security comes from a minimal test filter chain and {@code @orgSecurity} is mocked,
+ * <p>Method security comes from a minimal test filter chain and {@code @access} is mocked,
  * as in {@code UserControllerAuthzTest}. The registry is real, built from two fixture modules,
  * so the JSON asserted here is what the controller produces rather than what a mock returned.
  * The {@code ORG_MEMBER_7} authority lets {@code TenantFilter} infer organization 7.
@@ -48,8 +47,9 @@ class ModuleControllerWebAuthzTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockitoBean(name = "orgSecurity")
-    private OrganizationSecurityService orgSecurity;
+    // Named to match the @access bean the @PreAuthorize SpEL references.
+    @MockitoBean(name = "access")
+    private AccessGuard access;
 
     @MockitoBean
     private KeycloakAuthorizationService keycloakAuthorizationService;
@@ -59,7 +59,7 @@ class ModuleControllerWebAuthzTest {
 
     @Test
     void installed_isForbidden_forANonAdminMember() throws Exception {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(false);
+        when(access.can("org-admin", "read")).thenReturn(false);
 
         mockMvc.perform(get("/api/v1/modules/web").with(memberOfOrgSeven()))
                 .andExpect(status().isForbidden());
@@ -67,7 +67,7 @@ class ModuleControllerWebAuthzTest {
 
     @Test
     void installed_listsEveryModuleWithSwitchAndEntitlement_forASystemAdmin() throws Exception {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(true);
+        when(access.can("org-admin", "read")).thenReturn(true);
 
         mockMvc.perform(get("/api/v1/modules/web").with(memberOfOrgSeven()))
                 .andExpect(status().isOk())
@@ -95,7 +95,7 @@ class ModuleControllerWebAuthzTest {
 
     @Test
     void enabled_isForbidden_forANonMember() throws Exception {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(false);
+        when(access.can("org-profile", "read")).thenReturn(false);
 
         mockMvc.perform(get("/api/v1/modules/web/enabled").with(jwt()))
                 .andExpect(status().isForbidden());
@@ -103,7 +103,7 @@ class ModuleControllerWebAuthzTest {
 
     @Test
     void enabled_listsOnlyTheModulesOnForTheCallersOrganization_forAMember() throws Exception {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
+        when(access.can("org-profile", "read")).thenReturn(true);
 
         mockMvc.perform(get("/api/v1/modules/web/enabled").with(memberOfOrgSeven()))
                 .andExpect(status().isOk())
@@ -117,7 +117,7 @@ class ModuleControllerWebAuthzTest {
 
     @Test
     void enabled_isEmpty_forAMemberOfAnOrganizationThatIsNotEntitled() throws Exception {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
+        when(access.can("org-profile", "read")).thenReturn(true);
 
         mockMvc.perform(get("/api/v1/modules/web/enabled")
                         .with(jwt().authorities(new SimpleGrantedAuthority("ORG_MEMBER_8"))))
