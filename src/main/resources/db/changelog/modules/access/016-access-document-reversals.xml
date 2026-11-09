@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        document-reversals (echno-backend #914): requests to reverse a site transfer, purchase order or
+        goods receipt. Today every member reads them, asks for one and withdraws their own request (the
+        service checks that the caller raised the document, and withdraws only the requester's), while
+        only the system admin and project manager approve or reject one. The risk register, the rest
+        of compliance, is read by every member and recorded, changed, imported and removed by the system
+        admin and project manager. Create, edit and approve all differ between the two, so reversals
+        become an area of their own and the move onto the matrix changes nobody's access.
+
+        The baseline held compliance:approve only for reversals, which would have let every member
+        decide one, so it goes. The baseline gets document-reversals read, create and edit; the system
+        admin and project manager get document-reversals:approve and compliance create, edit and
+        delete, which the template gave nobody before.
+
+        A file of its own because 008 loads role-template-grants.csv with no runOnChange. The
+        reconciler carries the template to every uncustomized role on the next boot, in both
+        directions; a customized role is left as its organization set it.
+    -->
+
+    <changeSet id="access-016-document-reversals" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT count(*) FROM access_role_template_grant
+                WHERE template_id = '2e1db9db-3d7d-59a3-90b4-d05b10e5f687'
+                  AND permission_key = 'document-reversals:read'
+            </sqlCheck>
+        </preConditions>
+        <delete tableName="access_role_template_grant">
+            <where>template_id = '2e1db9db-3d7d-59a3-90b4-d05b10e5f687'
+                AND permission_key = 'compliance:approve'</where>
+        </delete>
+        <loadData tableName="access_role_template_grant" file="db/data/access/role-template-grants-document-reversals.csv" separator=",">
+            <column name="id" type="UUID"/>
+            <column name="template_id" type="UUID"/>
+            <column name="permission_key" type="STRING"/>
+            <column name="scope" type="STRING"/>
+        </loadData>
+    </changeSet>
+
+</databaseChangeLog>

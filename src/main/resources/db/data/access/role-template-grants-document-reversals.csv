@@ -1,0 +1,12 @@
+id,template_id,permission_key,scope
+74a6eb47-edbd-5242-8690-3fd082cbf89b,2e1db9db-3d7d-59a3-90b4-d05b10e5f687,document-reversals:read,ALL
+924d881a-920b-537b-ba29-c9c919fe27d8,2e1db9db-3d7d-59a3-90b4-d05b10e5f687,document-reversals:create,ALL
+3caafa6d-19fb-5ef8-a021-f8bfe10a06da,2e1db9db-3d7d-59a3-90b4-d05b10e5f687,document-reversals:edit,ALL
+ca454232-cce0-5c2a-9cfc-864a5326fe17,ed34dfe6-5468-5f6e-b6ed-ef6eefccfce2,document-reversals:approve,ALL
+44bbc267-1a85-5e52-894a-6b4bc750fd5d,0f205e55-9cf3-5a43-8fda-c0d6c92e5bef,document-reversals:approve,ALL
+20a75695-ccf4-57be-aaf7-6f920e50bccb,ed34dfe6-5468-5f6e-b6ed-ef6eefccfce2,compliance:create,ALL
+68ff61fb-0f3e-5343-a305-ee5ca50d3b38,ed34dfe6-5468-5f6e-b6ed-ef6eefccfce2,compliance:edit,ALL
+bb372bf3-5473-5bba-8417-1c54a127564e,ed34dfe6-5468-5f6e-b6ed-ef6eefccfce2,compliance:delete,ALL
+c6cca861-ff7e-565f-9493-7bfb48f56d2e,0f205e55-9cf3-5a43-8fda-c0d6c92e5bef,compliance:create,ALL
+e5d51e9c-a913-5aa3-ba35-4f60687ddb15,0f205e55-9cf3-5a43-8fda-c0d6c92e5bef,compliance:edit,ALL
+0ca0cd6d-6037-5b13-8086-9f920cf3df72,0f205e55-9cf3-5a43-8fda-c0d6c92e5bef,compliance:delete,ALL

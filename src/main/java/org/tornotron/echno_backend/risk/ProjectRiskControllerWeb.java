@@ -23,7 +23,7 @@ import org.tornotron.echno_backend.risk.dto.RiskImportRequest;
 import org.tornotron.echno_backend.risk.dto.RiskRequest;
 
 /**
- * Web-console twin of the risk register endpoints. Guards in {@link RiskAccess}: any member of the organization reads, the system
+ * Web-console twin of the risk register endpoints. Each handler asks the access matrix for its compliance action: any member of the organization reads, the system
  * administrator and the project manager write.
  */
 @RestController
@@ -41,11 +41,11 @@ public class ProjectRiskControllerWeb {
     }
 
     @GetMapping
-    @PreAuthorize(RiskAccess.READ_GUARD)
+    @PreAuthorize("@access.can('compliance', 'read')")
     @Operation(summary = "List a project's risks", description = "Returns the project's whole register in R-number order.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Register returned"),
-            @ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not read the risk register"),
             @ApiResponse(responseCode = "404", description = "No project with the given id in this organization")
     })
     public ResponseEntity<List<RiskDto>> readRisks(@PathVariable Long projectId) {
@@ -53,11 +53,11 @@ public class ProjectRiskControllerWeb {
     }
 
     @GetMapping("/{riskId}")
-    @PreAuthorize(RiskAccess.READ_GUARD)
+    @PreAuthorize("@access.can('compliance', 'read')")
     @Operation(summary = "Get a risk", description = "Returns one risk of the project.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Risk returned"),
-            @ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not read the risk register"),
             @ApiResponse(responseCode = "404", description = "No such project, or no such risk on it")
     })
     public ResponseEntity<RiskDto> readRisk(@PathVariable Long projectId, @PathVariable UUID riskId) {
@@ -65,13 +65,13 @@ public class ProjectRiskControllerWeb {
     }
 
     @PostMapping
-    @PreAuthorize(RiskAccess.MANAGE_GUARD)
+    @PreAuthorize("@access.can('compliance', 'create')")
     @Operation(summary = "Record a risk", description = "Adds a risk to the register with the project's next "
             + "R-number. The scores are worked out from probability and impact.")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Risk recorded"),
             @ApiResponse(responseCode = "400", description = "A field failed validation"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the system-admin or project-manager role"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to the risk register"),
             @ApiResponse(responseCode = "404", description = "No project with the given id in this organization")
     })
     public ResponseEntity<RiskDto> createRisk(@PathVariable Long projectId, @Valid @RequestBody RiskRequest request) {
@@ -79,7 +79,7 @@ public class ProjectRiskControllerWeb {
     }
 
     @PostMapping("/import")
-    @PreAuthorize(RiskAccess.MANAGE_GUARD)
+    @PreAuthorize("@access.can('compliance', 'create')")
     @Operation(summary = "Import risks", description = "Adds up to 500 risks in one go, in the order given, "
             + "each with the next R-number. Meant for carrying over a register a browser held before the "
             + "register was kept on the server: a risk whose importRef the project already holds is "
@@ -87,7 +87,7 @@ public class ProjectRiskControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Risks imported; the body lists the ones added"),
             @ApiResponse(responseCode = "400", description = "A field failed validation"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the system-admin or project-manager role"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to the risk register"),
             @ApiResponse(responseCode = "404", description = "No project with the given id in this organization")
     })
     public ResponseEntity<List<RiskDto>> importRisks(@PathVariable Long projectId,
@@ -96,13 +96,13 @@ public class ProjectRiskControllerWeb {
     }
 
     @PutMapping("/{riskId}")
-    @PreAuthorize(RiskAccess.MANAGE_GUARD)
+    @PreAuthorize("@access.can('compliance', 'edit')")
     @Operation(summary = "Change a risk", description = "Replaces the risk's fields. Send the version you "
             + "read; if someone else saved in between, the update is refused with a 409.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Risk changed"),
             @ApiResponse(responseCode = "400", description = "A field failed validation"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the system-admin or project-manager role"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to the risk register"),
             @ApiResponse(responseCode = "404", description = "No such project, or no such risk on it"),
             @ApiResponse(responseCode = "409", description = "The risk changed since the given version")
     })
@@ -112,11 +112,11 @@ public class ProjectRiskControllerWeb {
     }
 
     @DeleteMapping("/{riskId}")
-    @PreAuthorize(RiskAccess.MANAGE_GUARD)
+    @PreAuthorize("@access.can('compliance', 'delete')")
     @Operation(summary = "Remove a risk", description = "Deletes the risk from the register.")
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Risk removed"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the system-admin or project-manager role"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to the risk register"),
             @ApiResponse(responseCode = "404", description = "No such project, or no such risk on it")
     })
     public ResponseEntity<Void> deleteRisk(@PathVariable Long projectId, @PathVariable UUID riskId) {

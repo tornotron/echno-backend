@@ -38,17 +38,19 @@ class AccessRoleTemplateSeedTest {
             "db/data/access/role-template-grants-vendor-financials.csv",
             "db/data/access/role-template-grants-labour.csv",
             "db/data/access/role-template-grants-issue-comments.csv",
-            "db/data/access/role-template-grants-stores.csv");
+            "db/data/access/role-template-grants-stores.csv",
+            "db/data/access/role-template-grants-document-reversals.csv");
 
     /**
      * Template grants a later changeset deleted, by template slug and key: access-011 takes the
      * baseline's finance:read, which it held only for expenses and receipts, now an area of their own;
      * access-013 takes the HR admin's construction writes, which it held only for labour, now an area of
      * its own; access-014 takes the baseline's issues:create and issues:edit, which it held only for
-     * comments, now an area of their own.
+     * comments, now an area of their own; access-016 takes the baseline's compliance:approve, which it
+     * held only for document reversals, now an area of their own.
      */
     private static final Map<String, Set<String>> DELETED = Map.of(
-            BASELINE, Set.of("finance:read", "issues:create", "issues:edit"),
+            BASELINE, Set.of("finance:read", "issues:create", "issues:edit", "compliance:approve"),
             "hr-admin", Set.of("construction:create", "construction:edit", "construction:delete"));
 
     private static final Map<String, String> SLUG_BY_ID = new HashMap<>();
@@ -222,6 +224,28 @@ class AccessRoleTemplateSeedTest {
             if (!stores.contains(slug)) {
                 assertThat(keys).as(slug).noneMatch(key -> key.startsWith("inventory:")
                         || key.startsWith("materials:") || key.startsWith("site-transfers:"));
+            }
+        });
+    }
+
+    @Test
+    void everyMemberAsksForAReversalAndOnlyThePairDecidesOneOrKeepsTheRiskRegister() {
+        // Before the matrix every member read the risk register and the reversals, asked for a
+        // reversal and withdrew their own, while only the system admin and project manager recorded,
+        // changed or removed a risk, or approved or rejected a reversal.
+        assertThat(KEYS_BY_SLUG.get(BASELINE)).contains("compliance:read", "document-reversals:read",
+                "document-reversals:create", "document-reversals:edit")
+                .doesNotContain("compliance:create", "compliance:edit", "compliance:delete",
+                        "compliance:approve", "document-reversals:approve");
+        Set<String> pair = Set.of("system-admin", "project-manager");
+        for (String slug : pair) {
+            assertThat(KEYS_BY_SLUG.get(slug)).as(slug).contains("compliance:create", "compliance:edit",
+                    "compliance:delete", "document-reversals:approve");
+        }
+        KEYS_BY_SLUG.forEach((slug, keys) -> {
+            if (!pair.contains(slug)) {
+                assertThat(keys).as(slug).doesNotContain("compliance:create", "compliance:edit",
+                        "compliance:delete", "compliance:approve", "document-reversals:approve");
             }
         });
     }
