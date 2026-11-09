@@ -16,7 +16,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
 import org.tornotron.echno_backend.common.configuration.RPTCache;
-import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
+import org.tornotron.echno_backend.modules.access.guard.AccessGuard;
 import org.tornotron.echno_backend.storageLocation.dto.StorageLocationDto;
 import org.tornotron.echno_backend.storageLocation.enums.StorageLocationType;
 
@@ -25,6 +25,7 @@ import java.util.List;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
@@ -45,6 +46,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * every stores document names the shelf the material came from or went to, and does not create,
  * edit or delete one: defining the store is a different decision from working in it. The writes
  * here are untouched.
+ *
+ * <p>The controller is on the access matrix, so {@code @access} is mocked to answer as the project
+ * manager's starting role does: storage locations read and nothing else. That each role holds
+ * exactly what it did is {@code StorageLocationAccessEquivalenceIT}'s to show.
  */
 @WebMvcTest(StorageLocationControllerWeb.class)
 @Import(StorageLocationControllerWebAuthzTest.TestSecurityConfig.class)
@@ -56,8 +61,8 @@ class StorageLocationControllerWebAuthzTest {
     @MockitoBean
     private StorageLocationService storageLocationService;
 
-    @MockitoBean(name = "orgSecurity")
-    private OrganizationSecurityService orgSecurity;
+    @MockitoBean(name = "access")
+    private AccessGuard access;
 
     // Satisfies RPTExchangeFilter, a custom filter the web slice loads; unused here
     // because .with(jwt(...)) sets the authentication directly.
@@ -70,8 +75,7 @@ class StorageLocationControllerWebAuthzTest {
 
     /** A caller holding project-manager and not system-admin. */
     private void asProjectManager() {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin")).thenReturn(false);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager", "store-keeper")).thenReturn(true);
+        when(access.can("storage-locations", "read")).thenReturn(true);
     }
 
     private void stubReads() {
@@ -100,9 +104,7 @@ class StorageLocationControllerWebAuthzTest {
 
     @Test
     void aMemberHoldingNeitherRoleIsStillRefusedTheRead() throws Exception {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin")).thenReturn(false);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager", "store-keeper")).thenReturn(false);
+        when(access.can(anyString(), anyString())).thenReturn(false);
 
         mockMvc.perform(get("/api/v1/storage-locations/web/project/4").with(jwt()))
                 .andExpect(status().isForbidden());

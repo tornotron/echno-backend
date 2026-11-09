@@ -113,12 +113,9 @@ class StoreKeeperRoleScopeTest {
             // sweep that reads them notifies the same people. Removing an override is not here.
             "MaterialControllerWeb.upsertLocationThreshold PUT /{materialId}/location-thresholds/{storageLocationId}",
 
-            // Where the material came from and where it is going.
-            "StorageLocationControllerWeb.getStorageLocationById GET /{id}",
-            "StorageLocationControllerWeb.getAllStorageLocations GET",
-            "StorageLocationControllerWeb.getAllStorageLocationsPaginated GET /all",
-            "StorageLocationControllerWeb.getStorageLocationsByProject GET /project/{projectId}",
-            "StorageLocationControllerWeb.getStorageLocationsByType GET /type/{locationType}",
+            // Where the material came from and where it is going is read on the access matrix now:
+            // the store keeper's starting role holds storage locations read, and
+            // StorageLocationAccessEquivalenceIT holds it to the location reads it had.
 
             // The ledger the storekeeper's own documents post into.
             "InventoryTransactionControllerWeb.getTransactionById GET /{id}",
@@ -203,11 +200,6 @@ class StoreKeeperRoleScopeTest {
             "SiteTransferController.updateSiteTransferStatus PATCH /{id}/status",
             "SiteTransferController.receiveSiteTransfer POST /{id}/receive",
             "SiteTransferController.cancelSiteTransfer POST /{id}/cancel",
-            "StorageLocationController.getStorageLocationById GET /{id}",
-            "StorageLocationController.getAllStorageLocations GET",
-            "StorageLocationController.getAllStorageLocationsPaginated GET /all",
-            "StorageLocationController.getStorageLocationsByProject GET /project/{projectId}",
-            "StorageLocationController.getStorageLocationsByType GET /type/{locationType}",
             "VendorController.getVendorById GET /{id}",
             "VendorController.getAllVendors GET",
             "VendorController.getAllVendorsPaginated GET /all",
