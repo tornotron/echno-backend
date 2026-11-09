@@ -25,7 +25,7 @@ import org.tornotron.echno_backend.attendance.enums.RegularizationStatus;
 import org.tornotron.echno_backend.attendance.mapper.AttendanceRegularizationMapper;
 import org.tornotron.echno_backend.common.approval.ApprovalParty;
 import org.tornotron.echno_backend.common.approval.SelfApprovalPolicy;
-import org.tornotron.echno_backend.common.service.AttendanceSecurityService;
+import org.tornotron.echno_backend.attendance.RegularisationAccess;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
@@ -82,7 +82,7 @@ class AttendanceRegularizationServiceTest {
     @Mock private AttendanceRegularizationMapper regularizationMapper;
     @Mock private UserContextService userContextService;
     @Mock private SelfApprovalPolicy selfApprovalPolicy;
-    @Mock private AttendanceSecurityService attendanceSecurity;
+    @Mock private RegularisationAccess regularisationAccess;
 
     private AttendanceRegularizationService service;
 
@@ -92,9 +92,9 @@ class AttendanceRegularizationServiceTest {
         service = new AttendanceRegularizationService(regularizationRepository, attendanceRepository,
                 organizationRepository, settingsService, calculationService, regularizationMapper,
                 new AttendanceActorResolver(userContextService, employeeRepository),
-                selfApprovalPolicy, attendanceSecurity);
-        // Not the concern here: these tests exercise the lifecycle, not who may raise a request.
-        lenient().when(attendanceSecurity.canRecordFor(org.mockito.ArgumentMatchers.any())).thenReturn(true);
+                selfApprovalPolicy, regularisationAccess);
+        // A mocked RegularisationAccess passes every check: these tests exercise the lifecycle,
+        // not who may raise a request.
         // The session is the requesting employee unless a test says otherwise.
         signedInAs(REQUESTER_USER_ID, REQUESTER_EMP_ID, REQUESTER);
     }

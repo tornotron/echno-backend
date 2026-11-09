@@ -4,6 +4,8 @@ import jakarta.validation.ValidationException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.AccessDeniedException;
+import org.tornotron.echno_backend.attendance.RegularisationAccess;
+import org.tornotron.echno_backend.modules.access.api.AccessPermission;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.attendance.Attendance;
@@ -22,7 +24,6 @@ import org.tornotron.echno_backend.attendance.enums.RegularizationStatus;
 import org.tornotron.echno_backend.attendance.service.AttendanceActorResolver.Actor;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
-import org.tornotron.echno_backend.common.service.AttendanceSecurityService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.holiday.WorkingCalendarService;
@@ -71,7 +72,7 @@ public class RegularizationCalendarService {
     private final OrganizationRepository organizationRepository;
     private final LeaveRequestRepository leaveRequestRepository;
     private final WorkingCalendarService workingCalendarService;
-    private final AttendanceSecurityService attendanceSecurity;
+    private final RegularisationAccess regularisationAccess;
     private final AttendanceActorResolver actorResolver;
     private final AttendanceRegularizationService regularizationService;
     private final Clock clock;
@@ -88,12 +89,12 @@ public class RegularizationCalendarService {
                                          OrganizationRepository organizationRepository,
                                          LeaveRequestRepository leaveRequestRepository,
                                          WorkingCalendarService workingCalendarService,
-                                         AttendanceSecurityService attendanceSecurity,
+                                         RegularisationAccess regularisationAccess,
                                          AttendanceActorResolver actorResolver,
                                          AttendanceRegularizationService regularizationService,
                                          @Value("${echno.attendance.regularization-zone:Asia/Kolkata}") String zone) {
         this(attendanceRepository, employeeRepository, projectRepository, organizationRepository,
-                leaveRequestRepository, workingCalendarService, attendanceSecurity, actorResolver,
+                leaveRequestRepository, workingCalendarService, regularisationAccess, actorResolver,
                 regularizationService, Clock.system(ZoneId.of(zone)));
     }
 
@@ -103,7 +104,7 @@ public class RegularizationCalendarService {
                                   OrganizationRepository organizationRepository,
                                   LeaveRequestRepository leaveRequestRepository,
                                   WorkingCalendarService workingCalendarService,
-                                  AttendanceSecurityService attendanceSecurity,
+                                  RegularisationAccess regularisationAccess,
                                   AttendanceActorResolver actorResolver,
                                   AttendanceRegularizationService regularizationService,
                                   Clock clock) {
@@ -113,7 +114,7 @@ public class RegularizationCalendarService {
         this.organizationRepository = organizationRepository;
         this.leaveRequestRepository = leaveRequestRepository;
         this.workingCalendarService = workingCalendarService;
-        this.attendanceSecurity = attendanceSecurity;
+        this.regularisationAccess = regularisationAccess;
         this.actorResolver = actorResolver;
         this.regularizationService = regularizationService;
         this.clock = clock;
@@ -130,19 +131,17 @@ public class RegularizationCalendarService {
      *
      * @param dto The employee, project, date, reason and requested times.
      * @return The filed request.
-     * @throws AccessDeniedException if the caller is neither the employee nor a holder of an
-     *         attendance record-management role.
+     * @throws AccessDeniedException if the caller is neither the employee nor someone who may
+     *         raise regularizations for every employee.
      * @throws ResourceNotFoundException if the employee or project is not in this organization.
      * @throws ValidationException if the request is refused for any reason above, or by the
      *         project's regularization settings.
      */
     @Transactional
     public AttendanceRegularizationDto submitByDate(RegularizationByDateRequestDto dto) {
-        if (!attendanceSecurity.canRecordFor(dto.getEmployeeId())) {
-            throw new AccessDeniedException(
-                    "A regularization can only be raised on your own attendance, unless you hold "
-                            + "an attendance record-management role");
-        }
+        regularisationAccess.requireFor(AccessPermission.CREATE, dto.getEmployeeId(),
+                "A regularization can only be raised on your own attendance, unless you may raise "
+                        + "them for every employee");
         LocalDate date = dto.getAttendanceDate();
         if (date.isAfter(LocalDate.now(clock))) {
             throw new ValidationException("A regularization cannot be raised for a future date");
@@ -220,15 +219,19 @@ public class RegularizationCalendarService {
      * Every day of one month for an employee, with what the calendar shows and whether the
      * employee can act on it.
      *
-     * @param employeeId The employee, already authorized by the endpoint.
+     * @param employeeId The employee: the caller, at own scope, or anyone for a caller who reads
+     *                   regularizations across the organization.
      * @param year       The calendar year.
      * @param month      The month, 1 to 12.
      * @return One entry per day of the month, in date order.
+     * @throws AccessDeniedException if the caller may not read this employee's regularizations.
      * @throws ResourceNotFoundException if the employee is not in this organization.
      * @throws ValidationException if the month is out of range.
      */
     @Transactional(readOnly = true)
     public List<RegularizationCalendarDayDto> calendar(Long employeeId, int year, int month) {
+        regularisationAccess.requireFor(AccessPermission.READ, employeeId,
+                "You may not view this employee's attendance");
         if (month < 1 || month > 12) {
             throw new ValidationException("month must be between 1 and 12");
         }
