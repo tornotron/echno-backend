@@ -41,14 +41,6 @@ class ToolboxTalksModuleTest {
     }
 
     @Test
-    void theGuardsNameTheSameVocabularyAsThePermissions() {
-        assertThat(ToolboxTalksModule.READ_GUARD).isEqualTo("@orgSecurity.isMemberOfCurrentTenant()");
-        assertThat(ToolboxTalksModule.MANAGE_GUARD)
-                .startsWith("@orgSecurity.hasAnyOrgRoleForCurrentTenant(")
-                .contains("'system-admin'", "'project-manager'", "'safety-officer'");
-    }
-
-    @Test
     void publishesOneNavEntryGatedOnRead() {
         assertThat(module.manifest().navDescriptors()).singleElement().satisfies(nav -> {
             assertThat(nav.section()).isEqualTo("inspections");

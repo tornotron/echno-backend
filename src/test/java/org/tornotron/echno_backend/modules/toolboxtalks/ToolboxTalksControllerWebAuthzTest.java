@@ -34,14 +34,15 @@ import org.tornotron.echno_backend.modules.toolboxtalks.pdf.ToolboxTalkPdfServic
 import org.tornotron.echno_backend.modules.toolboxtalks.service.ToolboxTalksService;
 import org.tornotron.echno_backend.modules.toolboxtalks.web.ToolboxTalksController;
 import org.tornotron.echno_backend.modules.toolboxtalks.web.ToolboxTalksControllerWeb;
-import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
+import org.tornotron.echno_backend.modules.access.guard.AccessGuard;
 import org.tornotron.echno_backend.pdfGeneration.RenderedReport;
 import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
 
 /**
- * The guard on every handler of both twins, at the slice: reads need membership of the tenant,
- * writes need one of the manage roles, and the same request is tried on both prefixes so the
- * twins cannot drift apart.
+ * The guard on every handler of both twins, at the slice: reads need toolbox-talks:read, which
+ * every member holds through the baseline, writes need the toolbox-talks action they make, and the
+ * same request is tried on both prefixes so the twins cannot drift apart. That each role holds
+ * exactly what it did is {@code ToolboxTalksAccessEquivalenceIT}'s to show.
  */
 @WebMvcTest({ToolboxTalksController.class, ToolboxTalksControllerWeb.class})
 @Import(ToolboxTalksControllerWebAuthzTest.TestSecurityConfig.class)
@@ -56,8 +57,22 @@ class ToolboxTalksControllerWebAuthzTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockitoBean(name = "orgSecurity")
-    private OrganizationSecurityService orgSecurity;
+    // Named to match the @access bean the @PreAuthorize SpEL references.
+    @MockitoBean(name = "access")
+    private AccessGuard access;
+
+    /** The baseline's actions: every member reads. */
+    private static final String[] MEMBER = {"toolbox-talks:read"};
+    /** The system admin's, project manager's and safety officer's: the baseline plus every change. */
+    private static final String[] PAIR = {"toolbox-talks:read", "toolbox-talks:create", "toolbox-talks:edit", "toolbox-talks:delete"};
+
+    /** Stubs {@code @access} to allow exactly these area:action keys; every other check answers false. */
+    private void holds(String... permissions) {
+        for (String permission : permissions) {
+            String[] parts = permission.split(":");
+            when(access.can(parts[0], parts[1])).thenReturn(true);
+        }
+    }
 
     @MockitoBean
     private ToolboxTalksService service;
@@ -94,14 +109,14 @@ class ToolboxTalksControllerWebAuthzTest {
     @ParameterizedTest(name = "{0} on {1}")
     @MethodSource("reads")
     void aReadIsForbiddenForANonMember(String name, String prefix, Endpoint endpoint) throws Exception {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(false);
+        holds();
         mockMvc.perform(endpoint.on(prefix).with(memberOfOrgSeven())).andExpect(status().isForbidden());
     }
 
     @ParameterizedTest(name = "{0} on {1}")
     @MethodSource("reads")
     void aReadIsOkForAMember(String name, String prefix, Endpoint endpoint) throws Exception {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
+        holds(MEMBER);
         when(pdfService.render(any())).thenReturn(new RenderedReport("talk", "%PDF-".getBytes()));
         mockMvc.perform(endpoint.on(prefix).with(memberOfOrgSeven())).andExpect(status().isOk());
     }
@@ -109,15 +124,14 @@ class ToolboxTalksControllerWebAuthzTest {
     @ParameterizedTest(name = "{0} on {1}")
     @MethodSource("writes")
     void aWriteIsForbiddenForAMemberWithoutAManageRole(String name, String prefix, Endpoint endpoint) throws Exception {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(false);
+        holds(MEMBER);
         mockMvc.perform(endpoint.on(prefix).with(memberOfOrgSeven())).andExpect(status().isForbidden());
     }
 
     @ParameterizedTest(name = "{0} on {1}")
     @MethodSource("writes")
     void aWriteIsAllowedForAManageRole(String name, String prefix, Endpoint endpoint) throws Exception {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(true);
+        holds(PAIR);
         mockMvc.perform(endpoint.on(prefix).with(memberOfOrgSeven())).andExpect(status().is2xxSuccessful());
     }
 

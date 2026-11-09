@@ -14,8 +14,9 @@ import org.tornotron.echno_backend.common.module.NavDescriptor;
  * read by the registry for the request surface and by {@link ToolboxTalksModuleEnabled} for
  * anything scheduled.
  *
- * <p>Permission keys use the {@code <module>:<action>} vocabulary, the same form as the
- * {@code @PreAuthorize} authorities elsewhere in the API and the web nav gate.
+ * <p>Permission keys use the {@code <module>:<action>} vocabulary, the same form as the web nav
+ * gate. The endpoints ask the access matrix's {@code toolbox-talks} area instead: any member reads a
+ * talk, and the system admin, the project manager and the safety officer run one.
  */
 @Component
 public class ToolboxTalksModule implements EchnoModule {
@@ -25,13 +26,6 @@ public class ToolboxTalksModule implements EchnoModule {
 
     public static final String PERMISSION_READ = ID + ":read";
     public static final String PERMISSION_MANAGE = ID + ":manage";
-
-    // The two guards every handler in the module carries. Reading a talk is for any member of
-    // the tenant; writing one is for the roles that run a site's safety: the project manager,
-    // the safety officer and the system admin. One string each, so the twins cannot drift.
-    public static final String READ_GUARD = "@orgSecurity.isMemberOfCurrentTenant()";
-    public static final String MANAGE_GUARD =
-            "@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','safety-officer')";
 
     static final String ROUTE_ROOT = "/users/dashboard/" + ID;
     // The web sidebar has no safety section of its own; talks sit with the inspections, the
