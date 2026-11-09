@@ -117083,7 +117083,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read material consumption"
           },
           "404": {
             "content": {
@@ -117193,7 +117193,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to material consumption"
           },
           "404": {
             "content": {
@@ -117324,7 +117324,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read material consumption"
           },
           "404": {
             "content": {
@@ -117473,7 +117473,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read material consumption"
           },
           "404": {
             "content": {
@@ -117613,7 +117613,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read material consumption"
           },
           "404": {
             "content": {
@@ -117753,7 +117753,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read material consumption"
           },
           "404": {
             "content": {
@@ -117896,7 +117896,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read material consumption"
           },
           "404": {
             "content": {
@@ -118001,7 +118001,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read material consumption"
           },
           "404": {
             "content": {
@@ -118111,7 +118111,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to material consumption"
           },
           "404": {
             "content": {
@@ -118242,7 +118242,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read material consumption"
           },
           "404": {
             "content": {
@@ -118367,7 +118367,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read material consumption"
           },
           "404": {
             "content": {
@@ -118483,7 +118483,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read material consumption"
           },
           "404": {
             "content": {
@@ -118599,7 +118599,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read material consumption"
           },
           "404": {
             "content": {
@@ -118718,7 +118718,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read material consumption"
           },
           "404": {
             "content": {
@@ -118831,7 +118831,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read material consumption"
           },
           "404": {
             "content": {
@@ -118944,7 +118944,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read material consumption"
           },
           "404": {
             "content": {
@@ -169547,11 +169547,11 @@
       "name": "Ledger Accounts"
     },
     {
-      "description": "Records of material drawn out of stock against a project, optionally a storage location and a task. Each consumption reduces the material's current stock, so creating one checks that sufficient stock is available first. Endpoints cover recording a consumption and reading consumptions by id, material, type, date range or task.",
+      "description": "Records of material drawn out of stock against a project, optionally a storage location and a task. Each consumption reduces the material's current stock, so creating one checks that sufficient stock is available first. Endpoints cover recording a consumption and reading consumptions by id, material, type, date range or task. Each endpoint needs the material-consumption permission its /web twin needs: material-consumption:create to record one and material-consumption:read for the reads.",
       "name": "Material Consumptions"
     },
     {
-      "description": "Web-console counterpart of the material consumptions API, gated by organization role for the current tenant. Recording an issue is open to the system-admin and store-keeper roles: handing material out over the counter is the store's own work. Looking issues up is open to those two and to the project-manager role, which already sees the same consumption in the stock ledger. Covers the same recording and lookup operations as the standard material consumption endpoints, for use from the admin web console rather than the mobile app.",
+      "description": "Web-console counterpart of the material consumptions API. Covers the same recording and lookup operations as the standard material consumption endpoints, for use from the admin web console. Recording an issue needs material-consumption:create and looking issues up needs material-consumption:read. The starting roles give both to the system admin and store keeper, since handing material out over the counter is the store's own work, and read to the project manager, who already sees the same consumption in the stock ledger. A grant held on one project reaches that project's consumption only.",
       "name": "Material Consumptions (Web)"
     },
     {
