@@ -93,7 +93,8 @@ class DatabaseAccessServiceContractIT extends AbstractIntegrationTest {
 
         @Override
         protected AccessService service() {
-            return new MatrixAccessService(new CachedAccessFactsSource(database, cacheManager));
+            // Every area counts as scope aware here: the contract is about what each scope admits.
+            return new MatrixAccessService(new CachedAccessFactsSource(database, cacheManager), area -> true);
         }
 
         private void changed() {

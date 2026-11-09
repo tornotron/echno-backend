@@ -120,7 +120,7 @@ class CachedAccessFactsSourceTest {
     void aListOfOneHundredRecordsRunsTheFactsQueriesOnce() {
         aMember();
         beginARequest();
-        MatrixAccessService engine = new MatrixAccessService(source);
+        MatrixAccessService engine = new MatrixAccessService(source, area -> true);
         AccessPermission read = AccessPermission.of("finance:read");
 
         for (long record = 0; record < 100; record++) {

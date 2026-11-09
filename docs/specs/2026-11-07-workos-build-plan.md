@@ -557,6 +557,9 @@ the point the Roles & Permissions screen is usable.
   (`finance`, `purchase-orders`, `indents`, `vendors`, then `projects`), then the rest in the order
   of the mapping note. The audit's G-04 (commented-out guard), G-06 (attachments), G-08 (finance)
   and G-14 are fixed in the owning area's PR, with the owner's yes where they change access.
+- Follow-up: a grant held only on a project counts only in an area that registers as scope aware,
+  since any other area narrows none of its queries. The Roles & Permissions screen should later show
+  which of a role's grants do not apply when the role is given on a project (web).
 
 **Step 31. Remaining role-name queries.**
 
