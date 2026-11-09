@@ -8,7 +8,7 @@ import org.springframework.mock.env.MockEnvironment;
 import org.tornotron.echno_backend.common.module.ModuleManifest;
 import org.tornotron.echno_backend.common.module.ModuleRegistry;
 
-/** The module's contract with the registry: the manifest, the manifest and the permission vocabulary. */
+/** The module's contract with the registry: the manifest and the permission vocabulary. */
 class WorkProgressModuleTest {
 
     private static final long ORG = 7L;
