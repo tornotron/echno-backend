@@ -1,5 +1,6 @@
 package org.tornotron.echno_backend.modules.workprogress.billing.payment;
 
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -109,6 +110,7 @@ class BillPaymentControllerAuthzTest {
     @MethodSource("prefixes")
     void readingIsForMembers(String prefix) throws Exception {
         for (String path : new String[]{"/bills/" + ID + "/payments", "/projects/7/payment-authorizer"}) {
+            reset(access);
             mockMvc.perform(get(prefix + path).with(member())).andExpect(status().isForbidden());
             holds(MEMBER);
             mockMvc.perform(get(prefix + path).with(member())).andExpect(status().is2xxSuccessful());
