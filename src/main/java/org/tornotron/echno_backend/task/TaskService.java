@@ -1,5 +1,6 @@
 package org.tornotron.echno_backend.task;
 
+import jakarta.persistence.criteria.Predicate;
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,6 +11,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -24,6 +26,9 @@ import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 import org.tornotron.echno_backend.common.service.AttachmentService;
 import org.tornotron.echno_backend.common.service.CurrentEmployeeService;
+import org.tornotron.echno_backend.modules.access.api.AccessFilter;
+import org.tornotron.echno_backend.modules.access.api.AccessPermission;
+import org.tornotron.echno_backend.modules.access.api.RecordFacts;
 import org.tornotron.echno_backend.project.ProjectProgressCalculator;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
@@ -44,6 +49,11 @@ import java.util.stream.Collectors;
 /**
  * Service class for managing tasks.
  * Handles business logic related to task creation, retrieval, updates, and deletion.
+ *
+ * <p>Every read is narrowed to the tasks the caller may read on the access matrix
+ * ({@link TaskAccess}): the lists in the query, and a single task by reporting one the caller may
+ * not read as missing. A new task is checked on where it will be recorded, and an edit on the task
+ * as it stands and as the edit leaves it.
  */
 @Service
 public class TaskService {
@@ -79,6 +89,7 @@ public class TaskService {
     private final TaskMapper taskMapper;
     private final PayloadValidator payloadValidator;
     private final ProjectCompletion projectCompletion;
+    private final TaskAccess taskAccess;
 
     /**
      * Constructs a TaskService with the necessary repositories.
@@ -93,6 +104,7 @@ public class TaskService {
      * @param taskMapper         The mapper between tasks and their DTOs.
      * @param payloadValidator   Runs the create payload's own constraints.
      * @param projectCompletion  Completes or reopens the project when its tasks change.
+     * @param taskAccess         Which tasks the caller may read and change.
      */
     public TaskService(TaskRepository taskRepository,
                        EmployeeRepository employeeRepository,
@@ -102,7 +114,8 @@ public class TaskService {
                        CurrentEmployeeService currentEmployeeService,
                        TaskMapper taskMapper,
                        PayloadValidator payloadValidator,
-                       ProjectCompletion projectCompletion) {
+                       ProjectCompletion projectCompletion,
+                       TaskAccess taskAccess) {
         this.taskRepository = taskRepository;
         this.employeeRepository = employeeRepository;
         this.projectRepository = projectRepository;
@@ -112,6 +125,7 @@ public class TaskService {
         this.taskMapper = taskMapper;
         this.payloadValidator = payloadValidator;
         this.projectCompletion = projectCompletion;
+        this.taskAccess = taskAccess;
     }
 
     /**
@@ -191,6 +205,10 @@ public class TaskService {
             task.setTags(cleanedTags);
         }
 
+        // Checked on the task as it will be recorded, its project, creator and assignees, before it
+        // is saved or any attachment is stored for it.
+        taskAccess.require(AccessPermission.CREATE, TaskAccess.facts(task));
+
         Task savedTask = taskRepository.save(task);
 
         if(attachments != null && !attachments.isEmpty()) {
@@ -216,8 +234,14 @@ public class TaskService {
     @Transactional(readOnly = true)
     public Page<TaskDto> getAllTasks(int pageNo, int pageSize) {
         Pageable pageable = PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.ASC, "id"));
-        return taskRepository.findAll(pageable)
-                .map(task -> taskMapper.toDto(task));
+        AccessFilter visible = taskAccess.filter(AccessPermission.READ);
+        if (visible.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        Page<Task> tasks = visible.everything()
+                ? taskRepository.findAll(pageable)
+                : taskRepository.findAll(TaskAccess.admittedBy(visible), pageable);
+        return tasks.map(task -> taskMapper.toDto(task));
     }
 
     /**
@@ -239,8 +263,15 @@ public class TaskService {
         int page = Math.max(pageNo, 0);
         int size = Math.clamp(pageSize, 1, UnpagedResultCap.MAX_ROWS);
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "id"));
-        return taskRepository.search(projectId, searchPattern(search), pageable)
-                .map(task -> taskMapper.toDto(task));
+        AccessFilter visible = taskAccess.filter(AccessPermission.READ);
+        if (visible.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        String pattern = searchPattern(search);
+        Page<Task> tasks = visible.everything()
+                ? taskRepository.search(projectId, pattern, pageable)
+                : taskRepository.findAll(matching(projectId, pattern).and(TaskAccess.admittedBy(visible)), pageable);
+        return tasks.map(task -> taskMapper.toDto(task));
     }
 
     /**
@@ -288,19 +319,19 @@ public class TaskService {
      */
     @Transactional(readOnly = true)
     public TaskDto getATask(Long id) {
-        TaskDto taskDto = taskRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .map(task -> taskMapper.toDto(task))
-                .orElse(null);
-        if(taskDto == null) {
-            throw new ResourceNotFoundException("Task with ID " + id + " was not found in this organization");
-        } else {
-            return taskDto;
-        }
+        return taskMapper.toDto(requireTask(id, AccessPermission.READ));
     }
 
     @Transactional(readOnly = true)
     public List<TaskDto> getTasksByProjectId(Long projectId) {
-        return taskRepository.findAllByProject_IdAndOrganization_Id(projectId,TenantContext.getCurrentOrgId()).stream()
+        AccessFilter visible = taskAccess.filter(AccessPermission.READ);
+        if (visible.isEmpty()) {
+            return List.of();
+        }
+        List<Task> tasks = visible.everything()
+                ? taskRepository.findAllByProject_IdAndOrganization_Id(projectId, TenantContext.getCurrentOrgId())
+                : taskRepository.findAll(matching(projectId, null).and(TaskAccess.admittedBy(visible)));
+        return tasks.stream()
                 .map(task -> taskMapper.toDto(task))
                 .collect(Collectors.toList());
     }
@@ -314,9 +345,11 @@ public class TaskService {
      */
     @Transactional
     public TaskSimpleDto partialUpdateATask(Map<String,Object> updates,Long id,List<MultipartFile> attachments, String entityType) {
-        Task task = taskRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Task with ID " + id + " was not found in this organization"));
+        Task task = requireTask(id, AccessPermission.EDIT);
         partialUpdateATask(updates, task);
+        // An edit can change the assignees, and must not move the task out of what the caller may
+        // edit.
+        taskAccess.require(AccessPermission.EDIT, TaskAccess.facts(task));
 
         if (attachments != null) {
             for (MultipartFile att:attachments) {
@@ -528,7 +561,12 @@ public class TaskService {
     @Transactional
     public void batchUpdateTasks(List<TaskPatchDto> updates) {
         List<Long> taskIds = updates.stream().map(TaskPatchDto::getId).collect(Collectors.toList());
-        List<Task> tasks = taskRepository.findAllById(taskIds);
+        // A task the caller may not read is skipped as a missing one is, and one they may read but
+        // not edit refuses the whole batch before anything is changed.
+        List<Task> tasks = taskRepository.findAllById(taskIds).stream()
+                .filter(task -> taskAccess.allows(AccessPermission.READ, TaskAccess.facts(task)))
+                .toList();
+        tasks.forEach(task -> taskAccess.require(AccessPermission.EDIT, TaskAccess.facts(task)));
 
         Map<Long, Task> taskMap = tasks.stream().collect(Collectors.toMap(Task::getId, task -> task));
 
@@ -536,6 +574,7 @@ public class TaskService {
             Task task = taskMap.get(update.getId());
             if (task != null) {
                 partialUpdateATask(update.getUpdates(), task);
+                taskAccess.require(AccessPermission.EDIT, TaskAccess.facts(task));
             }
         });
 
@@ -555,8 +594,7 @@ public class TaskService {
      */
     @Transactional
     public void deleteATask(Long id) {
-        Task task = taskRepository.findByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId())
-                .orElseThrow(() -> new ResourceNotFoundException("Task with ID " + id + " was not found in this organization"));
+        Task task = requireTask(id, AccessPermission.DELETE);
         Project project = task.getProject();
         taskRepository.deleteByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId());
         taskRepository.flush();
@@ -573,6 +611,46 @@ public class TaskService {
         project.setProgress(progress);
         projectCompletion.reconcile(project, tasks);
         projectRepository.save(project);
+    }
+
+    /**
+     * The task, when the caller may read it and act on it this way. One the caller may not read is
+     * reported missing, as one in another organization is.
+     */
+    private Task requireTask(Long id, String action) {
+        Task task = taskRepository.findByIdAndOrganization_Id(id, TenantContext.getCurrentOrgId())
+                .orElseThrow(() -> taskNotFound(id));
+        RecordFacts facts = TaskAccess.facts(task);
+        if (!taskAccess.allows(AccessPermission.READ, facts)) {
+            throw taskNotFound(id);
+        }
+        if (!AccessPermission.READ.equals(action)) {
+            taskAccess.require(action, facts);
+        }
+        return task;
+    }
+
+    private static ResourceNotFoundException taskNotFound(Long id) {
+        return new ResourceNotFoundException("Task with ID " + id + " was not found in this organization");
+    }
+
+    /**
+     * The condition {@link TaskRepository#search} states, for a query narrowed by the access filter:
+     * an optional project and an optional lower-cased LIKE pattern on title or description.
+     */
+    private static Specification<Task> matching(Long projectId, String pattern) {
+        return (root, query, cb) -> {
+            List<Predicate> all = new ArrayList<>();
+            if (projectId != null) {
+                all.add(cb.equal(root.get("project").get("id"), projectId));
+            }
+            if (pattern != null) {
+                all.add(cb.or(
+                        cb.like(cb.lower(root.get("title")), pattern, '\\'),
+                        cb.like(cb.lower(root.get("description")), pattern, '\\')));
+            }
+            return cb.and(all.toArray(Predicate[]::new));
+        };
     }
 
 }

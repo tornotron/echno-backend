@@ -51,6 +51,13 @@ class TaskServicePaginationTest {
 
     @Mock private org.tornotron.echno_backend.project.ProjectCompletion projectCompletion;
 
+    @Mock private TaskAccess taskAccess;
+
+    @org.junit.jupiter.api.BeforeEach
+    void everyTaskIsAllowed() {
+        TaskAccessStubs.allowEverything(taskAccess);
+    }
+
     @InjectMocks
     private TaskService service;
 
