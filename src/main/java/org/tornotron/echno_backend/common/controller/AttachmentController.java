@@ -19,7 +19,7 @@ import org.tornotron.echno_backend.common.service.FileStorageService;
 @Tag(
         name = "Attachments (Mobile)",
         description = "The tenant API path of the endpoints under /api/v1/attachment/web, for the mobile client. "
-                + "Same handlers, request and response shapes and organization-role guards as the web "
+                + "Same handlers, request and response shapes and access permissions as the web "
                 + "endpoints; send X-Organization-Id to pick the organization."
 )
 public class AttachmentController extends AttachmentControllerWeb {

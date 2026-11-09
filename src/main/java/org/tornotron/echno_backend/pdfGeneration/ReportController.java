@@ -99,7 +99,7 @@ public class ReportController {
         return ctx;
     }
 
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin','project-manager')")
+    @PreAuthorize("@access.can('documents', 'read-reports')")
     @GetMapping("/pdf")
     @Operation(
             summary = "Generate a PDF report",
@@ -110,7 +110,7 @@ public class ReportController {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "PDF report generated and returned as an attachment"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not read the organization's reports"),
             @ApiResponse(responseCode = "500", description = "PDF rendering failed")
     })
     public ResponseEntity<byte[]> pdfReport() {

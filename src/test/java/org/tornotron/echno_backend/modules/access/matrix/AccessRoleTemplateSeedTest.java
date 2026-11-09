@@ -24,7 +24,7 @@ import org.tornotron.echno_backend.common.enums.OrgRole;
 class AccessRoleTemplateSeedTest {
 
     /** A mapping row's read that needs more than the area's read: its named action is checked as is. */
-    private static final Set<String> NAMED_READS = Set.of("read-financials", "read-ledger");
+    private static final Set<String> NAMED_READS = Set.of("read-financials", "read-ledger", "read-reports");
 
     private static final Path MAPPING = Path.of("docs/specs/2026-10-30-access-permission-mapping-endpoints.csv");
     private static final String BASELINE = "employee";
@@ -39,7 +39,8 @@ class AccessRoleTemplateSeedTest {
             "db/data/access/role-template-grants-labour.csv",
             "db/data/access/role-template-grants-issue-comments.csv",
             "db/data/access/role-template-grants-stores.csv",
-            "db/data/access/role-template-grants-document-reversals.csv");
+            "db/data/access/role-template-grants-document-reversals.csv",
+            "db/data/access/role-template-grants-documents-reports.csv");
 
     /**
      * Template grants a later changeset deleted, by template slug and key: access-011 takes the
@@ -178,6 +179,22 @@ class AccessRoleTemplateSeedTest {
                 assertThat(keys).as(slug).doesNotContain("vendors:read-financials");
             }
         });
+    }
+
+    @Test
+    void onlyTheSystemAdminTheHrAdminAndTheProjectManagerReadTheReport() {
+        // The organization's PDF report was those three roles' alone before the matrix, while every
+        // member reads, files, renames and removes attachments.
+        Set<String> readers = Set.of("system-admin", "hr-admin", "project-manager");
+        KEYS_BY_SLUG.forEach((slug, keys) -> {
+            if (readers.contains(slug)) {
+                assertThat(keys).as(slug).contains("documents:read-reports");
+            } else {
+                assertThat(keys).as(slug).doesNotContain("documents:read-reports");
+            }
+        });
+        assertThat(KEYS_BY_SLUG.get(BASELINE))
+                .contains("documents:read", "documents:create", "documents:edit", "documents:delete");
     }
 
     @Test
