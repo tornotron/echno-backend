@@ -193,11 +193,11 @@ public class AttendanceRegularizationControllerWeb {
     @PreAuthorize("@access.can('leave-regularisation', 'read')")
     @Operation(
             summary = "Get a regularization request by id",
-            description = "Returns a single regularization request including its approval state."
+            description = "Returns a single regularization request including its approval state. Readable by the employee whose attendance it corrects, by whoever decided it, and by anyone who reads regularizations across the organization."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Regularization request found"),
-            @ApiResponse(responseCode = "403", description = "Caller may not read regularization requests"),
+            @ApiResponse(responseCode = "403", description = "Caller is not the employee the request is for, not whoever decided it, and may not read every employee's regularization requests"),
             @ApiResponse(responseCode = "404", description = "No regularization request with the given id")
     })
     public ResponseEntity<AttendanceRegularizationDto> getById(@PathVariable Long id) {

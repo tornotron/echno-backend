@@ -372,11 +372,27 @@ public class AttendanceRegularizationService {
                 .map(regularizationMapper::toDto);
     }
 
+    /**
+     * One request, for the employee whose attendance it corrects, whoever decided it, or someone who
+     * reads regularizations across the organization.
+     *
+     * <p>Any member used to read any request by its id, which handed a colleague's reason and
+     * corrected clock times to whoever guessed the id. The attendance and movement reads by id were
+     * held to their record in September; this one is held to the same three people.
+     *
+     * @param id The request.
+     * @return The request as a DTO.
+     * @throws ResourceNotFoundException if no such request exists in this organization.
+     * @throws AccessDeniedException if the caller is none of the three.
+     */
     @Transactional(readOnly = true)
     public AttendanceRegularizationDto getRegularizationById(Long id) {
         AttendanceRegularization regularization = regularizationRepository.findByIdAndOrganization_Id(id,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Regularization request with ID " + id + " was not found"));
+        if (!regularisationAccess.mayRead(employeeOf(regularization), regularization.getApprovedById())) {
+            throw new AccessDeniedException("You may not read this regularization request");
+        }
         return regularizationMapper.toDto(regularization);
     }
 
