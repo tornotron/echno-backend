@@ -43,9 +43,11 @@ import org.tornotron.echno_backend.modules.documentingestion.extraction.llm.Extr
 import org.tornotron.echno_backend.modules.documentingestion.extraction.llm.IngestLlmProperties;
 import org.tornotron.echno_backend.modules.documentingestion.extraction.llm.LlmBudget;
 import org.tornotron.echno_backend.modules.documentingestion.extraction.llm.LlmGate;
+import org.tornotron.echno_backend.modules.documentingestion.parsing.DxfReading;
 import org.tornotron.echno_backend.modules.documentingestion.parsing.PageText;
 import org.tornotron.echno_backend.modules.documentingestion.parsing.ParsedOutputReader;
 import org.tornotron.echno_backend.modules.documentingestion.parsing.TableRow;
+import org.tornotron.echno_backend.modules.documentingestion.parsing.TitleBlock;
 import org.tornotron.echno_backend.modules.documentingestion.parsing.WorkbookMeta;
 import org.tornotron.echno_backend.modules.documentingestion.repository.ExtractJobRepository;
 import org.tornotron.echno_backend.modules.documentingestion.repository.IngestDocumentRepository;
@@ -145,7 +147,7 @@ public class ExtractJobWorker {
             end(claim, ExtractJobStatus.FAILED, EXTRACTOR_OFF, null);
             return;
         }
-        ExtractContext context = withOutputs(loaded, extractor.readsTables());
+        ExtractContext context = withOutputs(loaded, extractor.readsTables(), extractor.readsTitleBlocks());
         markSegment(context.segmentId(), SegmentStatus.EXTRACTING, null);
 
         ExtractPlan plan = extractor.plan(context);
@@ -387,8 +389,12 @@ public class ExtractJobWorker {
         return new Loaded(context, job.getExtractorKey(), doc.getOutputPrefix());
     }
 
-    private ExtractContext withOutputs(Loaded loaded, boolean readsTables) {
+    private ExtractContext withOutputs(Loaded loaded, boolean readsTables, boolean readsTitleBlocks) {
         ExtractContext c = loaded.context();
+        if (c.fileType() == DocumentFileType.DWG) {
+            // A DWG is stored and never parsed, so it has no outputs; a drawing reader names it by its file.
+            return c;
+        }
         WorkbookMeta meta = outputs.meta(loaded.outputPrefix());
         List<PageText> pages = List.of();
         if (c.fileType() == DocumentFileType.PDF) {
@@ -398,9 +404,21 @@ public class ExtractJobWorker {
                     .toList();
         }
         List<TableRow> tables = readsTables ? tables(loaded.outputPrefix(), c) : List.of();
+        List<TitleBlock> titleBlocks = null;
+        DxfReading dxf = null;
+        if (readsTitleBlocks && c.fileType() == DocumentFileType.PDF) {
+            titleBlocks = outputs.titleBlocksIfWritten(loaded.outputPrefix())
+                    .map(all -> all.stream()
+                            .filter(b -> c.pageFrom() == null || b.page() >= c.pageFrom())
+                            .filter(b -> c.pageTo() == null || b.page() <= c.pageTo())
+                            .toList())
+                    .orElse(null);
+        } else if (readsTitleBlocks && c.fileType() == DocumentFileType.DXF) {
+            dxf = outputs.dxfIfWritten(loaded.outputPrefix()).orElse(null);
+        }
         return new ExtractContext(c.jobId(), c.organizationId(), c.packageId(), c.documentId(), c.fileName(),
                 c.fileType(), c.documentSha256(), c.segmentId(), c.segmentClass(), c.pageFrom(), c.pageTo(), pages,
-                meta, c.result(), tables);
+                meta, c.result(), tables, titleBlocks, dxf);
     }
 
     /**

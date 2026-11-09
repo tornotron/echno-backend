@@ -206,25 +206,30 @@ public class ClassificationService {
             }
         }
         if (isWorkbook(doc)) {
-            queued += confirmWorkbook(doc, docClass, userId, now);
+            // Only a reader of table rows can read a workbook; a page reader, such as project setup, would get no
+            // pages and end as if it had read the file.
+            queued += confirmWholeFile(doc, docClass, docClass == DocClass.BOQ ? List.of()
+                    : registry.segmentExtractors(docClass).stream().filter(Extractor::readsTables).toList(),
+                    "The whole workbook.", userId, now);
+        } else if (isDrawingFile(doc)) {
+            queued += confirmWholeFile(doc, docClass, registry.segmentExtractors(docClass).stream()
+                    .filter(Extractor::readsTitleBlocks).toList(), "The whole drawing file.", userId, now);
         }
         return new int[] {confirmed.size(), queued};
     }
 
     /**
-     * A workbook of a class read by extractors of table rows, such as a milestone schedule, gets one
-     * confirmed segment for the whole file, and those extractors are queued on it. A class read only from
-     * pages, such as a NIT, is not read from a workbook. A BOQ workbook keeps its per-sheet flow,
+     * A file with no pages to split gets one confirmed segment for the whole file when its class has
+     * readers for it, and those readers are queued on it: a workbook of a class read by extractors of
+     * table rows, such as a milestone schedule, or a DXF or DWG confirmed as a drawing. A class read only
+     * from pages, such as a NIT, is not read from a workbook. A BOQ workbook keeps its per-sheet flow,
      * whose segments are made when a sheet's mapping is confirmed. Changing the class drops the old
-     * whole-workbook segment unless a value read from it is already on a live record.
+     * whole-file segment unless a value read from it is already on a live record.
      *
      * @return jobs queued
      */
-    private int confirmWorkbook(IngestDocument doc, DocClass docClass, Long userId, LocalDateTime now) {
-        // Only a reader of table rows can read a workbook; a page reader, such as project setup, would get no
-        // pages and end as if it had read the file.
-        List<Extractor> readers = docClass == DocClass.BOQ ? List.of()
-                : registry.segmentExtractors(docClass).stream().filter(Extractor::readsTables).toList();
+    private int confirmWholeFile(IngestDocument doc, DocClass docClass, List<Extractor> readers, String reason,
+                                 Long userId, LocalDateTime now) {
         Segment kept = null;
         for (Segment s : segments.findWholeWorkbook(doc.getId())) {
             if (kept == null && !readers.isEmpty() && docClass.name().equals(s.getDocClass())) {
@@ -258,7 +263,7 @@ public class ClassificationService {
         s.setDocClass(docClass.name());
         s.setSheetName(Segment.WHOLE_WORKBOOK);
         s.setMethod(ClassMethod.PERSON);
-        s.setReason("The whole workbook.");
+        s.setReason(reason);
         s.setStatus(SegmentStatus.CONFIRMED);
         s.setConfirmedBy(userId);
         s.setConfirmedAt(now);
@@ -271,6 +276,10 @@ public class ClassificationService {
 
     private static boolean isWorkbook(IngestDocument doc) {
         return doc.getFileType() == DocumentFileType.XLSX || doc.getFileType() == DocumentFileType.XLS;
+    }
+
+    private static boolean isDrawingFile(IngestDocument doc) {
+        return doc.getFileType() == DocumentFileType.DXF || doc.getFileType() == DocumentFileType.DWG;
     }
 
     /** The ranges to confirm: as given, or the whole file for a PDF given none; none for a workbook. */

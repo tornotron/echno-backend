@@ -13,7 +13,8 @@ import org.tornotron.echno_backend.modules.documentingestion.domain.DocClass;
 public record ClassificationRequest(
         @Schema(description = "The document's class") @NotNull DocClass docClass,
         @Schema(description = "Page ranges of a PDF, in order and not overlapping. Empty means one segment of the whole "
-                + "file in the document's class; ignored for a workbook, whose sheets are read through the BOQ mapping",
+                + "file in the document's class; ignored for a workbook, whose sheets are read through the BOQ "
+                + "mapping, and for a DXF or DWG, which is read as one drawing file",
                 nullable = true)
         @Size(max = 200) List<@Valid @NotNull Range> segments) {
 

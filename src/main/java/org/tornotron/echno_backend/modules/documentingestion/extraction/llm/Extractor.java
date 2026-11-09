@@ -40,6 +40,16 @@ public interface Extractor {
     }
 
     /**
+     * Whether the job reads the worker's drawing outputs: {@code titleblock.jsonl} for a PDF and
+     * {@code dxf.json} for a DXF. Such an extractor is also queued on a DXF or DWG confirmed as its
+     * class, on a segment for the whole file, and on a DWG it is given no outputs at all, since a DWG
+     * is stored and not read.
+     */
+    default boolean readsTitleBlocks() {
+        return false;
+    }
+
+    /**
      * Does what needs no LLM and says which pages still need reading. Runs on every attempt, so it must
      * not write; what it decides goes in {@link ExtractPlan#result()}.
      */

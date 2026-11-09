@@ -15,6 +15,10 @@ public final class DocumentIngestionStorageLayout {
     public static final String MANIFEST_FILE = "manifest.json";
     public static final String TABLES_FILE = "tables.jsonl";
     public static final String PAGES_FILE = "pages.jsonl";
+    /** Worker 0.3.0: the title-block region of each PDF page. */
+    public static final String TITLEBLOCK_FILE = "titleblock.jsonl";
+    /** Worker 0.3.0: the block attributes and layouts of a DXF. */
+    public static final String DXF_FILE = "dxf.json";
 
     private DocumentIngestionStorageLayout() {
     }
@@ -33,6 +37,11 @@ public final class DocumentIngestionStorageLayout {
 
     public static String outputPrefix(Long organizationId, UUID packageId, UUID documentId) {
         return packagePrefix(organizationId, packageId) + documentId + "/output/";
+    }
+
+    /** The title-block crop of a page, relative to the output prefix, as the worker writes it. */
+    public static String titleBlockImage(int page) {
+        return "titleblock/" + page + ".webp";
     }
 
     public static String memberKey(Long organizationId, UUID packageId, String sha256) {

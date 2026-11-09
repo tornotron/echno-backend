@@ -5481,7 +5481,7 @@
             "type": "string"
           },
           "segments": {
-            "description": "Page ranges of a PDF, in order and not overlapping. Empty means one segment of the whole file in the document's class; ignored for a workbook, whose sheets are read through the BOQ mapping",
+            "description": "Page ranges of a PDF, in order and not overlapping. Empty means one segment of the whole file in the document's class; ignored for a workbook, whose sheets are read through the BOQ mapping, and for a DXF or DWG, which is read as one drawing file",
             "items": {
               "$ref": "#/components/schemas/Range"
             },
@@ -9524,6 +9524,156 @@
             "type": "integer"
           },
           "url": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "DrawingEntryDto": {
+        "description": "One drawing number at one revision, with its title-block values as printed. The rows of a number form a revision chain through supersedesId and supersededById; the newest read revision is current. Only the title block is read: nothing else on the drawing.",
+        "properties": {
+          "candidateId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "cropAvailable": {
+            "description": "Whether a title-block crop exists; fetch it from GET /documents/{documentId}/title-blocks/{sheetPage}/image.",
+            "type": "boolean"
+          },
+          "current": {
+            "description": "Whether this is the number's current revision.",
+            "type": "boolean"
+          },
+          "discipline": {
+            "example": "Architectural",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "documentId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "drawingNumber": {
+            "example": "RCB-AR-101",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "layout": {
+            "description": "The DXF layout the title block is on.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "note": {
+            "example": "Not read, add a PDF or DXF copy.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "packageId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "projectId": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "revision": {
+            "example": "B",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "revisionDate": {
+            "description": "The same date when it reads plainly as one.",
+            "format": "date",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "revisionDateText": {
+            "description": "The revision's date as printed.",
+            "example": "12.03.2026",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "revisionHistory": {
+            "description": "The printed revision table, oldest first: revision, date and description.",
+            "items": {
+              "additionalProperties": {
+                "type": "object"
+              },
+              "type": "object"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "scale": {
+            "example": "1:100",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sheetPage": {
+            "description": "The PDF page the sheet is on.",
+            "format": "int32",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "sourceFormat": {
+            "description": "PDF, DXF or DWG.",
+            "example": "PDF",
+            "type": "string"
+          },
+          "status": {
+            "description": "READ, or NOT_READ for a DWG, which is named by its file only.",
+            "enum": [
+              "READ",
+              "NOT_READ"
+            ],
+            "type": "string"
+          },
+          "supersededById": {
+            "description": "The newer revision that replaced this one.",
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "supersedesId": {
+            "description": "The older revision this one replaced.",
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "example": "GROUND FLOOR PLAN",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "updatedAt": {
+            "format": "date-time",
             "type": "string"
           }
         },
@@ -19795,6 +19945,52 @@
           "content": {
             "items": {
               "$ref": "#/components/schemas/DocumentReversalDto"
+            },
+            "type": "array"
+          },
+          "empty": {
+            "type": "boolean"
+          },
+          "first": {
+            "type": "boolean"
+          },
+          "last": {
+            "type": "boolean"
+          },
+          "number": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "numberOfElements": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "pageable": {
+            "$ref": "#/components/schemas/PageableObject"
+          },
+          "size": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "sort": {
+            "$ref": "#/components/schemas/SortObject"
+          },
+          "totalElements": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "totalPages": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "PageDrawingEntryDto": {
+        "properties": {
+          "content": {
+            "items": {
+              "$ref": "#/components/schemas/DrawingEntryDto"
             },
             "type": "array"
           },
@@ -64885,6 +65081,244 @@
         ]
       }
     },
+    "/api/v1/document-ingestion/documents/{documentId}/title-blocks/{page}/image": {
+      "get": {
+        "description": "The image the file reader cropped from the sheet's title block, which the review screen shows beside each DRAWING candidate (payload sheet_page, crop_image) and register row (sheetPage, cropAvailable).",
+        "operationId": "DocumentIngestionDrawingController_titleBlockImage",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "documentId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "page",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/DownloadUrlDto"
+                }
+              }
+            },
+            "description": "The link, valid for a few minutes"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such document in the current tenant, or no crop for that page"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Get a short-lived link to a sheet's title-block crop",
+        "tags": [
+          "Document Ingestion"
+        ]
+      }
+    },
+    "/api/v1/document-ingestion/drawings/{drawingId}/revisions": {
+      "get": {
+        "description": "The revision chain the row belongs to, in revision order, with the current one marked. Older revisions are kept and link to the revision that replaced them.",
+        "operationId": "DocumentIngestionDrawingController_listDrawingRevisions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "drawingId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DrawingEntryDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "The chain, oldest first"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such drawing in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List every revision of a drawing's number, oldest first",
+        "tags": [
+          "Document Ingestion"
+        ]
+      }
+    },
     "/api/v1/document-ingestion/extract-jobs/{jobId}/retry-failed": {
       "post": {
         "description": "Parts already read are skipped, so only the failed chunks are sent.",
@@ -67140,6 +67574,148 @@
           }
         },
         "summary": "Confirm an upload and queue the file for reading",
+        "tags": [
+          "Document Ingestion"
+        ]
+      }
+    },
+    "/api/v1/document-ingestion/packages/{packageId}/drawings": {
+      "get": {
+        "description": "One row per drawing number and revision, applied from accepted DRAWING candidates, with the title-block values as printed. With currentOnly=true, only each number's current revision. A DWG appears with status NOT_READ and the note \"Not read, add a PDF or DXF copy.\" Provenance for each field is under GET /provenance with target type DRAWING.",
+        "operationId": "DocumentIngestionDrawingController_listDrawings",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "packageId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "currentOnly",
+            "required": false,
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "size",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageDrawingEntryDto"
+                }
+              }
+            },
+            "description": "A page of drawings, by number"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such package in the current tenant"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List a package's drawing register",
         "tags": [
           "Document Ingestion"
         ]

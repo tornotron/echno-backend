@@ -18,6 +18,8 @@ import org.tornotron.echno_backend.modules.documentingestion.api.DocumentTextRea
 import org.tornotron.echno_backend.modules.documentingestion.extraction.llm.Extractor;
 import org.tornotron.echno_backend.modules.documentingestion.extraction.llm.ExtractorRegistry;
 import org.tornotron.echno_backend.modules.documentingestion.repository.IngestPackageRepository;
+import org.tornotron.echno_backend.modules.documentingestion.domain.ClassMethod;
+import org.tornotron.echno_backend.modules.documentingestion.domain.DocClass;
 import org.tornotron.echno_backend.modules.documentingestion.domain.DocumentFileType;
 import org.tornotron.echno_backend.modules.documentingestion.domain.DocumentStatus;
 import org.tornotron.echno_backend.modules.documentingestion.domain.IngestDocument;
@@ -171,6 +173,9 @@ public class ParseJobIngestor {
             } else if (type == DocumentFileType.DWG) {
                 child.setStatus(DocumentStatus.STORED_ONLY);
                 child.setError("DWG files are stored and listed but not read. Add a PDF or DXF copy to have it read.");
+                child.setDocClass(DocClass.DRAWING.name());
+                child.setClassMethod(ClassMethod.DETERMINISTIC);
+                child.setClassReason("A drawing file.");
             } else {
                 queueParse(job, child);
             }
