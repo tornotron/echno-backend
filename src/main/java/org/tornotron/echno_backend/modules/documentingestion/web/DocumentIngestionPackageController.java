@@ -58,10 +58,12 @@ public class DocumentIngestionPackageController {
 
     @GetMapping("/packages")
     @PreAuthorize(DocumentIngestionModule.READ_GUARD)
-    @Operation(summary = "List the organization's packages, newest first")
-    public Page<PackageDto> listPackages(@RequestParam(defaultValue = "0") int page,
+    @Operation(summary = "List the organization's packages, newest first",
+            description = "With projectId, only the packages tied to that project.")
+    public Page<PackageDto> listPackages(@RequestParam(required = false) Long projectId,
+                                         @RequestParam(defaultValue = "0") int page,
                                          @RequestParam(defaultValue = "20") int size) {
-        return packageService.list(page, size);
+        return packageService.list(projectId, page, size);
     }
 
     @GetMapping("/packages/{packageId}")
@@ -150,5 +152,18 @@ public class DocumentIngestionPackageController {
     @Operation(summary = "Get a short-lived link to download the source file")
     public DownloadUrlDto downloadUrl(@PathVariable UUID documentId) {
         return documentService.downloadUrl(documentId);
+    }
+
+    @GetMapping("/documents/{documentId}/pages/{page}/image")
+    @PreAuthorize(DocumentIngestionModule.READ_GUARD)
+    @Operation(summary = "Get a short-lived link to the image of a page",
+            description = "The image the file reader made of one page of a PDF (pages numbered from 1), which the review "
+                    + "screen draws a source's box over (SourceRef page and box).")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "The link, valid for a few minutes"),
+            @ApiResponse(responseCode = "404", description = "No such document in the current tenant, or no image of that page")
+    })
+    public DownloadUrlDto pageImage(@PathVariable UUID documentId, @PathVariable int page) {
+        return documentService.pageImageUrl(documentId, page);
     }
 }

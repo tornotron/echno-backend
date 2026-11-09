@@ -100,6 +100,9 @@ compliance:
     base-url: ${COMPLIANCE_AI_BASE_URL:https://inference.do-ai.run/v1}
     api-key: ${COMPLIANCE_AI_API_KEY:}
     model: ${COMPLIANCE_AI_MODEL:llama3.3-70b-instruct}
+    # Named on the document ingestion screens; change them with base-url when the provider changes.
+    provider-name: ${COMPLIANCE_AI_PROVIDER_NAME:DigitalOcean hosted AI models (Gradient inference)}
+    provider-privacy-url: ${COMPLIANCE_AI_PROVIDER_PRIVACY_URL:https://docs.digitalocean.com/products/inference/details/data-privacy/}
     max-tokens: 4096
     temperature: 0.2
     enabled: ${COMPLIANCE_AI_ENABLED:true}

@@ -4416,6 +4416,20 @@
           "applyError": {
             "type": "string"
           },
+          "conflictAppliedValue": {
+            "description": "When a change was refused because its record was edited by hand after it was applied: the value last applied to the record",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "conflictRecordValue": {
+            "description": "When a change was refused because its record was edited by hand after it was applied: the value on the record at that apply",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "documentId": {
             "format": "uuid",
             "type": "string"
@@ -12039,6 +12053,21 @@
       "IngestSettingsDto": {
         "description": "The organization's document ingestion settings, with the sentence the screen shows beside the switch.",
         "properties": {
+          "aiModel": {
+            "description": "The model the text is read with, from the backend's configuration",
+            "type": "string"
+          },
+          "aiProvider": {
+            "description": "The outside AI service the text is sent to, from the backend's configuration",
+            "type": "string"
+          },
+          "aiProviderPrivacyUrl": {
+            "description": "Where the provider states what it does with the text, or null when none is configured",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "changedAt": {
             "format": "date-time",
             "type": [
@@ -66369,6 +66398,128 @@
         ]
       }
     },
+    "/api/v1/document-ingestion/documents/{documentId}/pages/{page}/image": {
+      "get": {
+        "description": "The image the file reader made of one page of a PDF (pages numbered from 1), which the review screen draws a source's box over (SourceRef page and box).",
+        "operationId": "DocumentIngestionPackageController_pageImage",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "documentId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "page",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/DownloadUrlDto"
+                }
+              }
+            },
+            "description": "The link, valid for a few minutes"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "No such document in the current tenant, or no image of that page"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Get a short-lived link to the image of a page",
+        "tags": [
+          "Document Ingestion"
+        ]
+      }
+    },
     "/api/v1/document-ingestion/documents/{documentId}/parse": {
       "post": {
         "operationId": "DocumentIngestionPackageController_reparse",
@@ -67344,8 +67495,18 @@
     },
     "/api/v1/document-ingestion/packages": {
       "get": {
+        "description": "With projectId, only the packages tied to that project.",
         "operationId": "DocumentIngestionPackageController_listPackages",
         "parameters": [
+          {
+            "in": "query",
+            "name": "projectId",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
           {
             "in": "query",
             "name": "page",

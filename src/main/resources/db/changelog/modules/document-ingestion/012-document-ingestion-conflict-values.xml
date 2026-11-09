@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        When the apply step refuses a change because its record was edited by hand after a value was
+        applied, the candidate keeps the value on the record and the value last applied beside the
+        apply_error sentence, so the review screen shows all three values from fields.
+
+        Design: docs/specs/2026-11-08-document-ingestion-design.md, sections 4.8 and 6.5.
+    -->
+
+    <changeSet id="document-ingestion-012-candidate-conflict-values" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="doc_ingest_candidate" columnName="conflict_record_value"/></not>
+        </preConditions>
+        <addColumn tableName="doc_ingest_candidate">
+            <column name="conflict_record_value" type="TEXT"/>
+            <column name="conflict_applied_value" type="TEXT"/>
+        </addColumn>
+    </changeSet>
+</databaseChangeLog>

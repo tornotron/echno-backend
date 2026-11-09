@@ -122,6 +122,14 @@ public class Candidate implements TenantScopedEntity {
     @Column(name = "apply_error", columnDefinition = "TEXT")
     private String applyError;
 
+    /** When a change was refused over a record edited by hand: the value on the record at that apply. */
+    @Column(name = "conflict_record_value", columnDefinition = "TEXT")
+    private String conflictRecordValue;
+
+    /** When a change was refused over a record edited by hand: the value last applied to the record. */
+    @Column(name = "conflict_applied_value", columnDefinition = "TEXT")
+    private String conflictAppliedValue;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

@@ -41,6 +41,11 @@ public final class DocumentIngestionStorageLayout {
         return packagePrefix(organizationId, packageId) + documentId + "/output/";
     }
 
+    /** The image of a PDF page, relative to the output prefix, as the worker writes it. */
+    public static String pageImage(int page) {
+        return "page-images/" + page + ".webp";
+    }
+
     /** The title-block crop of a page, relative to the output prefix, as the worker writes it. */
     public static String titleBlockImage(int page) {
         return "titleblock/" + page + ".webp";

@@ -185,9 +185,10 @@ public class ChangeApplier implements IngestionApplier {
         boolean override = Boolean.TRUE.equals(accepted.get(OVERRIDE_RECORD))
                 && (chosenOver == null || current == null || ChangeMatcher.sameValue(field, current, chosenOver));
         if (!override && lastApplied != null && current != null && !ChangeMatcher.sameValue(field, current, lastApplied)) {
-            throw new InvalidRequestException("The BOQ line " + item.itemCode() + " was edited by hand after it was "
+            throw new ApplyConflictException("The BOQ line " + item.itemCode() + " was edited by hand after it was "
                     + "applied. Its " + field.key() + " is " + current + " on the record, " + lastApplied + " was applied, "
-                    + "and the change gives " + newValue + ". Nothing was overwritten; choose which to keep.");
+                    + "and the change gives " + newValue + ". Nothing was overwritten; choose which to keep.",
+                    current, lastApplied);
         }
         ContractBoqPort.BoqLine line = new ContractBoqPort.BoqLine(
                 field == BoqField.ITEM_CODE ? newValue : item.itemCode(),

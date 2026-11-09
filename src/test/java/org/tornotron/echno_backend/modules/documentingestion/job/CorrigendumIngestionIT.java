@@ -302,10 +302,16 @@ class CorrigendumIngestionIT extends AbstractIntegrationTest {
         assertThat(quantity(itemId)).isEqualByComparingTo("900");
         String error = jdbc.queryForObject("SELECT apply_error FROM doc_ingest_candidate WHERE id = ?", String.class, rcc.id());
         assertThat(error).contains("900").contains("850").contains("920");
+        CandidateDto failed = review.list(packageId, CandidateKind.CHANGE, CandidateStatus.APPLY_FAILED, null, 0, 50)
+                .getContent().stream().filter(c -> c.id().equals(rcc.id())).findFirst().orElseThrow();
+        assertThat(new BigDecimal(failed.conflictRecordValue())).isEqualByComparingTo("900");
+        assertThat(new BigDecimal(failed.conflictAppliedValue())).isEqualByComparingTo("850");
 
         conflicts.choose(rcc.id(), new ConflictChoiceRequest(ConflictChoiceRequest.Choice.APPLY_CHANGE));
         assertThat(apply.apply(packageId, CandidateKind.CHANGE).applied()).isEqualTo(1);
         assertThat(quantity(itemId)).isEqualByComparingTo("920");
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM doc_ingest_candidate WHERE id = ? AND (conflict_record_value "
+                + "IS NOT NULL OR conflict_applied_value IS NOT NULL)", Integer.class, rcc.id())).isZero();
     }
 
     @Test

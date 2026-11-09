@@ -128,6 +128,8 @@ public class ReviewService {
         c.setAcceptedPayload(accepted);
         c.setAcknowledgedFlags(new ArrayList<>(c.getFlags().stream().map(CandidateFlag::code).toList()));
         c.setApplyError(null);
+        c.setConflictRecordValue(null);
+        c.setConflictAppliedValue(null);
         c.setStatus(CandidateStatus.ACCEPTED);
         stamp(c, reviewer, now);
         if (c.getSupersedesCandidateId() != null) {
