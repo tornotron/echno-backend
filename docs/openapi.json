@@ -102155,7 +102155,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read issue comments"
           },
           "404": {
             "content": {
@@ -102381,7 +102381,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read issue comments"
           },
           "404": {
             "content": {
@@ -102494,7 +102494,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to issue comments"
           },
           "404": {
             "content": {
@@ -102605,7 +102605,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read issue comments"
           },
           "404": {
             "content": {
@@ -102839,7 +102839,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to issue comments"
           },
           "404": {
             "content": {
@@ -102944,7 +102944,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read issues"
           },
           "404": {
             "content": {
@@ -103250,7 +103250,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read issues"
           },
           "404": {
             "content": {
@@ -103366,7 +103366,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read issues"
           },
           "404": {
             "content": {
@@ -103495,7 +103495,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read issues"
           },
           "404": {
             "content": {
@@ -103611,7 +103611,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read issues"
           },
           "404": {
             "content": {
@@ -103724,7 +103724,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to issues"
           },
           "404": {
             "content": {
@@ -103835,7 +103835,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read issues"
           },
           "404": {
             "content": {
@@ -103976,7 +103976,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to issues"
           },
           "404": {
             "content": {
@@ -104089,7 +104089,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to issues"
           },
           "404": {
             "content": {
@@ -104341,7 +104341,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to issues"
           },
           "404": {
             "content": {
@@ -169463,19 +169463,19 @@
       "name": "Invitations"
     },
     {
-      "description": "A comment left on an issue, carrying the comment text, its author and a timestamp. Endpoints cover creation, paginated listing and deletion, gated by tenant membership, with deletion restricted to a system admin or project manager.",
+      "description": "A comment left on an issue, carrying the comment text, its author and a timestamp. Endpoints cover creation, paginated listing and deletion. Creating and reading need issue-comments:create and issue-comments:read, which every member holds; deleting needs issue-comments:delete, which the system admin and project manager hold.",
       "name": "Issue Comments"
     },
     {
-      "description": "Web-client twin of the issue comment endpoints. Adds a single-comment read and a lookup of every comment on an issue, alongside the same create, paginated listing and delete operations as the base API. Access is gated by tenant membership. An edit is restricted to the comment's own author, and a delete to a system admin or project manager.",
+      "description": "Web-client twin of the issue comment endpoints. Adds a single-comment read and a lookup of every comment on an issue, alongside the same create, paginated listing and delete operations as the base API. Reading, creating and editing need issue-comments:read, create or edit, which every member holds, and an edit is further restricted to the comment's own author; a delete needs issue-comments:delete, which the system admin and project manager hold.",
       "name": "Issue Comments"
     },
     {
-      "description": "Web-client twin of the issue endpoints. Adds unpaginated and paginated listing with search/status/type filters, dashboard stats, and lookups by project or task, alongside the same create, update and delete operations as the base issue API. Reads are open to any member of the tenant; creating, updating and deleting an issue belong to a system admin or project manager, the same pair that writes tasks.",
+      "description": "Web-client twin of the issue endpoints. Adds unpaginated and paginated listing with search/status/type filters, dashboard stats, and lookups by project or task, alongside the same create, update and delete operations as the base issue API. Reads need issues:read, which every member holds; creating, updating and deleting an issue need issues:create, issues:edit or issues:delete, which the system admin and project manager hold.",
       "name": "Issues"
     },
     {
-      "description": "A problem or defect raised against a task, optionally with attachments and comments. Endpoints cover reading a single issue, creating one with attachments, partial updates and deletion. Reads are open to any member of the tenant; creating, updating and deleting an issue belong to a system admin or project manager, the same pair that writes tasks.",
+      "description": "A problem or defect raised against a task, optionally with attachments and comments. Endpoints cover reading a single issue, creating one with attachments, partial updates and deletion. Reads need issues:read, which every member holds; creating, updating and deleting an issue need issues:create, issues:edit or issues:delete, which the system admin and project manager hold.",
       "name": "Issues"
     },
     {
