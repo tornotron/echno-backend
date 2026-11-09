@@ -12,6 +12,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.tornotron.echno_backend.attendance.Attendance;
 import org.tornotron.echno_backend.attendance.AttendanceRegularization;
 import org.tornotron.echno_backend.attendance.AttendanceRepository;
+import org.tornotron.echno_backend.attendance.AttendanceSettings;
 import org.tornotron.echno_backend.attendance.ClockEvent;
 import org.tornotron.echno_backend.attendance.ShiftTiming;
 import org.tornotron.echno_backend.attendance.dto.AttendanceRegularizationDto;
@@ -81,6 +82,7 @@ class RegularizationCalendarServiceTest {
     @Mock private AttendanceSecurityService attendanceSecurity;
     @Mock private AttendanceActorResolver actorResolver;
     @Mock private AttendanceRegularizationService regularizationService;
+    @Mock private AttendanceSettingsService settingsService;
 
     private RegularizationCalendarService service;
     private Employee employee;
@@ -92,7 +94,8 @@ class RegularizationCalendarServiceTest {
         Clock clock = Clock.fixed(Instant.parse("2026-09-25T06:00:00Z"), ZoneId.of("Asia/Kolkata"));
         service = new RegularizationCalendarService(attendanceRepository, employeeRepository,
                 projectRepository, organizationRepository, leaveRequestRepository,
-                workingCalendarService, attendanceSecurity, actorResolver, regularizationService, clock);
+                workingCalendarService, attendanceSecurity, actorResolver, regularizationService,
+                settingsService, clock);
 
         org = new Organization();
         org.setId(ORG);
@@ -113,6 +116,8 @@ class RegularizationCalendarServiceTest {
         lenient().when(attendanceRepository.findByEmployeeIdAndAttendanceDateBetween(eq(EMP), any(), any()))
                 .thenReturn(List.of());
         lenient().when(actorResolver.resolveCurrentActor()).thenReturn(new Actor("Ravi", 500L, EMP));
+        lenient().when(settingsService.resolveEffectiveSettings(ORG, PROJECT))
+                .thenReturn(AttendanceSettings.builder().build());
         lenient().when(attendanceRepository.save(any(Attendance.class))).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(regularizationService.fileRequest(any(), any(), any(), any(), anyList(), anyList()))
                 .thenReturn(AttendanceRegularizationDto.builder().id(7L).build());
@@ -255,8 +260,26 @@ class RegularizationCalendarServiceTest {
         employee.setShiftTiming(null);
 
         assertThatExceptionOfType(ValidationException.class)
-                .isThrownBy(() -> service.submitByDate(request(DAY, LocalTime.of(9, 0), null)));
+                .isThrownBy(() -> service.submitByDate(request(DAY, LocalTime.of(9, 0), null)))
+                .withMessageContaining("Ravi has no shift assigned")
+                .withMessageContaining("the correction for " + DAY)
+                .withMessageContaining("HR admin or system admin");
         verify(attendanceRepository, never()).save(any());
+        verify(regularizationService, never()).fileRequest(any(), any(), any(), any(), anyList(), anyList());
+    }
+
+    @Test
+    void submitByDate_forAnEmployeeWithNoShift_usesTheSettingsDefaultShift() {
+        employee.setShiftTiming(null);
+        ShiftTiming defaultShift = new ShiftTiming();
+        when(settingsService.resolveEffectiveSettings(ORG, PROJECT))
+                .thenReturn(AttendanceSettings.builder().defaultShiftTiming(defaultShift).build());
+
+        service.submitByDate(request(DAY, LocalTime.of(9, 5), LocalTime.of(18, 10)));
+
+        ArgumentCaptor<Attendance> attendance = ArgumentCaptor.forClass(Attendance.class);
+        filedEvents(attendance);
+        assertThat(attendance.getValue().getShiftTiming()).isSameAs(defaultShift);
     }
 
     // ─── Calendar ────────────────────────────────────────────────────────────────────────────
