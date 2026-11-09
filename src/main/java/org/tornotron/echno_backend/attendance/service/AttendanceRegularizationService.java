@@ -236,7 +236,7 @@ public class AttendanceRegularizationService {
         AttendanceRegularization regularization = regularizationRepository.findByIdAndOrganization_Id(regularizationId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Regularization request with ID " + regularizationId + " was not found"));
-        regularisationAccess.requireFor(AccessPermission.EDIT, regularization.getAttendance().getEmployeeId(),
+        regularisationAccess.requireFor(AccessPermission.EDIT, employeeOf(regularization),
                 "You may not decide this regularization request");
 
         if (regularization.getStatus() != RegularizationStatus.PENDING) {
@@ -279,6 +279,12 @@ public class AttendanceRegularizationService {
         }
 
         return regularizationMapper.toDto(regularizationRepository.save(regularization));
+    }
+
+    /** The employee whose attendance a request corrects, or null when it names no record. */
+    private static Long employeeOf(AttendanceRegularization regularization) {
+        Attendance attendance = regularization.getAttendance();
+        return attendance == null ? null : attendance.getEmployeeId();
     }
 
     /**
