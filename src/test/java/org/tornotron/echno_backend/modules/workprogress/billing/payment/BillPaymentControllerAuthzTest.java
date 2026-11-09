@@ -1,6 +1,5 @@
 package org.tornotron.echno_backend.modules.workprogress.billing.payment;
 
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -30,16 +29,17 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
 import org.tornotron.echno_backend.common.configuration.RPTCache;
-import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
+import org.tornotron.echno_backend.modules.access.guard.AccessGuard;
 import org.tornotron.echno_backend.modules.workprogress.billing.payment.web.ContractBillPaymentController;
 import org.tornotron.echno_backend.modules.workprogress.billing.payment.web.ContractBillPaymentControllerWeb;
 
 /**
- * The guard on every payment handler of both twins, at the slice: reading needs membership of the
- * tenant; raising a payment and naming a project's authorizer need a role; the steps after raising need
- * membership, because the service holds them for the project's named authorizer. On each prefix so the
- * twins cannot drift. Which roles each guard
- * names is pinned in {@code WorkProgressModuleTest}.
+ * The guard on every payment handler of both twins, at the slice: reading needs progress-bills:read,
+ * which every member holds through the baseline; raising a payment needs progress-bills:approve and
+ * naming a project's authorizer progress-bills:edit, which the system admin and project manager hold;
+ * the steps after raising need only progress-bills:read, because the service holds them for the
+ * project's named authorizer. On each prefix so the twins cannot drift. That each role holds exactly
+ * what it did is {@code WorkProgressAccessEquivalenceIT}'s to show.
  */
 @WebMvcTest({ContractBillPaymentController.class, ContractBillPaymentControllerWeb.class})
 @Import(BillPaymentControllerAuthzTest.TestSecurityConfig.class)
@@ -52,8 +52,22 @@ class BillPaymentControllerAuthzTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockitoBean(name = "orgSecurity")
-    private OrganizationSecurityService orgSecurity;
+    // Named to match the @access bean the @PreAuthorize SpEL references.
+    @MockitoBean(name = "access")
+    private AccessGuard access;
+
+    /** The baseline's actions: every member reads. */
+    private static final String[] MEMBER = {"progress-bills:read"};
+    /** The system admin's and project manager's: the baseline plus every change. */
+    private static final String[] PAIR = {"progress-bills:read", "progress-bills:edit", "progress-bills:approve"};
+
+    /** Stubs {@code @access} to allow exactly these area:action keys; every other check answers false. */
+    private void holds(String... permissions) {
+        for (String permission : permissions) {
+            String[] parts = permission.split(":");
+            when(access.can(parts[0], parts[1])).thenReturn(true);
+        }
+    }
 
     @MockitoBean
     private BillPaymentService payments;
@@ -79,7 +93,7 @@ class BillPaymentControllerAuthzTest {
 
     /**
      * The steps after raising. No role grants them: the project's payment authorizer does, which the
-     * service checks per project, so here they need membership of the tenant and nothing more.
+     * service checks per project, so here they need the baseline's read and nothing more.
      */
     static Stream<Arguments> authorizerSteps() {
         return Stream.<Endpoint>of(
@@ -95,41 +109,37 @@ class BillPaymentControllerAuthzTest {
     @MethodSource("prefixes")
     void readingIsForMembers(String prefix) throws Exception {
         for (String path : new String[]{"/bills/" + ID + "/payments", "/projects/7/payment-authorizer"}) {
-            when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(false);
             mockMvc.perform(get(prefix + path).with(member())).andExpect(status().isForbidden());
-            when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
+            holds(MEMBER);
             mockMvc.perform(get(prefix + path).with(member())).andExpect(status().is2xxSuccessful());
         }
     }
 
     @ParameterizedTest
     @MethodSource("roleWrites")
-    void aWriteIsForbiddenWithoutTheRole(String prefix, Endpoint endpoint) throws Exception {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(false);
+    void aWriteIsForbiddenWithoutTheAction(String prefix, Endpoint endpoint) throws Exception {
+        holds(MEMBER);
         mockMvc.perform(endpoint.on(prefix).with(member())).andExpect(status().isForbidden());
     }
 
     @ParameterizedTest
     @MethodSource("roleWrites")
-    void aWriteIsAllowedWithTheRole(String prefix, Endpoint endpoint) throws Exception {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(true);
+    void aWriteIsAllowedWithTheAction(String prefix, Endpoint endpoint) throws Exception {
+        holds(PAIR);
         mockMvc.perform(endpoint.on(prefix).with(member())).andExpect(status().is2xxSuccessful());
     }
 
     @ParameterizedTest
     @MethodSource("authorizerSteps")
     void anAuthorizerStepIsForbiddenOutsideTheTenant(String prefix, Endpoint endpoint) throws Exception {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(false);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(true);
+        holds("progress-bills:edit", "progress-bills:approve");
         mockMvc.perform(endpoint.on(prefix).with(member())).andExpect(status().isForbidden());
     }
 
     @ParameterizedTest
     @MethodSource("authorizerSteps")
-    void anAuthorizerStepReachesTheServiceForAMemberWithNoRole(String prefix, Endpoint endpoint) throws Exception {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(false);
+    void anAuthorizerStepReachesTheServiceForAMemberWithTheBaselineAlone(String prefix, Endpoint endpoint) throws Exception {
+        holds(MEMBER);
         mockMvc.perform(endpoint.on(prefix).with(member())).andExpect(status().is2xxSuccessful());
     }
 

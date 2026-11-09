@@ -8,7 +8,7 @@ import org.springframework.mock.env.MockEnvironment;
 import org.tornotron.echno_backend.common.module.ModuleManifest;
 import org.tornotron.echno_backend.common.module.ModuleRegistry;
 
-/** The module's contract with the registry: the manifest, the permission vocabulary and the guards. */
+/** The module's contract with the registry: the manifest, the manifest and the permission vocabulary. */
 class WorkProgressModuleTest {
 
     private static final long ORG = 7L;
@@ -33,33 +33,6 @@ class WorkProgressModuleTest {
                 .containsExactly("work-progress:read", "work-progress:record", "work-progress:billing-setup",
                         "work-progress:bill", "work-progress:certify", "work-progress:approve", "work-progress:pay")
                 .allMatch(ModuleManifest.PERMISSION_KEY.asMatchPredicate());
-    }
-
-    @Test
-    void theProjectTeamRecordsAndAnyMemberReads() {
-        assertThat(WorkProgressModule.READ_GUARD).isEqualTo("@orgSecurity.isMemberOfCurrentTenant()");
-        assertThat(WorkProgressModule.RECORD_GUARD)
-                .startsWith("@orgSecurity.hasAnyOrgRoleForCurrentTenant(")
-                .contains("'system-admin'", "'project-manager'", "'site-engineer'");
-    }
-
-    @Test
-    void theOfficeSetsUpAndSignsBillsAndTheSiteTeamPreparesAndMeasuresThem() {
-        String office = "@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')";
-        assertThat(WorkProgressModule.BILLING_SETUP_GUARD).isEqualTo(office);
-        assertThat(WorkProgressModule.BILL_CERTIFY_GUARD).isEqualTo(office);
-        assertThat(WorkProgressModule.BILL_APPROVE_GUARD).isEqualTo(office);
-        assertThat(WorkProgressModule.BILL_PREPARE_GUARD).isEqualTo(WorkProgressModule.RECORD_GUARD);
-        assertThat(WorkProgressModule.BILL_VERIFY_GUARD).isEqualTo(WorkProgressModule.RECORD_GUARD);
-    }
-
-    @Test
-    void theOfficeRaisesAPaymentAndTheProjectsAuthorizerSignsIt() {
-        String office = "@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')";
-        assertThat(WorkProgressModule.BILL_PAY_REQUEST_GUARD).isEqualTo(office);
-        assertThat(WorkProgressModule.PAYMENT_AUTHORIZER_SETUP_GUARD).isEqualTo(office);
-        // No role signs: the authority is the project's named authorizer, checked in PaymentAuthorizers.
-        assertThat(WorkProgressModule.BILL_PAY_AUTHORIZE_GUARD).isEqualTo(WorkProgressModule.READ_GUARD);
     }
 
     @Test

@@ -46,6 +46,7 @@ import org.tornotron.echno_backend.common.retry.TransactionRetryTemplate;
 import org.tornotron.echno_backend.common.retry.TransactionalWorkRunner;
 import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
+import org.tornotron.echno_backend.modules.access.guard.AccessGuard;
 import org.tornotron.echno_backend.modules.documentingestion.apply.ApplyGuard;
 import org.tornotron.echno_backend.modules.documentingestion.apply.ApplyService;
 import org.tornotron.echno_backend.modules.documentingestion.apply.BoqItemApplier;
@@ -135,6 +136,10 @@ class BoqIngestionIT extends AbstractIntegrationTest {
     @MockitoBean(name = "orgSecurity")
     OrganizationSecurityService orgSecurity;
 
+    // The BOQ endpoint's guard, which applying a BOQ row asks through ApplyGuard.
+    @MockitoBean(name = "access")
+    AccessGuard access;
+
     @MockitoBean
     FileStorageService storage;
 
@@ -171,6 +176,7 @@ class BoqIngestionIT extends AbstractIntegrationTest {
         TenantContext.setCurrentOrgId(orgId);
         SecurityContextHolder.getContext().setAuthentication(new TestingAuthenticationToken("pm", "n/a", "ROLE_USER"));
         when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(true);
+        when(access.can("progress-bills", "edit")).thenReturn(true);
         when(modules.isEnabledForOrg(eq(ContractBoqPort.MODULE_ID), anyLong())).thenReturn(true);
     }
 

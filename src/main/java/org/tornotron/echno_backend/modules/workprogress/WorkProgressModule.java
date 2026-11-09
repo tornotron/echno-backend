@@ -17,6 +17,10 @@ import org.tornotron.echno_backend.common.module.ModuleManifest;
  * no tenant goes dark on release. The schedule it inspects is the core WBS; this module holds only
  * what is recorded against it. It publishes no nav entry: its screens sit on the project page's
  * WBS tab.
+ *
+ * <p>Its endpoints ask the access matrix: {@code progress} for the progress record and
+ * {@code progress-bills} for the billing chain and its payments. The permissions below are the
+ * manifest's own vocabulary and are not what the endpoints check.
  */
 @Component
 public class WorkProgressModule implements EchnoModule {
@@ -31,38 +35,6 @@ public class WorkProgressModule implements EchnoModule {
     public static final String PERMISSION_CERTIFY = ID + ":certify";
     public static final String PERMISSION_APPROVE = ID + ":approve";
     public static final String PERMISSION_PAY = ID + ":pay";
-
-    // Any member of the tenant reads the record. The project team records it: the project
-    // manager, the site engineer and the system admin, as the product owner asked that the project
-    // team maintain the actuals. One string each, so the twin controllers cannot drift.
-    public static final String READ_GUARD = "@orgSecurity.isMemberOfCurrentTenant()";
-    public static final String RECORD_GUARD =
-            "@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','site-engineer')";
-
-    // Billing. The contract's commercial set-up (BOQ, deduction rules) and the two signatures on a
-    // bill (certification and final approval) belong to the project manager and the admin. The
-    // site team prepares a bill, records the joint measurement and keeps the milestone
-    // requirements, as it does the progress record the bill rests on.
-    public static final String BILLING_SETUP_GUARD =
-            "@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')";
-    public static final String BILL_PREPARE_GUARD = RECORD_GUARD;
-    public static final String BILL_VERIFY_GUARD = RECORD_GUARD;
-    public static final String BILL_CERTIFY_GUARD =
-            "@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')";
-    public static final String BILL_APPROVE_GUARD =
-            "@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')";
-
-    // Paying an approved bill takes two signatures. The office raises a payment. The second
-    // signature, and every step after it, belongs to the employee the project names as its payment
-    // authorizer, which no organization role grants: PaymentAuthorizers checks it per project under
-    // the payment's lock, so the endpoint gate is membership of the tenant. Naming that person is
-    // managing the project, so it is the same pair of roles that edits a project. A system admin
-    // can always name someone, which is what keeps an organization from locking itself out.
-    public static final String BILL_PAY_REQUEST_GUARD =
-            "@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')";
-    public static final String BILL_PAY_AUTHORIZE_GUARD = READ_GUARD;
-    public static final String PAYMENT_AUTHORIZER_SETUP_GUARD =
-            "@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')";
 
     static final List<String> PERMISSIONS = List.of(PERMISSION_READ, PERMISSION_RECORD, PERMISSION_BILLING_SETUP,
             PERMISSION_BILL, PERMISSION_CERTIFY, PERMISSION_APPROVE, PERMISSION_PAY);

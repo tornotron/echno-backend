@@ -19,7 +19,7 @@ public interface ContractBoqPort {
     String MODULE_ID = WorkProgressModule.ID;
 
     /** The guard on {@code POST /api/v1/contract-billing/contracts/{id}/boq-items}. */
-    String WRITE_GUARD = WorkProgressModule.BILLING_SETUP_GUARD;
+    String WRITE_GUARD = "@access.can('progress-bills', 'edit')";
 
     /**
      * Adds one line to the contract's BOQ in the caller's transaction and organization.
