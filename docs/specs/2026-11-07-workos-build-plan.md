@@ -570,6 +570,9 @@ the point the Roles & Permissions screen is usable.
   employee record, so such a person keeps the old guards but silently loses every converted area
   (step 30). Under WorkOS this cannot happen: the step 20 bootstrap invitation and every accepted
   invitation create the record. Record the counts on #914.
+- Before deploying: the access backfill and reconcile must have run on every existing organization
+  before the first `auth-workos` deploy, or that organization is refused every converted area. Check
+  it by counting organizations that have no `access_role` rows.
 
 **Step 32. Remove the old role code.**
 
