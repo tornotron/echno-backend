@@ -54,7 +54,7 @@ public class StorageLocationControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Storage location created"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to storage locations"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "A storage location with the same name already exists in the organization")
     })
     public ResponseEntity<StorageLocationDto> createStorageLocation(
@@ -72,7 +72,7 @@ public class StorageLocationControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Storage location found"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read storage locations"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No storage location with the given id")
     })
     public ResponseEntity<StorageLocationDto> getStorageLocationById(@PathVariable Long id) {
@@ -88,7 +88,7 @@ public class StorageLocationControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Storage locations returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read storage locations")
     })
     public ResponseEntity<List<StorageLocationDto>> getAllStorageLocations() {
         return UnpagedResultCap.respond(
@@ -104,7 +104,7 @@ public class StorageLocationControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of storage locations returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read storage locations")
     })
     public ResponseEntity<Page<StorageLocationDto>> getAllStorageLocationsPaginated(
             @Valid @ParameterObject PageQuery pageQuery) {
@@ -121,7 +121,7 @@ public class StorageLocationControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Storage locations returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read storage locations")
     })
     public ResponseEntity<List<StorageLocationDto>> getStorageLocationsByProject(@PathVariable Long projectId) {
         List<StorageLocationDto> storageLocations = storageLocationService.getStorageLocationsByProject(projectId);
@@ -138,7 +138,7 @@ public class StorageLocationControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Storage locations returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "locationType is not a recognized storage location type"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read storage locations")
     })
     public ResponseEntity<List<StorageLocationDto>> getStorageLocationsByType(
             @PathVariable StorageLocationType locationType) {
@@ -157,7 +157,7 @@ public class StorageLocationControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Storage location updated"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to storage locations"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No storage location with the given id"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "Another storage location already uses the requested name")
     })
@@ -176,7 +176,7 @@ public class StorageLocationControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Storage location deleted"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to storage locations"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No storage location with the given id")
     })
     public ResponseEntity<ApiResponse> deleteStorageLocation(@PathVariable Long id) {
