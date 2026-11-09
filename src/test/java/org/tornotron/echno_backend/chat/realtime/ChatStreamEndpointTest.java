@@ -18,7 +18,7 @@ import org.tornotron.echno_backend.chat.ChatService;
 import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
 import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
-import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
+import org.tornotron.echno_backend.modules.access.guard.AccessGuard;
 
 import java.util.List;
 
@@ -58,8 +58,9 @@ class ChatStreamEndpointTest {
     @MockitoBean
     private ChatService chatService;
 
-    @MockitoBean(name = "orgSecurity")
-    private OrganizationSecurityService orgSecurity;
+    // The controller is on the access matrix; named to match the @access bean its guards reference.
+    @MockitoBean(name = "access")
+    private AccessGuard access;
 
     // Satisfies RPTExchangeFilter, which the web slice loads; unused because jwt() sets the
     // authentication directly.
@@ -75,7 +76,7 @@ class ChatStreamEndpointTest {
     }
 
     private MvcResult openStream() throws Exception {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
+        when(access.can("chat", "read")).thenReturn(true);
         when(chatService.getCurrentEmployeeId()).thenReturn(ALICE);
         // The controller reads the tenant from the thread the request runs on, which the real
         // TenantFilter populates. The slice does not load that filter, so set it directly.
@@ -139,8 +140,8 @@ class ChatStreamEndpointTest {
     }
 
     @Test
-    void theStreamIsRefusedToANonMemberOfTheTenant() throws Exception {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(false);
+    void theStreamIsRefusedToACallerWhoMayNotReadChat() throws Exception {
+        when(access.can("chat", "read")).thenReturn(false);
 
         mockMvc.perform(get("/api/v1/chat/stream").with(jwt()))
                 .andExpect(status().isForbidden());
