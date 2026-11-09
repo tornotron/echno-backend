@@ -50,7 +50,7 @@ public class StorageLocationController {
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Storage location created"),
             @ApiResponse(responseCode = "400", description = "A field failed validation"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to storage locations"),
             @ApiResponse(responseCode = "409", description = "A storage location with the same name already exists in the organization")
     })
     public ResponseEntity<StorageLocationDto> createStorageLocation(
@@ -68,7 +68,7 @@ public class StorageLocationController {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Storage location found"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not read storage locations"),
             @ApiResponse(responseCode = "404", description = "No storage location with the given id")
     })
     public ResponseEntity<StorageLocationDto> getStorageLocationById(@PathVariable Long id) {
@@ -84,7 +84,7 @@ public class StorageLocationController {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Storage locations returned"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read storage locations")
     })
     public ResponseEntity<List<StorageLocationDto>> getAllStorageLocations() {
         return UnpagedResultCap.respond(
@@ -100,7 +100,7 @@ public class StorageLocationController {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Page of storage locations returned"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read storage locations")
     })
     public ResponseEntity<Page<StorageLocationDto>> getAllStorageLocationsPaginated(
             @Valid @ParameterObject PageQuery pageQuery) {
@@ -117,7 +117,7 @@ public class StorageLocationController {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Storage locations returned"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read storage locations")
     })
     public ResponseEntity<Page<StorageLocationDto>> getStorageLocationsByProject(
             @PathVariable Long projectId,
@@ -137,7 +137,7 @@ public class StorageLocationController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Storage locations returned"),
             @ApiResponse(responseCode = "400", description = "locationType is not a recognized storage location type"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read storage locations")
     })
     public ResponseEntity<Page<StorageLocationDto>> getStorageLocationsByType(
             @PathVariable StorageLocationType locationType,
