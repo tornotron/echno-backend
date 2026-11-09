@@ -40,6 +40,7 @@ class MatrixAccessServiceContractTest extends AccessServiceContract {
 
     @Override
     protected AccessService service() {
+        // Every area counts as scope aware here: the contract is about what each scope admits.
         return new MatrixAccessService(subject -> active.contains(subject)
                 ? new AccessFacts(true,
                         grants.getOrDefault(subject, Map.of()),
@@ -47,7 +48,7 @@ class MatrixAccessServiceContractTest extends AccessServiceContract {
                         projects.get(subject),
                         customers.get(subject),
                         vendors.get(subject))
-                : AccessFacts.noAccess());
+                : AccessFacts.noAccess(), area -> true);
     }
 
     @Override

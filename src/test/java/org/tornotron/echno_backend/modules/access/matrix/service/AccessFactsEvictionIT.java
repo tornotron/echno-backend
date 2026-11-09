@@ -74,7 +74,7 @@ class AccessFactsEvictionIT extends AbstractIntegrationTest {
     void aMemberWithARoleNotYetAssigned() {
         transaction = new TransactionTemplate(transactionManager);
         source = new CachedAccessFactsSource(database, new ConcurrentMapCacheManager());
-        engine = new MatrixAccessService(source);
+        engine = new MatrixAccessService(source, area -> true);
         statistics = em.getEntityManagerFactory().unwrap(SessionFactory.class).getStatistics();
         statistics.setStatisticsEnabled(true);
         String unique = UUID.randomUUID().toString().substring(0, 8);

@@ -273,7 +273,7 @@ class PreMigrationOrgIT extends AbstractIntegrationTest {
 
         assertThat(runner.runOnce()).isTrue();
 
-        AccessService engine = new MatrixAccessService(facts);
+        AccessService engine = new MatrixAccessService(facts, area -> true);
         AccessSubject subject = new AccessSubject(organization, employee, user);
         // A store keeper today: inventory, and reads across stores and buying.
         assertThat(engine.check(subject, AccessPermission.of("inventory:edit"))).isTrue();
