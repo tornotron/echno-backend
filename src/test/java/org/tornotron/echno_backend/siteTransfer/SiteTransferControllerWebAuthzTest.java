@@ -14,7 +14,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
 import org.tornotron.echno_backend.common.configuration.RPTCache;
-import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
+import org.tornotron.echno_backend.modules.access.guard.AccessGuard;
 
 
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -38,9 +38,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * names. The refusal that remains is the one that always mattered here: receiving posts stock
  * into a project and cancelling takes it back out.
  *
- * <p>The stubs use exact role arguments, so what is pinned is the role list each guard asks
- * for rather than any role at all. @orgSecurity is mocked. The wider read/write split across
- * all five documents is in ProcurementDocumentGuardSplitTest.
+ * <p>The stubs name exact actions, so what is pinned is the action each guard asks for.
+ * {@code @access} is mocked. The wider read/write split across
+ * the stores areas is in StoresAccessEquivalenceIT.
  */
 @WebMvcTest(SiteTransferControllerWeb.class)
 @Import(SiteTransferControllerWebAuthzTest.TestSecurityConfig.class)
@@ -52,8 +52,17 @@ class SiteTransferControllerWebAuthzTest {
     @MockitoBean
     private SiteTransferService siteTransferService;
 
-    @MockitoBean(name = "orgSecurity")
-    private OrganizationSecurityService orgSecurity;
+    // Named to match the @access bean the @PreAuthorize SpEL references.
+    @MockitoBean(name = "access")
+    private AccessGuard access;
+
+    /** Stubs {@code @access} to allow exactly these area:action keys; every other check answers false. */
+    private void holds(String... permissions) {
+        for (String permission : permissions) {
+            String[] parts = permission.split(":");
+            when(access.can(parts[0], parts[1])).thenReturn(true);
+        }
+    }
 
     // Satisfies RPTExchangeFilter, a custom filter the web slice loads; unused here
     // because .with(jwt(...)) sets the authentication directly.
@@ -65,19 +74,14 @@ class SiteTransferControllerWebAuthzTest {
     private RPTCache rptCache;
 
     /**
-     * The exact-argument stub is what carries this test. The guard asks for all three roles in a
-     * single call, so this matches only a guard that names exactly {@code system-admin},
-     * {@code store-keeper} and {@code project-manager}: a stub of a narrower call would not match,
-     * and the read would answer 403. The mock cannot say which of the three the caller holds, which
-     * is why the refusal below is stubbed on the same call returning false. That the read admits
-     * {@code project-manager} in particular is asserted by
-     * {@code ProcurementDocumentGuardSplitTest#everyDocumentReadAdmitsTheProjectManager}, which
-     * reads the annotation rather than the mock.
+     * The exact-action stub is what carries this test: only a guard asking for
+     * {@code site-transfers:read} matches it, so a guard asking for anything else answers 403. That the
+     * project manager's starting role reaches the read in particular is asserted by
+     * {@code StoresAccessEquivalenceIT}, which asks the matrix rather than the mock.
      */
     @Test
     void readAll_isOk_forAnAdmittedRole() throws Exception {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "store-keeper", "project-manager"))
-                .thenReturn(true);
+        holds("site-transfers:read");
         when(siteTransferService.getAllSiteTransfers(anyInt(), anyInt())).thenReturn(Page.empty());
 
         mockMvc.perform(get("/api/v1/site-transfers/web").with(jwt()))
@@ -92,8 +96,7 @@ class SiteTransferControllerWebAuthzTest {
      */
     @Test
     void readAll_isForbidden_forACallerWithNoElevatedRole() throws Exception {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "store-keeper", "project-manager"))
-                .thenReturn(false);
+        holds();
 
         mockMvc.perform(get("/api/v1/site-transfers/web").with(jwt()))
                 .andExpect(status().isForbidden());
@@ -106,7 +109,7 @@ class SiteTransferControllerWebAuthzTest {
      */
     @Test
     void receive_isForbidden_forACallerWithNoElevatedRole() throws Exception {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "store-keeper")).thenReturn(false);
+        holds();
 
         mockMvc.perform(post("/api/v1/site-transfers/web/51/receive").with(jwt()).with(csrf())
                         .contentType(APPLICATION_JSON)
@@ -117,7 +120,7 @@ class SiteTransferControllerWebAuthzTest {
     /** Cancelling returns stock to the sending project, so it is gated the same way. */
     @Test
     void cancel_isForbidden_forACallerWithNoElevatedRole() throws Exception {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "store-keeper")).thenReturn(false);
+        holds();
 
         mockMvc.perform(post("/api/v1/site-transfers/web/51/cancel").with(jwt()).with(csrf())
                         .contentType(APPLICATION_JSON)

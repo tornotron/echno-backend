@@ -83,9 +83,7 @@ class EndpointAuthorizationTest {
 
     /** Membership of the current tenant, with no role asked for. */
     private static final Set<String> MEMBER = Set.of("member");
-    private static final Set<String> SYSTEM_ADMIN = Set.of("system-admin");
     private static final Set<String> ADMIN_OR_PM = Set.of("system-admin", "project-manager");
-    private static final Set<String> STORES_TIER = Set.of("system-admin", "project-manager", "store-keeper");
 
     /**
      * One row of the matrix applied to one controller: the methods it covers, by exact name or
@@ -127,10 +125,9 @@ class EndpointAuthorizationTest {
             // Storage locations are on the access matrix, and StorageLocationGuardsTest and
             // StorageLocationAccessEquivalenceIT pin them.
 
-            // Stock adjustments: the stores tier reads and raises; the pair decides and deletes.
-            pin("StockAdjustmentControllerWeb", STORES_TIER, "read*", "createStockAdjustment", "updateStockAdjustment"),
-            pin("StockAdjustmentControllerWeb", ADMIN_OR_PM,
-                    "approveStockAdjustment", "rejectStockAdjustment", "deleteStockAdjustment"),
+            // Stock adjustments are on the access matrix, as the inventory area, and StoresGuardsTest
+            // and StoresAccessEquivalenceIT pin them: the stores tier reads and raises, the pair
+            // decides and deletes.
 
             // Vendors are on the access matrix, and VendorGuardsTest and VendorAccessEquivalenceIT pin
             // them: the store reads who delivers and how to reach them, and a vendor's financials and
@@ -141,23 +138,19 @@ class EndpointAuthorizationTest {
             // stays HR's and the administrator's throughout, any member reads a sub-contract and the
             // pair changes it.
 
+            // Materials, indents and purchase orders (#855) are on the access matrix. Materials are
+            // their own area, and StoresGuardsTest and StoresAccessEquivalenceIT pin them: the stores
+            // tier reads and sets reorder thresholds (#746), the pair creates and edits, and deleting
+            // and removing a threshold override stay with the administrator. IndentGuardsTest and
+            // PurchaseOrderGuardsTest pin the other two.
+
             // Risk register: it sits with the project, so any member reads and the pair records,
             // changes, imports and removes. Both twins.
             pin("ProjectRiskController", MEMBER, "read*"),
             pin("ProjectRiskController", ADMIN_OR_PM, "createRisk", "importRisks", "updateRisk", "deleteRisk"),
             pin("ProjectRiskControllerWeb", MEMBER, "read*"),
-            pin("ProjectRiskControllerWeb", ADMIN_OR_PM, "createRisk", "importRisks", "updateRisk", "deleteRisk"),
+            pin("ProjectRiskControllerWeb", ADMIN_OR_PM, "createRisk", "importRisks", "updateRisk", "deleteRisk"));
 
-            // Materials, indents and purchase orders (#855): the stores tier reads, and project
-            // managers manage purchases, so the pair creates and edits. Deleting, removing a
-            // threshold override and every purchase order status change, approval included, stay
-            // with the administrator. Reorder thresholds are the stores tier's (#746). The mobile
-            // material and indent twins carry unsatisfiable resource:scope guards and are #1002's.
-            // The indent and purchase order controllers are on the access matrix, and
-            // IndentGuardsTest and PurchaseOrderGuardsTest pin them.
-            pin("MaterialControllerWeb", STORES_TIER, "get*", "searchMaterials", "upsertLocationThreshold"),
-            pin("MaterialControllerWeb", ADMIN_OR_PM, "createMaterial", "updateMaterial"),
-            pin("MaterialControllerWeb", SYSTEM_ADMIN, "deleteMaterial", "deleteLocationThreshold"));
 
     private static final Set<String> PINNED_CONTROLLERS = new TreeSet<>(
             MATRIX.stream().map(Pin::controller).toList());

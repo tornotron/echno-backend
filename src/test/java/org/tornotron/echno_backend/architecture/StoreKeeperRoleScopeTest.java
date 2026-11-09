@@ -51,125 +51,14 @@ class StoreKeeperRoleScopeTest {
      * it, which is the failure this codebase has already made once.
      */
     private static final Set<String> EXPECTED = new TreeSet<>(Set.of(
-            // Recording a delivery, which is the case the role was introduced for, is on the access
-            // matrix now: the store keeper's starting role holds goods receipts read, create and
-            // edit, and GoodsReceivedNoteAccessEquivalenceIT holds it to the receipt reads and writes
-            // it had.
-
-            // Handing material out over the counter is on the access matrix now: the store keeper's
-            // starting role holds material consumption read and create, and
-            // MaterialConsumptionAccessEquivalenceIT holds it to the consumption reads and writes it had.
-
-            // Both ends of a site transfer are worked by a store: one despatches, one confirms.
-            // The status route is a signpost rather than an authority. It refuses every payload and
-            // answers by naming the receive and cancel routes, which is a better reply than a 403
-            // to a caller who holds both of those.
-            "SiteTransferControllerWeb.createSiteTransfer POST",
-            "SiteTransferControllerWeb.getSiteTransferById GET /{id}",
-            "SiteTransferControllerWeb.getAllSiteTransfers GET",
-            "SiteTransferControllerWeb.getAllSiteTransfersPaginated GET /all",
-            "SiteTransferControllerWeb.getSiteTransfersByStatus GET /status/{status}",
-            "SiteTransferControllerWeb.getSiteTransfersBySendingProject GET /sending-project/{projectId}",
-            "SiteTransferControllerWeb.getSiteTransfersByReceivingProject GET /receiving-project/{projectId}",
-            "SiteTransferControllerWeb.updateSiteTransferStatus PATCH /{id}/status",
-            "SiteTransferControllerWeb.receiveSiteTransfer POST /{id}/receive",
-            "SiteTransferControllerWeb.cancelSiteTransfer POST /{id}/cancel",
-            "SiteTransferControllerWeb.readStatusHistory GET /{id}/status-history",
-            // The asset picker on the transfer form: which assets are at the sending store.
-            "SiteTransferControllerWeb.getSendableAssets GET /sendable-assets",
-
-            // Taking the count and writing down what it found. Approving it is somebody else's.
-            // The reads moved onto the stores tier on #853: they had been open to any member,
-            // which was looser than the roles matrix and than every other Resources read, so
-            // naming the role here changes nothing the storekeeper could already do.
-            "StockAdjustmentControllerWeb.createStockAdjustment POST",
-            "StockAdjustmentControllerWeb.updateStockAdjustment PUT /{id}",
-            "StockAdjustmentControllerWeb.readAllStockAdjustments GET",
-            "StockAdjustmentControllerWeb.readAllStockAdjustmentsPaginated GET /paginated",
-            "StockAdjustmentControllerWeb.readAStockAdjustment GET /{id}",
-            "StockAdjustmentControllerWeb.readStockAdjustmentsBySourceDocument GET /by-source-document",
-
-            // The catalogue and the balances held against it, which every stores form names.
-            "MaterialControllerWeb.getMaterialById GET /{id}",
-            "MaterialControllerWeb.getAllMaterials GET",
-            "MaterialControllerWeb.getAllMaterialsPaginated GET /all",
-            "MaterialControllerWeb.getLowStockMaterials GET /low-stock",
-            "MaterialControllerWeb.getStockSummary GET /summary",
-            "MaterialControllerWeb.searchMaterials GET /search",
-            "MaterialControllerWeb.getMaterialWithStock GET /{id}/stock",
-            "MaterialControllerWeb.getLocationThresholds GET /{materialId}/location-thresholds",
-            // Reorder thresholds at a storage location are the one catalogue write on the role,
-            // decided on #650: tuning them per project is a stores decision, and the low-stock
-            // sweep that reads them notifies the same people. Removing an override is not here.
-            "MaterialControllerWeb.upsertLocationThreshold PUT /{materialId}/location-thresholds/{storageLocationId}",
-
-            // Where the material came from and where it is going is read on the access matrix now:
-            // the store keeper's starting role holds storage locations read, and
-            // StorageLocationAccessEquivalenceIT holds it to the location reads it had.
-
-            // The ledger the storekeeper's own documents post into.
-            "InventoryTransactionControllerWeb.getTransactionById GET /{id}",
-            "InventoryTransactionControllerWeb.getAllTransactions GET",
-            "InventoryTransactionControllerWeb.getAllTransactionsPaginated GET /all",
-            "InventoryTransactionControllerWeb.getTransactionsByMaterial GET /material/{materialId}",
-            "InventoryTransactionControllerWeb.getMaterialMovementHistory GET /material/{materialId}/history",
-            "InventoryTransactionControllerWeb.getTransactionsByProject GET /project/{projectId}",
-            "InventoryTransactionControllerWeb.getTransactionsByType GET /type/{transactionType}",
-            "InventoryTransactionControllerWeb.getTransactionsByDateRange GET /date-range",
-            "InventoryTransactionControllerWeb.getTransactionsByStorageLocation GET /storage-location/{storageLocationId}",
-            "InventoryTransactionControllerWeb.getTransactionsByStorageLocationMaterialAndProject GET /storage-location/{storageLocationId}/material/{materialId}/project/{projectId}",
-            "InventoryTransactionControllerWeb.getStockByStorageLocation GET /storage-location/{storageLocationId}/stock",
-            "InventoryTransactionControllerWeb.getStockByMaterial GET /material/{materialId}/stock",
-            "InventoryTransactionControllerWeb.getTransactionsByTask GET /task/{taskId}",
-            "InventoryTransactionControllerWeb.getTaskMaterialUsageSummary GET /project/{projectId}/task-summary",
-
-            // What was ordered, so a delivery can be checked against it, is read on the access
-            // matrix now: PurchaseOrderAccessEquivalenceIT holds the role to the order and line
-            // reads it had, and to none of the writes. Placing and changing the order is
-            // procurement's, and the receiving end must not be able to alter the figures it is
-            // being measured against.
-
-            // Who brought the delivery, and how to reach them about it, is read on the access matrix
-            // now: the store keeper's starting role holds vendors read and not read-financials, and
-            // VendorAccessEquivalenceIT holds it to the vendor and contact reads it had.
-
-            // The mobile twins of the grants above, for the Android app on the tenant API. They
-            // carry their web twin's guard expression for expression (MobileWebGuardParityTest), so
-            // each entry here mirrors one above and none widens what the role reaches. What the
-            // store reads of indents and their lines, on both twins, is on the access matrix now:
-            // the store keeper's starting role holds indents read and IndentAccessEquivalenceIT
-            // pins it.
-            "InventoryTransactionController.getTransactionById GET /{id}",
-            "InventoryTransactionController.getAllTransactions GET",
-            "InventoryTransactionController.getAllTransactionsPaginated GET /all",
-            "InventoryTransactionController.getTransactionsByMaterial GET /material/{materialId}",
-            "InventoryTransactionController.getMaterialMovementHistory GET /material/{materialId}/history",
-            "InventoryTransactionController.getTransactionsByProject GET /project/{projectId}",
-            "InventoryTransactionController.getTransactionsByType GET /type/{transactionType}",
-            "InventoryTransactionController.getTransactionsByDateRange GET /date-range",
-            "InventoryTransactionController.getTransactionsByStorageLocation GET /storage-location/{storageLocationId}",
-            "InventoryTransactionController.getStockByStorageLocation GET /storage-location/{storageLocationId}/stock",
-            "InventoryTransactionController.getStockByMaterial GET /material/{materialId}/stock",
-            "InventoryTransactionController.getTransactionsByTask GET /task/{taskId}",
-            "InventoryTransactionController.getTaskMaterialUsageSummary GET /project/{projectId}/task-summary",
-            "MaterialController.getMaterialById GET /{id}",
-            "MaterialController.getAllMaterials GET",
-            "MaterialController.getAllMaterialsPaginated GET /all",
-            "MaterialController.getLowStockMaterials GET /low-stock",
-            "MaterialController.searchMaterials GET /search",
-            "MaterialController.getMaterialWithStock GET /{id}/stock",
-            "MaterialController.getLocationThresholds GET /{materialId}/location-thresholds",
-            "MaterialController.upsertLocationThreshold PUT /{materialId}/location-thresholds/{storageLocationId}",
-            "SiteTransferController.createSiteTransfer POST",
-            "SiteTransferController.getSiteTransferById GET /{id}",
-            "SiteTransferController.getAllSiteTransfers GET",
-            "SiteTransferController.getAllSiteTransfersPaginated GET /all",
-            "SiteTransferController.getSiteTransfersByStatus GET /status/{status}",
-            "SiteTransferController.getSiteTransfersBySendingProject GET /sending-project/{projectId}",
-            "SiteTransferController.getSiteTransfersByReceivingProject GET /receiving-project/{projectId}",
-            "SiteTransferController.updateSiteTransferStatus PATCH /{id}/status",
-            "SiteTransferController.receiveSiteTransfer POST /{id}/receive",
-            "SiteTransferController.cancelSiteTransfer POST /{id}/cancel"
+            // Every endpoint the role reached is on the access matrix now, so no guard names it:
+            // goods receipts, material consumption, storage locations, purchase orders, vendors and
+            // indents, and since step 30's stores change, materials, site transfers, stock
+            // adjustments and the ledger. The store keeper's starting role holds what it had, and
+            // each area's equivalence test holds it there (StoresAccessEquivalenceIT for the last
+            // four). Approving, rejecting or deleting a stock adjustment, and creating, editing or
+            // deleting a material, stay off the role: AccessRoleTemplateSeedTest checks the template
+            // never gives it them. A guard that names the role again fails here.
     ));
 
     /**

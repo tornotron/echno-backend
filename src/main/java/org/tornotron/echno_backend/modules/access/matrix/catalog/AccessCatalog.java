@@ -59,7 +59,15 @@ public final class AccessCatalog {
                     List.of("prepare", "verify", "certify", "authorize-payment")),
             area("inspections", "Inspections & Defects", "Inspect"),
             area("toolbox-talks", "Toolbox Talks", "Talks"),
-            area("inventory", "Inventory", "Stores"),
+            // Stock adjustments and the stock ledger. The ledger listed over the whole organization is
+            // the store's and the system admin's, while a project manager reads the movements behind a
+            // material, location, project or task, so the whole ledger is a named read.
+            new Area("inventory", "Stock Adjustments & Ledger", "Stores", List.of("read-ledger")),
+            // The catalogue is changed by the system admin and project manager, while the store keeper
+            // also tunes the reorder thresholds at a storage location, so setting one is a named action.
+            new Area("materials", "Materials", "Stores", List.of("set-thresholds")),
+            // Both ends of a transfer are worked by a store; the project manager reads them.
+            area("site-transfers", "Site Transfers", "Stores"),
             area("material-consumption", "Material Consumption", "Stores"),
             area("storage-locations", "Storage Locations", "Stores"),
             area("goods-receipts", "Goods Receipts", "Stores"),

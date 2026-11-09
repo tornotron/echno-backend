@@ -49,7 +49,7 @@ public class InventoryTransactionController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
+    @PreAuthorize("@access.can('inventory', 'read')")
     @Operation(
             summary = "Get an inventory transaction by id",
             description = "Returns a single inventory transaction, including its opening, changed and "
@@ -57,7 +57,7 @@ public class InventoryTransactionController {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Transaction found"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not read inventory"),
             @ApiResponse(responseCode = "404", description = "No transaction with the given id")
     })
     public ResponseEntity<InventoryTransactionDto> getTransactionById(@PathVariable Long id) {
@@ -66,14 +66,14 @@ public class InventoryTransactionController {
     }
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
+    @PreAuthorize("@access.can('inventory', 'read-ledger')")
     @Operation(
             summary = "List all inventory transactions",
             description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "List of transactions"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read the whole stock ledger")
     })
     public ResponseEntity<List<InventoryTransactionDto>> getAllTransactions() {
         return UnpagedResultCap.respond(
@@ -81,7 +81,7 @@ public class InventoryTransactionController {
     }
 
     @GetMapping("/all")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
+    @PreAuthorize("@access.can('inventory', 'read-ledger')")
     @Operation(
             summary = "List inventory transactions (paginated)",
             description = "Returns a page of inventory transactions ordered by the service default. "
@@ -89,7 +89,7 @@ public class InventoryTransactionController {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Page of transactions"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read the whole stock ledger")
     })
     public ResponseEntity<Page<InventoryTransactionDto>> getAllTransactionsPaginated(
             @Valid @ParameterObject PageQuery pageQuery
@@ -99,7 +99,7 @@ public class InventoryTransactionController {
     }
 
     @GetMapping("/material/{materialId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
+    @PreAuthorize("@access.can('inventory', 'read')")
     @Operation(
             summary = "List transactions for a material",
             description = "Returns, one page at a time, every stock movement recorded for the given material across all "
@@ -107,7 +107,7 @@ public class InventoryTransactionController {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "List of transactions for the material"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read inventory")
     })
     public ResponseEntity<Page<InventoryTransactionDto>> getTransactionsByMaterial(
             @PathVariable Long materialId,
@@ -118,7 +118,7 @@ public class InventoryTransactionController {
     }
 
     @GetMapping("/material/{materialId}/history")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
+    @PreAuthorize("@access.can('inventory', 'read')")
     @Operation(
             summary = "Get a material's movement history (timeline, paginated)",
             description = "Returns the material's stock movements as a timeline, oldest movement first, one "
@@ -129,7 +129,7 @@ public class InventoryTransactionController {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Page of movement-history entries for the material"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read inventory")
     })
     public ResponseEntity<Page<MaterialMovementHistoryDto>> getMaterialMovementHistory(
             @PathVariable Long materialId,
@@ -140,14 +140,14 @@ public class InventoryTransactionController {
     }
 
     @GetMapping("/project/{projectId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
+    @PreAuthorize("@access.can('inventory', 'read')")
     @Operation(
             summary = "List transactions for a project",
             description = "Returns, one page at a time, every inventory transaction booked against the given project."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "List of transactions for the project"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read inventory")
     })
     public ResponseEntity<Page<InventoryTransactionDto>> getTransactionsByProject(
             @PathVariable Long projectId,
@@ -158,7 +158,7 @@ public class InventoryTransactionController {
     }
 
     @GetMapping("/type/{transactionType}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
+    @PreAuthorize("@access.can('inventory', 'read-ledger')")
     @Operation(
             summary = "List transactions by type",
             description = "Returns transactions of a single movement type, for example GRN (goods received), "
@@ -167,7 +167,7 @@ public class InventoryTransactionController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "List of transactions of the given type"),
             @ApiResponse(responseCode = "400", description = "The path value is not a recognised transaction type"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read the whole stock ledger")
     })
     public ResponseEntity<Page<InventoryTransactionDto>> getTransactionsByType(
             @PathVariable InventoryTransactionType transactionType,
@@ -178,7 +178,7 @@ public class InventoryTransactionController {
     }
 
     @GetMapping("/date-range")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
+    @PreAuthorize("@access.can('inventory', 'read-ledger')")
     @Operation(
             summary = "List transactions in a date range",
             description = "Returns transactions whose transaction date falls between the startDate and "
@@ -187,7 +187,7 @@ public class InventoryTransactionController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "List of transactions in the range"),
             @ApiResponse(responseCode = "400", description = "startDate or endDate is missing or not a valid ISO date-time"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read the whole stock ledger")
     })
     public ResponseEntity<Page<InventoryTransactionDto>> getTransactionsByDateRange(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
@@ -199,14 +199,14 @@ public class InventoryTransactionController {
     }
 
     @GetMapping("/storage-location/{storageLocationId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
+    @PreAuthorize("@access.can('inventory', 'read')")
     @Operation(
             summary = "List transactions for a storage location",
             description = "Returns, one page at a time, every stock movement recorded at the given storage location."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "List of transactions for the storage location"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read inventory")
     })
     public ResponseEntity<Page<InventoryTransactionDto>> getTransactionsByStorageLocation(
             @PathVariable Long storageLocationId,
@@ -217,7 +217,7 @@ public class InventoryTransactionController {
     }
 
     @GetMapping("/storage-location/{storageLocationId}/stock")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
+    @PreAuthorize("@access.can('inventory', 'read')")
     @Operation(
             summary = "Get current stock at a storage location",
             description = "Rolls up the transaction ledger into the current stock held at the given "
@@ -226,7 +226,7 @@ public class InventoryTransactionController {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Current stock for the storage location"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read inventory")
     })
     public ResponseEntity<InventoryMaterialStockDto> getStockByStorageLocation(
             @PathVariable Long storageLocationId) {
@@ -235,7 +235,7 @@ public class InventoryTransactionController {
     }
 
     @GetMapping("/material/{materialId}/stock")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
+    @PreAuthorize("@access.can('inventory', 'read')")
     @Operation(
             summary = "Get current stock for a material",
             description = "Rolls up the transaction ledger into the current stock of the given material, "
@@ -244,7 +244,7 @@ public class InventoryTransactionController {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Current stock for the material"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read inventory")
     })
     public ResponseEntity<MaterialLocationStockDto> getStockByMaterial(
             @PathVariable Long materialId) {
@@ -253,7 +253,7 @@ public class InventoryTransactionController {
     }
 
     @GetMapping("/task/{taskId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
+    @PreAuthorize("@access.can('inventory', 'read')")
     @Operation(
             summary = "List transactions for a task",
             description = "Returns the stock movements booked against the given task, typically the "
@@ -261,7 +261,7 @@ public class InventoryTransactionController {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "List of transactions for the task"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read inventory")
     })
     public ResponseEntity<Page<InventoryTransactionDto>> getTransactionsByTask(
             @PathVariable Long taskId,
@@ -272,7 +272,7 @@ public class InventoryTransactionController {
     }
 
     @GetMapping("/project/{projectId}/task-summary")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
+    @PreAuthorize("@access.can('inventory', 'read')")
     @Operation(
             summary = "Get material usage per task for a project",
             description = "Summarises consumption across the given project grouped by task: for each task "
@@ -280,7 +280,7 @@ public class InventoryTransactionController {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Per-task material usage summary for the project"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read inventory")
     })
     public ResponseEntity<List<TaskMaterialUsageDto>> getTaskMaterialUsageSummary(@PathVariable Long projectId) {
         List<TaskMaterialUsageDto> summary = inventoryTransactionService.getTaskMaterialUsageSummary(projectId);

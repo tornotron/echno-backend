@@ -15,7 +15,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
 import org.tornotron.echno_backend.common.configuration.RPTCache;
-import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
+import org.tornotron.echno_backend.modules.access.guard.AccessGuard;
 import org.tornotron.echno_backend.stockAdjustment.enums.StockAdjustmentSourceType;
 
 import java.util.List;
@@ -43,7 +43,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * So is rejecting, which closes the document and writes what the refusal is afterwards
  * read from. The reason on a rejection is required, so a blank one is a 400 rather than
  * an empty explanation on the record.
- * @orgSecurity is mocked so each branch is exercised independently.
+ * {@code @access} is mocked to answer as each starting role's inventory actions do, so each branch
+ * is exercised independently. That each role holds exactly what it did is
+ * {@code StoresAccessEquivalenceIT}'s to show.
  */
 @WebMvcTest(StockAdjustmentControllerWeb.class)
 @Import(StockAdjustmentControllerWebAuthzTest.TestSecurityConfig.class)
@@ -55,8 +57,17 @@ class StockAdjustmentControllerWebAuthzTest {
     @MockitoBean
     private StockAdjustmentService stockAdjustmentService;
 
-    @MockitoBean(name = "orgSecurity")
-    private OrganizationSecurityService orgSecurity;
+    // Named to match the @access bean the @PreAuthorize SpEL references.
+    @MockitoBean(name = "access")
+    private AccessGuard access;
+
+    /** Stubs {@code @access} to allow exactly these area:action keys; every other check answers false. */
+    private void holds(String... permissions) {
+        for (String permission : permissions) {
+            String[] parts = permission.split(":");
+            when(access.can(parts[0], parts[1])).thenReturn(true);
+        }
+    }
 
     // Satisfies RPTExchangeFilter, a custom filter the web slice loads; unused here
     // because .with(jwt(...)) sets the authentication directly.
@@ -67,21 +78,14 @@ class StockAdjustmentControllerWebAuthzTest {
     @MockitoBean
     private RPTCache rptCache;
 
-    /** The three roles the roles matrix reads stock adjustments with: the stores tier. */
-    private static final String[] READ_ROLES = {"system-admin", "project-manager", "store-keeper"};
-
     /** A store-keeper: a member who satisfies the stores tier and nothing above it. */
     private void callerIsAStoreKeeper() {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(READ_ROLES)).thenReturn(true);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager")).thenReturn(false);
+        holds("inventory:read", "inventory:create", "inventory:edit");
     }
 
     /** A member of the tenant holding no org role at all. */
     private void callerIsAPlainMember() {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(READ_ROLES)).thenReturn(false);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager")).thenReturn(false);
+        holds();
     }
 
     @Test
@@ -108,8 +112,7 @@ class StockAdjustmentControllerWebAuthzTest {
 
     @Test
     void read_isForbidden_forANonMember() throws Exception {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(false);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(READ_ROLES)).thenReturn(false);
+        holds();
 
         mockMvc.perform(get("/api/v1/stock-adjustments/web").with(jwt()))
                 .andExpect(status().isForbidden());
@@ -160,7 +163,7 @@ class StockAdjustmentControllerWebAuthzTest {
 
     @Test
     void delete_isOk_forAnElevatedRoleHolder() throws Exception {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager")).thenReturn(true);
+        holds("inventory:read", "inventory:create", "inventory:edit", "inventory:approve", "inventory:delete");
 
         mockMvc.perform(delete("/api/v1/stock-adjustments/web/1").with(jwt()).with(csrf()))
                 .andExpect(status().isOk());
@@ -169,8 +172,7 @@ class StockAdjustmentControllerWebAuthzTest {
     @Test
     void delete_isForbidden_forAPlainMemberWithoutAnElevatedRole() throws Exception {
         // A member may read but must not write: the write guard is the role, not membership.
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager")).thenReturn(false);
+        holds();
 
         mockMvc.perform(delete("/api/v1/stock-adjustments/web/1").with(jwt()).with(csrf()))
                 .andExpect(status().isForbidden());
@@ -178,7 +180,7 @@ class StockAdjustmentControllerWebAuthzTest {
 
     @Test
     void approve_isOk_forAnElevatedRoleHolder() throws Exception {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager")).thenReturn(true);
+        holds("inventory:read", "inventory:create", "inventory:edit", "inventory:approve", "inventory:delete");
 
         mockMvc.perform(post("/api/v1/stock-adjustments/web/1/approve").with(jwt()).with(csrf()))
                 .andExpect(status().isOk());
@@ -188,8 +190,7 @@ class StockAdjustmentControllerWebAuthzTest {
     void approve_isForbidden_forAPlainMemberWithoutAnElevatedRole() throws Exception {
         // Approving posts to the stock ledger and moves a balance. Letting any member do that
         // silently is the governance hole this endpoint exists to close, not to open.
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager")).thenReturn(false);
+        holds();
 
         mockMvc.perform(post("/api/v1/stock-adjustments/web/1/approve").with(jwt()).with(csrf()))
                 .andExpect(status().isForbidden());
@@ -197,7 +198,7 @@ class StockAdjustmentControllerWebAuthzTest {
 
     @Test
     void reject_isOk_forAnElevatedRoleHolder() throws Exception {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager")).thenReturn(true);
+        holds("inventory:read", "inventory:create", "inventory:edit", "inventory:approve", "inventory:delete");
 
         mockMvc.perform(post("/api/v1/stock-adjustments/web/1/reject")
                         .with(jwt()).with(csrf())
@@ -210,8 +211,7 @@ class StockAdjustmentControllerWebAuthzTest {
     void reject_isForbidden_forAPlainMemberWithoutAnElevatedRole() throws Exception {
         // Rejecting closes the document and is the decision the record is then read from, so it
         // is held to the same role bar as approving rather than to plain membership.
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager")).thenReturn(false);
+        holds();
 
         mockMvc.perform(post("/api/v1/stock-adjustments/web/1/reject")
                         .with(jwt()).with(csrf())
@@ -224,7 +224,7 @@ class StockAdjustmentControllerWebAuthzTest {
     void reject_isBadRequest_whenNoReasonIsGiven() throws Exception {
         // The reason is what separates a rejection from a delete, so a blank one is refused at
         // the edge rather than stored as an empty explanation.
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager")).thenReturn(true);
+        holds("inventory:read", "inventory:create", "inventory:edit", "inventory:approve", "inventory:delete");
 
         mockMvc.perform(post("/api/v1/stock-adjustments/web/1/reject")
                         .with(jwt()).with(csrf())

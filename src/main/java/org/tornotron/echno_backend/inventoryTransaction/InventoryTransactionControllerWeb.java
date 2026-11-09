@@ -54,14 +54,14 @@ public class InventoryTransactionControllerWeb {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
+    @PreAuthorize("@access.can('inventory', 'read')")
     @Operation(
             summary = "Get an inventory transaction by id",
             description = "Returns a single inventory transaction."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Inventory transaction found"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read inventory"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No inventory transaction with the given id")
     })
     public ResponseEntity<InventoryTransactionDto> getTransactionById(@PathVariable Long id) {
@@ -70,14 +70,14 @@ public class InventoryTransactionControllerWeb {
     }
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
+    @PreAuthorize("@access.can('inventory', 'read-ledger')")
     @Operation(
             summary = "List inventory transactions",
             description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Inventory transactions returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read the whole stock ledger")
     })
     public ResponseEntity<List<InventoryTransactionDto>> getAllTransactions() {
         return UnpagedResultCap.respond(
@@ -85,14 +85,14 @@ public class InventoryTransactionControllerWeb {
     }
 
     @GetMapping("/all")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
+    @PreAuthorize("@access.can('inventory', 'read-ledger')")
     @Operation(
             summary = "List inventory transactions (paged)",
             description = "Returns a single page of inventory transactions controlled by the pageNo and pageSize parameters."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of inventory transactions returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read the whole stock ledger")
     })
     public ResponseEntity<Page<InventoryTransactionDto>> getAllTransactionsPaginated(
             @Valid @ParameterObject PageQuery pageQuery
@@ -102,14 +102,14 @@ public class InventoryTransactionControllerWeb {
     }
 
     @GetMapping("/material/{materialId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
+    @PreAuthorize("@access.can('inventory', 'read')")
     @Operation(
             summary = "List inventory transactions for a material",
             description = "Returns the inventory transactions recorded for the given material."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Inventory transactions returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read inventory")
     })
     public ResponseEntity<List<InventoryTransactionDto>> getTransactionsByMaterial(@PathVariable Long materialId) {
         List<InventoryTransactionDto> transactions = inventoryTransactionService.getTransactionsByMaterial(materialId);
@@ -117,7 +117,7 @@ public class InventoryTransactionControllerWeb {
     }
 
     @GetMapping("/material/{materialId}/history")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
+    @PreAuthorize("@access.can('inventory', 'read')")
     @Operation(
             summary = "Get a material's movement history (timeline, paged)",
             description = "Returns the material's stock movements as a timeline, oldest movement first, "
@@ -128,7 +128,7 @@ public class InventoryTransactionControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of movement-history entries returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read inventory")
     })
     public ResponseEntity<Page<MaterialMovementHistoryDto>> getMaterialMovementHistory(
             @PathVariable Long materialId,
@@ -139,14 +139,14 @@ public class InventoryTransactionControllerWeb {
     }
 
     @GetMapping("/project/{projectId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
+    @PreAuthorize("@access.can('inventory', 'read')")
     @Operation(
             summary = "List inventory transactions for a project",
             description = "Returns the inventory transactions recorded for the given project."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Inventory transactions returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read inventory")
     })
     public ResponseEntity<List<InventoryTransactionDto>> getTransactionsByProject(@PathVariable Long projectId) {
         List<InventoryTransactionDto> transactions = inventoryTransactionService.getTransactionsByProject(projectId);
@@ -154,7 +154,7 @@ public class InventoryTransactionControllerWeb {
     }
 
     @GetMapping("/type/{transactionType}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
+    @PreAuthorize("@access.can('inventory', 'read-ledger')")
     @Operation(
             summary = "List inventory transactions by type",
             description = "Returns the inventory transactions of the given transaction type."
@@ -162,7 +162,7 @@ public class InventoryTransactionControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Inventory transactions returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The transaction type is not a recognized value"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read the whole stock ledger")
     })
     public ResponseEntity<List<InventoryTransactionDto>> getTransactionsByType(@PathVariable InventoryTransactionType transactionType) {
         List<InventoryTransactionDto> transactions = inventoryTransactionService.getTransactionsByType(transactionType);
@@ -170,7 +170,7 @@ public class InventoryTransactionControllerWeb {
     }
 
     @GetMapping("/date-range")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','store-keeper')")
+    @PreAuthorize("@access.can('inventory', 'read-ledger')")
     @Operation(
             summary = "List inventory transactions by date range",
             description = "Returns the inventory transactions recorded between the given start and end date-times."
@@ -178,7 +178,7 @@ public class InventoryTransactionControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Inventory transactions returned"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "A date parameter is missing or malformed"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read the whole stock ledger")
     })
     public ResponseEntity<List<InventoryTransactionDto>> getTransactionsByDateRange(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
@@ -189,14 +189,14 @@ public class InventoryTransactionControllerWeb {
     }
 
     @GetMapping("/storage-location/{storageLocationId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
+    @PreAuthorize("@access.can('inventory', 'read')")
     @Operation(
             summary = "List inventory transactions for a storage location",
             description = "Returns the inventory transactions recorded at the given storage location."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Inventory transactions returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read inventory")
     })
     public ResponseEntity<List<InventoryTransactionDto>> getTransactionsByStorageLocation(
             @PathVariable Long storageLocationId) {
@@ -205,14 +205,14 @@ public class InventoryTransactionControllerWeb {
     }
 
     @GetMapping("/storage-location/{storageLocationId}/material/{materialId}/project/{projectId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
+    @PreAuthorize("@access.can('inventory', 'read')")
     @Operation(
             summary = "List inventory transactions for a location, material and project",
             description = "Returns the inventory transactions matching the given storage location, material and project."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Inventory transactions returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read inventory")
     })
     public ResponseEntity<List<InventoryTransactionDto>> getTransactionsByStorageLocationMaterialAndProject(
             @PathVariable Long storageLocationId,
@@ -224,14 +224,14 @@ public class InventoryTransactionControllerWeb {
     }
 
     @GetMapping("/storage-location/{storageLocationId}/stock")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
+    @PreAuthorize("@access.can('inventory', 'read')")
     @Operation(
             summary = "Get stock at a storage location",
             description = "Returns the current material stock levels at the given storage location."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Stock returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read inventory")
     })
     public ResponseEntity<InventoryMaterialStockDto> getStockByStorageLocation(
             @PathVariable Long storageLocationId) {
@@ -240,14 +240,14 @@ public class InventoryTransactionControllerWeb {
     }
 
     @GetMapping("/material/{materialId}/stock")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
+    @PreAuthorize("@access.can('inventory', 'read')")
     @Operation(
             summary = "Get stock for a material",
             description = "Returns the current stock levels of the given material across storage locations."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Stock returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read inventory")
     })
     public ResponseEntity<MaterialLocationStockDto> getStockByMaterial(
             @PathVariable Long materialId) {
@@ -256,14 +256,14 @@ public class InventoryTransactionControllerWeb {
     }
 
     @GetMapping("/task/{taskId}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
+    @PreAuthorize("@access.can('inventory', 'read')")
     @Operation(
             summary = "List inventory transactions for a task",
             description = "Returns the inventory transactions recorded for the given task."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Inventory transactions returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read inventory")
     })
     public ResponseEntity<List<InventoryTransactionDto>> getTransactionsByTask(@PathVariable Long taskId) {
         List<InventoryTransactionDto> transactions = inventoryTransactionService.getTransactionsByTask(taskId);
@@ -271,14 +271,14 @@ public class InventoryTransactionControllerWeb {
     }
 
     @GetMapping("/project/{projectId}/task-summary")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager','store-keeper')")
+    @PreAuthorize("@access.can('inventory', 'read')")
     @Operation(
             summary = "Get task material usage summary for a project",
             description = "Returns a per-task summary of material usage for the given project."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Task material usage summary returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read inventory")
     })
     public ResponseEntity<List<TaskMaterialUsageDto>> getTaskMaterialUsageSummary(@PathVariable Long projectId) {
         List<TaskMaterialUsageDto> summary = inventoryTransactionService.getTaskMaterialUsageSummary(projectId);
