@@ -244,7 +244,7 @@ are in the operator runbook (`docs/runbooks/document-ingestion.md` in echno-depl
 
 | Part | Text PDF or Excel | Scanned | Gate on the corpus | Corpus run, 9 Nov 2026 |
 |---|---|---|---|---|
-| BOQ from Excel | High; deterministic | n/a | Rows captured 99%; numbers exact 99.5% on captured rows | Pass: rows 15 of 15, numbers 45 of 45 with the confirmed mapping (detected mapping alone: 15 of 45 numbers) |
+| BOQ from Excel | High; deterministic | n/a | Rows captured 99%; numbers exact 99.5% on captured rows | Pass: rows 15 of 15, numbers 45 of 45 with the confirmed mapping (detected mapping alone: 15 of 45 numbers on 9 Nov, 45 of 45 after #1056) |
 | BOQ from PDF tables | Medium; ruled tables go well, borderless ones less so | Low; flagged always | Rows captured 90% on text PDF; report scanned separately | Not built: no PDF BOQ reader in this version |
 | Document class | High for the 13 classes | Medium | 90% correct per document | Pass on the deterministic reading: 15 of 15 text documents. LLM fallback pending: no endpoint key |
 | Project and contract terms | High when stated plainly | Medium, tied to OCR | Precision 95%, recall 85% on text PDF | Pending: no endpoint key |
