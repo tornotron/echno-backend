@@ -14,10 +14,10 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 /**
- * Every chat handler asks the access matrix for the chat action it performs, and nothing else: reads
- * and the stream need read, opening a room, posting, reacting, marking a room read and archiving need
- * create, editing a message needs edit and deleting one needs delete, as the mapping note assigns
- * them. A new handler fails here until it is given its row.
+ * Every chat handler asks the access matrix for the chat action it performs, and nothing else: reads,
+ * the stream and marking a room read need read, opening a room, posting, reacting and archiving need
+ * create, editing a message needs edit and deleting one needs delete. Marking a room read only moves
+ * the caller's own unread marker, so a participant who may read a room may clear it. A new handler fails here until it is given its row.
  */
 class ChatGuardsTest {
 
@@ -26,7 +26,7 @@ class ChatGuardsTest {
             Map.entry("ChatControllerWeb#readRooms", "read"),
             Map.entry("ChatControllerWeb#readRoom", "read"),
             Map.entry("ChatControllerWeb#openDirectRoom", "create"),
-            Map.entry("ChatControllerWeb#markRoomRead", "create"),
+            Map.entry("ChatControllerWeb#markRoomRead", "read"),
             Map.entry("ChatControllerWeb#readMessages", "read"),
             Map.entry("ChatControllerWeb#sendMessage", "create"),
             Map.entry("ChatControllerWeb#sendMessageWithAttachments", "create"),

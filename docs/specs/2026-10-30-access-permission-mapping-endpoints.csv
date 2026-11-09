@@ -37,7 +37,7 @@ chat,POST,/api/v1/chat/rooms/web/{roomId}/archive,archiveRoom,any-member,,,chat,
 chat,GET,/api/v1/chat/rooms/web/{roomId}/messages,readMessages,any-member,,,chat,view,,chat/ChatControllerWeb.java,@orgSecurity.isMemberOfCurrentTenant()
 chat,POST,/api/v1/chat/rooms/web/{roomId}/messages,sendMessage,any-member,,,chat,create,,chat/ChatControllerWeb.java,@orgSecurity.isMemberOfCurrentTenant()
 chat,POST,/api/v1/chat/rooms/web/{roomId}/messages,sendMessageWithAttachments,any-member,,,chat,create,,chat/ChatControllerWeb.java,@orgSecurity.isMemberOfCurrentTenant()
-chat,POST,/api/v1/chat/rooms/web/{roomId}/read,markRoomRead,any-member,,,chat,create,,chat/ChatControllerWeb.java,@orgSecurity.isMemberOfCurrentTenant()
+chat,POST,/api/v1/chat/rooms/web/{roomId}/read,markRoomRead,any-member,,,chat,view,,chat/ChatControllerWeb.java,@orgSecurity.isMemberOfCurrentTenant()
 chat,GET,/api/v1/chat/stream,stream,any-member,,,chat,view,,chat/ChatControllerWeb.java,@orgSecurity.isMemberOfCurrentTenant()
 documentReversal,GET,/api/v1/document-reversals,listReversals,any-member,,,compliance,approve,,documentReversal/DocumentReversalController.java,@orgSecurity.isMemberOfCurrentTenant()
 documentReversal,POST,/api/v1/document-reversals,requestReversal,any-member,,,compliance,approve,,documentReversal/DocumentReversalController.java,@orgSecurity.isMemberOfCurrentTenant()
