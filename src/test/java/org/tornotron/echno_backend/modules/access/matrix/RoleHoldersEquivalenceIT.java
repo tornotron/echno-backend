@@ -170,6 +170,29 @@ class RoleHoldersEquivalenceIT extends RoleAssignmentITSupport {
         assertThat(LeaveApproverRole.REPORTING_MANAGER.getStartingRole()).isNull();
     }
 
+    @Test
+    void aRoleHeldOnOneProjectCountsOnThatProjectOnly() {
+        // No starting role with an old counterpart can be given on a project yet, so this shape has no
+        // old answer to compare with. Written straight to the table to pin the rule for when one can.
+        Employee onB = employee("holders-pm-on-b");
+        Employee onA = employee("holders-pm-on-a");
+        siteA.getEmployees().addAll(List.of(onA, onB));
+        siteB.getEmployees().addAll(List.of(onA, onB));
+        AccessRole projectManager = em.find(AccessRole.class, roleId(AccessRoleHolders.PROJECT_MANAGER));
+        fixtures.assign(organization, onB, projectManager, siteB.getId());
+        fixtures.assign(organization, onA, projectManager, siteA.getId());
+        flush();
+
+        assertThat(holders.onProject(organization.getId(), siteB.getId(), AccessRoleHolders.PROJECT_MANAGER))
+                .contains(onB.getId()).doesNotContain(onA.getId());
+        assertThat(holders.onProject(organization.getId(), siteA.getId(), AccessRoleHolders.PROJECT_MANAGER))
+                .contains(onA.getId()).doesNotContain(onB.getId());
+        assertThat(holders.acrossOrganization(organization.getId(), List.of(AccessRoleHolders.PROJECT_MANAGER)))
+                .doesNotContain(onA.getId(), onB.getId());
+        assertThat(hierarchy.readAllTheManagersByOrganizationId(organization.getId()))
+                .extracting(EmployeeDto::getId).doesNotContain(onA.getId(), onB.getId());
+    }
+
     /** The template that stands in for the old role. */
     private String slugOf(OrgRole role) {
         return jdbc.queryForObject("SELECT slug FROM access_role_template WHERE legacy_org_role = ?", String.class,
