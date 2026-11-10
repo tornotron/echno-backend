@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Qualification and bidding: the bidder qualification requirements of a package (one row per
+        applied candidate, written only by the apply step, with provenance), the company profile an
+        admin types in by hand (one row per organization), and its evidence files.
+
+        Design: docs/specs/2026-11-08-document-ingestion-design.md, sections 4.7 and 6.3.
+    -->
+
+    <changeSet id="document-ingestion-011-create-qualification-requirement" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="doc_ingest_qualification_requirement"/></not>
+        </preConditions>
+        <createTable tableName="doc_ingest_qualification_requirement">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_doc_ingest_qualification_requirement" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="package_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="candidate_id" type="UUID"><constraints nullable="false" unique="true" uniqueConstraintName="uq_doc_ingest_qualification_requirement_candidate"/></column>
+            <column name="requirement" type="VARCHAR(30)"><constraints nullable="false"/></column>
+            <column name="value_text" type="VARCHAR(1000)"><constraints nullable="false"/></column>
+            <column name="min_value_text" type="VARCHAR(255)"/>
+            <column name="period_text" type="VARCHAR(255)"/>
+            <column name="source_class" type="VARCHAR(30)"/>
+            <column name="document_id" type="UUID"/>
+            <column name="person_status" type="VARCHAR(20)"/>
+            <column name="person_note" type="VARCHAR(1000)"/>
+            <column name="status_set_by" type="BIGINT"/>
+            <column name="status_set_at" type="TIMESTAMP"/>
+            <column name="updated_by" type="BIGINT"/>
+            <column name="created_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="updated_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="doc_ingest_qualification_requirement" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_doc_ingest_qualification_requirement_organization"/>
+        <addForeignKeyConstraint baseTableName="doc_ingest_qualification_requirement" baseColumnNames="package_id"
+                                 referencedTableName="doc_ingest_package" referencedColumnNames="id"
+                                 constraintName="fk_doc_ingest_qualification_requirement_package"/>
+        <createIndex tableName="doc_ingest_qualification_requirement" indexName="idx_doc_ingest_qualification_requirement_package">
+            <column name="package_id"/>
+            <column name="created_at"/>
+        </createIndex>
+        <createIndex tableName="doc_ingest_qualification_requirement" indexName="idx_doc_ingest_qualification_requirement_org">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="document-ingestion-011-create-company-profile" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="doc_ingest_company_profile"/></not>
+        </preConditions>
+        <createTable tableName="doc_ingest_company_profile">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_doc_ingest_company_profile" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false" unique="true" uniqueConstraintName="uq_doc_ingest_company_profile_org"/></column>
+            <column name="years_in_business" type="INT"/>
+            <column name="turnover" type="JSONB"><constraints nullable="false"/></column>
+            <column name="similar_projects" type="JSONB"><constraints nullable="false"/></column>
+            <column name="equipment" type="JSONB"><constraints nullable="false"/></column>
+            <column name="personnel" type="JSONB"><constraints nullable="false"/></column>
+            <column name="updated_by" type="BIGINT"/>
+            <column name="created_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="updated_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="doc_ingest_company_profile" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_doc_ingest_company_profile_organization"/>
+    </changeSet>
+
+    <changeSet id="document-ingestion-011-create-company-evidence" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="doc_ingest_company_evidence"/></not>
+        </preConditions>
+        <createTable tableName="doc_ingest_company_evidence">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_doc_ingest_company_evidence" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="section" type="VARCHAR(30)"><constraints nullable="false"/></column>
+            <column name="label" type="VARCHAR(300)"/>
+            <column name="file_name" type="VARCHAR(300)"><constraints nullable="false"/></column>
+            <column name="content_type" type="VARCHAR(100)"><constraints nullable="false"/></column>
+            <column name="size_bytes" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="source_key" type="VARCHAR(500)"><constraints nullable="false"/></column>
+            <column name="attachment_id" type="BIGINT"/>
+            <column name="created_by" type="BIGINT"/>
+            <column name="created_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="updated_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="doc_ingest_company_evidence" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_doc_ingest_company_evidence_organization"/>
+        <createIndex tableName="doc_ingest_company_evidence" indexName="idx_doc_ingest_company_evidence_org">
+            <column name="organization_id"/>
+            <column name="section"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>

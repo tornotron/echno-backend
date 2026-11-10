@@ -6,6 +6,7 @@ import java.util.List;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.tornotron.echno_backend.common.llm.LlmEndpointProperties;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.modules.documentingestion.domain.IngestOrgSettings;
@@ -40,13 +41,16 @@ public class IngestSettingsService {
     private final IngestSettingChangeRepository changes;
     private final TenantEntityHelper tenantEntityHelper;
     private final UserContextService userContextService;
+    private final LlmEndpointProperties endpoint;
 
     public IngestSettingsService(IngestOrgSettingsRepository settings, IngestSettingChangeRepository changes,
-                                 TenantEntityHelper tenantEntityHelper, UserContextService userContextService) {
+                                 TenantEntityHelper tenantEntityHelper, UserContextService userContextService,
+                                 LlmEndpointProperties endpoint) {
         this.settings = settings;
         this.changes = changes;
         this.tenantEntityHelper = tenantEntityHelper;
         this.userContextService = userContextService;
+        this.endpoint = endpoint;
     }
 
     /** Whether LLM reading is on for the organization: the stored choice, or on when none was made. */
@@ -65,7 +69,10 @@ public class IngestSettingsService {
                         c.getChangedBy(), c.getChangedAt()))
                 .toList();
         return new IngestSettingsDto(row == null ? LLM_READING_DEFAULT : row.isLlmReadingEnabled(),
-                LLM_READING_DISCLOSURE, row == null ? null : row.getChangedBy(), row == null ? null : row.getChangedAt(),
+                LLM_READING_DISCLOSURE, endpoint.getProviderName(), endpoint.getModel(),
+                endpoint.getProviderPrivacyUrl() == null || endpoint.getProviderPrivacyUrl().isBlank() ? null
+                        : endpoint.getProviderPrivacyUrl(),
+                row == null ? null : row.getChangedBy(), row == null ? null : row.getChangedAt(),
                 row == null ? null : row.getMonthlyBudgetUsd(), row == null ? null : row.getMonthlyBudgetTokens(), recent);
     }
 

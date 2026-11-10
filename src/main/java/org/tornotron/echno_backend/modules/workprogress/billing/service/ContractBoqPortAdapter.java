@@ -10,6 +10,9 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
+import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
+import org.tornotron.echno_backend.modules.workprogress.billing.domain.ContractBoqItem;
+import org.tornotron.echno_backend.modules.workprogress.billing.repository.ContractBoqItemRepository;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.modules.workprogress.api.ContractBoqPort;
@@ -28,17 +31,25 @@ public class ContractBoqPortAdapter implements ContractBoqPort {
 
     private final ContractBillingService billing;
     private final SubContractRepository subContracts;
+    private final ContractBoqItemRepository boqItems;
     private final Validator validator = VALIDATORS.getValidator();
 
-    public ContractBoqPortAdapter(ContractBillingService billing, SubContractRepository subContracts) {
+    public ContractBoqPortAdapter(ContractBillingService billing, SubContractRepository subContracts,
+                                  ContractBoqItemRepository boqItems) {
         this.billing = billing;
         this.subContracts = subContracts;
+        this.boqItems = boqItems;
     }
 
     @Override
     public UUID addItem(Long subContractId, BoqLine line) {
         BoqItemRequest req = new BoqItemRequest(line.itemCode(), line.description(), line.unit(), line.quantity(),
                 line.rate(), null, line.sortOrder());
+        validate(req);
+        return billing.addBoqItem(subContractId, req).id();
+    }
+
+    private void validate(BoqItemRequest req) {
         Set<ConstraintViolation<BoqItemRequest>> violations = validator.validate(req);
         if (!violations.isEmpty()) {
             throw new InvalidRequestException(violations.stream()
@@ -46,7 +57,26 @@ public class ContractBoqPortAdapter implements ContractBoqPort {
                     .map(v -> v.getPropertyPath() + " " + v.getMessage())
                     .collect(Collectors.joining("; ")));
         }
-        return billing.addBoqItem(subContractId, req).id();
+    }
+
+    @Override
+    public Optional<BoqItemRef> findItem(UUID itemId) {
+        if (itemId == null) {
+            return Optional.empty();
+        }
+        return boqItems.findScoped(itemId, TenantContext.getCurrentOrgId())
+                .map(i -> new BoqItemRef(i.getId(), i.getSubContractId(), i.getItemCode(), i.getDescription(), i.getUnit(),
+                        i.getContractQuantity(), i.getRate()));
+    }
+
+    @Override
+    public void updateItem(UUID itemId, BoqLine line) {
+        ContractBoqItem item = boqItems.findScoped(itemId, TenantContext.getCurrentOrgId())
+                .orElseThrow(() -> new ResourceNotFoundException("BOQ item not found: " + itemId));
+        BoqItemRequest req = new BoqItemRequest(line.itemCode(), line.description(), line.unit(), line.quantity(),
+                line.rate(), item.getWbsElementId(), item.getSortOrder());
+        validate(req);
+        billing.updateBoqItem(itemId, req);
     }
 
     @Override

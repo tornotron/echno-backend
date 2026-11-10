@@ -17,6 +17,8 @@ import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.service.AttachmentService;
 import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.modules.documentingestion.DocumentIngestionStorageLayout;
+import org.tornotron.echno_backend.modules.documentingestion.domain.ClassMethod;
+import org.tornotron.echno_backend.modules.documentingestion.domain.DocClass;
 import org.tornotron.echno_backend.modules.documentingestion.domain.DocumentFileType;
 import org.tornotron.echno_backend.modules.documentingestion.domain.DocumentStatus;
 import org.tornotron.echno_backend.modules.documentingestion.domain.IngestDocument;
@@ -119,6 +121,9 @@ public class IngestDocumentService {
         if (doc.getFileType() == DocumentFileType.DWG) {
             doc.setStatus(DocumentStatus.STORED_ONLY);
             doc.setError("DWG files are stored and listed but not read. Add a PDF or DXF copy to have it read.");
+            doc.setDocClass(DocClass.DRAWING.name());
+            doc.setClassMethod(ClassMethod.DETERMINISTIC);
+            doc.setClassReason("A drawing file.");
         } else {
             enqueue(doc);
         }
@@ -160,6 +165,25 @@ public class IngestDocumentService {
             throw new InvalidRequestException(doc.getFileName() + " has not been uploaded yet");
         }
         return new DownloadUrlDto(fileStorageService.generateDownloadUrl(doc.getSourceKey(), DOWNLOAD_URL_EXPIRY),
+                DOWNLOAD_URL_EXPIRY.toSeconds());
+    }
+
+    /**
+     * A short-lived link to the worker's image of one page of a document, which the review screen draws a
+     * source box over. The document is looked up in the current tenant first and the key is composed here
+     * from its output prefix, so a client never names an object.
+     */
+    @Transactional(readOnly = true)
+    public DownloadUrlDto pageImageUrl(UUID documentId, int page) {
+        IngestDocument doc = requireDocument(documentId);
+        if (doc.getOutputPrefix() == null || page < 1) {
+            throw new ResourceNotFoundException("No image of page " + page + " of " + doc.getFileName());
+        }
+        String key = doc.getOutputPrefix() + DocumentIngestionStorageLayout.pageImage(page);
+        if (!fileStorageService.objectExists(key)) {
+            throw new ResourceNotFoundException("No image of page " + page + " of " + doc.getFileName());
+        }
+        return new DownloadUrlDto(fileStorageService.generateDownloadUrl(key, DOWNLOAD_URL_EXPIRY),
                 DOWNLOAD_URL_EXPIRY.toSeconds());
     }
 

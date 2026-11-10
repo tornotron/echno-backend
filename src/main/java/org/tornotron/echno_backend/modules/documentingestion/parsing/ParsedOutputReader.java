@@ -9,6 +9,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.stereotype.Component;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.service.FileStorageService;
@@ -27,6 +28,10 @@ public class ParsedOutputReader {
     static final long MAX_TABLES_BYTES = 96L * 1024 * 1024;
     /** 2,000 dense pages, the PDF limit, at about 30 KB of lines and boxes each. */
     static final long MAX_PAGES_BYTES = 64L * 1024 * 1024;
+    /** 2,000 title blocks of a few hundred words each. */
+    static final long MAX_TITLEBLOCK_BYTES = 32L * 1024 * 1024;
+    /** 5,000 inserts and 500 texts per layout or block, the worker's caps. */
+    static final long MAX_DXF_BYTES = 32L * 1024 * 1024;
 
     private final FileStorageService storage;
     private final ObjectMapper objectMapper;
@@ -50,10 +55,85 @@ public class ParsedOutputReader {
         return parseTables(bytes, objectMapper);
     }
 
+    /**
+     * The document's {@code tables.jsonl}, or empty when the worker wrote none, as a worker before 0.2.0
+     * did for a PDF. A file that is there and cannot be read, or storage that cannot be reached, throws,
+     * so the job is retried or fails instead of reading as a file with no tables.
+     */
+    public Optional<List<TableRow>> tablesIfWritten(String outputPrefix) {
+        if (!storage.objectExists(outputPrefix + DocumentIngestionStorageLayout.TABLES_FILE)) {
+            return Optional.empty();
+        }
+        return Optional.of(tables(outputPrefix));
+    }
+
     /** The document's {@code pages.jsonl}, in page order. */
     public List<PageText> pages(String outputPrefix) {
         byte[] bytes = read(outputPrefix + DocumentIngestionStorageLayout.PAGES_FILE, MAX_PAGES_BYTES);
         return parsePages(bytes, objectMapper);
+    }
+
+    /**
+     * The PDF's {@code titleblock.jsonl}, in page order, or empty when the worker wrote none, as a worker
+     * before 0.3.0 did: the title block was not read. A file that is there and cannot be read throws.
+     */
+    public Optional<List<TitleBlock>> titleBlocksIfWritten(String outputPrefix) {
+        String key = outputPrefix + DocumentIngestionStorageLayout.TITLEBLOCK_FILE;
+        if (!storage.objectExists(key)) {
+            return Optional.empty();
+        }
+        return Optional.of(parseTitleBlocks(read(key, MAX_TITLEBLOCK_BYTES), objectMapper));
+    }
+
+    /** The DXF's {@code dxf.json}, or empty when the worker wrote none, as a worker before 0.3.0 did. */
+    public Optional<DxfReading> dxfIfWritten(String outputPrefix) {
+        String key = outputPrefix + DocumentIngestionStorageLayout.DXF_FILE;
+        if (!storage.objectExists(key)) {
+            return Optional.empty();
+        }
+        return Optional.of(parseDxf(read(key, MAX_DXF_BYTES), objectMapper));
+    }
+
+    /** Parses {@code titleblock.jsonl}; unknown keys are ignored, and a malformed line names its number. */
+    public static List<TitleBlock> parseTitleBlocks(byte[] bytes, ObjectMapper objectMapper) {
+        List<TitleBlock> blocks = new ArrayList<>();
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(new ByteArrayInputStream(bytes), StandardCharsets.UTF_8))) {
+            String line;
+            int number = 0;
+            while ((line = reader.readLine()) != null) {
+                number++;
+                if (line.isBlank()) {
+                    continue;
+                }
+                try {
+                    JsonNode node = objectMapper.readTree(line);
+                    if (!node.path("page").canConvertToInt() || node.path("page").asInt() < 1) {
+                        throw new IllegalStateException("no page");
+                    }
+                    blocks.add(new TitleBlock(node.path("page").asInt(), text(node, "status"), text(node, "reason"),
+                            text(node, "method"), box(node.get("region")), text(node, "regionSource"),
+                            text(node, "image"), lines(node.path("words")), lines(node.path("lines"))));
+                } catch (IOException | RuntimeException e) {
+                    throw new IllegalStateException("Line " + number + " of titleblock.jsonl could not be read", e);
+                }
+            }
+        } catch (IOException e) {
+            throw new IllegalStateException("titleblock.jsonl could not be read", e);
+        }
+        blocks.sort(java.util.Comparator.comparingInt(TitleBlock::page));
+        return blocks;
+    }
+
+    /** Parses {@code dxf.json}; unknown keys are ignored. */
+    public static DxfReading parseDxf(byte[] bytes, ObjectMapper objectMapper) {
+        try {
+            return objectMapper.readerFor(DxfReading.class)
+                    .without(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+                    .readValue(bytes);
+        } catch (IOException e) {
+            throw new IllegalStateException("The worker's dxf.json could not be read: " + e.getMessage(), e);
+        }
     }
 
     /**
@@ -85,21 +165,31 @@ public class ParsedOutputReader {
     }
 
     private static PageText page(JsonNode node) {
-        List<PageText.Line> lines = new ArrayList<>();
-        for (JsonNode l : node.path("lines")) {
-            List<Double> box = null;
-            if (l.path("box").isArray() && l.path("box").size() == 4) {
-                box = new ArrayList<>(4);
-                for (JsonNode v : l.path("box")) {
-                    box.add(v.asDouble());
-                }
-            }
-            JsonNode conf = l.path("ocrConfidence");
-            lines.add(new PageText.Line(l.path("text").asText(""), box, conf.isNumber() ? conf.asDouble() : null));
-        }
         return new PageText(node.path("page").asInt(), text(node, "method"), number(node, "width"),
-                number(node, "height"), lines, text(node, "status"), text(node, "reason"), text(node, "script"),
-                node.has("script"));
+                number(node, "height"), lines(node.path("lines")), text(node, "status"), text(node, "reason"),
+                text(node, "script"), node.has("script"));
+    }
+
+    /** Lines or words in the shape of a {@code pages.jsonl} line: text, box and OCR confidence. */
+    private static List<PageText.Line> lines(JsonNode array) {
+        List<PageText.Line> lines = new ArrayList<>();
+        for (JsonNode l : array) {
+            JsonNode conf = l.path("ocrConfidence");
+            lines.add(new PageText.Line(l.path("text").asText(""), box(l.get("box")),
+                    conf.isNumber() ? conf.asDouble() : null));
+        }
+        return lines;
+    }
+
+    private static List<Double> box(JsonNode node) {
+        if (node == null || !node.isArray() || node.size() != 4) {
+            return null;
+        }
+        List<Double> box = new ArrayList<>(4);
+        for (JsonNode v : node) {
+            box.add(v.asDouble());
+        }
+        return box;
     }
 
     private static String text(JsonNode node, String key) {

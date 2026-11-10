@@ -35,6 +35,15 @@ public class LlmEndpointProperties {
     @ToString.Exclude
     private String apiKey = "";
 
+    /**
+     * The name of the outside service behind {@code baseUrl}, as a screen names it to the people whose text
+     * it reads. Set it with the URL whenever the endpoint moves to another provider.
+     */
+    private String providerName = "DigitalOcean hosted AI models (Gradient inference)";
+
+    /** Where the provider states what it does with the text it is sent, or empty when none is known. */
+    private String providerPrivacyUrl = "https://docs.digitalocean.com/products/inference/details/data-privacy/";
+
     /** Model id (slug) to call. */
     private String model = "llama3.3-70b-instruct";
 

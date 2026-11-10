@@ -21,6 +21,7 @@ import org.tornotron.echno_backend.attendance.mapper.AttendanceMapper;
 import org.tornotron.echno_backend.attendance.service.AttendanceCalculationService;
 import org.tornotron.echno_backend.attendance.service.AttendanceGeofenceService;
 import org.tornotron.echno_backend.attendance.service.AttendanceSettingsService;
+import org.tornotron.echno_backend.attendance.service.EffectiveShift;
 import org.tornotron.echno_backend.attendance.validator.ClockEventSequenceValidator;
 import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.common.exception.GeofenceExceptionReasonRequiredException;
@@ -283,19 +284,20 @@ public class AttendanceService {
 
         // Prefer the employee's assigned structured shift. Only when they have none
         // do we fall back to a shift id supplied on the request (the pre-unification
-        // behavior). A check-in is rejected when neither source yields a shift.
+        // behavior), and then to the default shift in the attendance settings. A
+        // check-in is rejected when none of the three yields a shift.
         ShiftTiming shift = employee.getShiftTiming();
-        if (shift == null) {
-            if (dto.getShiftTimingId() == null) {
-                throw new ValidationException(
-                        "No shift timing is assigned to this employee and none was supplied on the request");
-            }
+        if (shift == null && dto.getShiftTimingId() != null) {
             shift = shiftTimingRepository.findByIdAndOrganization_Id(dto.getShiftTimingId(), orgId)
                     .orElseThrow(() -> new ResourceNotFoundException(
                             "Shift timing with ID " + dto.getShiftTimingId() + " was not found in this organization"));
         }
 
         AttendanceSettings settings = settingsService.resolveEffectiveSettings(orgId, dto.getProjectId());
+        shift = EffectiveShift.orSettingsDefault(shift, settings);
+        if (shift == null) {
+            throw EffectiveShift.missing(employee, "the check-in");
+        }
         boolean selfMarked = attendanceSecurity.isSelfMarking(dto.getEmployeeId());
 
         boolean photoProvided = photo != null && !photo.isEmpty();

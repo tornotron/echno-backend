@@ -109,7 +109,9 @@ public class ApplyService {
                         failed++;
                         String reason = rowFailure.getMessage() == null
                                 ? rowFailure.getClass().getSimpleName() : rowFailure.getMessage();
-                        retry.executeWithoutResult("DocumentIngestion.markApplyFailed", () -> markFailed(id, reason));
+                        ApplyConflictException conflict = rowFailure instanceof ApplyConflictException refused ? refused : null;
+                        retry.executeWithoutResult("DocumentIngestion.markApplyFailed",
+                                () -> markFailed(id, reason, conflict));
                     }
                 }
             }
@@ -130,11 +132,14 @@ public class ApplyService {
         LocalDateTime now = LocalDateTime.now();
         Map<String, SourceRef> refByField = sources.findForCandidates(List.of(candidateId)).stream()
                 .collect(Collectors.toMap(SourceRef::getField, Function.identity(), (first, second) -> first));
-        target.fields().forEach((payloadField, targetField) -> {
+        List<IngestionApplier.AppliedTarget> written = new java.util.ArrayList<>();
+        written.add(target);
+        written.addAll(target.also());
+        written.forEach(t -> t.fields().forEach((payloadField, targetField) -> {
             Provenance p = new Provenance();
             p.setOrganization(c.getOrganization());
-            p.setTargetType(target.targetType());
-            p.setTargetId(target.targetId());
+            p.setTargetType(t.targetType());
+            p.setTargetId(t.targetId());
             p.setTargetField(targetField);
             p.setValueExtracted(text(c.getPayload().get(payloadField)));
             p.setValueAccepted(text(accepted.get(payloadField)));
@@ -147,20 +152,24 @@ public class ApplyService {
             p.setAppliedBy(appliedBy);
             p.setAppliedAt(now);
             provenance.save(p);
-        });
+        }));
         c.setStatus(CandidateStatus.APPLIED);
         c.setAppliedTargetType(target.targetType());
         c.setAppliedTargetId(target.targetId());
         c.setAppliedBy(appliedBy);
         c.setAppliedAt(now);
         c.setApplyError(null);
+        c.setConflictRecordValue(null);
+        c.setConflictAppliedValue(null);
         candidates.save(c);
     }
 
-    private void markFailed(UUID candidateId, String reason) {
+    private void markFailed(UUID candidateId, String reason, ApplyConflictException conflict) {
         candidates.findByIdScoped(candidateId).ifPresent(c -> {
             c.setStatus(CandidateStatus.APPLY_FAILED);
             c.setApplyError(reason);
+            c.setConflictRecordValue(conflict == null ? null : conflict.recordValue());
+            c.setConflictAppliedValue(conflict == null ? null : conflict.appliedValue());
             candidates.save(c);
         });
     }

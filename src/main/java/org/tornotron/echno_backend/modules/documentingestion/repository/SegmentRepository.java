@@ -16,10 +16,23 @@ public interface SegmentRepository extends JpaRepository<Segment, UUID> {
     @Query("SELECT s FROM Segment s WHERE s.id = :id")
     Optional<Segment> findByIdScoped(@Param("id") UUID id);
 
+    /** Segments by id, through the tenant filter (a find by id would skip it). */
+    @Query("SELECT s FROM Segment s WHERE s.id IN :ids")
+    List<Segment> findByIdsScoped(@Param("ids") Collection<UUID> ids);
+
     /** A document's page segments, in page order; sheet segments belong to the BOQ flow. Bounded by the page count. */
     @Query("SELECT s FROM Segment s WHERE s.documentId = :documentId AND s.sheetName IS NULL "
             + "ORDER BY s.pageFrom, s.createdAt")
     List<Segment> findPageSegments(@Param("documentId") UUID documentId);
+
+    /**
+     * The segment that stands for a whole workbook, read by the extractors of its class other than the
+     * BOQ flow, whose segments are per sheet. Its sheet name is {@value Segment#WHOLE_WORKBOOK}, which
+     * no Excel sheet can be called.
+     */
+    @Query("SELECT s FROM Segment s WHERE s.documentId = :documentId AND s.sheetName = '"
+            + Segment.WHOLE_WORKBOOK + "'")
+    List<Segment> findWholeWorkbook(@Param("documentId") UUID documentId);
 
     /** Page segments of many documents, for one page of a package's documents. */
     @Query("SELECT s FROM Segment s WHERE s.documentId IN :documentIds AND s.sheetName IS NULL "

@@ -19,4 +19,8 @@ public interface IngestPackageRepository extends JpaRepository<IngestPackage, UU
 
     @Query("SELECT p FROM IngestPackage p ORDER BY p.createdAt DESC")
     Page<IngestPackage> findPage(Pageable pageable);
+
+    /** The packages tied to one project, newest first; JPQL, so the tenant filter applies. */
+    @Query("SELECT p FROM IngestPackage p WHERE p.projectId = :projectId ORDER BY p.createdAt DESC")
+    Page<IngestPackage> findPageForProject(@Param("projectId") Long projectId, Pageable pageable);
 }

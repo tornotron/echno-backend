@@ -51,6 +51,24 @@ public final class EnglishPages {
         return null;
     }
 
+    /**
+     * Why a page is not sent on its script alone, or null when it may be: a failed page, or one mostly in
+     * a script other than Latin. For short text such as a title block, where the common-word check of
+     * {@link #notSent} would refuse English that is all names and codes.
+     */
+    public static UnreadPage notSentForScript(PageText page) {
+        if (page.isFailed()) {
+            return new UnreadPage(page.page(), UnreadPage.NOT_PARSED,
+                    page.reason() == null ? "The file reader could not read this page." : page.reason());
+        }
+        String script = page.scriptReported() ? page.script() : dominantScript(page.text());
+        if (script != null && !"LATIN".equals(script)) {
+            return new UnreadPage(page.page(), UnreadPage.NOT_ENGLISH,
+                    "Mostly in " + title(script) + " script. This version reads English only, so it was not sent.");
+        }
+        return null;
+    }
+
     /** Whether a page holds text worth sending at all. */
     public static boolean hasText(PageText page) {
         return !page.isFailed() && !page.text().isBlank();

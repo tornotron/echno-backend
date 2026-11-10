@@ -28,6 +28,8 @@ import org.tornotron.echno_backend.modules.inspections.repositories.StarterCheck
 
 import org.tornotron.echno_backend.project.enums.ProjectType;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -142,6 +144,61 @@ public class ChecklistTemplateService {
         ChecklistTemplate saved = templateRepo.saveAndFlush(template);
         log.info("Updated checklist template {} to version {}", saved.getId(), saved.getVersion());
         return mapper.toDto(saved);
+    }
+
+    /**
+     * Adds check points to the end of a trade's template, defining the template under {@code nameIfNew}
+     * when the trade has none, and bumps the revision of an existing one. Unlike {@link #update}, the
+     * template's existing check points keep their rows, so whatever already points at them still does.
+     * The caller checks each item against the endpoint's limits first.
+     *
+     * @return the template and the check points added, in order
+     */
+    @Transactional
+    public AppendedItems appendItems(UUID tradeId, String nameIfNew, List<ChecklistTemplateItemRequest> items) {
+        if (items == null || items.isEmpty()) {
+            throw new InvalidRequestException("Nothing to add: send at least one check point.");
+        }
+        OrgTrade trade = requireTrade(null, tradeId);
+        ChecklistTemplate template = templateRepo.findByTradeRef(trade).orElse(null);
+        boolean created = template == null;
+        if (created) {
+            template = new ChecklistTemplate();
+            template.setTradeRef(trade);
+            template.setName(nameIfNew);
+            template.setActive(true);
+            template.setOrganization(tenantEntityHelper.resolveCurrentOrganization());
+        } else {
+            template.setVersion(template.getVersion() + 1);
+        }
+        List<ChecklistTemplateItem> added = new ArrayList<>();
+        for (ChecklistTemplateItemRequest source : items) {
+            ChecklistTemplateItem item = new ChecklistTemplateItem();
+            item.setCategory(source.category());
+            item.setCheckPoint(source.checkPoint());
+            item.setSpecification(source.specification());
+            item.setExpectedValue(source.expectedValue());
+            item.setAcceptanceCriterion(source.acceptanceCriterion());
+            item.setTolerance(source.tolerance());
+            item.setPhotosRequired(source.photosRequired());
+            item.setPriority(source.priority() != null ? source.priority() : "medium");
+            template.addItem(item);
+            added.add(item);
+        }
+        ChecklistTemplate saved = templateRepo.saveAndFlush(template);
+        log.info("{} checklist template {} for trade {} with {} imported check point(s), version {}",
+                created ? "Defined" : "Extended", saved.getId(), trade.getCode(), added.size(), saved.getVersion());
+        // Merging an existing template persists copies of the new items, so their ids are read from the saved
+        // template: the last ones by line order.
+        List<ChecklistTemplateItem> ordered = saved.getItems().stream()
+                .sorted(Comparator.comparingInt(ChecklistTemplateItem::getLineOrder)).toList();
+        List<UUID> addedIds = ordered.subList(ordered.size() - added.size(), ordered.size()).stream()
+                .map(ChecklistTemplateItem::getId).toList();
+        return new AppendedItems(saved, created, addedIds);
+    }
+
+    /** What {@link #appendItems} changed. */
+    public record AppendedItems(ChecklistTemplate template, boolean created, List<UUID> addedItemIds) {
     }
 
     /**

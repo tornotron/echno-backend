@@ -1,11 +1,13 @@
 package org.tornotron.echno_backend.modules.documentingestion.extraction.boq;
 
 import java.util.EnumMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Pattern;
 import org.tornotron.echno_backend.modules.documentingestion.parsing.TableRow;
 import org.tornotron.echno_backend.modules.documentingestion.parsing.TableRow.Cell;
 
@@ -30,6 +32,10 @@ public final class BoqHeaderDetector {
             "unitofmeasure", "per", "um");
     private static final Set<String> AMOUNT_WORDS = Set.of("total", "totalamount", "value", "totalvalue", "cost",
             "totalcost", "totalrs", "totalinrs", "amountrs");
+
+    /** A tax-rate column, such as "GST rate (%)" or "Rate of GST", which is not the item's rate. */
+    private static final Pattern TAX_RATE = Pattern.compile(
+            "%|\\bper\\s*cent|\\b([csi]?gst|vat|tax)\\s*rate\\b|\\brate\\s+of\\s+([csi]?gst|vat|tax)\\b");
 
     private BoqHeaderDetector() {
     }
@@ -79,12 +85,15 @@ public final class BoqHeaderDetector {
         if (h.isEmpty() || h.length() > 60 || h.contains("words")) {
             return Optional.empty();
         }
+        Set<String> words = words(header);
         if (h.startsWith("qty") || h.startsWith("qnty") || h.startsWith("qnt") || h.contains("quantit")
                 || h.contains("qty")) {
             return Optional.of(BoqField.QUANTITY);
         }
+        boolean amount = h.contains("amount") || words.contains("amt");
+        boolean taxRate = TAX_RATE.matcher(header.toLowerCase(Locale.ROOT)).find();
         if ((h.startsWith("rate") || h.contains("unitrate") || h.contains("unitprice") || h.equals("price")
-                || h.startsWith("rateper")) && !h.contains("amount")) {
+                || words.contains("rate") || words.contains("rates")) && !amount && !taxRate) {
             return Optional.of(BoqField.RATE);
         }
         if (h.contains("description") || DESCRIPTION_WORDS.contains(h) || h.startsWith("particular")) {
@@ -97,10 +106,27 @@ public final class BoqHeaderDetector {
                 || h.startsWith("itemcode")) {
             return Optional.of(BoqField.ITEM_CODE);
         }
-        if (h.startsWith("amount") || AMOUNT_WORDS.contains(h)) {
+        if (amount || AMOUNT_WORDS.contains(h)) {
             return Optional.of(BoqField.AMOUNT);
         }
         return Optional.empty();
+    }
+
+    /**
+     * The words of a header, lower case. A rate or amount column often names more than its field, as in
+     * "Estimated Rate in Rs. P" or "TOTAL AMOUNT With Taxes", so these two match on a whole word.
+     */
+    static Set<String> words(String text) {
+        if (text == null) {
+            return Set.of();
+        }
+        Set<String> words = new HashSet<>();
+        for (String w : text.toLowerCase(Locale.ROOT).split("[^a-z0-9]+")) {
+            if (!w.isEmpty()) {
+                words.add(w);
+            }
+        }
+        return words;
     }
 
     static String normalize(String text) {
