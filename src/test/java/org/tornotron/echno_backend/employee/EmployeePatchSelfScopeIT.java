@@ -17,6 +17,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.tornotron.echno_backend.modules.access.matrix.service.MatrixRoleHolders;
 import org.tornotron.echno_backend.attendance.mapper.ShiftTimingMapperImpl;
 import org.tornotron.echno_backend.common.mapper.AttachmentMapperImpl;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
@@ -67,7 +68,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import({EmployeeService.class, EmployeeHierarchyService.class, OrganizationSecurityService.class,
+@Import({EmployeeService.class, EmployeeHierarchyService.class, MatrixRoleHolders.class, OrganizationSecurityService.class,
         UserContextService.class, EmployeeMapperImpl.class, AttachmentMapperImpl.class,
         ShiftTimingMapperImpl.class})
 class EmployeePatchSelfScopeIT extends AbstractIntegrationTest {

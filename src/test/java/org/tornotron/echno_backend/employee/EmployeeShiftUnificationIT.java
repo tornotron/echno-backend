@@ -9,6 +9,7 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
+import org.tornotron.echno_backend.modules.access.matrix.service.MatrixRoleHolders;
 import org.tornotron.echno_backend.attendance.ShiftTiming;
 import org.tornotron.echno_backend.attendance.mapper.ShiftTimingMapperImpl;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
@@ -41,7 +42,7 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import({EmployeeService.class, EmployeeHierarchyService.class, EmployeeMapperImpl.class,
+@Import({EmployeeService.class, EmployeeHierarchyService.class, MatrixRoleHolders.class, EmployeeMapperImpl.class,
         AttachmentMapperImpl.class, ShiftTimingMapperImpl.class,
         org.tornotron.echno_backend.common.service.OrganizationSecurityService.class,
         org.tornotron.echno_backend.user.UserContextService.class})

@@ -145,7 +145,8 @@ class LeaveApproverAttributionTest {
                 calendarService,
                 notificationService,
                 leaveRequestMapper,
-                leaveRequestValidator);
+                leaveRequestValidator,
+                org.mockito.Mockito.mock(org.tornotron.echno_backend.modules.access.api.AccessRoleHolders.class));
     }
 
     private LeaveApprovalActionDto deployedClientPayload() throws Exception {

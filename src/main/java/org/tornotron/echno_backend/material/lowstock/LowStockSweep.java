@@ -7,7 +7,6 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedJobRunner;
 import org.tornotron.echno_backend.common.multitenancy.WithoutTenant;
 import org.tornotron.echno_backend.common.retry.TransactionalWorkRunner;
@@ -18,6 +17,7 @@ import org.tornotron.echno_backend.leave.NotificationService;
 import org.tornotron.echno_backend.leave.enums.NotificationType;
 import org.tornotron.echno_backend.material.Material;
 import org.tornotron.echno_backend.material.MaterialRepository;
+import org.tornotron.echno_backend.modules.access.api.AccessRoleHolders;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.organization.OrganizationRepository;
 import org.tornotron.echno_backend.project.Project;
@@ -48,7 +48,8 @@ import java.util.Optional;
  * <h2>Who is told</h2>
  *
  * <p>The storekeepers assigned to the project, and only if there are none, the project managers
- * assigned to it. {@code OrgRole.STORE_KEEPER} exists as of #650 and is exactly the person who
+ * assigned to it: the holders of the Store Keeper starting role, then of the Project Manager one (see
+ * {@code AccessRoleHolders}). The store-keeper role exists as of #650 and is exactly the person who
  * books the goods receipt that answers this, which is the whole point of choosing a recipient: the
  * notification goes to somebody who can do something about it in the same application.
  *
@@ -150,6 +151,7 @@ public class LowStockSweep {
     private final TenantScopedJobRunner tenantScopedJobRunner;
     private final LowStockSweepProperties properties;
     private final TransactionalWorkRunner transactions;
+    private final AccessRoleHolders roleHolders;
 
     /**
      * One pass.
@@ -425,18 +427,24 @@ public class LowStockSweep {
      * administrator is deliberately not the third rung: see the class comment.
      */
     private List<Employee> recipientsFor(Long orgId, Long projectId) {
-        List<Employee> keepers = transactions.runInTransaction(() -> employeeRepository.findByProjectAndOrgRole(
-                orgId, projectId, OrgRole.STORE_KEEPER));
+        List<Employee> keepers = transactions.runInTransaction(() -> holdersOnProject(
+                orgId, projectId, AccessRoleHolders.STORE_KEEPER));
         if (!keepers.isEmpty()) {
             return keepers;
         }
-        List<Employee> managers = transactions.runInTransaction(() -> employeeRepository.findByProjectAndOrgRole(
-                orgId, projectId, OrgRole.PROJECT_MANAGER));
+        List<Employee> managers = transactions.runInTransaction(() -> holdersOnProject(
+                orgId, projectId, AccessRoleHolders.PROJECT_MANAGER));
         if (managers.isEmpty()) {
             log.info("Low stock sweep found nobody to tell about project {} in organization {}: "
                     + "no storekeeper and no project manager is assigned to it", projectId, orgId);
         }
         return managers;
+    }
+
+    /** The members of the project holding this starting role, as employees. */
+    private List<Employee> holdersOnProject(Long orgId, Long projectId, String role) {
+        List<Long> ids = roleHolders.onProject(orgId, projectId, role);
+        return ids.isEmpty() ? List.of() : employeeRepository.findAllById(ids);
     }
 
     /**

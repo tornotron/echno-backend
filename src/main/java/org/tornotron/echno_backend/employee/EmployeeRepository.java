@@ -5,7 +5,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.employee.enums.EmployeeStatus;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.user.User;
@@ -13,7 +12,6 @@ import org.tornotron.echno_backend.user.User;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 
 /**
  * Repository interface for {@link Employee} entities.
@@ -27,28 +25,6 @@ public interface EmployeeRepository extends JpaRepository<Employee,Long> {
      * @return An {@link Optional} containing the found {@link Employee}, or {@link Optional#empty()} if no employee with the given name exists.
      */
     Optional<Employee> findEmployeeByEmployeeName(String employeeName);
-
-    /**
-     * Finds every employee holding at least one of the given organization roles.
-     *
-     * <p>Membership of a role is what makes someone a manager here. The roles are mirrored
-     * from the Keycloak group the token carries, which is the same source the
-     * {@code @PreAuthorize} checks read, so a query written this way agrees with the
-     * authorization layer by construction.
-     */
-    @Query("SELECT DISTINCT e FROM Employee e JOIN e.orgRoles r WHERE r IN :roles")
-    List<Employee> findEmployeesByOrgRoles(@Param("roles") Set<OrgRole> roles);
-
-    /**
-     * The same read, narrowed to one organization.
-     *
-     * @param organizationId The organization to look within.
-     * @param roles          The roles that count as managing.
-     */
-    @Query("SELECT DISTINCT e FROM Employee e JOIN e.orgRoles r "
-            + "WHERE e.organization.id = :orgId AND r IN :roles")
-    List<Employee> findEmployeesByOrganizationIdAndOrgRoles(@Param("orgId") Long organizationId,
-                                                            @Param("roles") Set<OrgRole> roles);
 
     /**
      * Checks if an employee record exists for a given user and organization.
@@ -117,61 +93,6 @@ public interface EmployeeRepository extends JpaRepository<Employee,Long> {
      * organization, who has nobody to report to, may be created that way.
      */
     boolean existsByOrganization_IdAndStatus(Long organizationId, EmployeeStatus status);
-
-    /**
-     * Whether the employee is in the given status and holds one of the given roles in the given
-     * organization. The check an invite's reporting manager has to pass: a terminated or
-     * otherwise inactive employee keeps their roles but cannot take on new reports.
-     */
-    @Query("SELECT CASE WHEN COUNT(e) > 0 THEN true ELSE false END FROM Employee e JOIN e.orgRoles r "
-            + "WHERE e.id = :employeeId AND e.organization.id = :orgId AND e.status = :status AND r IN :roles")
-    boolean existsActiveManager(@Param("employeeId") Long employeeId,
-                                @Param("orgId") Long organizationId,
-                                @Param("status") EmployeeStatus status,
-                                @Param("roles") Set<OrgRole> roles);
-
-    @Query("SELECT e FROM Employee e JOIN e.orgRoles r WHERE e.organization.id = :orgId AND r = :role")
-    List<Employee> findByOrganizationIdAndOrgRole(Long orgId, OrgRole role);
-
-    /**
-     * The holders of one organization role who are assigned to one project.
-     *
-     * <p>Org roles are held on the employee and are organization-wide, so "the storekeeper of
-     * project 12" is not a field anywhere: it is the intersection of the project's assignment
-     * list with the holders of the role. Nothing computed that intersection before this, and
-     * every caller that needs it needs the same one.
-     *
-     * <p>Both joins are association joins out of a root the {@code orgFilter} has already
-     * narrowed, so neither can widen the result past the tenant, and the organization predicate
-     * is written out anyway because a background caller runs with the filter established
-     * explicitly rather than by a request.
-     *
-     * @param orgId The organization the employee and the project both belong to.
-     * @param projectId The project they must be assigned to.
-     * @param role The organization role they must hold.
-     * @return The employees holding that role on that project, in no particular order. Empty
-     *         when nobody on the project holds it, which is a normal state and not an error.
-     */
-    @Query("SELECT DISTINCT e FROM Employee e JOIN e.orgRoles r JOIN e.projects p "
-            + "WHERE e.organization.id = :orgId AND p.id = :projectId AND r = :role")
-    List<Employee> findByProjectAndOrgRole(@Param("orgId") Long orgId,
-                                           @Param("projectId") Long projectId,
-                                           @Param("role") OrgRole role);
-
-    /**
-     * Whether the employee holds one of the given roles <em>in the given organization</em>.
-     *
-     * <p>The organization predicate is written out rather than left to the {@code orgFilter}.
-     * The filter does cover this query, but a caller reading the method name has no way to
-     * know that, and the one call site refuses a manager with a message that claims an
-     * organization was checked. Saying it in the query makes the claim true wherever the
-     * method is used next, including anywhere the filter is bypassed or absent.
-     */
-    @Query("SELECT CASE WHEN COUNT(e) > 0 THEN true ELSE false END FROM Employee e JOIN e.orgRoles r "
-            + "WHERE e.id = :employeeId AND e.organization.id = :organizationId AND r IN :roles")
-    boolean existsByIdAndOrganization_IdAndOrgRolesIn(@Param("employeeId") Long employeeId,
-                                                     @Param("organizationId") Long organizationId,
-                                                     @Param("roles") Set<OrgRole> roles);
 
     boolean existsByIdAndOrganization_Id(Long id, Long organizationId);
 

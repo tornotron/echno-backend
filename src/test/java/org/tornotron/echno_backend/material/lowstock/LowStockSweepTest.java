@@ -14,7 +14,6 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
-import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantScopedJobRunner;
 import org.tornotron.echno_backend.common.retry.TransactionalWorkRunner;
@@ -25,6 +24,7 @@ import org.tornotron.echno_backend.leave.NotificationService;
 import org.tornotron.echno_backend.leave.enums.NotificationType;
 import org.tornotron.echno_backend.material.Material;
 import org.tornotron.echno_backend.material.MaterialRepository;
+import org.tornotron.echno_backend.modules.access.api.AccessRoleHolders;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.organization.OrganizationRepository;
 import org.tornotron.echno_backend.project.Project;
@@ -71,6 +71,7 @@ class LowStockSweepTest {
     @Mock private ProjectRepository projectRepository;
     @Mock private MaterialRepository materialRepository;
     @Mock private NotificationService notificationService;
+    @Mock private AccessRoleHolders roleHolders;
 
     private LowStockSweepProperties properties;
     private LowStockSweep sweep;
@@ -95,7 +96,7 @@ class LowStockSweepTest {
 
         sweep = new LowStockSweep(lowStockRepository, alertRepository, employeeRepository,
                 organizationRepository, projectRepository, materialRepository, notificationService,
-                runner, properties, new TransactionalWorkRunner());
+                runner, properties, new TransactionalWorkRunner(), roleHolders);
 
         when(lowStockRepository.findProjectsHoldingStock(any(Pageable.class)))
                 .thenReturn(List.of(new StockedProject(ORG, PROJECT)));
@@ -122,8 +123,7 @@ class LowStockSweepTest {
         void tellsTheProjectsStorekeepers() {
             Employee keeper = employee(101L);
             lowMaterial(30.0, 4.0);
-            when(employeeRepository.findByProjectAndOrgRole(ORG, PROJECT, OrgRole.STORE_KEEPER))
-                    .thenReturn(List.of(keeper));
+            holding(AccessRoleHolders.STORE_KEEPER, keeper);
 
             sweep.runPass();
 
@@ -135,10 +135,8 @@ class LowStockSweepTest {
         void fallsBackToProjectManagers() {
             Employee manager = employee(202L);
             lowMaterial(30.0, 4.0);
-            when(employeeRepository.findByProjectAndOrgRole(ORG, PROJECT, OrgRole.STORE_KEEPER))
-                    .thenReturn(List.of());
-            when(employeeRepository.findByProjectAndOrgRole(ORG, PROJECT, OrgRole.PROJECT_MANAGER))
-                    .thenReturn(List.of(manager));
+            holding(AccessRoleHolders.STORE_KEEPER);
+            holding(AccessRoleHolders.PROJECT_MANAGER, manager);
 
             sweep.runPass();
 
@@ -149,8 +147,7 @@ class LowStockSweepTest {
         @DisplayName("nobody, rather than an administrator, when the project has neither")
         void neverFallsBackToAdministrators() {
             lowMaterial(30.0, 4.0);
-            when(employeeRepository.findByProjectAndOrgRole(eq(ORG), eq(PROJECT), any()))
-                    .thenReturn(List.of());
+            when(roleHolders.onProject(eq(ORG), eq(PROJECT), any())).thenReturn(List.of());
 
             sweep.runPass();
 
@@ -158,18 +155,16 @@ class LowStockSweepTest {
             // An organization administrator is a recipient the sweep must never reach for. It is
             // the person least able to act on a site they do not run and the one most likely to
             // mute the whole category, which loses every later crossing with it.
-            verify(employeeRepository, never())
-                    .findByOrganizationIdAndOrgRole(anyLong(), eq(OrgRole.SYSTEM_ADMIN));
-            verify(employeeRepository, never())
-                    .findByOrganizationIdAndOrgRole(anyLong(), eq(OrgRole.ORG_MANAGER));
+            verify(roleHolders, never()).acrossOrganization(anyLong(), any());
+            verify(roleHolders, never()).onProject(anyLong(), anyLong(), eq(AccessRoleHolders.SYSTEM_ADMIN));
+            verify(roleHolders, never()).onProject(anyLong(), anyLong(), eq(AccessRoleHolders.ORG_MANAGER));
         }
 
         @Test
         @DisplayName("a crossing with nobody to tell is not latched, so it survives to be told later")
         void doesNotSpendTheCrossingOnNobody() {
             lowMaterial(30.0, 4.0);
-            when(employeeRepository.findByProjectAndOrgRole(eq(ORG), eq(PROJECT), any()))
-                    .thenReturn(List.of());
+            when(roleHolders.onProject(eq(ORG), eq(PROJECT), any())).thenReturn(List.of());
 
             sweep.runPass();
 
@@ -182,8 +177,7 @@ class LowStockSweepTest {
             Employee first = employee(101L);
             Employee second = employee(102L);
             lowMaterial(30.0, 4.0);
-            when(employeeRepository.findByProjectAndOrgRole(ORG, PROJECT, OrgRole.STORE_KEEPER))
-                    .thenReturn(List.of(first, second));
+            holding(AccessRoleHolders.STORE_KEEPER, first, second);
 
             sweep.runPass();
 
@@ -418,9 +412,15 @@ class LowStockSweepTest {
                         MATERIAL, "TNT-01", "TNT Steel", "kg", 100.0, level, onHand))));
     }
 
+    /** These people hold the starting role on the project. */
+    private void holding(String role, Employee... people) {
+        List<Long> ids = java.util.Arrays.stream(people).map(Employee::getId).toList();
+        when(roleHolders.onProject(ORG, PROJECT, role)).thenReturn(ids);
+        when(employeeRepository.findAllById(ids)).thenReturn(List.of(people));
+    }
+
     private void withStorekeeper() {
-        when(employeeRepository.findByProjectAndOrgRole(ORG, PROJECT, OrgRole.STORE_KEEPER))
-                .thenReturn(List.of(employee(101L)));
+        holding(AccessRoleHolders.STORE_KEEPER, employee(101L));
     }
 
     private MaterialReorderAlert latch(Double level, Double quantity) {

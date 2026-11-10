@@ -22,6 +22,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.tornotron.echno_backend.modules.access.matrix.service.MatrixRoleHolders;
 import org.tornotron.echno_backend.attendance.mapper.ShiftTimingMapperImpl;
 import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.common.identity.IdentityCapabilities;
@@ -75,7 +76,7 @@ import org.tornotron.echno_backend.user.UserContextService;
 @Import({IdentityTaskQueue.class, MatrixRoleAssignments.class, LegacyRoleMirror.class, AccessRoleReconciler.class,
         CachedAccessFactsSource.class, DatabaseAccessFactsSource.class, AccessFactsQueries.class,
         ConcurrentMapCacheManager.class, CurrentEmployeeService.class, UserContextService.class,
-        EmployeeService.class, TeamAccess.class, EmployeeHierarchyService.class, EmployeeMapperImpl.class,
+        EmployeeService.class, TeamAccess.class, EmployeeHierarchyService.class, MatrixRoleHolders.class, EmployeeMapperImpl.class,
         AttachmentMapperImpl.class, ShiftTimingMapperImpl.class, OrganizationSecurityService.class,
         MatrixAccessService.class, CurrentAccessSubject.class, AccessChangeRecorder.class, AccessAdminWriter.class,
         AccessCatalogReader.class, EnforcedPermissions.class, ScopeAwareAreas.class, RoleAssignmentITSupport.Areas.class})

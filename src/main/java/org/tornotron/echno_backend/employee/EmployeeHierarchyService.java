@@ -2,13 +2,15 @@ package org.tornotron.echno_backend.employee;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 import org.tornotron.echno_backend.employee.mapper.EmployeeMapper;
+import org.tornotron.echno_backend.modules.access.api.AccessRoleHolders;
 
+import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -24,12 +26,22 @@ import java.util.stream.Collectors;
 @Service
 public class EmployeeHierarchyService {
 
+    /**
+     * The starting roles whose holders manage: the templates that stand in for the old manager roles
+     * ({@code OrgRole.getManagerRoles()}), so the listings name the same people they always did.
+     */
+    static final Set<String> MANAGING_ROLES = Set.of(AccessRoleHolders.SYSTEM_ADMIN, AccessRoleHolders.ORG_MANAGER,
+            AccessRoleHolders.HR_ADMIN, AccessRoleHolders.PROJECT_MANAGER);
+
     private final EmployeeRepository employeeRepository;
     private final EmployeeMapper employeeMapper;
+    private final AccessRoleHolders roleHolders;
 
-    public EmployeeHierarchyService(EmployeeRepository employeeRepository, EmployeeMapper employeeMapper) {
+    public EmployeeHierarchyService(EmployeeRepository employeeRepository, EmployeeMapper employeeMapper,
+                                    AccessRoleHolders roleHolders) {
         this.employeeRepository = employeeRepository;
         this.employeeMapper = employeeMapper;
+        this.roleHolders = roleHolders;
     }
 
     /**
@@ -113,35 +125,31 @@ public class EmployeeHierarchyService {
     }
 
     /**
-     * Lists the employees who manage: the holders of an organization role in
-     * {@link OrgRole#getManagerRoles()}.
-     *
-     * <p>The role is what decides this, because the role is what the authorization layer
-     * already reads. It comes from the Keycloak group on the caller's token, so a manager
-     * list built from roles is the same set of people the {@code @PreAuthorize} checks let
-     * through.
+     * Lists the employees who manage in the caller's organization: the holders of a starting role in
+     * {@link #MANAGING_ROLES}, across the organization.
      */
     @Transactional(readOnly = true)
     public List<EmployeeDto> readAllTheManagers() {
-        return employeeRepository.findEmployeesByOrgRoles(OrgRole.getManagerRoles())
-                .stream()
-                .map(employee -> employeeMapper.toDto(employee))
-                .collect(Collectors.toList());
+        Long organizationId = TenantContext.getCurrentOrgId();
+        return organizationId == null ? List.of() : readAllTheManagersByOrganizationId(organizationId);
     }
 
     /**
-     * The same list, narrowed to one organization.
+     * The same list, for one organization.
      *
      * <p>This used to read an {@code is_manager} boolean on the employee row, which nothing
      * ever set: it was false on every row on staging, so the endpoint returned an empty list
      * for every organization while the unscoped read above returned the right people. Both
-     * now answer from the org roles.
+     * now answer from the role assignments.
      */
     @Transactional(readOnly = true)
     public List<EmployeeDto> readAllTheManagersByOrganizationId(Long organizationId) {
-        return employeeRepository
-                .findEmployeesByOrganizationIdAndOrgRoles(organizationId, OrgRole.getManagerRoles())
-                .stream()
+        List<Long> managers = roleHolders.acrossOrganization(organizationId, MANAGING_ROLES);
+        if (managers.isEmpty()) {
+            return List.of();
+        }
+        return employeeRepository.findAllById(managers).stream()
+                .sorted(Comparator.comparing(Employee::getId))
                 .map(employee -> employeeMapper.toDto(employee))
                 .collect(Collectors.toList());
     }

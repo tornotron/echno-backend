@@ -1,5 +1,11 @@
 package org.tornotron.echno_backend.employee;
 
+import java.util.HashMap;
+import java.util.Map;
+import org.junit.jupiter.api.BeforeEach;
+import org.tornotron.echno_backend.common.multitenancy.TenantContext;
+import org.tornotron.echno_backend.modules.access.matrix.AccessFixtures;
+import org.tornotron.echno_backend.modules.access.matrix.domain.AccessRole;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
@@ -7,6 +13,7 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.tornotron.echno_backend.modules.access.matrix.service.MatrixRoleHolders;
 import org.tornotron.echno_backend.attendance.mapper.ShiftTimingMapperImpl;
 import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.common.mapper.AttachmentMapperImpl;
@@ -31,11 +38,12 @@ import static org.assertj.core.api.Assertions.assertThat;
  * thirty rows while five people held a manager role, so the endpoint returned an empty
  * list for every organization while the unscoped listing beside it returned the right
  * people. These tests seed exactly that shape, role holders and no flag, so they fail
- * against the old query and pass against the role-based one.
+ * against the old query and pass against the role-based one. The roles are starting roles
+ * assigned across the organization, which is what the listing reads now.
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import({EmployeeHierarchyService.class, EmployeeMapperImpl.class,
+@Import({EmployeeHierarchyService.class, MatrixRoleHolders.class, EmployeeMapperImpl.class,
         AttachmentMapperImpl.class, ShiftTimingMapperImpl.class})
 class EmployeeManagerListingIT extends AbstractIntegrationTest {
 
@@ -47,6 +55,14 @@ class EmployeeManagerListingIT extends AbstractIntegrationTest {
 
     @MockitoBean
     private FileStorageService fileStorageService;
+
+    private final Map<String, AccessRole> startingRoles = new HashMap<>();
+    private AccessFixtures fixtures;
+
+    @BeforeEach
+    void fixtures() {
+        fixtures = new AccessFixtures(em.getEntityManager());
+    }
 
     @Test
     void managersForAnOrganization_areTheRoleHolders() {
@@ -87,7 +103,13 @@ class EmployeeManagerListingIT extends AbstractIntegrationTest {
         em.clear();
 
         List<EmployeeDto> scoped = hierarchyService.readAllTheManagersByOrganizationId(org.getId());
-        List<EmployeeDto> unscoped = hierarchyService.readAllTheManagers();
+        TenantContext.setCurrentOrgId(org.getId());
+        List<EmployeeDto> unscoped;
+        try {
+            unscoped = hierarchyService.readAllTheManagers();
+        } finally {
+            TenantContext.clear();
+        }
 
         // The two listings answer the same question and disagreed for as long as one of
         // them read the flag instead of the role.
@@ -100,6 +122,26 @@ class EmployeeManagerListingIT extends AbstractIntegrationTest {
         assertThat(scoped).isNotEmpty();
     }
 
+    @Test
+    void managersForAnOrganization_leaveOutRolesThatDoNotManageAndRolesTheOrganizationMade() {
+        Organization org = persistOrganization("Other Roles Org");
+        persistEmployee(org, "Store Person", Set.of(OrgRole.STORE_KEEPER));
+        Employee director = persistEmployee(org, "Dana Director", Set.of());
+        fixtures.assign(org, director, fixtures.role(org, "management-director"), null);
+        // A role the organization made itself, even under a manager role's slug, is not the starting role.
+        Organization other = persistOrganization("Made Roles Org");
+        Employee custom = persistEmployee(other, "Custom Lead", Set.of());
+        AccessRole made = fixtures.newRole(other, "project-manager");
+        made.setCreatedBy(custom.getId());
+        em.persist(made);
+        fixtures.assign(other, custom, made, null);
+        em.flush();
+        em.clear();
+
+        assertThat(hierarchyService.readAllTheManagersByOrganizationId(org.getId())).isEmpty();
+        assertThat(hierarchyService.readAllTheManagersByOrganizationId(other.getId())).isEmpty();
+    }
+
     private Organization persistOrganization(String name) {
         Organization org = new Organization();
         org.setOrganizationName(name);
@@ -110,7 +152,7 @@ class EmployeeManagerListingIT extends AbstractIntegrationTest {
         return org;
     }
 
-    private void persistEmployee(Organization org, String name, Set<OrgRole> roles) {
+    private Employee persistEmployee(Organization org, String name, Set<OrgRole> roles) {
         User user = new User();
         user.setKeycloakId("kc-" + name.toLowerCase().replace(" ", "-"));
         user.setName(name);
@@ -126,5 +168,11 @@ class EmployeeManagerListingIT extends AbstractIntegrationTest {
         employee.setDateOfBirth(LocalDateTime.of(1990, 1, 1, 0, 0));
         employee.setOrgRoles(new java.util.HashSet<>(roles));
         em.persist(employee);
+        for (OrgRole role : roles) {
+            AccessRole starting = startingRoles.computeIfAbsent(org.getId() + "/" + role.getGroupName(),
+                    key -> fixtures.role(org, role.getGroupName()));
+            fixtures.assign(org, employee, starting, null);
+        }
+        return employee;
     }
 }

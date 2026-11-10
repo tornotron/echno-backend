@@ -57,7 +57,8 @@ class LeaveApprovalChargeSettlementTest {
     void setUp() {
         service = new LeaveApprovalService(approvalRepository, requestRepository, balanceRepository,
                 transactionRepository, employeeRepository, currentEmployeeService, leaveAccess,
-                calendarService, notificationService, leaveRequestMapper, leaveRequestValidator);
+                calendarService, notificationService, leaveRequestMapper, leaveRequestValidator,
+                org.mockito.Mockito.mock(org.tornotron.echno_backend.modules.access.api.AccessRoleHolders.class));
 
         Organization org = new Organization();
         org.setId(1L);
