@@ -48,6 +48,7 @@ import org.tornotron.echno_backend.modules.access.api.RecordFacts;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.organization.OrganizationRepository;
 import org.tornotron.echno_backend.project.dto.ProjectCreationDto;
+import org.tornotron.echno_backend.project.dto.ProjectPatchDto;
 import org.tornotron.echno_backend.project.mapper.ProjectMapper;
 import org.tornotron.echno_backend.user.UserContextService;
 
@@ -132,6 +133,45 @@ class ProjectServiceAccessTest {
     }
 
     @Test
+    void aBatchReachingAProjectOutsideTheManagersProjectsChangesNone() {
+        access.edits = true;
+        Project mine = project(MINE);
+        Project elsewhere = project(ELSEWHERE);
+        when(repository.findAllById(List.of(MINE, ELSEWHERE))).thenReturn(List.of(mine, elsewhere));
+
+        assertThatExceptionOfType(AccessDeniedException.class).isThrownBy(() -> service.batchUpdateProjects(
+                List.of(patch(MINE, "Renamed"), patch(ELSEWHERE, "Renamed"))));
+
+        assertThat(mine.getProjectName()).isEqualTo("Project " + MINE);
+        assertThat(elsewhere.getProjectName()).isEqualTo("Project " + ELSEWHERE);
+        verify(repository, never()).saveAll(any());
+    }
+
+    @Test
+    void aBatchWithinTheManagersProjectsIsApplied() {
+        access.edits = true;
+        Project mine = project(MINE);
+        when(repository.findAllById(List.of(MINE))).thenReturn(List.of(mine));
+
+        service.batchUpdateProjects(List.of(patch(MINE, "Renamed")));
+
+        assertThat(mine.getProjectName()).isEqualTo("Renamed");
+        verify(repository).saveAll(List.of(mine));
+    }
+
+    @Test
+    void aBatchIsRefusedToACallerWhoMayOnlyReadTheProject() {
+        Project mine = project(MINE);
+        when(repository.findAllById(List.of(MINE))).thenReturn(List.of(mine));
+
+        assertThatExceptionOfType(AccessDeniedException.class)
+                .isThrownBy(() -> service.batchUpdateProjects(List.of(patch(MINE, "Renamed"))));
+
+        assertThat(mine.getProjectName()).isEqualTo("Project " + MINE);
+        verify(repository, never()).saveAll(any());
+    }
+
+    @Test
     void aProjectTheCallerMayStaffTakesTheNewMember() {
         when(repository.save(any(Project.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -199,6 +239,13 @@ class ProjectServiceAccessTest {
         verify(repository, never()).findByEmployees_IdAndOrganization_Id(any(), any());
     }
 
+    private static ProjectPatchDto patch(Long id, String name) {
+        ProjectPatchDto patch = new ProjectPatchDto();
+        patch.setId(id);
+        patch.setUpdates(Map.of("projectName", name));
+        return patch;
+    }
+
     private Organization organization() {
         Organization organization = new Organization();
         organization.setId(ORG);
@@ -214,13 +261,21 @@ class ProjectServiceAccessTest {
         return project;
     }
 
-    /** Grants read, and create of what sits on the project (a new team member), on one project only. */
+    /**
+     * Grants read, and create of what sits on the project (a new team member), on one project only, and
+     * edit there too when {@link #edits} is set: a project manager limited to that project.
+     */
     private static final class OneProjectAccess implements AccessService {
 
         private static final Set<String> HELD = Set.of(AccessPermission.READ, AccessPermission.CREATE);
 
         boolean everything;
         boolean nothing;
+        boolean edits;
+
+        private boolean holds(String action) {
+            return HELD.contains(action) || (edits && AccessPermission.EDIT.equals(action));
+        }
 
         @Override
         public boolean isActiveMember(AccessSubject subject) {
@@ -229,7 +284,7 @@ class ProjectServiceAccessTest {
 
         @Override
         public boolean check(AccessSubject subject, AccessPermission permission) {
-            return !nothing && HELD.contains(permission.action());
+            return !nothing && holds(permission.action());
         }
 
         @Override
@@ -239,7 +294,7 @@ class ProjectServiceAccessTest {
 
         @Override
         public AccessFilter filter(AccessSubject subject, AccessPermission permission) {
-            if (nothing || !HELD.contains(permission.action())) {
+            if (nothing || !holds(permission.action())) {
                 return AccessFilter.none(subject.organizationId());
             }
             if (everything) {

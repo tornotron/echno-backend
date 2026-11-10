@@ -800,11 +800,16 @@ public class ProjectService {
      * Updates multiple projects in a batch.
      *
      * @param updates A list of DTOs containing the updates for each project.
+     * @throws AccessDeniedException if the caller may not edit one of
+     *         the projects; every project is checked before any is changed, so none of them is.
      */
     @Transactional
     public void batchUpdateProjects(List<ProjectPatchDto> updates) {
+        Long orgId = TenantContext.getCurrentOrgId();
         List<Long> projectIds = updates.stream().map(ProjectPatchDto::getId).collect(Collectors.toList());
         List<Project> projects = repository.findAllById(projectIds);
+        // The guard asks only about the area, which a manager limited to some projects also holds.
+        projects.forEach(project -> projectAccess.require(AccessPermission.EDIT, ProjectAccess.facts(orgId, project)));
 
         Map<Long, Project> projectMap = projects.stream().collect(Collectors.toMap(Project::getId, project -> project));
 
