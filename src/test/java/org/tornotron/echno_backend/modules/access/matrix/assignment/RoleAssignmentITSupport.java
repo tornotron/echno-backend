@@ -56,6 +56,8 @@ import org.tornotron.echno_backend.modules.access.matrix.service.MatrixAccessSer
 import org.tornotron.echno_backend.modules.access.matrix.service.MatrixRoleAssignments;
 import org.tornotron.echno_backend.modules.access.web.AccessAdminWriter;
 import org.tornotron.echno_backend.modules.documentingestion.DocumentIngestionModule;
+import org.tornotron.echno_backend.modules.inspections.InspectionsModule;
+import org.tornotron.echno_backend.modules.vision.VisionModule;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.support.AbstractIntegrationTest;
 import org.tornotron.echno_backend.user.UserContextService;
@@ -85,11 +87,13 @@ public abstract class RoleAssignmentITSupport extends AbstractIntegrationTest {
     static class Areas {
 
         // The modules whose areas the starting roles hold grants on, so a role's held grants are in the
-        // catalog when a test sends them back.
+        // catalog when a test sends them back. Vision needs the inspections module it depends on.
         @Bean
         ModuleRegistry moduleRegistry() {
             return new ModuleRegistry(List.of(new AccessControlModule(),
-                    new DocumentIngestionModule(new MockEnvironment())), (organization, key) -> true,
+                    new DocumentIngestionModule(new MockEnvironment()), new InspectionsModule(),
+                    new VisionModule()),
+                    (organization, key) -> true,
                     new MockEnvironment());
         }
 
