@@ -27,7 +27,7 @@ class AccessRoleTemplateSeedTest {
     /** A mapping row's read that needs more than the area's read: its named action is checked as is. */
     private static final Set<String> NAMED_READS = Set.of("read-financials", "read-ledger", "read-reports",
             "generate-compliance", "export-datasets", "read-reporting-lines", "read-user-accounts",
-            "manage-user-accounts", "admin");
+            "manage-user-accounts", "admin", "invite");
 
     private static final Path MAPPING = Path.of("docs/specs/2026-10-30-access-permission-mapping-endpoints.csv");
     private static final String BASELINE = "employee";
@@ -52,7 +52,8 @@ class AccessRoleTemplateSeedTest {
             "db/data/access/role-template-grants-attendance.csv",
             "db/data/access/role-template-grants-user-accounts.csv",
             "db/data/access/role-template-grants-document-ingestion.csv",
-            "db/data/access/role-template-grants-vision.csv");
+            "db/data/access/role-template-grants-vision.csv",
+            "db/data/access/role-template-grants-invitations.csv");
 
     /** Every CSV a changeset loads into access_role_template, in changeset order. */
     private static final List<String> TEMPLATE_FILES = List.of(
@@ -539,6 +540,19 @@ class AccessRoleTemplateSeedTest {
         String id = SLUG_BY_ID.entrySet().stream().filter(entry -> entry.getValue().equals("detection-reviewer"))
                 .map(Map.Entry::getKey).findFirst().orElseThrow();
         assertThat(rows("db/data/access/role-template-grantables.csv")).noneMatch(row -> row[2].equals(id));
+    }
+
+    @Test
+    void onlyTheSystemAdminAndTheHrAdminInvite() {
+        // Before the matrix the system admin and HR admin invited a person and kept the invitations.
+        KEYS_BY_SLUG.forEach((slug, keys) -> {
+            if (slug.equals("system-admin") || slug.equals("hr-admin")) {
+                assertThat(keys).as(slug).contains("team:invite");
+                assertThat(SCOPE_BY_SLUG.get(slug).get("team:invite")).as(slug).isEqualTo("ALL");
+            } else {
+                assertThat(keys).as(slug).doesNotContain("team:invite");
+            }
+        });
     }
 
     @Test

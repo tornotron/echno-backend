@@ -105,9 +105,10 @@ public final class AccessCatalog {
             // everyone's, and deleting one is the project manager's too while deleting an employee is
             // not, so that is a named action as well. The user accounts behind the records are too: the
             // system admin and HR admin list them and only the system admin changes or deletes another
-            // person's account, which no other action in the area matches, so both are named actions.
+            // person's account, which no other action in the area matches, so both are named actions. Inviting
+            // a person to join is the system admin's and the HR admin's, and so is a named action too.
             new Area("team", "Team & Attendance", "People", List.of("read-reporting-lines", "delete-attendance",
-                    "read-user-accounts", "manage-user-accounts")),
+                    "read-user-accounts", "manage-user-accounts", "invite")),
             // The organization's working calendar: holidays, the working week, attendance settings and
             // shift timings. Every member reads them, while only the system admin and HR admin change
             // them, so they are an area of their own beside the team.
