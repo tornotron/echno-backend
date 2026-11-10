@@ -216,7 +216,7 @@ public class AttendanceController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Records waiting on the caller returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read attendance records, or has no employee record in it, so there is no queue to serve")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read attendance records, or has no employee record in this organization, so there is no queue to serve")
     })
     public ResponseEntity<Page<AttendanceResponseDto>> getPendingApprovals(
             @Valid @ParameterObject PageQuery pageQuery) {
@@ -234,7 +234,7 @@ public class AttendanceController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Count returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read attendance records, or has no employee record in it, so there is no queue to count")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read attendance records, or has no employee record in this organization, so there is no queue to count")
     })
     public ResponseEntity<Map<String, Long>> getPendingApprovalCount() {
         return ResponseEntity.ok(Map.of("count", attendanceService.getPendingApprovalCount()));
