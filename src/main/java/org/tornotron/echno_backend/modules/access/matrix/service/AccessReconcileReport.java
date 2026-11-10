@@ -50,8 +50,7 @@ public class AccessReconcileReport {
         jdbc.query("SELECT id, user_id, status FROM employee WHERE organization_id = ?", row -> {
             String status = row.getString("status");
             if (status != null && DatabaseAccessFactsSource.carriesAccess(statusOf(status))) {
-                long user = row.getLong("user_id");
-                users.put(row.getLong("id"), row.wasNull() ? null : user);
+                users.put(row.getLong("id"), row.getObject("user_id", Long.class));
             }
         }, organizationId);
         if (users.isEmpty()) {
