@@ -454,7 +454,7 @@ class PartialUpdateNullBehaviourTest {
         @Mock private org.tornotron.echno_backend.modules.access.api.AccessRoleAssignments roleAssignments;
         @Mock private org.tornotron.echno_backend.common.identity.task.IdentityTaskQueue identityTasks;
         @Mock private ShiftTimingRepository shiftTimingRepository;
-        @Mock private OrganizationSecurityService orgSecurity;
+        @Mock private org.tornotron.echno_backend.employee.TeamAccess teamAccess;
 
         @InjectMocks private EmployeeService service;
 
@@ -466,12 +466,10 @@ class PartialUpdateNullBehaviourTest {
             TenantContext.setCurrentOrgId(ORG_ID);
             try {
                 // This sweep is about what a null does to each field, not about who may send it,
-                // so it runs as a caller who may send every field. The two role names are stubbed
-                // exactly rather than through a matcher, so this cannot quietly answer true for
-                // whatever roles the field scope comes to name. What the scope refuses is
-                // EmployeePatchSelfScopeIT's subject.
-                when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "hr-admin"))
-                        .thenReturn(true);
+                // so it runs as a caller who may send every field. The action is stubbed exactly
+                // rather than through a matcher, so this cannot quietly answer true for whatever the
+                // field scope comes to ask. What the scope refuses is EmployeePatchSelfScopeIT's subject.
+                when(teamAccess.acrossOrganization("edit")).thenReturn(true);
                 when(employeeRepository.findByIdAndOrganizationId(any(), any()))
                         .thenReturn(Optional.of(employee));
                 when(employeeRepository.save(any(Employee.class))).thenAnswer(i -> i.getArgument(0));
