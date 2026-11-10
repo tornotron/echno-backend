@@ -8,6 +8,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.tornotron.echno_backend.modules.access.api.CallerAccess;
 import org.tornotron.echno_backend.attendance.AttendanceRepository;
 import org.tornotron.echno_backend.attendance.MovementRecord;
 import org.tornotron.echno_backend.attendance.MovementRecordRepository;
@@ -66,6 +67,7 @@ class MovementVerifyActionTest {
     @Mock private AttendanceSecurityService attendanceSecurity;
     @Mock private UserContextService userContextService;
     @Mock private OrganizationSecurityService orgSecurity;
+    @Mock private CallerAccess callerAccess;
 
     private MovementRecordService service;
 
@@ -76,7 +78,7 @@ class MovementVerifyActionTest {
                 employeeRepository, organizationRepository, settingsService, movementRecordMapper,
                 attendanceSecurity,
                 new AttendanceActorResolver(userContextService, employeeRepository),
-                new SelfApprovalPolicy(orgSecurity));
+                new SelfApprovalPolicy(callerAccess));
         lenient().when(movementRecordRepository.save(any(MovementRecord.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
     }
@@ -107,7 +109,7 @@ class MovementVerifyActionTest {
     void refusesTheEmployeeTheMovementBelongsTo() {
         storedMovement(unverified());
         signedInAs(TRAVELLER_USER_ID, TRAVELLER_EMP_ID, "Aneesh Johny");
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(SelfApprovalPolicy.BREAK_GLASS_ROLE))
+        when(callerAccess.can(SelfApprovalPolicy.BREAK_GLASS_AREA, SelfApprovalPolicy.BREAK_GLASS_ACTION))
                 .thenReturn(false);
 
         assertThatThrownBy(() -> service.verifyMovement(MOVEMENT_ID))
@@ -122,14 +124,14 @@ class MovementVerifyActionTest {
     void admitsTheBreakGlassRole() {
         storedMovement(unverified());
         signedInAs(TRAVELLER_USER_ID, TRAVELLER_EMP_ID, "Aneesh Johny");
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(SelfApprovalPolicy.BREAK_GLASS_ROLE))
+        when(callerAccess.can(SelfApprovalPolicy.BREAK_GLASS_AREA, SelfApprovalPolicy.BREAK_GLASS_ACTION))
                 .thenReturn(true);
 
         service.verifyMovement(MOVEMENT_ID);
 
         // Verifying that the role was consulted, not only that the stamp landed: without it this
         // case would still pass with the self-approval rule deleted altogether.
-        verify(orgSecurity).hasAnyOrgRoleForCurrentTenant(SelfApprovalPolicy.BREAK_GLASS_ROLE);
+        verify(callerAccess).can(SelfApprovalPolicy.BREAK_GLASS_AREA, SelfApprovalPolicy.BREAK_GLASS_ACTION);
         assertThat(savedRecord().getVerifiedById()).isEqualTo(TRAVELLER_EMP_ID);
     }
 

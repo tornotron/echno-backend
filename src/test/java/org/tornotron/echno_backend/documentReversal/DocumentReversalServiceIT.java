@@ -1,5 +1,6 @@
 package org.tornotron.echno_backend.documentReversal;
 
+import org.tornotron.echno_backend.modules.access.api.CallerAccess;
 import org.tornotron.echno_backend.asset.AssetAccessStubs;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -133,6 +134,7 @@ class DocumentReversalServiceIT extends AbstractIntegrationTest {
 
     private UserContextService userContext;
     private OrganizationSecurityService orgSecurity;
+    private CallerAccess callerAccess;
     private InventoryService inventoryService;
     private StatusTransitionRecorder recorder;
     private DocumentReversalService service;
@@ -157,6 +159,7 @@ class DocumentReversalServiceIT extends AbstractIntegrationTest {
     void seed() {
         userContext = mock(UserContextService.class);
         orgSecurity = mock(OrganizationSecurityService.class);
+        callerAccess = mock(CallerAccess.class);
         inventoryService = new InventoryService(currentStockRepository, inventoryTransactionRepository,
                 materialRepository, storageLocationRepository);
         recorder = new StatusTransitionRecorder(statusTransitionRepository);
@@ -165,7 +168,7 @@ class DocumentReversalServiceIT extends AbstractIntegrationTest {
         service = new DocumentReversalService(reversalRepository, new DocumentReversalMapperImpl(),
                 new TenantEntityHelper(organizationRepository), userContext,
                 new CurrentEmployeeService(userContext, employeeRepository),
-                new SelfApprovalPolicy(orgSecurity), new UserNameDirectory(userRepository),
+                new SelfApprovalPolicy(callerAccess), new UserNameDirectory(userRepository),
                 siteTransferRepository, siteTransferItemRepository, purchaseOrderRepository,
                 purchaseOrderItemRepository, goodsReceivedNoteRepository, grnItemRepository, payableRepository,
                 inventoryTransactionRepository, inventoryService, statusTransitionRepository, recorder,

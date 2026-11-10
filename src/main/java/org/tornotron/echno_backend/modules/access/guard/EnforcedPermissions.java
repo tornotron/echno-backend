@@ -14,10 +14,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.ReflectionUtils;
 import org.tornotron.echno_backend.modules.access.api.AccessPermission;
+import org.tornotron.echno_backend.modules.access.api.ChecksAccess;
 
 /**
  * The permissions that mean something today, derived at boot from the {@code @access.can} guards
- * the application's beans carry. A permission no guard checks would do nothing if granted, so the
+ * the application's beans carry and the {@link ChecksAccess} lists of those that check one in code. A permission no guard checks would do nothing if granted, so the
  * catalog marks it as not enforced and the screen offers no choice for it.
  *
  * <p>Reading annotations never stops the application: a guard this cannot read is logged and
@@ -50,6 +51,7 @@ public class EnforcedPermissions implements SmartInitializingSingleton {
                 continue;
             }
             try {
+                found.addAll(declaredOn(userClass));
                 expressionsOn(userClass).forEach(expression -> {
                     AccessGuardExpressions.Parsed parsed = AccessGuardExpressions.parse(expression);
                     found.addAll(parsed.permissions());
@@ -70,6 +72,19 @@ public class EnforcedPermissions implements SmartInitializingSingleton {
     /** Every permission some {@code @access.can} guard checks. */
     public Set<AccessPermission> all() {
         return enforced;
+    }
+
+    /** The permissions a class checks in its own code, as its {@link ChecksAccess} lists them. */
+    static Set<AccessPermission> declaredOn(Class<?> type) {
+        ChecksAccess checks = AnnotatedElementUtils.findMergedAnnotation(type, ChecksAccess.class);
+        if (checks == null) {
+            return Set.of();
+        }
+        Set<AccessPermission> permissions = new LinkedHashSet<>();
+        for (String key : checks.value()) {
+            permissions.add(AccessPermission.of(key));
+        }
+        return permissions;
     }
 
     /** The {@code @PreAuthorize} expressions on a class and on its methods. */

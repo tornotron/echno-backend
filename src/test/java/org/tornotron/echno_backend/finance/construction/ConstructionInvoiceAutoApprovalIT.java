@@ -5,6 +5,7 @@ import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
@@ -14,6 +15,7 @@ import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.tornotron.echno_backend.modules.access.api.CallerAccess;
 import org.tornotron.echno_backend.common.configuration.JpaAuditingConfig;
 import org.tornotron.echno_backend.common.approval.SelfApprovalPolicy;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
@@ -63,6 +65,10 @@ import static org.assertj.core.api.Assertions.assertThat;
         SelfApprovalPolicy.class, OrganizationSecurityService.class,
         org.tornotron.echno_backend.user.UserNameDirectory.class})
 class ConstructionInvoiceAutoApprovalIT extends AbstractIntegrationTest {
+
+    /** No caller here holds the self-approval permission, as no caller held the system-admin role. */
+    @MockitoBean
+    private CallerAccess callerAccess;
 
     // Total of the built invoice: 10 * 100 = 1000 subtotal, 18% tax = 180, gross 1180.
     private static final long PROJECT_ID = 7001L;

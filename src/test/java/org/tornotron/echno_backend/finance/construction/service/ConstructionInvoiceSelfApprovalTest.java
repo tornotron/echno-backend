@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.tornotron.echno_backend.modules.access.api.CallerAccess;
 import org.tornotron.echno_backend.common.approval.SelfApprovalPolicy;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
@@ -75,6 +76,7 @@ class ConstructionInvoiceSelfApprovalTest {
     @Mock private CustomerRepository customerRepository;
     @Mock private InvoiceService invoiceService;
     @Mock private OrganizationSecurityService orgSecurity;
+    @Mock private CallerAccess callerAccess;
 
     private ConstructionInvoiceService service;
 
@@ -84,7 +86,7 @@ class ConstructionInvoiceSelfApprovalTest {
         service = new ConstructionInvoiceService(invoiceRepo, numberGen, mapper, tenantEntityHelper,
                 journalRepo, postingService, postingAccountResolver, financeSettingsService,
                 projectRepository, userContextService, costCategoryRepository, customerRepository,
-                invoiceService, new SelfApprovalPolicy(orgSecurity), userNameDirectory);
+                invoiceService, new SelfApprovalPolicy(callerAccess), userNameDirectory);
     }
 
     @AfterEach
@@ -96,7 +98,7 @@ class ConstructionInvoiceSelfApprovalTest {
     void theSubmitterCannotApproveTheirOwnInvoiceAndNoEntryIsPosted() {
         ConstructionInvoice inv = pendingPurchaseInvoice();
         when(userContextService.getCurrentUserId()).thenReturn(SUBMITTER);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(SelfApprovalPolicy.BREAK_GLASS_ROLE))
+        when(callerAccess.can(SelfApprovalPolicy.BREAK_GLASS_AREA, SelfApprovalPolicy.BREAK_GLASS_ACTION))
                 .thenReturn(false);
 
         assertThatExceptionOfType(InvalidRequestException.class)
@@ -113,7 +115,7 @@ class ConstructionInvoiceSelfApprovalTest {
     void aSystemAdministratorMayApproveTheirOwnInvoice() {
         ConstructionInvoice inv = pendingPurchaseInvoice();
         when(userContextService.getCurrentUserId()).thenReturn(SUBMITTER);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(SelfApprovalPolicy.BREAK_GLASS_ROLE))
+        when(callerAccess.can(SelfApprovalPolicy.BREAK_GLASS_AREA, SelfApprovalPolicy.BREAK_GLASS_ACTION))
                 .thenReturn(true);
         givenPostingAccounts();
 
@@ -133,7 +135,7 @@ class ConstructionInvoiceSelfApprovalTest {
 
         assertThat(inv.getStatus()).isEqualTo(ConstructionInvoiceStatus.APPROVED);
         assertThat(inv.getApprovedBy()).isEqualTo(OTHER_APPROVER);
-        verify(orgSecurity, never()).hasAnyOrgRoleForCurrentTenant(anyString());
+        verify(callerAccess, never()).can(anyString(), anyString());
     }
 
     private ConstructionInvoice pendingPurchaseInvoice() {

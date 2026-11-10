@@ -1,5 +1,6 @@
 package org.tornotron.echno_backend.modules.workprogress.billing.payment;
 
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -18,6 +19,7 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.tornotron.echno_backend.modules.access.api.CallerAccess;
 import org.tornotron.echno_backend.attendance.mapper.ShiftTimingMapperImpl;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
@@ -104,6 +106,9 @@ class BillPaymentServiceIT extends ScheduleIntegrationSupport {
 
     @MockitoBean(name = "orgSecurity")
     private OrganizationSecurityService orgSecurity;
+
+    @MockitoBean
+    private CallerAccess callerAccess;
 
     @MockitoBean
     private BillPaymentGateways gateways;
@@ -233,7 +238,7 @@ class BillPaymentServiceIT extends ScheduleIntegrationSupport {
         BillDto bill = approvedBill();
         UUID id = only(payments.raise(bill.id(), request("100.00"))).id();
         // The roles a mocked session holds: every one of them, system admin included.
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(true);
+        when(callerAccess.can(anyString(), anyString())).thenReturn(true);
         Long admin = userOf(employee(orgAId, "Org Admin", EmployeeStatus.active));
         as(admin);
         BillPaymentDto seen = only(payments.list(bill.id()));

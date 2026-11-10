@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.tornotron.echno_backend.modules.access.api.CallerAccess;
 import org.tornotron.echno_backend.common.approval.SelfApprovalPolicy;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
@@ -63,6 +64,7 @@ class ConstructionPaymentVerifyActionTest {
     @Mock private UserNameDirectory userNameDirectory;
     @Mock private UserContextService userContextService;
     @Mock private OrganizationSecurityService orgSecurity;
+    @Mock private CallerAccess callerAccess;
 
     private final ConstructionPaymentMapper mapper = new ConstructionPaymentMapperImpl();
 
@@ -72,7 +74,7 @@ class ConstructionPaymentVerifyActionTest {
     void setUp() {
         TenantContext.setCurrentOrgId(ORG_ID);
         service = new ConstructionPaymentService(paymentRepo, numberGen, mapper, tenantEntityHelper,
-                userNameDirectory, userContextService, new SelfApprovalPolicy(orgSecurity));
+                userNameDirectory, userContextService, new SelfApprovalPolicy(callerAccess));
         lenient().when(userNameDirectory.namesFor(anyCollection())).thenReturn(UserNameLookup.none());
     }
 
@@ -119,7 +121,7 @@ class ConstructionPaymentVerifyActionTest {
     void theRaiserCannotVerifyTheirOwnVoucher() {
         ConstructionPayment payment = pending();
         when(userContextService.getCurrentUserId()).thenReturn(RAISER);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(SelfApprovalPolicy.BREAK_GLASS_ROLE))
+        when(callerAccess.can(SelfApprovalPolicy.BREAK_GLASS_AREA, SelfApprovalPolicy.BREAK_GLASS_ACTION))
                 .thenReturn(false);
 
         assertThatExceptionOfType(InvalidRequestException.class)
@@ -134,7 +136,7 @@ class ConstructionPaymentVerifyActionTest {
     void aSystemAdministratorMayVerifyTheirOwnVoucher_asTheRecordedException() {
         ConstructionPayment payment = pending();
         when(userContextService.getCurrentUserId()).thenReturn(RAISER);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(SelfApprovalPolicy.BREAK_GLASS_ROLE))
+        when(callerAccess.can(SelfApprovalPolicy.BREAK_GLASS_AREA, SelfApprovalPolicy.BREAK_GLASS_ACTION))
                 .thenReturn(true);
 
         service.verify(payment.getId());

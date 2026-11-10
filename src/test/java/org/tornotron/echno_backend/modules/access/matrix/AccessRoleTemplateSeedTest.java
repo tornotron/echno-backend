@@ -53,7 +53,8 @@ class AccessRoleTemplateSeedTest {
             "db/data/access/role-template-grants-user-accounts.csv",
             "db/data/access/role-template-grants-document-ingestion.csv",
             "db/data/access/role-template-grants-vision.csv",
-            "db/data/access/role-template-grants-invitations.csv");
+            "db/data/access/role-template-grants-invitations.csv",
+            "db/data/access/role-template-grants-service-checks.csv");
 
     /** Every CSV a changeset loads into access_role_template, in changeset order. */
     private static final List<String> TEMPLATE_FILES = List.of(
@@ -551,6 +552,19 @@ class AccessRoleTemplateSeedTest {
                 assertThat(SCOPE_BY_SLUG.get(slug).get("team:invite")).as(slug).isEqualTo("ALL");
             } else {
                 assertThat(keys).as(slug).doesNotContain("team:invite");
+            }
+        });
+    }
+
+    @Test
+    void onlyTheSystemAdminCompletesAProjectByHandAndApprovesItsOwnDocuments() {
+        // Before the matrix both service checks asked for the system-admin role by name.
+        KEYS_BY_SLUG.forEach((slug, keys) -> {
+            if (slug.equals("system-admin")) {
+                assertThat(keys).contains("projects:complete", "org-admin:approve-own-documents");
+                assertThat(SCOPE_BY_SLUG.get(slug).get("projects:complete")).isEqualTo("ALL");
+            } else {
+                assertThat(keys).as(slug).doesNotContain("projects:complete", "org-admin:approve-own-documents");
             }
         });
     }

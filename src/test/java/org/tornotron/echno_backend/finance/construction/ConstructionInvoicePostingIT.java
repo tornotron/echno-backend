@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.tornotron.echno_backend.modules.access.api.CallerAccess;
 import org.tornotron.echno_backend.common.configuration.JpaAuditingConfig;
 import org.tornotron.echno_backend.common.exception.AccountNotFoundException;
 import org.tornotron.echno_backend.common.exception.InvalidJournalException;
@@ -82,6 +83,10 @@ import static org.mockito.Mockito.when;
         SelfApprovalPolicy.class, OrganizationSecurityService.class,
         org.tornotron.echno_backend.user.UserNameDirectory.class})
 class ConstructionInvoicePostingIT extends AbstractIntegrationTest {
+
+    /** No caller here holds the self-approval permission, as no caller held the system-admin role. */
+    @MockitoBean
+    private CallerAccess callerAccess;
 
     private static final long PROJECT_ID = 4001L;
 

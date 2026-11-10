@@ -10,6 +10,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.tornotron.echno_backend.modules.access.api.CallerAccess;
 import org.tornotron.echno_backend.common.approval.SelfApprovalPolicy;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
@@ -75,6 +76,7 @@ class ConstructionInvoiceStampNameTest {
     @Mock private CustomerRepository customerRepository;
     @Mock private InvoiceService invoiceService;
     @Mock private OrganizationSecurityService orgSecurity;
+    @Mock private CallerAccess callerAccess;
     @Mock private UserNameDirectory userNameDirectory;
 
     private final ConstructionInvoiceMapper mapper = new ConstructionInvoiceMapperImpl();
@@ -87,7 +89,7 @@ class ConstructionInvoiceStampNameTest {
         service = new ConstructionInvoiceService(invoiceRepo, numberGen, mapper, tenantEntityHelper,
                 journalRepo, postingService, postingAccountResolver, financeSettingsService,
                 projectRepository, userContextService, costCategoryRepository, customerRepository,
-                invoiceService, new SelfApprovalPolicy(orgSecurity), userNameDirectory);
+                invoiceService, new SelfApprovalPolicy(callerAccess), userNameDirectory);
     }
 
     @AfterEach

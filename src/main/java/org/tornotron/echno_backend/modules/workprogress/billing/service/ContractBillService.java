@@ -1,5 +1,7 @@
 package org.tornotron.echno_backend.modules.workprogress.billing.service;
 
+import org.tornotron.echno_backend.modules.access.api.ChecksAccess;
+import org.tornotron.echno_backend.modules.access.api.CallerAccess;
 import static org.tornotron.echno_backend.modules.workprogress.billing.service.BillingSupport.CERTIFIED;
 import static org.tornotron.echno_backend.modules.workprogress.billing.service.BillingSupport.trimToNull;
 
@@ -28,7 +30,6 @@ import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.service.AttachmentService;
-import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.modules.workprogress.billing.domain.AdjustmentSource;
@@ -89,10 +90,13 @@ import org.tornotron.echno_backend.wbs.WbsElementRepository;
  * caller's organization, so a foreign id reads as absent, and every step lands on the timeline.
  */
 @Service
+@ChecksAccess(ContractBillService.SELF_APPROVAL_AREA + ":" + ContractBillService.SELF_APPROVAL_ACTION)
 public class ContractBillService {
 
     private static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
-    private static final String SYSTEM_ADMIN = "system-admin";
+    /** May approve a bill they certified themselves: the system admin's, from its starting grants. */
+    static final String SELF_APPROVAL_AREA = "org-admin";
+    static final String SELF_APPROVAL_ACTION = "approve-own-documents";
 
     private final ContractBillRepository bills;
     private final ContractBoqItemRepository boqItems;
@@ -106,7 +110,7 @@ public class ContractBillService {
     private final EmployeeRepository employees;
     private final PayableService payables;
     private final AttachmentService attachmentService;
-    private final OrganizationSecurityService orgSecurity;
+    private final CallerAccess access;
     private final TenantEntityHelper tenantEntityHelper;
     private final UserContextService userContextService;
     private final Clock clock;
@@ -117,7 +121,7 @@ public class ContractBillService {
                                ContractBillEventRepository events, ContractBillingService setup,
                                BillingSupport support, WbsElementRepository elements, ProjectRepository projects,
                                EmployeeRepository employees, PayableService payables,
-                               AttachmentService attachmentService, OrganizationSecurityService orgSecurity,
+                               AttachmentService attachmentService, CallerAccess access,
                                TenantEntityHelper tenantEntityHelper, UserContextService userContextService,
                                @WorkProgressClock Clock clock) {
         this.bills = bills;
@@ -132,7 +136,7 @@ public class ContractBillService {
         this.employees = employees;
         this.payables = payables;
         this.attachmentService = attachmentService;
-        this.orgSecurity = orgSecurity;
+        this.access = access;
         this.tenantEntityHelper = tenantEntityHelper;
         this.userContextService = userContextService;
         this.clock = clock;
@@ -604,7 +608,7 @@ public class ContractBillService {
                     + "approval has to say who gave it");
         }
         boolean self = approver.equals(bill.getCertifiedBy());
-        if (self && !orgSecurity.hasAnyOrgRoleForCurrentTenant(SYSTEM_ADMIN)) {
+        if (self && !access.can(SELF_APPROVAL_AREA, SELF_APPROVAL_ACTION)) {
             throw new InvalidRequestException("You certified bill " + bill.getBillNumber()
                     + ", so its final approval has to come from someone else. A system admin may approve "
                     + "their own certification, and it is recorded as such");

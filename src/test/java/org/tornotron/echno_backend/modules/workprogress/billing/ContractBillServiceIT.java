@@ -1,5 +1,6 @@
 package org.tornotron.echno_backend.modules.workprogress.billing;
 
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -19,6 +20,7 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabas
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.tornotron.echno_backend.modules.access.api.CallerAccess;
 import org.tornotron.echno_backend.attendance.mapper.ShiftTimingMapperImpl;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
@@ -112,6 +114,9 @@ class ContractBillServiceIT extends ScheduleIntegrationSupport {
 
     @MockitoBean(name = "orgSecurity")
     private OrganizationSecurityService orgSecurity;
+
+    @MockitoBean
+    private CallerAccess callerAccess;
 
     private Long userAId;
 
@@ -332,10 +337,10 @@ class ContractBillServiceIT extends ScheduleIntegrationSupport {
         BillDto bill = certifiedBill();
         as(userAId);
         // certifiedBill() certified as user A as well
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(false);
+        when(callerAccess.can(anyString(), anyString())).thenReturn(false);
         assertThatThrownBy(() -> bills.approve(bill.id())).isInstanceOf(InvalidRequestException.class)
                 .hasMessageContaining("someone else");
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(true);
+        when(callerAccess.can(anyString(), anyString())).thenReturn(true);
         assertThat(bills.approve(bill.id()).selfApproved()).isTrue();
     }
 
@@ -540,7 +545,7 @@ class ContractBillServiceIT extends ScheduleIntegrationSupport {
     // ---------------------------------------------------------------- helpers
 
     private BillDto approveAsAdmin(BillDto certified) {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(true);
+        when(callerAccess.can(anyString(), anyString())).thenReturn(true);
         return bills.approve(certified.id());
     }
 

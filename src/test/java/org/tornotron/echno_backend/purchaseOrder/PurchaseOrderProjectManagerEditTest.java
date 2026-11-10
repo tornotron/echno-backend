@@ -14,7 +14,6 @@ import org.tornotron.echno_backend.common.history.StatusTransitionRepository;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.retry.TransactionRetryTemplate;
-import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.indent.IndentRepository;
 import org.tornotron.echno_backend.indentItem.IndentItemRepository;
@@ -39,6 +38,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -53,8 +53,9 @@ import static org.mockito.Mockito.when;
  * field, so editing an order could approve it; and the lines of an approved order could be
  * rewritten after the approver signed off on them. A system admin keeps both.
  *
- * <p>The policy is real; only {@code @orgSecurity} is mocked, answering for the one role the policy
- * asks about, so each test is a caller who holds {@code system-admin} or does not.
+ * <p>The policy is real; only its {@link PurchaseOrderAccess} is mocked, answering whether the caller may
+ * approve the order, so each test is a caller who holds {@code purchase-orders:approve} (the system
+ * admin's) or does not.
  */
 @ExtendWith(MockitoExtension.class)
 class PurchaseOrderProjectManagerEditTest {
@@ -80,7 +81,7 @@ class PurchaseOrderProjectManagerEditTest {
     @Mock private StatusTransitionMapper statusTransitionMapper;
     @Mock private UserContextService userContextService;
     @Mock private PurchaseOrderService purchaseOrderServiceForItems;
-    @Mock private OrganizationSecurityService orgSecurity;
+    @Mock private PurchaseOrderAccess approverAccess;
 
     @BeforeEach
     void setTenant() {
@@ -93,7 +94,7 @@ class PurchaseOrderProjectManagerEditTest {
     }
 
     private PurchaseOrderEditPolicy policy() {
-        return new PurchaseOrderEditPolicy(orgSecurity);
+        return new PurchaseOrderEditPolicy(approverAccess);
     }
 
     private PurchaseOrderService orderService() {
@@ -116,11 +117,11 @@ class PurchaseOrderProjectManagerEditTest {
      * before it gets to the role, which is the point of those tests.
      */
     private void asProjectManager() {
-        lenient().when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin")).thenReturn(false);
+        lenient().when(approverAccess.allows(eq("approve"), any())).thenReturn(false);
     }
 
     private void asSystemAdmin() {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin")).thenReturn(true);
+        when(approverAccess.allows(eq("approve"), any())).thenReturn(true);
     }
 
     private PurchaseOrder order(PurchaseOrderStatus status) {

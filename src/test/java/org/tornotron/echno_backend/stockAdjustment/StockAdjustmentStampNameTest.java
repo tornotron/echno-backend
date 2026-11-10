@@ -9,6 +9,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.tornotron.echno_backend.modules.access.api.CallerAccess;
 import org.tornotron.echno_backend.common.approval.SelfApprovalPolicy;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
@@ -69,6 +70,7 @@ class StockAdjustmentStampNameTest {
     @Mock private InventoryTransactionRepository inventoryTransactionRepository;
     @Mock private UserContextService userContextService;
     @Mock private OrganizationSecurityService orgSecurity;
+    @Mock private CallerAccess callerAccess;
     @Mock private UserNameDirectory userNameDirectory;
     @Mock private SiteTransferRepository siteTransferRepository;
 
@@ -82,7 +84,7 @@ class StockAdjustmentStampNameTest {
         service = new StockAdjustmentService(stockAdjustmentRepository, mapper,
                 tenantEntityHelper, materialRepository, storageLocationRepository, projectRepository,
                 inventoryService, inventoryTransactionRepository, userContextService,
-                new SelfApprovalPolicy(orgSecurity), userNameDirectory,
+                new SelfApprovalPolicy(callerAccess), userNameDirectory,
                 siteTransferRepository);
     }
 

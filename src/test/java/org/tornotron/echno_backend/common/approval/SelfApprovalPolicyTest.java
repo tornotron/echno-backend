@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.tornotron.echno_backend.modules.access.api.CallerAccess;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 
@@ -33,8 +34,10 @@ class SelfApprovalPolicyTest {
 
     @Mock private OrganizationSecurityService orgSecurity;
 
+    @Mock private CallerAccess callerAccess;
+
     private SelfApprovalPolicy policy() {
-        return new SelfApprovalPolicy(orgSecurity);
+        return new SelfApprovalPolicy(callerAccess);
     }
 
     @Test
@@ -45,7 +48,7 @@ class SelfApprovalPolicyTest {
 
     @Test
     void approvingYourOwnDocumentIsRefused() {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(SelfApprovalPolicy.BREAK_GLASS_ROLE))
+        when(callerAccess.can(SelfApprovalPolicy.BREAK_GLASS_AREA, SelfApprovalPolicy.BREAK_GLASS_ACTION))
                 .thenReturn(false);
 
         assertThatExceptionOfType(InvalidRequestException.class)
@@ -56,7 +59,7 @@ class SelfApprovalPolicyTest {
 
     @Test
     void aSystemAdministratorMayApproveTheirOwnDocumentAndItComesBackAsASelfApproval() {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(SelfApprovalPolicy.BREAK_GLASS_ROLE))
+        when(callerAccess.can(SelfApprovalPolicy.BREAK_GLASS_AREA, SelfApprovalPolicy.BREAK_GLASS_ACTION))
                 .thenReturn(true);
 
         assertThat(policy().checkSelfApproval(DRAFTER, DRAFTER, DOCUMENT)).isTrue();
@@ -69,7 +72,7 @@ class SelfApprovalPolicyTest {
      */
     @Test
     void oneSharedIdentityIsEnoughToRecogniseTheSamePersonAcrossTheTwoSpaces() {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(SelfApprovalPolicy.BREAK_GLASS_ROLE))
+        when(callerAccess.can(SelfApprovalPolicy.BREAK_GLASS_AREA, SelfApprovalPolicy.BREAK_GLASS_ACTION))
                 .thenReturn(false);
 
         assertThatExceptionOfType(InvalidRequestException.class)
@@ -81,7 +84,7 @@ class SelfApprovalPolicyTest {
     /** And the other way round: matching employee ids settle it even with no user id on the raiser. */
     @Test
     void matchingEmployeeIdsAreStillAMatchWhenTheRaiserHasNoUserId() {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(SelfApprovalPolicy.BREAK_GLASS_ROLE))
+        when(callerAccess.can(SelfApprovalPolicy.BREAK_GLASS_AREA, SelfApprovalPolicy.BREAK_GLASS_ACTION))
                 .thenReturn(false);
 
         assertThatExceptionOfType(InvalidRequestException.class)

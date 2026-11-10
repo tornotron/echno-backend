@@ -1,0 +1,3 @@
+id,template_id,permission_key,scope
+1ae203eb-069f-5f5c-afd7-932a0ad6b894,ed34dfe6-5468-5f6e-b6ed-ef6eefccfce2,projects:complete,ALL
+f03bf4af-9b34-5de1-96c2-e9b0a2c6ab9d,ed34dfe6-5468-5f6e-b6ed-ef6eefccfce2,org-admin:approve-own-documents,ALL

@@ -7,6 +7,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.tornotron.echno_backend.modules.access.api.CallerAccess;
 import org.tornotron.echno_backend.attendance.Attendance;
 import org.tornotron.echno_backend.attendance.AttendanceRegularization;
 import org.tornotron.echno_backend.attendance.AttendanceRegularizationRepository;
@@ -85,6 +86,7 @@ class AttendanceRegularizationSelfApprovalTest {
     @Mock private AttendanceRegularizationMapper regularizationMapper;
     @Mock private UserContextService userContextService;
     @Mock private OrganizationSecurityService orgSecurity;
+    @Mock private CallerAccess callerAccess;
     @Mock private RegularisationAccess regularisationAccess;
 
     private AttendanceRegularizationService service;
@@ -95,7 +97,7 @@ class AttendanceRegularizationSelfApprovalTest {
         service = new AttendanceRegularizationService(regularizationRepository, attendanceRepository,
                 organizationRepository, settingsService, calculationService,
                 regularizationMapper, new AttendanceActorResolver(userContextService, employeeRepository),
-                new SelfApprovalPolicy(orgSecurity), regularisationAccess);
+                new SelfApprovalPolicy(callerAccess), regularisationAccess);
         // A mocked RegularisationAccess passes every check: these tests exercise the self-approval
         // rule, not who may raise or decide.
     }
@@ -113,7 +115,7 @@ class AttendanceRegularizationSelfApprovalTest {
     @Test
     void anEmployeeLessMemberCannotRaiseAndThenApproveTheirOwnRequest() {
         signedInWithNoEmployeeRecord(ROLE_HOLDER_USER_ID, ROLE_HOLDER);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(SelfApprovalPolicy.BREAK_GLASS_ROLE))
+        when(callerAccess.can(SelfApprovalPolicy.BREAK_GLASS_AREA, SelfApprovalPolicy.BREAK_GLASS_ACTION))
                 .thenReturn(false);
         Attendance attendance = attendance();
         AttendanceRegularization pending = pendingRaisedBy(null, ROLE_HOLDER_USER_ID);
@@ -140,7 +142,7 @@ class AttendanceRegularizationSelfApprovalTest {
     @Test
     void anEmployeeLessSystemAdministratorSelfApprovesAndTheClockEventsSaySo() {
         signedInWithNoEmployeeRecord(ROLE_HOLDER_USER_ID, ROLE_HOLDER);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(SelfApprovalPolicy.BREAK_GLASS_ROLE))
+        when(callerAccess.can(SelfApprovalPolicy.BREAK_GLASS_AREA, SelfApprovalPolicy.BREAK_GLASS_ACTION))
                 .thenReturn(true);
         Attendance attendance = attendance();
         AttendanceRegularization pending = pendingRaisedBy(null, ROLE_HOLDER_USER_ID);
@@ -194,7 +196,7 @@ class AttendanceRegularizationSelfApprovalTest {
     @Test
     void anEmployeeStillCannotApproveTheirOwnRequest() {
         signedInAs(MANAGER_USER_ID, MANAGER_EMP_ID, MANAGER);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(SelfApprovalPolicy.BREAK_GLASS_ROLE))
+        when(callerAccess.can(SelfApprovalPolicy.BREAK_GLASS_AREA, SelfApprovalPolicy.BREAK_GLASS_ACTION))
                 .thenReturn(false);
         AttendanceRegularization pending = pendingRaisedBy(MANAGER_EMP_ID, MANAGER_USER_ID);
         pending.setAttendance(attendance());
