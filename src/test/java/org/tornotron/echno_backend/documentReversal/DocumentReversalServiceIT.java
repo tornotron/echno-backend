@@ -1,5 +1,8 @@
 package org.tornotron.echno_backend.documentReversal;
 
+import org.tornotron.echno_backend.modules.access.matrix.AccessFixtures;
+import org.tornotron.echno_backend.modules.access.matrix.domain.AccessRole;
+import org.tornotron.echno_backend.modules.access.matrix.service.MatrixRoleHolders;
 import org.tornotron.echno_backend.modules.access.api.CallerAccess;
 import org.tornotron.echno_backend.asset.AssetAccessStubs;
 import jakarta.persistence.EntityManager;
@@ -172,7 +175,7 @@ class DocumentReversalServiceIT extends AbstractIntegrationTest {
                 siteTransferRepository, siteTransferItemRepository, purchaseOrderRepository,
                 purchaseOrderItemRepository, goodsReceivedNoteRepository, grnItemRepository, payableRepository,
                 inventoryTransactionRepository, inventoryService, statusTransitionRepository, recorder,
-                employeeRepository, notifications, siteTransferAssetLines());
+                employeeRepository, notifications, siteTransferAssetLines(), new MatrixRoleHolders(em));
 
         org = organization("Reversal Org", "reversal@example.test");
         otherOrg = organization("Other Org", "other@example.test");
@@ -732,8 +735,15 @@ class DocumentReversalServiceIT extends AbstractIntegrationTest {
         em.persist(employee);
         project.getEmployees().add(employee);
         em.persist(project);
+        // The starting role the old role stands for, held across the organization, which is what
+        // decides who is told.
+        AccessRole starting = startingRoles.computeIfAbsent(owner.getId() + "/" + role.getGroupName(),
+                key -> new AccessFixtures(em).role(owner, role.getGroupName()));
+        new AccessFixtures(em).assign(owner, employee, starting, null);
         return employee;
     }
+
+    private final java.util.Map<String, AccessRole> startingRoles = new java.util.HashMap<>();
 
     private StorageLocation store(Organization owner, Project project, String name) {
         StorageLocation store = new StorageLocation();

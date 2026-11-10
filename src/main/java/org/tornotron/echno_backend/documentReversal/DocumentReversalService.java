@@ -11,7 +11,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.common.approval.ApprovalParty;
 import org.tornotron.echno_backend.common.approval.SelfApprovalPolicy;
-import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.history.StatusTransition;
@@ -29,6 +28,7 @@ import org.tornotron.echno_backend.documentReversal.enums.ReversibleDocumentType
 import org.tornotron.echno_backend.documentReversal.mapper.DocumentReversalMapper;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
+import org.tornotron.echno_backend.modules.access.api.AccessRoleHolders;
 import org.tornotron.echno_backend.goodsReceivedNote.GoodsReceivedNote;
 import org.tornotron.echno_backend.goodsReceivedNote.GoodsReceivedNoteRepository;
 import org.tornotron.echno_backend.grnItem.GrnItem;
@@ -137,6 +137,7 @@ public class DocumentReversalService {
     private final StatusTransitionRepository statusTransitionRepository;
     private final StatusTransitionRecorder statusTransitionRecorder;
     private final EmployeeRepository employeeRepository;
+    private final AccessRoleHolders roleHolders;
     private final NotificationService notificationService;
     private final SiteTransferAssetLines siteTransferAssetLines;
 
@@ -160,7 +161,8 @@ public class DocumentReversalService {
                                    StatusTransitionRecorder statusTransitionRecorder,
                                    EmployeeRepository employeeRepository,
                                    NotificationService notificationService,
-                                   SiteTransferAssetLines siteTransferAssetLines) {
+                                   SiteTransferAssetLines siteTransferAssetLines,
+                                   AccessRoleHolders roleHolders) {
         this.reversalRepository = reversalRepository;
         this.reversalMapper = reversalMapper;
         this.tenantEntityHelper = tenantEntityHelper;
@@ -180,6 +182,7 @@ public class DocumentReversalService {
         this.statusTransitionRepository = statusTransitionRepository;
         this.statusTransitionRecorder = statusTransitionRecorder;
         this.employeeRepository = employeeRepository;
+        this.roleHolders = roleHolders;
         this.notificationService = notificationService;
         this.siteTransferAssetLines = siteTransferAssetLines;
     }
@@ -851,9 +854,9 @@ public class DocumentReversalService {
         Long orgId = reversal.getOrganization().getId();
         for (Map.Entry<String, List<AffectedStore>> entry : byStore.entrySet()) {
             Project project = entry.getValue().get(0).project();
-            List<Employee> recipients = employeeRepository.findByProjectAndOrgRole(orgId, project.getId(), OrgRole.STORE_KEEPER);
+            List<Employee> recipients = holdersOnProject(orgId, project.getId(), AccessRoleHolders.STORE_KEEPER);
             if (recipients.isEmpty()) {
-                recipients = employeeRepository.findByProjectAndOrgRole(orgId, project.getId(), OrgRole.PROJECT_MANAGER);
+                recipients = holdersOnProject(orgId, project.getId(), AccessRoleHolders.PROJECT_MANAGER);
             }
             if (recipients.isEmpty()) {
                 log.info("Reversal #{}: nobody to tell at {} (no store keeper or project manager on project {})",
@@ -875,6 +878,12 @@ public class DocumentReversalService {
                     document.type().name(), document.id(), actionUrl(document));
             notificationService.deliverToAll(recipients, draft);
         }
+    }
+
+    /** The members of the project holding this starting role, as employees. */
+    private List<Employee> holdersOnProject(Long orgId, Long projectId, String role) {
+        List<Long> ids = roleHolders.onProject(orgId, projectId, role);
+        return ids.isEmpty() ? List.of() : employeeRepository.findAllById(ids);
     }
 
     private void notifyRequester(ReversibleDocument document, DocumentReversal reversal, NotificationType type,

@@ -4,13 +4,10 @@ import org.springframework.stereotype.Service;
 import org.tornotron.echno_backend.attendance.AttendanceSettings;
 import org.tornotron.echno_backend.attendance.ClockEvent;
 import org.tornotron.echno_backend.attendance.validator.GeofenceValidator;
-import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.employee.Employee;
+import org.tornotron.echno_backend.modules.access.api.AccessRoleHolders;
 import org.tornotron.echno_backend.project.Project;
 
-import java.util.Comparator;
-import java.util.List;
-import java.util.Objects;
 
 /**
  * Evaluates a clock event against the project's geofence and works out who decides an exception.
@@ -29,9 +26,11 @@ import java.util.Objects;
 public class AttendanceGeofenceService {
 
     private final GeofenceValidator geofenceValidator;
+    private final AccessRoleHolders roleHolders;
 
-    public AttendanceGeofenceService(GeofenceValidator geofenceValidator) {
+    public AttendanceGeofenceService(GeofenceValidator geofenceValidator, AccessRoleHolders roleHolders) {
         this.geofenceValidator = geofenceValidator;
+        this.roleHolders = roleHolders;
     }
 
     /**
@@ -127,7 +126,7 @@ public class AttendanceGeofenceService {
      * <p>It is set on a minority of employees, so there is a fallback, and the fallback is
      * deliberately the narrowest thing the schema can already answer rather than a new hierarchy: a
      * project manager assigned to the project being marked against. A project has no manager
-     * pointer of its own, only membership plus the organization-wide {@code project-manager} role,
+     * pointer of its own, only membership plus the organization-wide Project Manager role,
      * so that is the intersection of the two. Where several qualify, the lowest employee id is
      * taken, so the same exception always names the same approver.
      *
@@ -149,21 +148,17 @@ public class AttendanceGeofenceService {
     }
 
     /**
-     * The lowest-numbered employee assigned to the project who holds the project-manager role,
-     * never the employee raising the exception themselves.
+     * The lowest-numbered employee assigned to the project who holds the Project Manager starting role
+     * across the organization, never the employee raising the exception themselves.
      */
     private Long projectManagerFor(Project project, Long employeeId) {
-        List<Employee> members = project == null ? null : project.getEmployees();
-        if (members == null || members.isEmpty()) {
+        if (project == null || project.getId() == null || project.getOrganization() == null) {
             return null;
         }
-        return members.stream()
-                .filter(Objects::nonNull)
-                .filter(member -> member.getId() != null && !member.getId().equals(employeeId))
-                .filter(member -> member.getOrgRoles() != null
-                        && member.getOrgRoles().contains(OrgRole.PROJECT_MANAGER))
-                .map(Employee::getId)
-                .min(Comparator.naturalOrder())
+        return roleHolders.onProject(project.getOrganization().getId(), project.getId(),
+                        AccessRoleHolders.PROJECT_MANAGER).stream()
+                .filter(id -> !id.equals(employeeId))
+                .min(java.util.Comparator.naturalOrder())
                 .orElse(null);
     }
 }

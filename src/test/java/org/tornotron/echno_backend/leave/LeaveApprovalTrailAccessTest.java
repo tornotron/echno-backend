@@ -93,7 +93,8 @@ class LeaveApprovalTrailAccessTest {
                 calendarService,
                 notificationService,
                 leaveRequestMapper,
-                leaveRequestValidator);
+                leaveRequestValidator,
+                org.mockito.Mockito.mock(org.tornotron.echno_backend.modules.access.api.AccessRoleHolders.class));
     }
 
     private Employee employee(Long id) {

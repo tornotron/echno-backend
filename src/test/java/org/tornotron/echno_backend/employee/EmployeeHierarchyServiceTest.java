@@ -1,5 +1,7 @@
 package org.tornotron.echno_backend.employee;
 
+import org.tornotron.echno_backend.common.enums.OrgRole;
+import org.tornotron.echno_backend.modules.access.api.AccessRoleHolders;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,6 +24,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
@@ -38,13 +41,14 @@ class EmployeeHierarchyServiceTest {
 
     @Mock private EmployeeRepository employeeRepository;
     @Mock private EmployeeMapper employeeMapper;
+    @Mock private AccessRoleHolders roleHolders;
 
     private EmployeeHierarchyService service;
 
     @BeforeEach
     void setUp() {
         TenantContext.setCurrentOrgId(ORG);
-        service = new EmployeeHierarchyService(employeeRepository, employeeMapper);
+        service = new EmployeeHierarchyService(employeeRepository, employeeMapper, roleHolders);
     }
 
     @AfterEach
@@ -63,6 +67,20 @@ class EmployeeHierarchyServiceTest {
         employee.setId(id);
         employee.setOrganization(org(orgId));
         return employee;
+    }
+
+    @Test
+    void theManagingRolesAreTheStartingRolesOfTheOldManagerRoles() {
+        assertThat(EmployeeHierarchyService.MANAGING_ROLES).containsExactlyInAnyOrderElementsOf(
+                OrgRole.getManagerRoles().stream().map(OrgRole::getGroupName).toList());
+    }
+
+    @Test
+    void theManagerListingOfAnOrganizationWithNoHoldersIsEmpty() {
+        when(roleHolders.acrossOrganization(ORG, EmployeeHierarchyService.MANAGING_ROLES)).thenReturn(List.of());
+
+        assertThat(service.readAllTheManagersByOrganizationId(ORG)).isEmpty();
+        verifyNoInteractions(employeeRepository);
     }
 
     @Test

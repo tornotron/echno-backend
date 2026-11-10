@@ -16,6 +16,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.tornotron.echno_backend.modules.access.matrix.service.MatrixRoleHolders;
 import org.tornotron.echno_backend.employee.TeamAccess;
 import org.tornotron.echno_backend.attendance.mapper.ShiftTimingMapperImpl;
 import org.tornotron.echno_backend.common.enums.OrgRole;
@@ -60,7 +61,7 @@ import java.util.UUID;
         MatrixRoleAssignments.class, LegacyRoleMirror.class, AccessRoleReconciler.class, AccessChangeRecorder.class,
         CachedAccessFactsSource.class, DatabaseAccessFactsSource.class, AccessFactsQueries.class,
         ConcurrentMapCacheManager.class, CurrentEmployeeService.class, UserContextService.class,
-        EmployeeService.class, EmployeeHierarchyService.class, EmployeeMapperImpl.class,
+        EmployeeService.class, EmployeeHierarchyService.class, MatrixRoleHolders.class, EmployeeMapperImpl.class,
         AttachmentMapperImpl.class, ShiftTimingMapperImpl.class, OrganizationSecurityService.class,
         JacksonAutoConfiguration.class, IdentityLinkService.class, IdentityLinks.class, InvitationSyncJob.class,
         InvitationITSupport.Provider.class})

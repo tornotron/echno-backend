@@ -15,13 +15,13 @@ import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.leave.dto.LeaveApprovalActionDto;
 import org.tornotron.echno_backend.leave.dto.LeaveApprovalDto;
 import org.tornotron.echno_backend.leave.dto.LeaveRequestDto;
-import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.leave.enums.ApprovalAction;
 import org.tornotron.echno_backend.leave.enums.LeaveApproverRole;
 import org.tornotron.echno_backend.leave.enums.LeaveStatus;
 import org.tornotron.echno_backend.leave.enums.NotificationType;
 import org.tornotron.echno_backend.leave.enums.TransactionType;
 import org.tornotron.echno_backend.modules.access.api.AccessPermission;
+import org.tornotron.echno_backend.modules.access.api.AccessRoleHolders;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -56,6 +56,7 @@ public class LeaveApprovalService {
     private final NotificationService notificationService;
     private final LeaveRequestMapper leaveRequestMapper;
     private final LeaveRequestValidator leaveRequestValidator;
+    private final AccessRoleHolders roleHolders;
 
     public LeaveApprovalService(
             LeaveApprovalRepository approvalRepository,
@@ -68,7 +69,8 @@ public class LeaveApprovalService {
             @Lazy LeaveCalendarService calendarService,
             @Lazy NotificationService notificationService,
             LeaveRequestMapper leaveRequestMapper,
-            @Lazy LeaveRequestValidator leaveRequestValidator) {
+            @Lazy LeaveRequestValidator leaveRequestValidator,
+            AccessRoleHolders roleHolders) {
         this.approvalRepository = approvalRepository;
         this.requestRepository = requestRepository;
         this.balanceRepository = balanceRepository;
@@ -80,6 +82,7 @@ public class LeaveApprovalService {
         this.notificationService = notificationService;
         this.leaveRequestMapper = leaveRequestMapper;
         this.leaveRequestValidator = leaveRequestValidator;
+        this.roleHolders = roleHolders;
     }
 
     /**
@@ -137,7 +140,7 @@ public class LeaveApprovalService {
      * <p>{@link LeaveApproverRole#REPORTING_MANAGER} answers empty so the caller walks the
      * management line as it always has. {@link LeaveApproverRole#HR_ADMIN} and
      * {@link LeaveApproverRole#SYSTEM_ADMIN} answer the lowest-id employee of the organization
-     * holding that role who is not the requester. When nobody holds the role
+     * holding that starting role across it who is not the requester. When nobody holds the role
      * the answer is empty too, and the management line decides rather than the request sitting
      * with no approver at all: a policy configured for a tier the organization has not staffed
      * should still be approvable by somebody.
@@ -150,15 +153,16 @@ public class LeaveApprovalService {
         if (policy == null || policy.getApproverRole() == null) {
             return Optional.empty();
         }
-        OrgRole orgRole = policy.getApproverRole().getOrgRole();
-        if (orgRole == null) {
+        String role = policy.getApproverRole().getStartingRole();
+        if (role == null) {
             return Optional.empty();
         }
         Long requesterId = request.getEmployee().getId();
-        return employeeRepository.findByOrganizationIdAndOrgRole(request.getOrganization().getId(), orgRole)
+        return roleHolders.acrossOrganization(request.getOrganization().getId(), List.of(role))
                 .stream()
-                .filter(candidate -> !candidate.getId().equals(requesterId))
-                .min(java.util.Comparator.comparing(Employee::getId));
+                .filter(candidate -> !candidate.equals(requesterId))
+                .min(java.util.Comparator.naturalOrder())
+                .flatMap(employeeRepository::findById);
     }
 
     /**

@@ -4,14 +4,16 @@ import org.junit.jupiter.api.Test;
 import org.tornotron.echno_backend.attendance.AttendanceSettings;
 import org.tornotron.echno_backend.attendance.ClockEvent;
 import org.tornotron.echno_backend.attendance.validator.GeofenceValidator;
-import org.tornotron.echno_backend.common.enums.OrgRole;
+import org.tornotron.echno_backend.modules.access.api.AccessRoleHolders;
+import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.project.Project;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
@@ -29,8 +31,16 @@ class AttendanceGeofenceServiceTest {
     private static final double PROJECT_LAT = 13.0827;
     private static final double PROJECT_LON = 80.2707;
 
+    private static final long ORG = 3L;
+
+    private final AccessRoleHolders roleHolders = mock(AccessRoleHolders.class);
     private final AttendanceGeofenceService service =
-            new AttendanceGeofenceService(new GeofenceValidator());
+            new AttendanceGeofenceService(new GeofenceValidator(), roleHolders);
+
+    /** The Project Manager holders on project 12, which is the project every test here marks against. */
+    private void projectManagers(Long... ids) {
+        when(roleHolders.onProject(ORG, 12L, AccessRoleHolders.PROJECT_MANAGER)).thenReturn(List.of(ids));
+    }
 
     private Project project(Float latitude, Float longitude) {
         Project project = new Project();
@@ -38,6 +48,9 @@ class AttendanceGeofenceServiceTest {
         project.setProjectLatitude(latitude);
         project.setProjectLongitude(longitude);
         project.setEmployees(new ArrayList<>());
+        Organization organization = new Organization();
+        organization.setId(ORG);
+        project.setOrganization(organization);
         return project;
     }
 
@@ -129,25 +142,18 @@ class AttendanceGeofenceServiceTest {
         // project has no manager pointer of its own, only membership plus the organization-wide
         // project-manager role, so it is the intersection of the two.
         Employee siteEngineer = employee(7L);
-        siteEngineer.setOrgRoles(Set.of(OrgRole.SITE_ENGINEER));
-        Employee projectManager = employee(31L);
-        projectManager.setOrgRoles(Set.of(OrgRole.PROJECT_MANAGER));
+        projectManagers(31L);
 
         Project project = locatedProject();
-        project.setEmployees(List.of(siteEngineer, projectManager));
 
         assertThat(service.resolveApprover(siteEngineer, project)).isEqualTo(31L);
     }
 
     @Test
     void withSeveralProjectManagers_theSameOneIsAlwaysNamed() {
-        Employee first = employee(31L);
-        first.setOrgRoles(Set.of(OrgRole.PROJECT_MANAGER));
-        Employee second = employee(12L);
-        second.setOrgRoles(Set.of(OrgRole.PROJECT_MANAGER));
+        projectManagers(31L, 12L);
 
         Project project = locatedProject();
-        project.setEmployees(List.of(first, second));
 
         assertThat(service.resolveApprover(employee(7L), project)).isEqualTo(12L);
     }
@@ -157,10 +163,9 @@ class AttendanceGeofenceServiceTest {
         // A project manager marking their own attendance from off site is the case this guards:
         // the point of the decision is that somebody else vouches for the absence.
         Employee projectManager = employee(31L);
-        projectManager.setOrgRoles(Set.of(OrgRole.PROJECT_MANAGER));
+        projectManagers(31L);
 
         Project project = locatedProject();
-        project.setEmployees(List.of(projectManager));
 
         assertThat(service.resolveApprover(projectManager, project)).isNull();
     }

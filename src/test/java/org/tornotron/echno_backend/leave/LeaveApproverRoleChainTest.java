@@ -8,7 +8,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
-import org.tornotron.echno_backend.common.enums.OrgRole;
+import org.tornotron.echno_backend.modules.access.api.AccessRoleHolders;
 import org.tornotron.echno_backend.common.service.CurrentEmployeeService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
@@ -18,12 +18,13 @@ import org.tornotron.echno_backend.leave.mapper.LeaveRequestMapper;
 import org.tornotron.echno_backend.organization.Organization;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
@@ -50,6 +51,7 @@ class LeaveApproverRoleChainTest {
     @Mock private NotificationService notificationService;
     @Mock private LeaveRequestMapper leaveRequestMapper;
     @Mock private LeaveRequestValidator leaveRequestValidator;
+    @Mock private AccessRoleHolders roleHolders;
 
     private LeaveApprovalService service;
     private Organization org;
@@ -60,7 +62,7 @@ class LeaveApproverRoleChainTest {
     void setUp() {
         service = new LeaveApprovalService(approvalRepository, requestRepository, balanceRepository,
                 transactionRepository, employeeRepository, currentEmployeeService, leaveAccess,
-                calendarService, notificationService, leaveRequestMapper, leaveRequestValidator);
+                calendarService, notificationService, leaveRequestMapper, leaveRequestValidator, roleHolders);
         org = new Organization();
         org.setId(1L);
         manager = employee(10L);
@@ -92,8 +94,8 @@ class LeaveApproverRoleChainTest {
 
     @Test
     void hrAdminTier_routesToTheLowestIdHolderOfTheRole_asASingleLevel() {
-        when(employeeRepository.findByOrganizationIdAndOrgRole(1L, OrgRole.HR_ADMIN))
-                .thenReturn(List.of(employee(31L), employee(30L)));
+        when(roleHolders.acrossOrganization(1L, List.of(AccessRoleHolders.HR_ADMIN))).thenReturn(List.of(31L, 30L));
+        when(employeeRepository.findById(30L)).thenReturn(Optional.of(employee(30L)));
         LeaveRequest request = request(LeaveApproverRole.HR_ADMIN);
 
         service.initializeApprovalChain(request);
@@ -108,8 +110,9 @@ class LeaveApproverRoleChainTest {
 
     @Test
     void systemAdminTier_neverRoutesTheRequestToTheRequester() {
-        when(employeeRepository.findByOrganizationIdAndOrgRole(1L, OrgRole.SYSTEM_ADMIN))
-                .thenReturn(List.of(requester, employee(40L)));
+        when(roleHolders.acrossOrganization(1L, List.of(AccessRoleHolders.SYSTEM_ADMIN)))
+                .thenReturn(List.of(requester.getId(), 40L));
+        when(employeeRepository.findById(40L)).thenReturn(Optional.of(employee(40L)));
         LeaveRequest request = request(LeaveApproverRole.SYSTEM_ADMIN);
 
         service.initializeApprovalChain(request);
@@ -119,7 +122,7 @@ class LeaveApproverRoleChainTest {
 
     @Test
     void aTierNobodyHolds_fallsBackToTheManagementLine() {
-        when(employeeRepository.findByOrganizationIdAndOrgRole(1L, OrgRole.HR_ADMIN)).thenReturn(List.of());
+        when(roleHolders.acrossOrganization(1L, List.of(AccessRoleHolders.HR_ADMIN))).thenReturn(List.of());
         LeaveRequest request = request(LeaveApproverRole.HR_ADMIN);
 
         service.initializeApprovalChain(request);
@@ -134,7 +137,7 @@ class LeaveApproverRoleChainTest {
 
         service.initializeApprovalChain(request);
 
-        verify(employeeRepository, never()).findByOrganizationIdAndOrgRole(any(), any());
+        verifyNoInteractions(roleHolders);
         assertThat(request.getCurrentApprover().getId()).isEqualTo(manager.getId());
     }
 }

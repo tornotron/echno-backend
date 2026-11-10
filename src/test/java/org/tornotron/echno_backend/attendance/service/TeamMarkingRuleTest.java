@@ -118,7 +118,8 @@ class TeamMarkingRuleTest {
                 userContextService,
                 new PayloadValidator(Validation.buildDefaultValidatorFactory().getValidator()),
                 attendanceSecurity,
-                new AttendanceGeofenceService(new GeofenceValidator()));
+                new AttendanceGeofenceService(new GeofenceValidator(),
+                        org.mockito.Mockito.mock(org.tornotron.echno_backend.modules.access.api.AccessRoleHolders.class)));
 
         organization = new Organization();
         organization.setId(ORG_ID);
