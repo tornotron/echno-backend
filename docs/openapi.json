@@ -161567,7 +161567,7 @@
                 }
               }
             },
-            "description": "No user with the given id"
+            "description": "No user with the given id in this organization"
           },
           "409": {
             "content": {
@@ -161577,7 +161577,7 @@
                 }
               }
             },
-            "description": "Conflict"
+            "description": "The user also belongs to another organization, so the account is not deleted"
           },
           "422": {
             "content": {
@@ -161700,7 +161700,7 @@
                 }
               }
             },
-            "description": "No user with the given id"
+            "description": "No user with the given id in this organization"
           },
           "409": {
             "content": {
@@ -161710,7 +161710,7 @@
                 }
               }
             },
-            "description": "Conflict"
+            "description": "The user also belongs to another organization and the change names a field only they may change"
           },
           "422": {
             "content": {
@@ -161929,7 +161929,7 @@
                 }
               }
             },
-            "description": "No user with the given id"
+            "description": "No user with the given id in this organization"
           },
           "409": {
             "content": {
@@ -161939,7 +161939,7 @@
                 }
               }
             },
-            "description": "Conflict"
+            "description": "The user also belongs to another organization, so the account is not deleted"
           },
           "422": {
             "content": {
@@ -162050,7 +162050,7 @@
                 }
               }
             },
-            "description": "No user with the given id"
+            "description": "No user with the given id in this organization"
           },
           "409": {
             "content": {
@@ -162060,7 +162060,7 @@
                 }
               }
             },
-            "description": "Conflict"
+            "description": "The user also belongs to another organization and the change names a field only they may change"
           },
           "422": {
             "content": {
