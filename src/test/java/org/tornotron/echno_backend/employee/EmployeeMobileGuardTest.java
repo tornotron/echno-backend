@@ -19,6 +19,7 @@ import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationSer
 import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
+import org.tornotron.echno_backend.modules.access.guard.AccessGuard;
 
 import java.util.List;
 
@@ -54,11 +55,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * or the endpoint is still dead. The first half of each pair is what a realm cannot actually
  * produce, granted here directly on the token so the assertion means something.
  *
- * <p>What this proves and what it does not: {@code @orgSecurity} is a mock, so these tests fix the
- * expression each endpoint evaluates and the roles it names. They say nothing about how
- * {@code OrganizationSecurityService} resolves a role, which
- * {@code KeycloakOrgMembershipInvariantIT} and {@code TenantIsolationIT} cover against a real
- * context.
+ * <p>What this proves and what it does not: {@code @access} and {@code @teamAccess} are mocks
+ * answering as the starting roles do ({@link TeamPersonas}), so these tests fix the expression each
+ * endpoint evaluates. {@code TeamAccessEquivalenceIT} checks those answers against the real matrix.
  */
 @WebMvcTest(EmployeeController.class)
 @Import(EmployeeMobileGuardTest.TestSecurityConfig.class)
@@ -86,6 +85,12 @@ class EmployeeMobileGuardTest {
     @MockitoBean(name = "orgSecurity")
     private OrganizationSecurityService orgSecurity;
 
+    @MockitoBean(name = "access")
+    private AccessGuard access;
+
+    @MockitoBean(name = "teamAccess")
+    private TeamAccess teamAccess;
+
     // Satisfies RPTExchangeFilter, a custom filter the web slice loads; unused here because
     // .with(jwt(...)) sets the authentication directly.
     @MockitoBean
@@ -94,57 +99,36 @@ class EmployeeMobileGuardTest {
     @MockitoBean
     private RPTCache rptCache;
 
-    /**
-     * Every persona below stubs the exact role list each endpoint asks for, rather than answering
-     * true to any list at all.
-     *
-     * <p>Stubbing {@code hasAnyOrgRoleForCurrentTenant(any(String[].class))} as true would make
-     * these tests pass whatever roles the guards named: a listing that dropped
-     * {@code project-manager}, or a delete that quietly admitted it, would look identical from
-     * here. The role list is the substance of this repair, so it is the thing the mock has to be
-     * particular about. The broad stub is kept, returning false, so an endpoint asking for a list
-     * no persona grants is refused rather than falling through to a Mockito default that happens
-     * to agree.
-     */
-    private static final String[] DIRECTORY_ROLES = {"system-admin", "hr-admin", "project-manager"};
-    private static final String[] ADMIN_ROLES = {"system-admin", "hr-admin"};
-
-    /** Nobody: no org role anywhere, not the employee in question, no organization entitlement. */
+    /** Nobody: the baseline alone, not the employee in question, no organization entitlement. */
     private void callerHoldsNoRole() {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(false);
-        when(orgSecurity.isSelfOrHasAnyOrgRole(anyLong(), any(String[].class))).thenReturn(false);
+        TeamPersonas.member(access, teamAccess);
         when(orgSecurity.isCurrentTenant(anyLong())).thenReturn(false);
     }
 
-    /**
-     * An HR admin of the organization the session is scoped to, holding no Keycloak authority.
-     * Satisfies both role lists, and the self-or-admin check on any employee.
-     */
+    /** An HR admin of the organization the session is scoped to, holding no Keycloak authority. */
     private void callerIsAnHrAdminOf(long orgId) {
         callerHoldsNoRole();
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(DIRECTORY_ROLES)).thenReturn(true);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(ADMIN_ROLES)).thenReturn(true);
-        when(orgSecurity.isSelfOrHasAnyOrgRole(anyLong(), eq("system-admin"), eq("hr-admin"))).thenReturn(true);
+        TeamPersonas.personnelAdmin(access, teamAccess);
         when(orgSecurity.isCurrentTenant(eq(orgId))).thenReturn(true);
     }
 
     /**
      * A project manager. Reads the directory and writes nothing, which is the difference between
-     * the two role lists and the reason the listings and the writes are not gated alike.
+     * the two kinds of grant and the reason the listings and the writes are not gated alike.
      */
     private void callerIsAProjectManagerOf(long orgId) {
         callerHoldsNoRole();
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(DIRECTORY_ROLES)).thenReturn(true);
+        TeamPersonas.projectManager(access, teamAccess);
         when(orgSecurity.isCurrentTenant(eq(orgId))).thenReturn(true);
     }
 
     /**
      * The employee whose record it is, holding no role at all. Only the single-record PATCH admits
-     * them, through its self clause.
+     * them, through their own-record grant.
      */
     private void callerIsTheEmployeeThemselves(long employeeId) {
         callerHoldsNoRole();
-        when(orgSecurity.isSelfOrHasAnyOrgRole(eq(employeeId), eq("system-admin"), eq("hr-admin"))).thenReturn(true);
+        TeamPersonas.employeeWhoIs(access, teamAccess, employeeId);
     }
 
     private void listingsAnswer() {

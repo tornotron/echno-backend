@@ -119,14 +119,14 @@ public class EmployeeController {
      * @return A {@link ResponseEntity} containing the list of employee DTOs and HTTP status 200 (OK).
      */
     @GetMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin','project-manager')")
+    @PreAuthorize("@access.can('team', 'read') and @teamAccess.acrossOrganization('read')")
     @Operation(
             summary = "List all employees",
             description = "Returns one page of the caller's own organization's employees, ordered by name."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Employees returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a system admin, HR admin or project manager in the current organization")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read employee records")
     })
     public ResponseEntity<Page<EmployeeDto>> readAllEmployees(@Valid @ParameterObject PageQuery pageQuery) {
         return ResponseEntity.ok(employeeService.displayAllEmployees(
@@ -152,7 +152,7 @@ public class EmployeeController {
      * @return A {@link ResponseEntity} containing the employee DTO and HTTP status 200 (OK).
      */
     @GetMapping("{id}")
-    @PreAuthorize("@orgSecurity.isSelfOrHasAnyOrgRole(#id, 'system-admin', 'hr-admin', 'project-manager')")
+    @PreAuthorize("@access.can('team', 'read') and @teamAccess.allowsFor('read', #id)")
     @Operation(
             summary = "Get an employee by id",
             description = "Returns a single employee including their personal details, roles and status. "
@@ -160,7 +160,7 @@ public class EmployeeController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Employee found"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither the employee nor a system admin, HR admin or project manager"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read employee records"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No employee with the given id")
     })
     public ResponseEntity<EmployeeDto> readAnEmployee(@PathVariable Long id) {
@@ -187,8 +187,7 @@ public class EmployeeController {
      * @return A {@link ResponseEntity} containing a list of employee DTOs for the specified organization and HTTP status 200 (OK).
      */
     @GetMapping("/organization/{id}")
-    @PreAuthorize("@orgSecurity.isCurrentTenant(#id)"
-            + " and @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin','project-manager')")
+    @PreAuthorize("@orgSecurity.isCurrentTenant(#id) and @access.can('team', 'read') and @teamAccess.acrossOrganization('read')")
     @Operation(
             summary = "List employees in an organization",
             description = "Returns the employees belonging to the given organization, which must be the "
@@ -196,7 +195,7 @@ public class EmployeeController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Employees returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller named an organization that is not the current tenant, or is not a system admin, HR admin or project manager in it"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller named an organization that is not the current tenant, or may not read employee records across it"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No organization with the given id")
     })
     public ResponseEntity<Page<EmployeeDto>> readEmployeesByOrganizationId(
@@ -231,7 +230,7 @@ public class EmployeeController {
      * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
      */
     @PatchMapping("{id}")
-    @PreAuthorize("@orgSecurity.isSelfOrHasAnyOrgRole(#id, 'system-admin', 'hr-admin')")
+    @PreAuthorize("@access.can('team', 'edit') and @teamAccess.allowsFor('edit', #id)")
     @Operation(
             summary = "Partially update an employee",
             description = "Applies the supplied map of fields to the employee with the given id, "
@@ -244,7 +243,7 @@ public class EmployeeController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Employee updated"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "One of the supplied fields is not valid"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither the employee nor a system admin or HR admin, or is the employee and named a field only those roles may set"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to employee records, or is the employee and named a field only those roles may set"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No employee with the given id")
     })
     public ResponseEntity<ApiResponse> partialUpdateAnEmployee(
@@ -280,7 +279,7 @@ public class EmployeeController {
      * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
      */
     @PatchMapping("/batch")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @PreAuthorize("@access.can('team', 'edit') and @teamAccess.acrossOrganization('edit')")
     @Operation(
             summary = "Batch update employees",
             description = "Applies partial updates to several employees of the caller's organization in "
@@ -290,7 +289,7 @@ public class EmployeeController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Batch update applied"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "One of the update entries failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a system admin or HR admin in the current organization")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to employee records")
     })
     public ResponseEntity<ApiResponse> batchUpdateEmployees(@Valid @RequestBody List<EmployeePatchDto> updates) {
         employeeService.batchUpdateEmployees(updates);
@@ -315,7 +314,7 @@ public class EmployeeController {
      * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
      */
     @DeleteMapping("{id}")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @PreAuthorize("@access.can('team', 'delete') and @teamAccess.acrossOrganization('delete')")
     @Operation(
             summary = "Delete an employee",
             description = "Deletes the employee with the given id from the caller's organization, and "
@@ -323,7 +322,7 @@ public class EmployeeController {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Employee deleted"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a system admin or HR admin in the current organization"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to employee records"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No employee with the given id")
     })
     public ResponseEntity<ApiResponse> deleteEmployee(@PathVariable Long id) {

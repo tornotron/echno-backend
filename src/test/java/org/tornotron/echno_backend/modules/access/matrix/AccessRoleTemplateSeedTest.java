@@ -25,7 +25,7 @@ class AccessRoleTemplateSeedTest {
 
     /** A mapping row's read that needs more than the area's read: its named action is checked as is. */
     private static final Set<String> NAMED_READS = Set.of("read-financials", "read-ledger", "read-reports",
-            "generate-compliance", "export-datasets");
+            "generate-compliance", "export-datasets", "read-reporting-lines");
 
     private static final Path MAPPING = Path.of("docs/specs/2026-10-30-access-permission-mapping-endpoints.csv");
     private static final String BASELINE = "employee";
@@ -45,7 +45,8 @@ class AccessRoleTemplateSeedTest {
             "db/data/access/role-template-grants-org-profile.csv",
             "db/data/access/role-template-grants-inspections.csv",
             "db/data/access/role-template-grants-leave.csv",
-            "db/data/access/role-template-grants-working-time.csv");
+            "db/data/access/role-template-grants-working-time.csv",
+            "db/data/access/role-template-grants-team.csv");
 
     /**
      * Template grants a later changeset deleted, by template slug and key: access-011 takes the
@@ -57,13 +58,14 @@ class AccessRoleTemplateSeedTest {
      * org-admin:read and org-admin:create and the HR admin's org-admin:edit, which they held only for
      * the organization's profile, now an area of their own; access-019 takes the site engineer's and the
      * observation producer's inspections:create, which would have let them schedule and record an
-     * inspection.
+     * inspection; access-022 takes the project manager's team:edit, which no employee handler asks for.
      */
     private static final Map<String, Set<String>> DELETED = Map.of(
             BASELINE, Set.of("finance:read", "issues:create", "issues:edit", "compliance:approve",
                     "org-admin:read", "org-admin:create"),
             "hr-admin", Set.of("construction:create", "construction:edit", "construction:delete", "org-admin:edit"),
             "site-engineer", Set.of("inspections:create"),
+            "project-manager", Set.of("team:edit"),
             "observation-producer", Set.of("inspections:create"));
 
     private static final Map<String, String> SLUG_BY_ID = new HashMap<>();
@@ -72,6 +74,16 @@ class AccessRoleTemplateSeedTest {
     private static final Set<String> BASELINES = new HashSet<>();
     private static final Set<String> CARRIED_OVER = new HashSet<>();
     private static final Map<String, Set<String>> KEYS_BY_SLUG = new HashMap<>();
+
+    /**
+     * Template grants a later changeset narrowed in place, by template slug, key and the scope it
+     * left: access-022 narrows the baseline's team:read and team:create to the employee's own record.
+     */
+    private static final Map<String, Map<String, String>> RESCOPED = Map.of(BASELINE,
+            Map.of("team:read", "OWN", "team:create", "OWN"));
+
+    /** The scope each template holds each key at, after {@link #RESCOPED}. */
+    private static final Map<String, Map<String, String>> SCOPE_BY_SLUG = new HashMap<>();
 
     @BeforeAll
     static void readTheSeed() throws IOException {
@@ -93,9 +105,11 @@ class AccessRoleTemplateSeedTest {
         for (String file : GRANT_FILES) {
             for (String[] row : rows(file)) {
                 KEYS_BY_SLUG.get(SLUG_BY_ID.get(row[1])).add(row[2]);
+                SCOPE_BY_SLUG.computeIfAbsent(SLUG_BY_ID.get(row[1]), slug -> new HashMap<>()).put(row[2], row[3]);
             }
         }
         DELETED.forEach((slug, keys) -> KEYS_BY_SLUG.get(slug).removeAll(keys));
+        RESCOPED.forEach((slug, scopes) -> SCOPE_BY_SLUG.get(slug).putAll(scopes));
     }
 
     private static List<String[]> rows(String resource) throws IOException {
@@ -384,6 +398,34 @@ class AccessRoleTemplateSeedTest {
             if (!slug.equals("system-admin") && !slug.equals("hr-admin")) {
                 assertThat(keys).as(slug).doesNotContain("working-time:create", "working-time:edit",
                         "working-time:delete", "working-time:approve");
+            }
+        });
+    }
+
+    @Test
+    void everyMemberReachesTheirOwnRecordAndOnlyThePersonnelRolesReachEveryones() {
+        // Before the matrix every member read and edited their own employee record and saw who reports
+        // to them; the system admin, HR admin and project manager read every record; and only the system
+        // admin and HR admin changed or deleted one, or read anyone's reports.
+        assertThat(KEYS_BY_SLUG.get(BASELINE)).contains("team:read", "team:edit", "team:read-reporting-lines")
+                .doesNotContain("team:delete");
+        for (String key : List.of("team:read", "team:create", "team:edit", "team:read-reporting-lines")) {
+            assertThat(SCOPE_BY_SLUG.get(BASELINE).get(key)).as(key).isEqualTo("OWN");
+        }
+        for (String slug : List.of("system-admin", "hr-admin")) {
+            assertThat(KEYS_BY_SLUG.get(slug)).as(slug)
+                    .contains("team:read", "team:edit", "team:delete", "team:read-reporting-lines");
+            for (String key : List.of("team:read", "team:create", "team:edit", "team:delete",
+                    "team:read-reporting-lines")) {
+                assertThat(SCOPE_BY_SLUG.get(slug).get(key)).as(slug + " " + key).isEqualTo("ALL");
+            }
+        }
+        assertThat(KEYS_BY_SLUG.get("project-manager")).contains("team:read")
+                .doesNotContain("team:edit", "team:delete", "team:read-reporting-lines");
+        assertThat(SCOPE_BY_SLUG.get("project-manager").get("team:read")).isEqualTo("ALL");
+        KEYS_BY_SLUG.forEach((slug, keys) -> {
+            if (!List.of(BASELINE, "system-admin", "hr-admin", "project-manager").contains(slug)) {
+                assertThat(keys).as(slug).noneMatch(key -> key.startsWith("team:"));
             }
         });
     }
