@@ -38,11 +38,14 @@ class UserExperiencePatchTest {
     @Mock private EmployeeMapper employeeMapper;
     @Mock private UserMapper userMapper;
     @Mock private OrganizationMapper organizationMapper;
+    // The caller is the user being changed, so the load is the self path.
+    @Mock private UserContextService userContext;
 
     @InjectMocks private UserService service;
 
     private User storedUser() {
         User user = new User();
+        when(userContext.getCurrentUserId()).thenReturn(3L);
         when(userRepository.findById(3L)).thenReturn(Optional.of(user));
         when(userRepository.save(any(User.class))).thenAnswer(i -> i.getArgument(0));
         return user;
