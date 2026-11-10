@@ -1,0 +1,12 @@
+id,template_id,permission_key,scope
+fdeed047-338b-52a5-92f8-01054ad6a861,ed34dfe6-5468-5f6e-b6ed-ef6eefccfce2,vision:read,ALL
+0cad568a-57ff-5eea-8062-896dac549aad,ed34dfe6-5468-5f6e-b6ed-ef6eefccfce2,vision:run,ALL
+5e9adf45-927b-5272-bdc2-e86a1ffca6b7,ed34dfe6-5468-5f6e-b6ed-ef6eefccfce2,vision:settings-manage,ALL
+8b56eab7-c16a-5f69-a65c-140ffc09d77c,0f205e55-9cf3-5a43-8fda-c0d6c92e5bef,vision:read,ALL
+b799e96a-e510-5b17-ba84-7b1675d0d77a,0f205e55-9cf3-5a43-8fda-c0d6c92e5bef,vision:run,ALL
+d6f25dd4-574c-588f-8526-a1ab09fd14d9,43eeab95-f373-5182-9482-e768d136de27,vision:read,ALL
+6fa9081b-6f71-5ea5-ba7a-1f733095281a,43eeab95-f373-5182-9482-e768d136de27,vision:run,ALL
+4556a35d-a771-5266-bf1c-0ca2af94d332,9da4cf3c-74e9-52b5-9242-8161a76b6074,vision:read,ALL
+3a81e4ba-7462-5284-81e7-78b09653fe22,9da4cf3c-74e9-52b5-9242-8161a76b6074,vision:run,ALL
+bf12cb1d-60f5-5ac4-bfc1-dcf178cbd5f0,3881d2d6-a50e-5b99-8db3-b2b8a8989be3,vision:read,ALL
+17789b19-da7b-5f9d-9d4c-f6c0abfec7e5,3881d2d6-a50e-5b99-8db3-b2b8a8989be3,vision:run,ALL

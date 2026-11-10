@@ -1,0 +1,2 @@
+id,slug,name,description,is_system,is_baseline,legacy_org_role,carried_over
+3881d2d6-a50e-5b99-8db3-b2b8a8989be3,detection-reviewer,Detection Reviewer,Reviews a model's findings from outside the organization's own staff.,false,false,NULL,false

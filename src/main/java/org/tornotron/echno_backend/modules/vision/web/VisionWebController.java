@@ -36,33 +36,33 @@ public class VisionWebController {
     private final VisionRunService runs;
 
     @GetMapping("/settings")
-    @PreAuthorize(VisionModule.READ_GUARD)
+    @PreAuthorize("@access.can('vision', 'read')")
     @Operation(summary = "Read the vision settings",
             description = "Whether new evidence images are run automatically, and which model families.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Settings returned"),
             @ApiResponse(responseCode = "402", description = "The organization is not entitled to the module, in enforce mode"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read computer vision")
     })
     public VisionSettingsDto getSettings() {
         return settings.get();
     }
 
     @PutMapping("/settings")
-    @PreAuthorize(VisionModule.SETTINGS_MANAGE_GUARD)
+    @PreAuthorize("@access.can('vision', 'settings-manage')")
     @Operation(summary = "Replace the vision settings", description = "For the organization's system-admin.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Settings saved"),
             @ApiResponse(responseCode = "400", description = "A model key names no registered family"),
             @ApiResponse(responseCode = "402", description = "The organization is not entitled to the module, in enforce mode"),
-            @ApiResponse(responseCode = "403", description = "Caller is not the organization's system-admin")
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to computer vision")
     })
     public VisionSettingsDto updateSettings(@Valid @RequestBody UpdateVisionSettingsRequest req) {
         return settings.update(req);
     }
 
     @PostMapping("/runs")
-    @PreAuthorize(VisionModule.RUN_GUARD)
+    @PreAuthorize("@access.can('vision', 'run')")
     @Operation(summary = "Run models on evidence images",
             description = "Queues one job per image and model version, up to 200 images. A pair with a pending job "
                     + "is skipped, and so is one that already ran unless rerun is true.")
@@ -71,7 +71,7 @@ public class VisionWebController {
             @ApiResponse(responseCode = "400", description = "No source or more than one, too many images, or no active "
                     + "model version to run"),
             @ApiResponse(responseCode = "402", description = "The organization is not entitled to the module, in enforce mode"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to computer vision"),
             @ApiResponse(responseCode = "404", description = "The inspection, observation or an attachment is not evidence "
                     + "of this organization")
     })

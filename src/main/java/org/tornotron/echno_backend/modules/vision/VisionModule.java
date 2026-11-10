@@ -25,24 +25,22 @@ public class VisionModule implements EchnoModule {
     public static final String ID = "vision";
     public static final String FEATURE_KEY = "MODULE_VISION";
 
+    // Reading the registry and an organization's settings, and asking for a run, are for the roles
+    // that review a model's findings: the system admin, project manager, QA engineer and safety
+    // officer, and the detection reviewer a reviewer outside the client's staff holds. Asking for a run
+    // reveals nothing by itself: the findings it produces are read under the detection visibility rule.
     public static final String PERMISSION_READ = ID + ":read";
     public static final String PERMISSION_RUN = ID + ":run";
+    // An organization's own settings: its admin decides whether every new photo is run.
+    public static final String PERMISSION_SETTINGS_MANAGE = ID + ":settings-manage";
     public static final String PERMISSION_MODELS_MANAGE = ID + ":models-manage";
 
-    // Reading the registry is for the jobs that review a model's findings, and for the role a
-    // reviewer outside the client's staff holds. One string, so the two handlers cannot drift.
-    public static final String READ_GUARD = "@orgSecurity.hasAnyOrgRoleForCurrentTenant("
-            + "'system-admin','project-manager','qa-engineer','safety-officer','detection-reviewer')";
-    // Asking for a run reveals nothing by itself: the findings it produces are read under
-    // READ_GUARD and the detection visibility rule. The same roles, so whoever reviews can re-run.
-    public static final String RUN_GUARD = READ_GUARD;
-    // An organization's own settings: its admin decides whether every new photo is run.
-    public static final String SETTINGS_MANAGE_GUARD = "@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')";
     // The registry is global, so writing it is a platform job. An organization's system-admin is
     // whoever created that organization, and must not choose what every organization runs.
     public static final String MODELS_MANAGE_GUARD = "hasRole('platform-admin')";
 
-    static final List<String> PERMISSIONS = List.of(PERMISSION_READ, PERMISSION_RUN, PERMISSION_MODELS_MANAGE);
+    static final List<String> PERMISSIONS = List.of(PERMISSION_READ, PERMISSION_RUN, PERMISSION_SETTINGS_MANAGE,
+            PERMISSION_MODELS_MANAGE);
 
     private static final ModuleManifest MANIFEST = new ModuleManifest(
             ID,

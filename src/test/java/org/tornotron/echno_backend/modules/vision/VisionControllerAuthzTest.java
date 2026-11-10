@@ -1,6 +1,6 @@
 package org.tornotron.echno_backend.modules.vision;
 
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -24,7 +24,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
 import org.tornotron.echno_backend.common.configuration.RPTCache;
-import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
+import org.tornotron.echno_backend.modules.access.guard.AccessGuard;
 import org.tornotron.echno_backend.modules.vision.service.CvModelRegistryService;
 import org.tornotron.echno_backend.modules.vision.service.VisionRunService;
 import org.tornotron.echno_backend.modules.vision.service.VisionSettingsService;
@@ -49,8 +49,8 @@ class VisionControllerAuthzTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockitoBean(name = "orgSecurity")
-    private OrganizationSecurityService orgSecurity;
+    @MockitoBean(name = "access")
+    private AccessGuard access;
 
     @MockitoBean
     private CvModelRegistryService service;
@@ -69,7 +69,7 @@ class VisionControllerAuthzTest {
 
     @Test
     void readingTheRegistryIsForbiddenWithoutAReviewingRole() throws Exception {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(false);
+        when(access.can("vision", "read")).thenReturn(false);
 
         mockMvc.perform(get("/api/v1/vision/models").with(member())).andExpect(status().isForbidden());
         mockMvc.perform(get("/api/v1/vision/models/ppe/versions/0.1.0").with(member())).andExpect(status().isForbidden());
@@ -77,14 +77,14 @@ class VisionControllerAuthzTest {
 
     @Test
     void readingTheRegistryIsOkWithAReviewingRole() throws Exception {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(true);
+        when(access.can("vision", "read")).thenReturn(true);
 
         mockMvc.perform(get("/api/v1/vision/models").with(member())).andExpect(status().isOk());
     }
 
     @Test
     void anOrganizationsSystemAdminCannotWriteTheRegistry() throws Exception {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(true);
+        when(access.can(anyString(), anyString())).thenReturn(true);
 
         mockMvc.perform(post("/api/v1/vision/admin/models").with(orgAdmin())
                         .contentType(MediaType.APPLICATION_JSON).content(FAMILY))
@@ -101,15 +101,15 @@ class VisionControllerAuthzTest {
 
     @Test
     void theSettingsAreReadByAReviewingRoleAndWrittenOnlyByTheOrganizationsAdmin() throws Exception {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(true);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin")).thenReturn(false);
+        when(access.can("vision", "read")).thenReturn(true);
+        when(access.can("vision", "settings-manage")).thenReturn(false);
 
         mockMvc.perform(get("/api/v1/vision/web/settings").with(member())).andExpect(status().isOk());
         mockMvc.perform(put("/api/v1/vision/web/settings").with(member())
                         .contentType(MediaType.APPLICATION_JSON).content(SETTINGS))
                 .andExpect(status().isForbidden());
 
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin")).thenReturn(true);
+        when(access.can("vision", "settings-manage")).thenReturn(true);
 
         mockMvc.perform(put("/api/v1/vision/web/settings").with(orgAdmin())
                         .contentType(MediaType.APPLICATION_JSON).content(SETTINGS))
@@ -118,13 +118,13 @@ class VisionControllerAuthzTest {
 
     @Test
     void runningNeedsAReviewingRole() throws Exception {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(false);
+        when(access.can("vision", "run")).thenReturn(false);
 
         mockMvc.perform(post("/api/v1/vision/web/runs").with(member())
                         .contentType(MediaType.APPLICATION_JSON).content(RUN))
                 .andExpect(status().isForbidden());
 
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(true);
+        when(access.can("vision", "run")).thenReturn(true);
 
         mockMvc.perform(post("/api/v1/vision/web/runs").with(member())
                         .contentType(MediaType.APPLICATION_JSON).content(RUN))
@@ -133,7 +133,7 @@ class VisionControllerAuthzTest {
 
     @Test
     void settingsWithoutTheirFieldsAreRefused() throws Exception {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(true);
+        when(access.can("vision", "settings-manage")).thenReturn(true);
 
         mockMvc.perform(put("/api/v1/vision/web/settings").with(orgAdmin())
                         .contentType(MediaType.APPLICATION_JSON).content("{}"))
