@@ -107204,7 +107204,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant, or has no employee record in it, so the decision would name nobody"
+            "description": "Caller may not make this change to leave, or has no employee record in it, so the decision would name nobody"
           },
           "404": {
             "content": {
@@ -107320,7 +107320,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read leave"
           },
           "404": {
             "content": {
@@ -107436,7 +107436,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant, or takes no part in this request and holds neither the system-admin nor the hr-admin role"
+            "description": "Caller may not read leave, or takes no part in this request and holds neither the system-admin nor the hr-admin role"
           },
           "404": {
             "content": {
@@ -107559,7 +107559,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant, or has no employee record in it, so the handover would name nobody"
+            "description": "Caller may not make this change to leave, or has no employee record in it, so the handover would name nobody"
           },
           "404": {
             "content": {
@@ -107675,7 +107675,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant, or takes no part in this request and holds neither the system-admin nor the hr-admin role"
+            "description": "Caller may not read leave, or takes no part in this request and holds neither the system-admin nor the hr-admin role"
           },
           "404": {
             "content": {
@@ -107798,7 +107798,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant, or has no employee record in it, so the decision would name nobody"
+            "description": "Caller may not make this change to leave, or has no employee record in it, so the decision would name nobody"
           },
           "404": {
             "content": {
@@ -107921,7 +107921,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant, or has no employee record in it, so the decision would name nobody"
+            "description": "Caller may not make this change to leave, or has no employee record in it, so the decision would name nobody"
           },
           "404": {
             "content": {
@@ -108037,7 +108037,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read leave"
           },
           "404": {
             "content": {
@@ -108153,7 +108153,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant, or takes no part in this request and holds neither the system-admin nor the hr-admin role"
+            "description": "Caller may not read leave, or takes no part in this request and holds neither the system-admin nor the hr-admin role"
           },
           "404": {
             "content": {
@@ -108276,7 +108276,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant, or has no employee record in it, so the handover would name nobody"
+            "description": "Caller may not make this change to leave, or has no employee record in it, so the handover would name nobody"
           },
           "404": {
             "content": {
@@ -108392,7 +108392,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant, or takes no part in this request and holds neither the system-admin nor the hr-admin role"
+            "description": "Caller may not read leave, or takes no part in this request and holds neither the system-admin nor the hr-admin role"
           },
           "404": {
             "content": {
@@ -108515,7 +108515,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant, or has no employee record in it, so the decision would name nobody"
+            "description": "Caller may not make this change to leave, or has no employee record in it, so the decision would name nobody"
           },
           "404": {
             "content": {
@@ -108627,7 +108627,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to leave"
           },
           "404": {
             "content": {
@@ -108752,7 +108752,7 @@
                 }
               }
             },
-            "description": "Caller is not the employee identified by the id, not in that employee's management line or the current approver of one of their pending leave requests, and holds neither the system-admin nor the hr-admin role in the current tenant"
+            "description": "Caller may not read leave"
           },
           "404": {
             "content": {
@@ -108883,7 +108883,7 @@
                 }
               }
             },
-            "description": "Caller is not the employee identified by the id, not in that employee's management line or the current approver of one of their pending leave requests, and holds neither the system-admin nor the hr-admin role in the current tenant"
+            "description": "Caller may not read leave"
           },
           "404": {
             "content": {
@@ -109008,7 +109008,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to leave"
           },
           "404": {
             "content": {
@@ -109130,7 +109130,7 @@
                 }
               }
             },
-            "description": "Caller is not the employee identified by the id, not in that employee's management line or the current approver of one of their pending leave requests, and holds neither the system-admin nor the hr-admin role in the current tenant"
+            "description": "Caller may not read leave"
           },
           "404": {
             "content": {
@@ -109246,7 +109246,7 @@
                 }
               }
             },
-            "description": "Caller is neither the employee identified by the id nor a holder of the system-admin or hr-admin role in the current tenant"
+            "description": "Caller may not read leave"
           },
           "404": {
             "content": {
@@ -109371,7 +109371,7 @@
                 }
               }
             },
-            "description": "Caller is not the employee identified by the id, not in that employee's management line or the current approver of one of their pending leave requests, and holds neither the system-admin nor the hr-admin role in the current tenant"
+            "description": "Caller may not read leave"
           },
           "404": {
             "content": {
@@ -109483,7 +109483,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to leave"
           },
           "404": {
             "content": {
@@ -109608,7 +109608,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to leave"
           },
           "404": {
             "content": {
@@ -109739,7 +109739,7 @@
                 }
               }
             },
-            "description": "Caller is not the employee identified by the id, not in that employee's management line or the current approver of one of their pending leave requests, and holds neither the system-admin nor the hr-admin role in the current tenant"
+            "description": "Caller may not read leave"
           },
           "404": {
             "content": {
@@ -109861,7 +109861,7 @@
                 }
               }
             },
-            "description": "Caller is not the employee identified by the id, not in that employee's management line or the current approver of one of their pending leave requests, and holds neither the system-admin nor the hr-admin role in the current tenant"
+            "description": "Caller may not read leave"
           },
           "404": {
             "content": {
@@ -109977,7 +109977,7 @@
                 }
               }
             },
-            "description": "Caller is neither the employee identified by the id nor a holder of the system-admin or hr-admin role in the current tenant"
+            "description": "Caller may not read leave"
           },
           "404": {
             "content": {
@@ -110093,7 +110093,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read leave"
           },
           "404": {
             "content": {
@@ -110209,7 +110209,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read leave"
           },
           "404": {
             "content": {
@@ -110326,7 +110326,7 @@
                 }
               }
             },
-            "description": "Caller lacks the system-admin or hr-admin role in the current tenant"
+            "description": "Caller may not read leave"
           },
           "404": {
             "content": {
@@ -110459,7 +110459,7 @@
                 }
               }
             },
-            "description": "Caller lacks the system-admin or hr-admin role in the current tenant"
+            "description": "Caller may not read leave"
           },
           "404": {
             "content": {
@@ -110593,7 +110593,7 @@
                 }
               }
             },
-            "description": "Caller is neither the employee named nor a holder of the system-admin or hr-admin role"
+            "description": "Caller may not read leave"
           },
           "404": {
             "content": {
@@ -110721,7 +110721,7 @@
                 }
               }
             },
-            "description": "Caller lacks the system-admin or hr-admin role in the current tenant"
+            "description": "Caller may not read leave"
           },
           "404": {
             "content": {
@@ -110846,7 +110846,7 @@
                 }
               }
             },
-            "description": "Caller lacks the system-admin or hr-admin role in the current tenant"
+            "description": "Caller may not read leave"
           },
           "404": {
             "content": {
@@ -110971,7 +110971,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant, or has no employee record in it, so there is no team to serve"
+            "description": "Caller may not read leave, or has no employee record in it, so there is no team to serve"
           },
           "404": {
             "content": {
@@ -111088,7 +111088,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read leave"
           },
           "404": {
             "content": {
@@ -111221,7 +111221,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read leave"
           },
           "404": {
             "content": {
@@ -111355,7 +111355,7 @@
                 }
               }
             },
-            "description": "Caller is neither the employee named nor a holder of the system-admin or hr-admin role"
+            "description": "Caller may not read leave"
           },
           "404": {
             "content": {
@@ -111483,7 +111483,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read leave"
           },
           "404": {
             "content": {
@@ -111608,7 +111608,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read leave"
           },
           "404": {
             "content": {
@@ -111733,7 +111733,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant, or has no employee record in it, so there is no team to serve"
+            "description": "Caller may not read leave, or has no employee record in it, so there is no team to serve"
           },
           "404": {
             "content": {
@@ -111838,7 +111838,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read leave policies"
           },
           "404": {
             "content": {
@@ -111948,7 +111948,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to leave policies"
           },
           "404": {
             "content": {
@@ -112064,7 +112064,7 @@
                 }
               }
             },
-            "description": "Caller is neither the employee identified by the id nor a holder of the system-admin or hr-admin role in the current tenant"
+            "description": "Caller may not read leave policies"
           },
           "404": {
             "content": {
@@ -112189,7 +112189,7 @@
                 }
               }
             },
-            "description": "Caller is not entitled to the organization named, or lacks the required role in it"
+            "description": "Caller may not read leave policies, or lacks the required role in it"
           },
           "404": {
             "content": {
@@ -112294,7 +112294,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read leave policies"
           },
           "404": {
             "content": {
@@ -112404,7 +112404,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to leave policies"
           },
           "404": {
             "content": {
@@ -112517,7 +112517,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to leave policies"
           },
           "404": {
             "content": {
@@ -112630,7 +112630,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to leave policies"
           },
           "404": {
             "content": {
@@ -112752,7 +112752,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant or in the target organization"
+            "description": "Caller may not keep leave policies here or in the target organization"
           },
           "404": {
             "content": {
@@ -112868,7 +112868,7 @@
                 }
               }
             },
-            "description": "Caller is neither the employee identified by the id nor a holder of the system-admin or hr-admin role in the current tenant"
+            "description": "Caller may not read leave policies"
           },
           "404": {
             "content": {
@@ -112981,7 +112981,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read leave policies"
           },
           "404": {
             "content": {
@@ -113104,7 +113104,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to leave policies"
           },
           "404": {
             "content": {
@@ -113217,7 +113217,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to leave policies"
           },
           "404": {
             "content": {
@@ -113328,7 +113328,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read leave policies"
           },
           "404": {
             "content": {
@@ -113449,7 +113449,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to leave policies"
           },
           "404": {
             "content": {
@@ -113562,7 +113562,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to leave policies"
           },
           "404": {
             "content": {
@@ -113684,7 +113684,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant or in the target organization"
+            "description": "Caller may not keep leave policies here or in the target organization"
           },
           "404": {
             "content": {
@@ -113807,7 +113807,7 @@
                 }
               }
             },
-            "description": "Caller is neither the employee named nor a holder of the system-admin or hr-admin role"
+            "description": "Caller may not make this change to leave"
           },
           "404": {
             "content": {
@@ -113919,7 +113919,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read leave"
           },
           "404": {
             "content": {
@@ -114054,7 +114054,7 @@
                 }
               }
             },
-            "description": "Caller is not the employee identified by the id"
+            "description": "Caller may not read leave"
           },
           "404": {
             "content": {
@@ -114194,7 +114194,7 @@
                 }
               }
             },
-            "description": "Caller is not the employee identified by the id"
+            "description": "Caller may not read leave"
           },
           "404": {
             "content": {
@@ -114350,7 +114350,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read leave"
           },
           "404": {
             "content": {
@@ -114490,7 +114490,7 @@
                 }
               }
             },
-            "description": "Caller is not entitled to the organization named, or lacks the required role in it"
+            "description": "Caller may not read leave, or lacks the required role in it"
           },
           "404": {
             "content": {
@@ -114621,7 +114621,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant, or has no employee record in it, so there is no queue to serve"
+            "description": "Caller may not read leave, or has no employee record in it, so there is no queue to serve"
           },
           "404": {
             "content": {
@@ -114727,7 +114727,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant, or has no employee record in it, so there is no queue to count"
+            "description": "Caller may not read leave, or has no employee record in it, so there is no queue to count"
           },
           "404": {
             "content": {
@@ -114840,7 +114840,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant, or takes no part in this request and holds neither leave-administrator role"
+            "description": "Caller may not read leave, or takes no part in this request and holds neither leave-administrator role"
           },
           "404": {
             "content": {
@@ -114961,7 +114961,7 @@
                 }
               }
             },
-            "description": "Caller is neither the employee the request belongs to nor a holder of the system-admin or hr-admin role"
+            "description": "Caller may not make this change to leave"
           },
           "404": {
             "content": {
@@ -115084,7 +115084,7 @@
                 }
               }
             },
-            "description": "Caller is neither the employee the request belongs to nor a holder of the system-admin or hr-admin role"
+            "description": "Caller may not make this change to leave"
           },
           "404": {
             "content": {
@@ -115197,7 +115197,7 @@
                 }
               }
             },
-            "description": "Caller is neither the employee the request belongs to nor a holder of the system-admin or hr-admin role"
+            "description": "Caller may not make this change to leave"
           },
           "404": {
             "content": {
@@ -115310,7 +115310,7 @@
                 }
               }
             },
-            "description": "Caller is neither the employee the request belongs to nor a holder of the system-admin or hr-admin role"
+            "description": "Caller may not make this change to leave"
           },
           "404": {
             "content": {
@@ -115433,7 +115433,7 @@
                 }
               }
             },
-            "description": "Caller is neither the employee named nor a holder of the system-admin or hr-admin role"
+            "description": "Caller may not make this change to leave"
           },
           "404": {
             "content": {
@@ -115538,7 +115538,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant, or has no employee record in it"
+            "description": "Caller may not read leave, or has no employee record in it"
           },
           "404": {
             "content": {
@@ -115650,7 +115650,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read leave"
           },
           "404": {
             "content": {
@@ -115782,7 +115782,7 @@
                 }
               }
             },
-            "description": "Caller is neither the employee the request belongs to nor a holder of the system-admin or hr-admin role"
+            "description": "Caller may not make this change to leave"
           },
           "404": {
             "content": {
@@ -115917,7 +115917,7 @@
                 }
               }
             },
-            "description": "Caller is not the employee identified by the id"
+            "description": "Caller may not read leave"
           },
           "404": {
             "content": {
@@ -116041,7 +116041,7 @@
                 }
               }
             },
-            "description": "Caller is not the employee identified by the id"
+            "description": "Caller may not read leave"
           },
           "404": {
             "content": {
@@ -116173,7 +116173,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read leave"
           },
           "404": {
             "content": {
@@ -116295,7 +116295,7 @@
                 }
               }
             },
-            "description": "Caller is neither the employee the request belongs to nor a holder of the system-admin or hr-admin role"
+            "description": "Caller may not make this change to leave"
           },
           "404": {
             "content": {
@@ -116417,7 +116417,7 @@
                 }
               }
             },
-            "description": "Caller is neither the employee the request belongs to nor a holder of the system-admin or hr-admin role"
+            "description": "Caller may not make this change to leave"
           },
           "404": {
             "content": {
@@ -116522,7 +116522,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read leave"
           },
           "404": {
             "content": {
@@ -116627,7 +116627,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant, or has no employee record in it, so there is no queue to serve"
+            "description": "Caller may not read leave, or has no employee record in it, so there is no queue to serve"
           },
           "404": {
             "content": {
@@ -116733,7 +116733,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant, or has no employee record in it, so there is no queue to count"
+            "description": "Caller may not read leave, or has no employee record in it, so there is no queue to count"
           },
           "404": {
             "content": {
@@ -116846,7 +116846,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant, or takes no part in this request and holds neither leave-administrator role"
+            "description": "Caller may not read leave, or takes no part in this request and holds neither leave-administrator role"
           },
           "404": {
             "content": {
@@ -116978,7 +116978,7 @@
                 }
               }
             },
-            "description": "Caller is neither the employee the request belongs to nor a holder of the system-admin or hr-admin role"
+            "description": "Caller may not make this change to leave"
           },
           "404": {
             "content": {
@@ -126774,7 +126774,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant, or has no employee record in it, so there is no inbox to serve"
+            "description": "Caller may not read leave, or has no employee record in it, so there is no inbox to serve"
           },
           "404": {
             "content": {
@@ -126880,7 +126880,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant, or has no employee record in it, so there is no inbox to update"
+            "description": "Caller may not read leave, or has no employee record in it, so there is no inbox to update"
           },
           "404": {
             "content": {
@@ -127011,7 +127011,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant, or has no employee record in it, so there is no inbox to serve"
+            "description": "Caller may not read leave, or has no employee record in it, so there is no inbox to serve"
           },
           "404": {
             "content": {
@@ -127117,7 +127117,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant, or has no employee record in it, so there is no inbox to count"
+            "description": "Caller may not read leave, or has no employee record in it, so there is no inbox to count"
           },
           "404": {
             "content": {
@@ -127229,7 +127229,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant, or has no employee record in it, so there is no inbox to serve"
+            "description": "Caller may not read leave, or has no employee record in it, so there is no inbox to serve"
           },
           "404": {
             "content": {
@@ -127335,7 +127335,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant, or has no employee record in it, so there is no inbox to update"
+            "description": "Caller may not read leave, or has no employee record in it, so there is no inbox to update"
           },
           "404": {
             "content": {
@@ -127448,7 +127448,7 @@
                 }
               }
             },
-            "description": "The notification is addressed to somebody else, or the caller is not a member of the current tenant"
+            "description": "Caller may not read leave, or the caller is not a member of the current tenant"
           },
           "404": {
             "content": {
@@ -127553,7 +127553,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant, or has no employee record in it, so there is no inbox to serve"
+            "description": "Caller may not read leave, or has no employee record in it, so there is no inbox to serve"
           },
           "404": {
             "content": {
@@ -127659,7 +127659,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant, or has no employee record in it, so there is no inbox to count"
+            "description": "Caller may not read leave, or has no employee record in it, so there is no inbox to count"
           },
           "404": {
             "content": {
@@ -127772,7 +127772,7 @@
                 }
               }
             },
-            "description": "The notification is addressed to somebody else, or the caller is not a member of the current tenant"
+            "description": "Caller may not read leave, or the caller is not a member of the current tenant"
           },
           "404": {
             "content": {
