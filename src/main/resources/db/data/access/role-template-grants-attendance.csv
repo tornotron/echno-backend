@@ -1,0 +1,8 @@
+id,template_id,permission_key,scope
+35e882aa-4fab-5da1-a987-eb466b1e31b5,ed34dfe6-5468-5f6e-b6ed-ef6eefccfce2,team:approve,ALL
+b21a2fc6-fe72-57b7-9c10-562573fb9729,ed34dfe6-5468-5f6e-b6ed-ef6eefccfce2,team:delete-attendance,ALL
+81aaf4e5-b27b-5ade-9a4e-853104eae89b,eed8ef8b-48a6-5997-8302-df4fe971bfd1,team:approve,ALL
+f8a8b671-c8e5-5fb6-a76d-1233ea1e8a6b,eed8ef8b-48a6-5997-8302-df4fe971bfd1,team:delete-attendance,ALL
+a467c5eb-fb5b-5e26-8164-4dec75d7a4eb,0f205e55-9cf3-5a43-8fda-c0d6c92e5bef,team:create,ALL
+843e5d4a-79a7-5b0a-a88d-65b1f3d6ecc9,0f205e55-9cf3-5a43-8fda-c0d6c92e5bef,team:approve,ALL
+2f7cbc6a-b7c8-5669-837f-bf94dc4a5d05,0f205e55-9cf3-5a43-8fda-c0d6c92e5bef,team:delete-attendance,ALL

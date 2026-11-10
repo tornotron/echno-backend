@@ -46,7 +46,8 @@ class AccessRoleTemplateSeedTest {
             "db/data/access/role-template-grants-inspections.csv",
             "db/data/access/role-template-grants-leave.csv",
             "db/data/access/role-template-grants-working-time.csv",
-            "db/data/access/role-template-grants-team.csv");
+            "db/data/access/role-template-grants-team.csv",
+            "db/data/access/role-template-grants-attendance.csv");
 
     /**
      * Template grants a later changeset deleted, by template slug and key: access-011 takes the
@@ -77,10 +78,11 @@ class AccessRoleTemplateSeedTest {
 
     /**
      * Template grants a later changeset narrowed in place, by template slug, key and the scope it
-     * left: access-022 narrows the baseline's team:read and team:create to the employee's own record.
+     * left: access-022 narrows the baseline's team:read and team:create to the employee's own record, and
+     * access-023 its team:approve.
      */
     private static final Map<String, Map<String, String>> RESCOPED = Map.of(BASELINE,
-            Map.of("team:read", "OWN", "team:create", "OWN"));
+            Map.of("team:read", "OWN", "team:create", "OWN", "team:approve", "OWN"));
 
     /** The scope each template holds each key at, after {@link #RESCOPED}. */
     private static final Map<String, Map<String, String>> SCOPE_BY_SLUG = new HashMap<>();
@@ -428,6 +430,24 @@ class AccessRoleTemplateSeedTest {
                 assertThat(keys).as(slug).noneMatch(key -> key.startsWith("team:"));
             }
         });
+    }
+
+    @Test
+    void everyMemberKeepsTheirOwnAttendanceAndTheRecordManagersKeepEveryones() {
+        // Before the matrix every member recorded and read their own attendance and asked to decide the
+        // records naming them as approver, and the system admin, HR admin and project manager (the
+        // record-management roles) marked absences, read a project's records, decided and verified
+        // anyone's, and deleted a record. Deleting an employee stays the system admin's and HR admin's.
+        assertThat(KEYS_BY_SLUG.get(BASELINE)).contains("team:create", "team:approve")
+                .doesNotContain("team:delete-attendance");
+        assertThat(SCOPE_BY_SLUG.get(BASELINE).get("team:approve")).isEqualTo("OWN");
+        for (String slug : List.of("system-admin", "hr-admin", "project-manager")) {
+            for (String key : List.of("team:read", "team:create", "team:approve", "team:delete-attendance")) {
+                assertThat(KEYS_BY_SLUG.get(slug)).as(slug).contains(key);
+                assertThat(SCOPE_BY_SLUG.get(slug).get(key)).as(slug + " " + key).isEqualTo("ALL");
+            }
+        }
+        assertThat(KEYS_BY_SLUG.get("project-manager")).doesNotContain("team:delete");
     }
 
     @Test

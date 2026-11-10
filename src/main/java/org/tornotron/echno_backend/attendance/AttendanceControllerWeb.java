@@ -53,7 +53,7 @@ public class AttendanceControllerWeb {
     @PostMapping(value = "/check-in",consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     // Ownership is settled in AttendanceService against the employee the payload names:
     // the employee id travels inside the multipart data part, where this guard cannot read it.
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('team', 'create')")
     @Operation(
             summary = "Check in for the day",
             description = "Records the first clock event of the day for an employee against a project and "
@@ -76,7 +76,7 @@ public class AttendanceControllerWeb {
     @PostMapping(value = "/clock-event",consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     // Ownership is settled in AttendanceService against the stored attendance record's
     // employee: the payload names only an attendance id, which is the caller's word.
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('team', 'create')")
     @Operation(
             summary = "Record a clock event",
             description = "Adds a clock event, such as lunch break start or evening clock-out, to an "
@@ -98,7 +98,7 @@ public class AttendanceControllerWeb {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('team', 'read')")
     @Operation(
             summary = "Get an attendance record by id",
             description = "Returns a single attendance record including its clock events, movements, "
@@ -116,7 +116,7 @@ public class AttendanceControllerWeb {
     }
 
     @GetMapping("/employee/{employeeId}")
-    @PreAuthorize("@attendanceSecurity.canViewEmployeeRecords(#employeeId)")
+    @PreAuthorize("@access.can('team', 'read') and @teamAccess.allowsFor('read', #employeeId)")
     @Operation(
             summary = "List an employee's attendance in a date range",
             description = "Returns the attendance records for one employee between startDate and endDate, "
@@ -124,7 +124,7 @@ public class AttendanceControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Attendance records returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks permission to view this employee's attendance records"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read attendance records"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No employee with the given id")
     })
     public ResponseEntity<List<AttendanceResponseDto>> getByEmployee(
@@ -135,7 +135,7 @@ public class AttendanceControllerWeb {
     }
 
     @GetMapping("/project/{projectId}")
-    @PreAuthorize("@attendanceSecurity.canManageRecords()")
+    @PreAuthorize("@access.can('team', 'read') and @teamAccess.acrossOrganization('read')")
     @Operation(
             summary = "List a project's attendance for a date",
             description = "Returns a page of attendance records for a project on a given date, optionally "
@@ -148,7 +148,7 @@ public class AttendanceControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Attendance records returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks permission to manage attendance records"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read attendance records across the organization"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No project with the given id")
     })
     public ResponseEntity<List<AttendanceResponseDto>> getByProject(
@@ -171,7 +171,7 @@ public class AttendanceControllerWeb {
     // id off the request would let a caller nominate themselves, so the real check runs in the
     // service against the stored record, the way the check-in and clock-event guards already do.
     @PostMapping("/{id}/approve")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('team', 'approve')")
     @Operation(
             summary = "Approve or reject an attendance record",
             description = "Sets the approval status of an attendance record, with an optional remark, "
@@ -197,7 +197,7 @@ public class AttendanceControllerWeb {
     // the service, so a caller that still sends approverId is served their own queue, a query
     // parameter no handler declares being ignored.
     @GetMapping("/pending-approvals")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('team', 'read')")
     @Operation(
             summary = "List the attendance days waiting on you",
             description = "Returns the attendance days held for a geofence decision that the signed-in "
@@ -211,7 +211,7 @@ public class AttendanceControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Records waiting on the caller returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant, or has no employee record in it, so there is no queue to serve")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read attendance records, or has no employee record in it, so there is no queue to serve")
     })
     public ResponseEntity<List<AttendanceResponseDto>> getPendingApprovals() {
         return UnpagedResultCap.respond(
@@ -219,7 +219,7 @@ public class AttendanceControllerWeb {
     }
 
     @GetMapping("/pending-approvals/count")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('team', 'read')")
     @Operation(
             summary = "Count the attendance days waiting on you",
             description = "Returns how many attendance days are awaiting a decision from the signed-in "
@@ -228,14 +228,14 @@ public class AttendanceControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Count returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant, or has no employee record in it, so there is no queue to count")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read attendance records, or has no employee record in it, so there is no queue to count")
     })
     public ResponseEntity<Map<String, Long>> getPendingApprovalCount() {
         return ResponseEntity.ok(Map.of("count", attendanceService.getPendingApprovalCount()));
     }
 
     @PostMapping("/mark-absent")
-    @PreAuthorize("@attendanceSecurity.canManageRecords()")
+    @PreAuthorize("@access.can('team', 'create') and @teamAccess.acrossOrganization('create')")
     @Operation(
             summary = "Mark an employee absent",
             description = "Creates or updates the attendance record for an employee on a project for the "
@@ -243,7 +243,7 @@ public class AttendanceControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Employee marked absent"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks permission to manage attendance records"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to attendance records"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No employee or project with the given id")
     })
     public ResponseEntity<AttendanceResponseDto> markAbsent(
@@ -254,7 +254,7 @@ public class AttendanceControllerWeb {
     }
 
     @GetMapping("/summary/{employeeId}")
-    @PreAuthorize("@attendanceSecurity.canViewEmployeeRecords(#employeeId)")
+    @PreAuthorize("@access.can('team', 'read') and @teamAccess.allowsFor('read', #employeeId)")
     @Operation(
             summary = "Get an employee's monthly attendance summary",
             description = "Returns aggregated counts (present, absent, half days, leave, overtime and so "
@@ -262,7 +262,7 @@ public class AttendanceControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Monthly summary returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks permission to view this employee's attendance records"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read attendance records"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No employee with the given id")
     })
     public ResponseEntity<AttendanceSummaryDto> getMonthlySummary(
@@ -273,7 +273,7 @@ public class AttendanceControllerWeb {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("@attendanceSecurity.canManageRecords()")
+    @PreAuthorize("@access.can('team', 'delete-attendance') and @teamAccess.acrossOrganization('delete-attendance')")
     @Operation(
             summary = "Delete an attendance record",
             description = "Deletes the attendance record with the given id, along with its clock events "
@@ -281,7 +281,7 @@ public class AttendanceControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Attendance record deleted"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks permission to manage attendance records"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to attendance records"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No attendance record with the given id")
     })
     public ResponseEntity<ApiResponse> delete(@PathVariable Long id) {
