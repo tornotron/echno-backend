@@ -65014,7 +65014,7 @@
                 }
               }
             },
-            "description": "MODULE_DISABLED, or the caller lacks an upload role"
+            "description": "MODULE_DISABLED, or the caller may not make this change to document ingestion"
           },
           "404": {
             "content": {
@@ -65146,7 +65146,7 @@
                 }
               }
             },
-            "description": "MODULE_DISABLED, or the caller lacks an upload role"
+            "description": "MODULE_DISABLED, or the caller may not make this change to document ingestion"
           },
           "404": {
             "content": {
@@ -65269,7 +65269,7 @@
                 }
               }
             },
-            "description": "MODULE_DISABLED, or the caller cannot upload"
+            "description": "MODULE_DISABLED, or the caller may not make this change to document ingestion"
           },
           "404": {
             "content": {
@@ -65980,7 +65980,7 @@
                 }
               }
             },
-            "description": "MODULE_DISABLED, or the caller lacks an upload role"
+            "description": "MODULE_DISABLED, or the caller may not make this change to document ingestion"
           },
           "404": {
             "content": {
@@ -66224,7 +66224,7 @@
                 }
               }
             },
-            "description": "MODULE_DISABLED, or the caller cannot write the target"
+            "description": "MODULE_DISABLED, or the caller may not make this change to document ingestion or to the target"
           },
           "404": {
             "content": {
@@ -66459,7 +66459,7 @@
                 }
               }
             },
-            "description": "MODULE_DISABLED, or the caller cannot apply"
+            "description": "MODULE_DISABLED, or the caller may not make this change to document ingestion"
           },
           "404": {
             "content": {
@@ -66761,7 +66761,7 @@
                 }
               }
             },
-            "description": "MODULE_DISABLED, or the caller cannot review"
+            "description": "MODULE_DISABLED, or the caller may not make this change to document ingestion"
           },
           "404": {
             "content": {
@@ -68347,7 +68347,7 @@
                 }
               }
             },
-            "description": "MODULE_DISABLED, or the caller is not a system admin"
+            "description": "MODULE_DISABLED, or the caller may not make this change to document ingestion"
           },
           "404": {
             "content": {
@@ -68448,7 +68448,7 @@
                 }
               }
             },
-            "description": "MODULE_DISABLED, or the caller is not a member of the current tenant"
+            "description": "MODULE_DISABLED, or the caller may not read document ingestion"
           },
           "404": {
             "content": {
