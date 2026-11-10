@@ -126774,7 +126774,7 @@
                 }
               }
             },
-            "description": "Caller may not read leave, or has no employee record in it, so there is no inbox to serve"
+            "description": "Caller is not a member of the current tenant, or has no employee record in it, so there is no inbox to serve"
           },
           "404": {
             "content": {
@@ -126880,7 +126880,7 @@
                 }
               }
             },
-            "description": "Caller may not read leave, or has no employee record in it, so there is no inbox to update"
+            "description": "Caller is not a member of the current tenant, or has no employee record in it, so there is no inbox to update"
           },
           "404": {
             "content": {
@@ -127011,7 +127011,7 @@
                 }
               }
             },
-            "description": "Caller may not read leave, or has no employee record in it, so there is no inbox to serve"
+            "description": "Caller is not a member of the current tenant, or has no employee record in it, so there is no inbox to serve"
           },
           "404": {
             "content": {
@@ -127117,7 +127117,7 @@
                 }
               }
             },
-            "description": "Caller may not read leave, or has no employee record in it, so there is no inbox to count"
+            "description": "Caller is not a member of the current tenant, or has no employee record in it, so there is no inbox to count"
           },
           "404": {
             "content": {
@@ -127229,7 +127229,7 @@
                 }
               }
             },
-            "description": "Caller may not read leave, or has no employee record in it, so there is no inbox to serve"
+            "description": "Caller is not a member of the current tenant, or has no employee record in it, so there is no inbox to serve"
           },
           "404": {
             "content": {
@@ -127335,7 +127335,7 @@
                 }
               }
             },
-            "description": "Caller may not read leave, or has no employee record in it, so there is no inbox to update"
+            "description": "Caller is not a member of the current tenant, or has no employee record in it, so there is no inbox to update"
           },
           "404": {
             "content": {
@@ -127448,7 +127448,7 @@
                 }
               }
             },
-            "description": "Caller may not read leave, or the caller is not a member of the current tenant"
+            "description": "The notification is addressed to somebody else, or the caller is not a member of the current tenant"
           },
           "404": {
             "content": {
@@ -127553,7 +127553,7 @@
                 }
               }
             },
-            "description": "Caller may not read leave, or has no employee record in it, so there is no inbox to serve"
+            "description": "Caller is not a member of the current tenant, or has no employee record in it, so there is no inbox to serve"
           },
           "404": {
             "content": {
@@ -127659,7 +127659,7 @@
                 }
               }
             },
-            "description": "Caller may not read leave, or has no employee record in it, so there is no inbox to count"
+            "description": "Caller is not a member of the current tenant, or has no employee record in it, so there is no inbox to count"
           },
           "404": {
             "content": {
@@ -127772,7 +127772,7 @@
                 }
               }
             },
-            "description": "Caller may not read leave, or the caller is not a member of the current tenant"
+            "description": "The notification is addressed to somebody else, or the caller is not a member of the current tenant"
           },
           "404": {
             "content": {
