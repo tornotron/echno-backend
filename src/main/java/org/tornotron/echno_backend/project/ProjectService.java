@@ -1,5 +1,7 @@
 package org.tornotron.echno_backend.project;
 
+import org.tornotron.echno_backend.modules.access.api.RecordFacts;
+import org.tornotron.echno_backend.modules.access.api.ChecksAccess;
 import lombok.extern.slf4j.Slf4j;
 import org.tornotron.echno_backend.common.payload.PartialUpdateKeys;
 import org.tornotron.echno_backend.common.payload.PayloadValidator;
@@ -27,7 +29,6 @@ import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.pagination.UnpagedResultCap;
 import org.springframework.security.access.AccessDeniedException;
 import org.tornotron.echno_backend.common.service.AttachmentService;
-import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.modules.inspections.api.IndianStateResolver;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
@@ -60,7 +61,11 @@ import java.util.stream.Collectors;
  */
 @Service
 @Slf4j
+@ChecksAccess("projects:" + ProjectService.COMPLETE)
 public class ProjectService {
+
+    /** Marking a project completed by hand, before its tasks are. */
+    static final String COMPLETE = "complete";
 
     private static final String PROJECTS_FOLDER = "projects";
 
@@ -108,7 +113,6 @@ public class ProjectService {
     private final StatusTransitionRecorder statusTransitionRecorder;
     private final StatusTransitionRepository statusTransitionRepository;
     private final StatusTransitionMapper statusTransitionMapper;
-    private final OrganizationSecurityService orgSecurity;
     private final ProjectAccess projectAccess;
 
     /**
@@ -124,9 +128,8 @@ public class ProjectService {
      * @param statusTransitionRecorder Appends to the shared status trail.
      * @param statusTransitionRepository Reads a project's status trail back.
      * @param statusTransitionMapper Maps trail entries to their DTO.
-     * @param orgSecurity            Says whether the caller is a system admin, the one role that may
-     *                               mark a project completed by hand.
-     * @param projectAccess          Says which projects the caller may read and change.
+     * @param projectAccess          Says which projects the caller may read and change, and who may
+     *                               mark one completed by hand.
      */
     public ProjectService(ProjectRepository repository,
                           OrganizationRepository organizationRepository,
@@ -140,7 +143,6 @@ public class ProjectService {
                           StatusTransitionRecorder statusTransitionRecorder,
                           StatusTransitionRepository statusTransitionRepository,
                           StatusTransitionMapper statusTransitionMapper,
-                          OrganizationSecurityService orgSecurity,
                           ProjectAccess projectAccess) {
         this.repository = repository;
         this.organizationRepository = organizationRepository;
@@ -155,7 +157,6 @@ public class ProjectService {
         this.statusTransitionRecorder = statusTransitionRecorder;
         this.statusTransitionRepository = statusTransitionRepository;
         this.statusTransitionMapper = statusTransitionMapper;
-        this.orgSecurity = orgSecurity;
         this.projectAccess = projectAccess;
     }
 
@@ -644,7 +645,8 @@ public class ProjectService {
     }
 
     /**
-     * Refuses {@code completed} as a hand-set status from anyone but a system admin.
+     * Refuses {@code completed} as a hand-set status from anyone without {@code projects:complete}, which
+     * the system admin alone holds from its starting grants (before the matrix, the system-admin role).
      *
      * @param status  The status being set.
      * @param project The project, or null on create.
@@ -652,8 +654,14 @@ public class ProjectService {
      *     system admin of this organization.
      */
     private void requireMayCompleteByHand(ProjectCreationStatus status, Project project) {
-        if (status != ProjectCreationStatus.completed
-                || orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin")) {
+        if (status != ProjectCreationStatus.completed) {
+            return;
+        }
+        Long orgId = TenantContext.getCurrentOrgId();
+        RecordFacts record = project != null
+                ? ProjectAccess.facts(orgId, project)
+                : ProjectAccess.organizationLevel(orgId);
+        if (projectAccess.allows(COMPLETE, record)) {
             return;
         }
         throw new AccessDeniedException(

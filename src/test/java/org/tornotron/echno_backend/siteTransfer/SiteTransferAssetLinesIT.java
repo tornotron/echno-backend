@@ -1,5 +1,6 @@
 package org.tornotron.echno_backend.siteTransfer;
 
+import org.tornotron.echno_backend.modules.access.api.CallerAccess;
 import org.tornotron.echno_backend.asset.AssetAccessStubs;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -208,10 +209,11 @@ class SiteTransferAssetLinesIT extends AbstractIntegrationTest {
                 statusTransitionRepository, mock(StatusTransitionMapper.class), assetLines);
 
         OrganizationSecurityService orgSecurity = mock(OrganizationSecurityService.class);
+        CallerAccess callerAccess = mock(CallerAccess.class);
         NotificationService notifications = new NotificationService(notificationRepository, employeeRepository,
                 null, currentEmployee);
         reversals = new DocumentReversalService(reversalRepository, new DocumentReversalMapperImpl(),
-                tenantEntityHelper, userContext, currentEmployee, new SelfApprovalPolicy(orgSecurity),
+                tenantEntityHelper, userContext, currentEmployee, new SelfApprovalPolicy(callerAccess),
                 new UserNameDirectory(userRepository), siteTransferRepository, siteTransferItemRepository,
                 purchaseOrderRepository, purchaseOrderItemRepository, goodsReceivedNoteRepository, grnItemRepository,
                 payableRepository, inventoryTransactionRepository, inventoryService, statusTransitionRepository,

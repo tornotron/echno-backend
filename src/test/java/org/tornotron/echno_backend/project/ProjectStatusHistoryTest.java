@@ -96,7 +96,7 @@ class ProjectStatusHistoryTest {
     private StatusTransitionMapper statusTransitionMapper;
 
     @Mock
-    private org.tornotron.echno_backend.common.service.OrganizationSecurityService orgSecurity;
+    private ProjectAccess projectAccess;
 
     private ProjectService service;
     private Organization organization;
@@ -110,8 +110,7 @@ class ProjectStatusHistoryTest {
                 attachmentService, projectMapper, employeeMapper, eventPublisher,
                 customerRepository, new PayloadValidator(validator), userContextService,
                 statusTransitionRecorder, statusTransitionRepository, statusTransitionMapper,
-                orgSecurity,
-                ProjectAccessStubs.allowingEverything());
+                ProjectAccessStubs.allowEverything(projectAccess));
 
         TenantContext.setCurrentOrgId(ORG_ID);
 
@@ -396,7 +395,7 @@ class ProjectStatusHistoryTest {
     /** Marking a project completed by hand is a system admin's alone (ClickUp 14zdkkvzzwg). */
     @Test
     void onlyASystemAdminCanMarkAProjectCompletedByHand() {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin")).thenReturn(false);
+        when(projectAccess.allows(eq("complete"), any())).thenReturn(false);
         Project project = draftProject(ProjectCreationStatus.open);
 
         assertThatThrownBy(() -> patch(project, Map.of("status", ProjectCreationStatus.completed.name())))
@@ -412,7 +411,7 @@ class ProjectStatusHistoryTest {
     /** A system admin's early close is remembered, so a task change does not reopen it. */
     @Test
     void aSystemAdminsEarlyCloseIsFlaggedAsAHandCompletion() {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin")).thenReturn(true);
+        when(projectAccess.allows(eq("complete"), any())).thenReturn(true);
         Project project = draftProject(ProjectCreationStatus.open);
 
         patch(project, Map.of("status", ProjectCreationStatus.completed.name()));

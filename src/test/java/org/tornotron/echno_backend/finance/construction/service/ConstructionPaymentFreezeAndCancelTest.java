@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.tornotron.echno_backend.modules.access.api.CallerAccess;
 import org.tornotron.echno_backend.common.approval.SelfApprovalPolicy;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
@@ -74,6 +75,7 @@ class ConstructionPaymentFreezeAndCancelTest {
     @Mock private UserNameDirectory userNameDirectory;
     @Mock private UserContextService userContextService;
     @Mock private OrganizationSecurityService orgSecurity;
+    @Mock private CallerAccess callerAccess;
 
     private final ConstructionPaymentMapper mapper = new ConstructionPaymentMapperImpl();
 
@@ -83,7 +85,7 @@ class ConstructionPaymentFreezeAndCancelTest {
     void setUp() {
         TenantContext.setCurrentOrgId(ORG_ID);
         service = new ConstructionPaymentService(paymentRepo, numberGen, mapper, tenantEntityHelper,
-                userNameDirectory, userContextService, new SelfApprovalPolicy(orgSecurity));
+                userNameDirectory, userContextService, new SelfApprovalPolicy(callerAccess));
         lenient().when(userNameDirectory.namesFor(anyCollection())).thenReturn(UserNameLookup.none());
     }
 

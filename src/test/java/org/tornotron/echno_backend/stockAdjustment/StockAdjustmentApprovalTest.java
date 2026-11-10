@@ -7,6 +7,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.tornotron.echno_backend.modules.access.api.CallerAccess;
 import org.tornotron.echno_backend.common.approval.SelfApprovalPolicy;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
@@ -82,6 +83,7 @@ class StockAdjustmentApprovalTest {
     @Mock private InventoryTransactionRepository inventoryTransactionRepository;
     @Mock private UserContextService userContextService;
     @Mock private OrganizationSecurityService orgSecurity;
+    @Mock private CallerAccess callerAccess;
 
     private StockAdjustmentService service;
     private Organization organization;
@@ -94,7 +96,7 @@ class StockAdjustmentApprovalTest {
         service = new StockAdjustmentService(stockAdjustmentRepository, stockAdjustmentMapper,
                 tenantEntityHelper, materialRepository, storageLocationRepository, projectRepository,
                 inventoryService, inventoryTransactionRepository, userContextService,
-                new SelfApprovalPolicy(orgSecurity), userNameDirectory,
+                new SelfApprovalPolicy(callerAccess), userNameDirectory,
                 siteTransferRepository);
 
         organization = new Organization();
@@ -440,7 +442,7 @@ class StockAdjustmentApprovalTest {
         StockAdjustment adjustment = adjustment(location(LOCATION, PROJECT));
         adjustment.setSubmittedBy(APPROVER);
         line(adjustment, 46.0, null, "damage");
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(SelfApprovalPolicy.BREAK_GLASS_ROLE))
+        when(callerAccess.can(SelfApprovalPolicy.BREAK_GLASS_AREA, SelfApprovalPolicy.BREAK_GLASS_ACTION))
                 .thenReturn(false);
 
         assertThatExceptionOfType(InvalidRequestException.class)
@@ -460,7 +462,7 @@ class StockAdjustmentApprovalTest {
         adjustment.setSubmittedBy(APPROVER);
         line(adjustment, 46.0, null, "damage");
         balanceAtLocation(48.0);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(SelfApprovalPolicy.BREAK_GLASS_ROLE))
+        when(callerAccess.can(SelfApprovalPolicy.BREAK_GLASS_AREA, SelfApprovalPolicy.BREAK_GLASS_ACTION))
                 .thenReturn(true);
 
         service.approve(ADJUSTMENT);

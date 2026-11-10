@@ -7,6 +7,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.tornotron.echno_backend.modules.access.api.CallerAccess;
 import org.tornotron.echno_backend.common.approval.SelfApprovalPolicy;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
@@ -70,6 +71,7 @@ class StockAdjustmentServiceTest {
     @Mock private InventoryTransactionRepository inventoryTransactionRepository;
     @Mock private UserContextService userContextService;
     @Mock private OrganizationSecurityService orgSecurity;
+    @Mock private CallerAccess callerAccess;
 
     private StockAdjustmentService service;
 
@@ -79,7 +81,7 @@ class StockAdjustmentServiceTest {
         service = new StockAdjustmentService(stockAdjustmentRepository, stockAdjustmentMapper,
                 tenantEntityHelper, materialRepository, storageLocationRepository, projectRepository,
                 inventoryService, inventoryTransactionRepository, userContextService,
-                new SelfApprovalPolicy(orgSecurity), userNameDirectory,
+                new SelfApprovalPolicy(callerAccess), userNameDirectory,
                 siteTransferRepository);
         lenient().when(tenantEntityHelper.resolveCurrentOrganization()).thenAnswer(inv -> {
             Organization org = new Organization();

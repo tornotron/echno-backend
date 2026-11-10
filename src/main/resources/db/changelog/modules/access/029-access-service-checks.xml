@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Service checks that asked for a role by name (echno-backend #914, step 31). Two of them match
+        no action a template already gives, so each becomes a named action given to the one role that
+        held it:
+
+        - projects:complete, the system admin: marking a project completed by hand (ProjectService).
+        - org-admin:approve-own-documents, the system admin: approving a document one raised oneself,
+          recorded as a self-approval (SelfApprovalPolicy, and a contractor bill one certified oneself).
+
+        A file of its own because 008 loads role-template-grants.csv with no runOnChange. The reconciler
+        carries the template to every role made from it on the next boot.
+    -->
+
+    <changeSet id="access-029-service-checks" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT count(*) FROM access_role_template_grant
+                WHERE template_id = 'ed34dfe6-5468-5f6e-b6ed-ef6eefccfce2'
+                  AND permission_key = 'projects:complete'
+            </sqlCheck>
+        </preConditions>
+        <loadData tableName="access_role_template_grant" file="db/data/access/role-template-grants-service-checks.csv" separator=",">
+            <column name="id" type="UUID"/>
+            <column name="template_id" type="UUID"/>
+            <column name="permission_key" type="STRING"/>
+            <column name="scope" type="STRING"/>
+        </loadData>
+    </changeSet>
+
+</databaseChangeLog>

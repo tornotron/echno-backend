@@ -15,6 +15,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.tornotron.echno_backend.modules.access.api.CallerAccess;
 import org.tornotron.echno_backend.common.approval.SelfApprovalPolicy;
 import org.tornotron.echno_backend.common.configuration.JpaAuditingConfig;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
@@ -74,6 +75,9 @@ class ConstructionPaymentServiceIT extends AbstractIntegrationTest {
 
     @MockitoBean(name = "orgSecurity")
     private OrganizationSecurityService orgSecurity;
+
+    @MockitoBean
+    private CallerAccess callerAccess;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -269,7 +273,7 @@ class ConstructionPaymentServiceIT extends AbstractIntegrationTest {
     @Test
     void verify_refusesTheRaiserOfTheVoucher() {
         when(userContextService.getCurrentUserId()).thenReturn(RAISER);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(SelfApprovalPolicy.BREAK_GLASS_ROLE))
+        when(callerAccess.can(SelfApprovalPolicy.BREAK_GLASS_AREA, SelfApprovalPolicy.BREAK_GLASS_ACTION))
                 .thenReturn(false);
         ConstructionPaymentDto created = service.create(minimalCreateRequest());
 

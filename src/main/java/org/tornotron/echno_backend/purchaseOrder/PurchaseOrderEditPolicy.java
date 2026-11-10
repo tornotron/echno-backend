@@ -2,7 +2,6 @@ package org.tornotron.echno_backend.purchaseOrder;
 
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Component;
-import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.purchaseOrder.enums.PurchaseOrderStatus;
 
 /**
@@ -10,7 +9,8 @@ import org.tornotron.echno_backend.purchaseOrder.enums.PurchaseOrderStatus;
  *
  * <p>Raising an order and editing its header and lines are open to {@code system-admin} and
  * {@code project-manager} (#855). Approving it is not: every status change, approval included,
- * belongs to {@code system-admin}, the role the status endpoint is guarded on. The header update
+ * belongs to {@code system-admin}, the role holding {@code purchase-orders:approve}, which the status
+ * endpoint asks for. The header update
  * also carries a status field, and the line endpoints can rewrite what an approved order buys,
  * so the controller guard alone would let a project manager approve an order by editing it, or
  * change one after somebody else approved it. This class closes both routes:
@@ -27,13 +27,16 @@ import org.tornotron.echno_backend.purchaseOrder.enums.PurchaseOrderStatus;
 @Component
 public class PurchaseOrderEditPolicy {
 
-    /** The role that approves an order and moves it through its lifecycle. */
-    static final String APPROVER_ROLE = "system-admin";
+    /**
+     * The action that approves an order and moves it through its lifecycle, the one the approve
+     * endpoint asks for. Before the matrix the system-admin role, whose starting grants alone hold it.
+     */
+    static final String APPROVE = "approve";
 
-    private final OrganizationSecurityService orgSecurity;
+    private final PurchaseOrderAccess access;
 
-    public PurchaseOrderEditPolicy(OrganizationSecurityService orgSecurity) {
-        this.orgSecurity = orgSecurity;
+    public PurchaseOrderEditPolicy(PurchaseOrderAccess access) {
+        this.access = access;
     }
 
     /**
@@ -42,7 +45,7 @@ public class PurchaseOrderEditPolicy {
      * @throws AccessDeniedException if the order has left DRAFT and the caller is not a system admin.
      */
     public void requireEditable(PurchaseOrder order) {
-        if (order.getStatus() == PurchaseOrderStatus.DRAFT || isApprover()) {
+        if (order.getStatus() == PurchaseOrderStatus.DRAFT || isApprover(order)) {
             return;
         }
         throw new AccessDeniedException("Purchase order " + order.getPoNumber() + " is "
@@ -56,7 +59,7 @@ public class PurchaseOrderEditPolicy {
      *     caller is not a system admin.
      */
     public void requireStatusChangeAllowed(PurchaseOrder order, PurchaseOrderStatus requested) {
-        if (requested == null || requested == order.getStatus() || isApprover()) {
+        if (requested == null || requested == order.getStatus() || isApprover(order)) {
             return;
         }
         throw new AccessDeniedException("Moving purchase order " + order.getPoNumber() + " from "
@@ -64,7 +67,8 @@ public class PurchaseOrderEditPolicy {
                 + "manager may raise and edit a draft order but not approve or move it.");
     }
 
-    private boolean isApprover() {
-        return orgSecurity.hasAnyOrgRoleForCurrentTenant(APPROVER_ROLE);
+    /** Whether the caller may approve this order: an approve grant across the organization or on its project. */
+    private boolean isApprover(PurchaseOrder order) {
+        return access.allows(APPROVE, PurchaseOrderAccess.facts(order));
     }
 }

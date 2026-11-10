@@ -1,5 +1,6 @@
 package org.tornotron.echno_backend.modules.workprogress.billing.payment.authorizer;
 
+import org.tornotron.echno_backend.modules.access.api.CallerAccess;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.EnumSet;
@@ -14,7 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
-import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeRepository;
 import org.tornotron.echno_backend.employee.enums.EmployeeStatus;
@@ -47,8 +47,12 @@ public class PaymentAuthorizers {
 
     private static final String MANAGERS = "A system admin or a project manager can name one on the project's billing page.";
 
-    /** The roles that may name or change a project's authorizer, the same as managing the project. */
-    private static final String[] SETUP_ROLES = {"system-admin", "project-manager"};
+    /**
+     * Who may name or change a project's authorizer: the action the naming endpoints ask for. Before
+     * the matrix the system admin and the project manager, whose starting grants hold it.
+     */
+    private static final String SETUP_AREA = "progress-bills";
+    private static final String SETUP_ACTION = "edit";
 
     private static final int HISTORY = 20;
 
@@ -57,19 +61,19 @@ public class PaymentAuthorizers {
     private final EmployeeRepository employees;
     private final ProjectRepository projects;
     private final BillingSupport support;
-    private final OrganizationSecurityService orgSecurity;
+    private final CallerAccess access;
     private final Clock clock;
 
     public PaymentAuthorizers(ProjectPaymentAuthorizerRepository authorizers,
                               ProjectPaymentAuthorizerChangeRepository changes, EmployeeRepository employees,
                               ProjectRepository projects, BillingSupport support,
-                              OrganizationSecurityService orgSecurity, @WorkProgressClock Clock clock) {
+                              CallerAccess access, @WorkProgressClock Clock clock) {
         this.authorizers = authorizers;
         this.changes = changes;
         this.employees = employees;
         this.projects = projects;
         this.support = support;
-        this.orgSecurity = orgSecurity;
+        this.access = access;
         this.clock = clock;
     }
 
@@ -214,7 +218,7 @@ public class PaymentAuthorizers {
                 row.map(r -> support.nameOf(r.getSetBy(), orgId)).orElse(null),
                 row.map(ProjectPaymentAuthorizer::getSetAt).orElse(null),
                 holder.map(h -> h.is(reader)).orElse(false),
-                orgSecurity.hasAnyOrgRoleForCurrentTenant(SETUP_ROLES), history);
+                access.can(SETUP_AREA, SETUP_ACTION), history);
     }
 
     private String employeeName(Long employeeId, Long orgId) {

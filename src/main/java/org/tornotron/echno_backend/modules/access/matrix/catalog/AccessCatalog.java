@@ -39,7 +39,8 @@ public final class AccessCatalog {
             "People", "Docs", "Chat", "Setup");
 
     private static final List<Area> AREAS = List.of(
-            area("projects", "Projects & Settings", "Projects"),
+            // Marking a project completed by hand, before its tasks are, is the system admin's alone.
+            new Area("projects", "Projects & Settings", "Projects", List.of("complete")),
             area("wbs", "WBS & Schedule", "Projects"),
             area("tasks", "Tasks", "Projects"),
             // Every member reads, leaves and edits a comment, while only the system admin and project
@@ -131,7 +132,8 @@ public final class AccessCatalog {
             // organization's administration is the system admin's alone, so the member side is an area
             // of its own.
             area("org-profile", "Organisation Profile", "Setup"),
-            area("org-admin", "Organisation Settings", "Setup"),
+            // Approving a document one raised oneself, recorded as such, is the system admin's alone.
+            new Area("org-admin", "Organisation Settings", "Setup", List.of("approve-own-documents")),
             area("access", "Roles & Permissions", "Setup"));
 
     private AccessCatalog() {

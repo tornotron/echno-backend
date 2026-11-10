@@ -6,6 +6,7 @@ import org.hibernate.Session;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
@@ -15,6 +16,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.tornotron.echno_backend.modules.access.api.CallerAccess;
 import org.tornotron.echno_backend.common.configuration.JpaAuditingConfig;
 import org.tornotron.echno_backend.common.approval.SelfApprovalPolicy;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
@@ -63,6 +65,10 @@ import static org.assertj.core.api.Assertions.assertThat;
         SelfApprovalPolicy.class, OrganizationSecurityService.class,
         org.tornotron.echno_backend.user.UserNameDirectory.class})
 class ConstructionInvoiceServiceIT extends AbstractIntegrationTest {
+
+    /** No caller here holds the self-approval permission, as no caller held the system-admin role. */
+    @MockitoBean
+    private CallerAccess callerAccess;
 
     @Autowired
     private ConstructionInvoiceService service;

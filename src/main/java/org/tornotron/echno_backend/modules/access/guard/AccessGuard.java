@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.modules.access.api.AccessPermission;
 import org.tornotron.echno_backend.modules.access.api.AccessService;
+import org.tornotron.echno_backend.modules.access.api.CallerAccess;
 
 /**
  * The {@code @access} bean {@code @PreAuthorize} expressions ask, in place of the role-name
@@ -28,7 +29,7 @@ import org.tornotron.echno_backend.modules.access.api.AccessService;
  */
 @Component("access")
 @Slf4j
-public class AccessGuard {
+public class AccessGuard implements CallerAccess {
 
     private final CurrentAccessSubject current;
     private final AccessService access;
@@ -44,6 +45,7 @@ public class AccessGuard {
     }
 
     /** Whether the caller may do {@code action} somewhere in {@code area}. */
+    @Override
     public boolean can(String area, String action) {
         AccessPermission permission;
         try {
