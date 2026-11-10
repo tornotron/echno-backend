@@ -395,6 +395,8 @@ class PartialUpdateNullBehaviourTest {
         @Mock private EmployeeMapper employeeMapper;
         @Mock private UserMapper userMapper;
         @Mock private OrganizationMapper organizationMapper;
+        // The caller is the user being changed, so the load is the self path.
+        @Mock private org.tornotron.echno_backend.user.UserContextService userContext;
 
         @InjectMocks private UserService service;
 
@@ -404,6 +406,7 @@ class PartialUpdateNullBehaviourTest {
             user = new User();
             user.setRole(UserRole.EMPLOYEE);
             user.setDefaultOrganizationId(ORG_ID);
+            when(userContext.getCurrentUserId()).thenReturn(ENTITY_ID);
             when(userRepository.findById(any())).thenReturn(Optional.of(user));
             when(userRepository.save(any(User.class))).thenAnswer(i -> i.getArgument(0));
             service.partialUpdateAnUser(updates, ENTITY_ID, null, null);

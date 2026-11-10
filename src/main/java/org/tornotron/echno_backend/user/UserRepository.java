@@ -95,4 +95,18 @@ public interface UserRepository extends JpaRepository<User,Long> {
     Optional<User> findUserWithAttachmentsById(@Param("id") Long id);
 
     boolean existsUserByEmail(String email);
+
+    /**
+     * How many organizations the user is employed in, across the whole deployment.
+     *
+     * <p>Native on purpose: the {@code orgFilter} narrows any entity query on {@code Employee} to the
+     * caller's organization, which would always answer one here. The count is what decides whether a
+     * change reaches past the caller's organization, so it has to see the others.
+     *
+     * @param userId The user.
+     * @return The number of distinct organizations holding an employee row for them.
+     */
+    @Query(value = "SELECT count(DISTINCT organization_id) FROM employee WHERE user_id = :userId",
+            nativeQuery = true)
+    long countOrganizationsOfUser(@Param("userId") Long userId);
 }

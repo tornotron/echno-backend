@@ -59,6 +59,14 @@ public class UserService {
     private final EmployeeMapper employeeMapper;
     private final UserMapper userMapper;
     private final org.tornotron.echno_backend.organization.mapper.OrganizationMapper organizationMapper;
+    private final UserContextService userContext;
+
+    /**
+     * What a person signs in with. Only the person may change these once their account is shared
+     * with another organization: an administrator of one organization rewriting them would take the
+     * account over in every other.
+     */
+    static final Set<String> SIGN_IN_FIELDS = Set.of("email");
 
     /**
      * Constructs a UserService with the given UserRepository.
@@ -69,7 +77,7 @@ public class UserService {
      * @param userIdentityLookup Finds the user behind an account.
      * @param attachmentService The service for attachment operations.
      */
-    public UserService(UserRepository userRepository, IdentityProvider identityProvider, IdentityLinks identityLinks, UserIdentityLookup userIdentityLookup, AttachmentService attachmentService,FileStorageService fileStorageService, EmployeeMapper employeeMapper, UserMapper userMapper, org.tornotron.echno_backend.organization.mapper.OrganizationMapper organizationMapper) {
+    public UserService(UserRepository userRepository, IdentityProvider identityProvider, IdentityLinks identityLinks, UserIdentityLookup userIdentityLookup, AttachmentService attachmentService,FileStorageService fileStorageService, EmployeeMapper employeeMapper, UserMapper userMapper, org.tornotron.echno_backend.organization.mapper.OrganizationMapper organizationMapper, UserContextService userContext) {
         this.userRepository = userRepository;
         this.identityProvider = identityProvider;
         this.identityLinks = identityLinks;
@@ -79,6 +87,7 @@ public class UserService {
         this.employeeMapper = employeeMapper;
         this.userMapper = userMapper;
         this.organizationMapper = organizationMapper;
+        this.userContext = userContext;
     }
 
     /**
@@ -235,8 +244,14 @@ public class UserService {
      */
     @Transactional
     public UserDto partialUpdateAnUser(Map<String, Object> updates, Long id, MultipartFile profilePicture, MultipartFile cv) {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("User with ID " + id + " was not found"));
+        User user;
+        if (id != null && id.equals(userContext.getCurrentUserId())) {
+            user = userRepository.findById(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("User with ID " + id + " was not found"));
+        } else {
+            user = requireInCurrentOrganization(id);
+            refuseSignInChangesOnASharedUser(updates.keySet(), user);
+        }
         applyUpdates(updates, user);
 
         handleProfilePictureUpload(user, profilePicture, id);
@@ -410,6 +425,13 @@ public class UserService {
         }
 
         Map<Long, User> userMap = users.stream().collect(Collectors.toMap(User::getId, user -> user));
+        Long callerId = userContext.getCurrentUserId();
+        for (UserPatchDto update : updates) {
+            User user = userMap.get(update.getId());
+            if (user != null && !user.getId().equals(callerId) && update.getUpdates() != null) {
+                refuseSignInChangesOnASharedUser(update.getUpdates().keySet(), user);
+            }
+        }
 
         updates.forEach(update -> {
             User user = userMap.get(update.getId());
@@ -429,10 +451,35 @@ public class UserService {
      */
     @Transactional
     public void deleteAnUser(Long id) {
-        if(!userRepository.existsById(id)) {
+        User user = requireInCurrentOrganization(id);
+        if (userRepository.countOrganizationsOfUser(user.getId()) > 1) {
+            throw new SharedUserException("User with ID " + id + " also belongs to another organization, "
+                    + "so the account is not deleted; remove their employee record from this organization instead");
+        }
+        userRepository.deleteById(user.getId());
+    }
+
+    /**
+     * The user, if they are employed in the caller's organization. {@link User} is not tenant scoped,
+     * so a plain load by id would reach every organization's users; one outside the caller's is
+     * reported missing, as a record in another organization is everywhere else.
+     */
+    private User requireInCurrentOrganization(Long id) {
+        Long organizationId = TenantContext.getCurrentOrgId();
+        if (organizationId == null || id == null) {
             throw new ResourceNotFoundException("User with ID " + id + " was not found");
-        } else {
-            userRepository.deleteById(id);
+        }
+        return userRepository.findUsersByOrganizationIdAndIdIn(organizationId, List.of(id)).stream()
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("User with ID " + id + " was not found"));
+    }
+
+    /** Refuses a change to what a shared user signs in with, made by somebody other than them. */
+    private void refuseSignInChangesOnASharedUser(Set<String> fields, User user) {
+        List<String> signIn = fields.stream().filter(SIGN_IN_FIELDS::contains).sorted().toList();
+        if (!signIn.isEmpty() && userRepository.countOrganizationsOfUser(user.getId()) > 1) {
+            throw new SharedUserException("User with ID " + user.getId() + " also belongs to another "
+                    + "organization, so only they may change " + String.join(", ", signIn));
         }
     }
 
