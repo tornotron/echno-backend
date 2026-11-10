@@ -48,13 +48,13 @@ public class HolidayControllerWeb {
     }
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('working-time', 'read')")
     @Operation(summary = "List the holidays of a year",
             description = "Every declared holiday of the current organization in the given calendar year, "
                     + "in date order. Defaults to the current year.")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "The holidays"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read working time")
     })
     public ResponseEntity<List<HolidayDto>> listForYear(@RequestParam(required = false) Integer year) {
         int y = year != null ? year : LocalDate.now().getYear();
@@ -62,11 +62,11 @@ public class HolidayControllerWeb {
     }
 
     @GetMapping("/holiday")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('working-time', 'read')")
     @Operation(summary = "Get a holiday")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "The holiday"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read working time"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No holiday with the given id")
     })
     public ResponseEntity<HolidayDto> get(@RequestParam Long holidayId) {
@@ -74,13 +74,13 @@ public class HolidayControllerWeb {
     }
 
     @PostMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @PreAuthorize("@access.can('working-time', 'create')")
     @Operation(summary = "Declare a holiday",
             description = "Declares a holiday on a date for the current organization. One holiday per date.")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Holiday declared"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The payload failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to working time"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "A holiday is already declared on that date")
     })
     public ResponseEntity<HolidayDto> create(@Valid @RequestBody HolidayCreationDto dto) {
@@ -88,12 +88,12 @@ public class HolidayControllerWeb {
     }
 
     @PutMapping("/update")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @PreAuthorize("@access.can('working-time', 'edit')")
     @Operation(summary = "Change a holiday", description = "Replaces the holiday's date, name and note.")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Holiday changed"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The payload failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to working time"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No holiday with the given id"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "Another holiday is already declared on that date")
     })
@@ -102,12 +102,12 @@ public class HolidayControllerWeb {
     }
 
     @DeleteMapping("/delete")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @PreAuthorize("@access.can('working-time', 'delete')")
     @Operation(summary = "Remove a holiday",
             description = "Removes the holiday. Leave requests already charged under it are not recalculated.")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Holiday removed"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to working time"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No holiday with the given id")
     })
     public ResponseEntity<ApiResponse> delete(@RequestParam Long holidayId) {
@@ -116,26 +116,26 @@ public class HolidayControllerWeb {
     }
 
     @GetMapping("/working-week")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('working-time', 'read')")
     @Operation(summary = "Get the working week",
             description = "The days of the week the organization works. Monday to Friday until changed.")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "The working week"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read working time")
     })
     public ResponseEntity<WorkingWeekDto> getWorkingWeek() {
         return ResponseEntity.ok(holidayService.getWorkingWeek());
     }
 
     @PutMapping("/working-week")
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')")
+    @PreAuthorize("@access.can('working-time', 'edit')")
     @Operation(summary = "Set the working week",
             description = "Sets the days of the week the organization works. Days outside it are not charged "
                     + "under the EXCLUDE_NON_WORKING_DAYS and SANDWICH leave treatments.")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Working week set"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "No day named"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to working time")
     })
     public ResponseEntity<WorkingWeekDto> updateWorkingWeek(@Valid @RequestBody WorkingWeekUpdateDto dto) {
         return ResponseEntity.ok(holidayService.updateWorkingWeek(dto));

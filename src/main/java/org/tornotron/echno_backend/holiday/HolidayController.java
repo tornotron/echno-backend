@@ -37,25 +37,25 @@ public class HolidayController {
     }
 
     @GetMapping("/year/{year}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('working-time', 'read')")
     @Operation(summary = "List the holidays of a year",
             description = "Every declared holiday of the current organization in the given calendar year, "
                     + "in date order.")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "The holidays"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read working time")
     })
     public ResponseEntity<List<HolidayDto>> listForYear(@PathVariable int year) {
         return ResponseEntity.ok(holidayService.listForYear(year));
     }
 
     @GetMapping("/working-week")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('working-time', 'read')")
     @Operation(summary = "Get the working week",
             description = "The days of the week the organization works. Monday to Friday until changed.")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "The working week"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read working time")
     })
     public ResponseEntity<WorkingWeekDto> getWorkingWeek() {
         return ResponseEntity.ok(holidayService.getWorkingWeek());

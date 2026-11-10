@@ -99,6 +99,10 @@ public final class AccessCatalog {
             new Area("finance", "Finance", "Money", List.of("configure")),
             area("payables", "Payables", "Money"),
             area("team", "Team & Attendance", "People"),
+            // The organization's working calendar: holidays, the working week, attendance settings and
+            // shift timings. Every member reads them, while only the system admin and HR admin change
+            // them, so they are an area of their own beside the team.
+            area("working-time", "Holidays, Shifts & Attendance Settings", "People"),
             // Every employee raises, changes and decides leave on their own, while the system admin and
             // HR admin act on anyone's; recalculating or adjusting a balance is theirs alone, so it is a
             // named action.
