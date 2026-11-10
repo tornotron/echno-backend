@@ -23,7 +23,6 @@ import org.tornotron.echno_backend.common.identity.IdentityProvider;
 import org.tornotron.echno_backend.common.identity.link.UserIdentityLookup;
 import org.tornotron.echno_backend.common.identity.task.IdentityTaskQueue;
 import org.tornotron.echno_backend.modules.access.api.AccessRoleAssignments;
-import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.employee.dto.EmployeeCreationDto;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 import org.tornotron.echno_backend.employee.dto.EmployeeLookupDto;
@@ -73,7 +72,7 @@ public class EmployeeService {
     private final EmployeeMapper employeeMapper;
     private final EmployeeHierarchyService employeeHierarchyService;
     private final ShiftTimingRepository shiftTimingRepository;
-    private final OrganizationSecurityService orgSecurity;
+    private final TeamAccess teamAccess;
 
     /**
      * Constructs an EmployeeService with the necessary repositories.
@@ -86,11 +85,11 @@ public class EmployeeService {
      * @param roleAssignments        The one writer of a person's roles.
      * @param identityTasks          Provider calls that follow a commit.
      * @param employeeHierarchyService The service owning the reporting hierarchy.
-     * @param orgSecurity            Answers which org-scoped roles the caller holds, the same bean
-     *                               the guards on these endpoints ask. Used by the partial update
-     *                               to decide the field scope; see {@link EmployeePatchFieldScope}.
+     * @param teamAccess             Answers whether the caller may edit every employee's record, the
+     *                               team area the guards on these endpoints ask. Used by the partial
+     *                               update to decide the field scope; see {@link EmployeePatchFieldScope}.
      */
-    public EmployeeService(EmployeeRepository employeeRepository, OrganizationRepository organizationRepository, UserRepository userRepository, IdentityProvider identityProvider, UserIdentityLookup userIdentityLookup, AccessRoleAssignments roleAssignments, IdentityTaskQueue identityTasks, EmployeeMapper employeeMapper, EmployeeHierarchyService employeeHierarchyService, ShiftTimingRepository shiftTimingRepository, OrganizationSecurityService orgSecurity) {
+    public EmployeeService(EmployeeRepository employeeRepository, OrganizationRepository organizationRepository, UserRepository userRepository, IdentityProvider identityProvider, UserIdentityLookup userIdentityLookup, AccessRoleAssignments roleAssignments, IdentityTaskQueue identityTasks, EmployeeMapper employeeMapper, EmployeeHierarchyService employeeHierarchyService, ShiftTimingRepository shiftTimingRepository, TeamAccess teamAccess) {
         this.employeeRepository = employeeRepository;
         this.organizationRepository = organizationRepository;
         this.userRepository = userRepository;
@@ -101,7 +100,7 @@ public class EmployeeService {
         this.employeeMapper = employeeMapper;
         this.employeeHierarchyService = employeeHierarchyService;
         this.shiftTimingRepository = shiftTimingRepository;
-        this.orgSecurity = orgSecurity;
+        this.teamAccess = teamAccess;
     }
 
     /**
@@ -393,7 +392,7 @@ public class EmployeeService {
     private void partialUpdateAnEmployee(Map<String, Object> updates, Employee employee) {
         EmployeePatchFieldScope.refuseFieldsTheCallerMayNotSet(
                 updates.keySet(),
-                orgSecurity.hasAnyOrgRoleForCurrentTenant(EmployeePatchFieldScope.PERSONNEL_ROLES));
+                teamAccess.acrossOrganization(EmployeePatchFieldScope.PERSONNEL_ACTION));
 
         updates.forEach((key, value) -> {
             switch (key) {

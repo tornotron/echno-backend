@@ -8,6 +8,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
+import org.tornotron.echno_backend.employee.TeamAccess;
 import org.tornotron.echno_backend.attendance.Attendance;
 import org.tornotron.echno_backend.attendance.AttendanceRepository;
 import org.tornotron.echno_backend.attendance.AttendanceService;
@@ -32,6 +33,7 @@ import org.tornotron.echno_backend.user.UserContextService;
 
 import java.util.Optional;
 
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -86,6 +88,7 @@ class AttendanceRecordReadAuthorizationTest {
 
     /** The one thing stubbed: what the caller's token says about them. */
     @Mock private OrganizationSecurityService orgSecurity;
+    @Mock private TeamAccess teamAccess;
 
     @BeforeEach
     void setTenant() {
@@ -98,9 +101,7 @@ class AttendanceRecordReadAuthorizationTest {
     }
 
     private AttendanceSecurityService attendanceSecurity() {
-        return new AttendanceSecurityService(
-                orgSecurity,
-                new String[]{"system-admin", "hr-admin", "project-manager"});
+        return new AttendanceSecurityService(orgSecurity, teamAccess);
     }
 
     private AttendanceService attendanceService() {
@@ -153,17 +154,14 @@ class AttendanceRecordReadAuthorizationTest {
      * this is. Membership alone is what the old guard asked for.
      */
     private void callerIsAnOrdinaryMember() {
-        lenient().when(orgSecurity.isSelfOrHasAnyOrgRole(any(Long.class), any(String[].class)))
-                .thenReturn(false);
-        lenient().when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class)))
-                .thenReturn(false);
+        lenient().when(teamAccess.allowsFor(anyString(), any(Long.class))).thenReturn(false);
+        lenient().when(teamAccess.acrossOrganization(anyString())).thenReturn(false);
         lenient().when(orgSecurity.isSelfInCurrentTenant(any(Long.class))).thenReturn(false);
     }
 
     /** The employee the record belongs to. */
     private void callerIsTheEmployee() {
-        lenient().when(orgSecurity.isSelfOrHasAnyOrgRole(eq(COLLEAGUE_EMPLOYEE_ID), any(String[].class)))
-                .thenReturn(true);
+        lenient().when(teamAccess.allowsFor(anyString(), eq(COLLEAGUE_EMPLOYEE_ID))).thenReturn(true);
         lenient().when(orgSecurity.isSelfInCurrentTenant(any(Long.class))).thenReturn(false);
     }
 
@@ -172,10 +170,8 @@ class AttendanceRecordReadAuthorizationTest {
      * The case the fix must not shut out: somebody asked to decide a record has to see it.
      */
     private void callerIsTheDesignatedApprover() {
-        lenient().when(orgSecurity.isSelfOrHasAnyOrgRole(any(Long.class), any(String[].class)))
-                .thenReturn(false);
-        lenient().when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class)))
-                .thenReturn(false);
+        lenient().when(teamAccess.allowsFor(anyString(), any(Long.class))).thenReturn(false);
+        lenient().when(teamAccess.acrossOrganization(anyString())).thenReturn(false);
         lenient().when(orgSecurity.isSelfInCurrentTenant(eq(APPROVER_EMPLOYEE_ID))).thenReturn(true);
     }
 

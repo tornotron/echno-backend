@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        inspections, a model's detections (echno-backend #914, step 31). DetectionVisibility asked for
+        the detection-reviewer role by name (echno.security.inspection.detection-read-roles, overridden
+        nowhere). No old role carries it; only a Keycloak subgroup of that name could, and nobody is in
+        one. It is now the named action inspections:read-detections, given to the detection reviewer's
+        template alone, as access-026 did for vision. Who else should see detections is decision A4 of
+        the computer vision note, still open.
+
+        A file of its own because 008 loads role-template-grants.csv with no runOnChange. The reconciler
+        carries the template to every role made from it on the next boot.
+    -->
+
+    <changeSet id="access-030-detections" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT count(*) FROM access_role_template_grant
+                WHERE template_id = '3881d2d6-a50e-5b99-8db3-b2b8a8989be3'
+                  AND permission_key = 'inspections:read-detections'
+            </sqlCheck>
+        </preConditions>
+        <loadData tableName="access_role_template_grant" file="db/data/access/role-template-grants-detections.csv" separator=",">
+            <column name="id" type="UUID"/>
+            <column name="template_id" type="UUID"/>
+            <column name="permission_key" type="STRING"/>
+            <column name="scope" type="STRING"/>
+        </loadData>
+    </changeSet>
+
+</databaseChangeLog>

@@ -13,7 +13,6 @@ import org.mockito.quality.Strictness;
 import org.tornotron.echno_backend.attendance.ShiftTimingRepository;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.identity.IdentityProvider;
-import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.employee.mapper.EmployeeMapper;
 import org.tornotron.echno_backend.organization.OrganizationRepository;
 import org.tornotron.echno_backend.user.UserRepository;
@@ -45,7 +44,7 @@ class EmployeeSalaryPatchTest {
     @Mock private EmployeeMapper employeeMapper;
     @Mock private EmployeeHierarchyService employeeHierarchyService;
     @Mock private ShiftTimingRepository shiftTimingRepository;
-    @Mock private OrganizationSecurityService orgSecurity;
+    @Mock private TeamAccess teamAccess;
 
     @InjectMocks private EmployeeService service;
 
@@ -56,8 +55,8 @@ class EmployeeSalaryPatchTest {
         TenantContext.setCurrentOrgId(1L);
         employee.setSalary(1000.0);
         when(employeeRepository.findByIdAndOrganizationId(eq(5L), any())).thenReturn(Optional.of(employee));
-        // Salary is a personnel-only field, so the caller holds a personnel role.
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(true);
+        // Salary is a personnel-only field, so the caller may edit every employee's record.
+        when(teamAccess.acrossOrganization("edit")).thenReturn(true);
     }
 
     @AfterEach

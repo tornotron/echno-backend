@@ -8,6 +8,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
+import org.tornotron.echno_backend.employee.TeamAccess;
 import org.tornotron.echno_backend.attendance.Attendance;
 import org.tornotron.echno_backend.attendance.AttendanceRepository;
 import org.tornotron.echno_backend.attendance.AttendanceService;
@@ -182,12 +183,10 @@ class GeofenceApprovalAuthorizationTest {
     void canDecideApproval_isTheRecordManagersPlusTheNamedApprover() {
         OrganizationSecurityService orgSecurity =
                 org.mockito.Mockito.mock(OrganizationSecurityService.class);
-        AttendanceSecurityService security = new AttendanceSecurityService(
-                orgSecurity,
-                new String[] {"system-admin", "hr-admin", "project-manager"});
+        TeamAccess teamAccess = org.mockito.Mockito.mock(TeamAccess.class);
+        AttendanceSecurityService security = new AttendanceSecurityService(orgSecurity, teamAccess);
 
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(
-                "system-admin", "hr-admin", "project-manager")).thenReturn(false);
+        when(teamAccess.acrossOrganization("approve")).thenReturn(false);
         when(orgSecurity.isSelfInCurrentTenant(MANAGER_ID)).thenReturn(true);
 
         assertThat(security.canDecideApproval(MANAGER_ID)).isTrue();

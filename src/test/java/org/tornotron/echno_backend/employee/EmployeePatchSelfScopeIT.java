@@ -30,6 +30,7 @@ import org.tornotron.echno_backend.support.AbstractIntegrationTest;
 import org.tornotron.echno_backend.user.User;
 import org.tornotron.echno_backend.user.UserContextService;
 
+import java.util.Set;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -37,6 +38,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
+import static org.mockito.Mockito.when;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -53,14 +55,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * #735.
  *
  * <p><b>Why this is an integration test and not a web slice.</b> A slice over the controller
- * replaces {@code @orgSecurity} with a mock, so it fixes the expression the annotation evaluates
- * and nothing about what the expression means; it also replaces the service, so the field scope
- * never runs at all. Both halves of this question live below the annotation. Here the real
- * {@link OrganizationSecurityService} reads real authorities off a real token, and the real service
- * writes to a real database, so a passing assertion is a statement about the running application
- * rather than about a stub. Nothing here is stubbed to return true for any role: the self-only
- * caller simply holds no role authority, which is the same thing the deployed system would have
- * to be true of them.
+ * replaces the service, so the field scope never runs at all. Here the real service writes to a
+ * real database, so a passing assertion is a statement about what the PATCH stores. Who may set the
+ * administrative fields is {@code team:edit} across the organization, which {@link TeamAccess}
+ * answers from the access matrix; it is stubbed here per starting role, as the starting grants give
+ * it (the system admin and HR admin, not the project manager, and nobody through their own record
+ * alone), and {@code ServiceRoleChecksEquivalenceIT} holds the starting grants to that.
  *
  * <p>Every refusal is checked twice: that it was refused, and that the column still holds what it
  * held. A refusal that happens after the write is not a refusal.
@@ -72,6 +72,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
         ShiftTimingMapperImpl.class})
 class EmployeePatchSelfScopeIT extends AbstractIntegrationTest {
 
+    /** The starting roles that hold team:edit across the organization. */
+    private static final Set<String> PERSONNEL = Set.of("system-admin", "hr-admin");
+
     private static final double ORIGINAL_SALARY = 42_000.0;
 
     @Autowired
@@ -82,6 +85,9 @@ class EmployeePatchSelfScopeIT extends AbstractIntegrationTest {
 
     @MockitoBean
     private IdentityProvider identityProvider;
+
+    @MockitoBean
+    private TeamAccess teamAccess;
 
     @MockitoBean
     private org.tornotron.echno_backend.modules.access.api.AccessRoleAssignments roleAssignments;
@@ -306,10 +312,9 @@ class EmployeePatchSelfScopeIT extends AbstractIntegrationTest {
     @Test
     @DisplayName("A role held in another organization does not unlock the fields here")
     void roleInAnotherOrganization_doesNotUnlockTheFields() {
-        // The authority is org-scoped, so a role string minted for a different organization must
-        // not satisfy the check for this one. Written because the field scope reads the same
-        // authority format the guards do, and a check that dropped the organization id would pass
-        // every other test in this class.
+        // A grant is held in one organization: the matrix resolves the caller as their employee in
+        // the request's organization, so a role held elsewhere answers nothing here, and TeamAccess
+        // says no. The engine's contract tests hold every engine to that.
         authenticate(subjectKeycloakId,
                 List.of(new SimpleGrantedAuthority("ORG_" + (organizationId + 1) + "_ROLE_hr-admin")));
 
@@ -353,6 +358,7 @@ class EmployeePatchSelfScopeIT extends AbstractIntegrationTest {
     }
 
     private void authenticateAsPersonnel(String role) {
+        when(teamAccess.acrossOrganization("edit")).thenReturn(PERSONNEL.contains(role));
         authenticate(adminKeycloakId, List.of(
                 new SimpleGrantedAuthority("ORG_MEMBER_" + organizationId),
                 new SimpleGrantedAuthority("ORG_" + organizationId + "_ROLE_" + role)));

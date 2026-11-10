@@ -1,10 +1,10 @@
 package org.tornotron.echno_backend.modules.inspections.service;
 
 import java.util.UUID;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
+import org.tornotron.echno_backend.modules.access.api.CallerAccess;
+import org.tornotron.echno_backend.modules.access.api.ChecksAccess;
 import org.tornotron.echno_backend.modules.inspections.repositories.ObservationRepository;
 
 /**
@@ -12,33 +12,35 @@ import org.tornotron.echno_backend.modules.inspections.repositories.ObservationR
  * open. Its default is that the pilot organization's own users do not, until the validation report
  * exists, and Fereydon's reviewers do.
  *
- * <p>{@code echno.security.inspection.detection-read-roles} holds the org-role tokens that see them,
- * default {@code detection-reviewer}: a role nobody holds until a reviewer is placed in that subgroup
- * of the organization, and one a client's {@code system-admin} does not hold by being one. If the
- * answer to A4 is yes, setting the property to the inspection read roles is the whole change.
+ * <p>Seeing them is {@code inspections:read-detections}, which only the detection reviewer's starting
+ * role holds: a role nobody holds until a reviewer is given it, and one a client's system admin does
+ * not hold by being one. Before the matrix this was {@code echno.security.inspection.detection-read-roles},
+ * default {@code detection-reviewer}, which no environment overrode. If the answer to A4 is yes, giving
+ * the inspection readers' roles that grant is the whole change.
  *
  * <p>A detection is a machine finding that came through intake from a model, or that carries a
  * producer's region; see {@code ObservationSpecifications.isDetection}. Rows a person recorded and the
  * compliance model's suggestions are not detections and are not affected.
  */
 @Service("detectionVisibility")
+@ChecksAccess(DetectionVisibility.AREA + ":" + DetectionVisibility.READ_DETECTIONS)
 public class DetectionVisibility {
 
-    private final OrganizationSecurityService orgSecurity;
-    private final ObservationRepository observations;
-    private final String[] roles;
+    /** Seeing a model's detections: the detection reviewer's, from its starting grants. */
+    static final String AREA = "inspections";
+    static final String READ_DETECTIONS = "read-detections";
 
-    public DetectionVisibility(OrganizationSecurityService orgSecurity, ObservationRepository observations,
-                               @Value("${echno.security.inspection.detection-read-roles:detection-reviewer}")
-                               String[] roles) {
-        this.orgSecurity = orgSecurity;
+    private final CallerAccess access;
+    private final ObservationRepository observations;
+
+    public DetectionVisibility(CallerAccess access, ObservationRepository observations) {
+        this.access = access;
         this.observations = observations;
-        this.roles = roles;
     }
 
     /** Whether the caller sees detections at all in the current tenant. */
     public boolean callerMaySeeDetections() {
-        return orgSecurity.hasAnyOrgRoleForCurrentTenant(roles);
+        return access.can(AREA, READ_DETECTIONS);
     }
 
     /**

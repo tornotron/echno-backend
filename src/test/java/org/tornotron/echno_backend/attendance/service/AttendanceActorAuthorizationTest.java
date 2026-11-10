@@ -8,6 +8,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
+import org.tornotron.echno_backend.employee.TeamAccess;
 import org.tornotron.echno_backend.attendance.Attendance;
 import org.tornotron.echno_backend.attendance.AttendanceRegularizationRepository;
 import org.tornotron.echno_backend.attendance.AttendanceRepository;
@@ -295,20 +296,23 @@ class AttendanceActorAuthorizationTest {
     }
 
     /**
-     * The wiring that keeps HR and managers able to act for others: {@code canRecordFor} is the
-     * same self-or-role policy as viewing, over the configured record-management roles.
+     * The wiring that keeps HR and managers able to act for others: {@code canRecordFor} asks for
+     * team:create on the employee's record, which every member holds on their own and the system
+     * admin, HR admin and project manager on everyone's. With no employee named, only a grant over
+     * everyone's records answers, as only the role check did before.
      */
     @Test
-    void canRecordFor_asksTheSelfOrRolePolicy_withTheRecordManagementRoles() {
-        OrganizationSecurityService orgSecurity = org.mockito.Mockito.mock(OrganizationSecurityService.class);
+    void canRecordFor_asksForTeamCreateOnTheEmployeesRecord() {
+        TeamAccess teamAccess = org.mockito.Mockito.mock(TeamAccess.class);
         AttendanceSecurityService security = new AttendanceSecurityService(
-                orgSecurity,
-                new String[] {"system-admin", "hr-admin", "project-manager"});
-        when(orgSecurity.isSelfOrHasAnyOrgRole(COLLEAGUE_EMPLOYEE_ID,
-                "system-admin", "hr-admin", "project-manager")).thenReturn(true);
+                org.mockito.Mockito.mock(OrganizationSecurityService.class), teamAccess);
+        when(teamAccess.allowsFor("create", COLLEAGUE_EMPLOYEE_ID)).thenReturn(true);
 
         org.assertj.core.api.Assertions.assertThat(security.canRecordFor(COLLEAGUE_EMPLOYEE_ID)).isTrue();
-        verify(orgSecurity).isSelfOrHasAnyOrgRole(COLLEAGUE_EMPLOYEE_ID,
-                "system-admin", "hr-admin", "project-manager");
+        verify(teamAccess).allowsFor("create", COLLEAGUE_EMPLOYEE_ID);
+
+        org.assertj.core.api.Assertions.assertThat(security.canRecordFor(null)).isFalse();
+        when(teamAccess.acrossOrganization("create")).thenReturn(true);
+        org.assertj.core.api.Assertions.assertThat(security.canRecordFor(null)).isTrue();
     }
 }
