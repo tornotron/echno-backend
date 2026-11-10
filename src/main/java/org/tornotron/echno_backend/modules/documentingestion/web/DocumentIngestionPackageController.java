@@ -44,11 +44,11 @@ public class DocumentIngestionPackageController {
     private final IngestDocumentService documentService;
 
     @PostMapping("/packages")
-    @PreAuthorize(DocumentIngestionModule.UPLOAD_GUARD)
+    @PreAuthorize("@access.can('document-ingestion', 'upload')")
     @Operation(summary = "Start a package of tender files, optionally for an existing project")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Package created"),
-            @ApiResponse(responseCode = "403", description = "MODULE_DISABLED, or the caller lacks an upload role"),
+            @ApiResponse(responseCode = "403", description = "MODULE_DISABLED, or the caller may not make this change to document ingestion"),
             @ApiResponse(responseCode = "404", description = "No such project in the current tenant")
     })
     public ResponseEntity<PackageDto> createPackage(@Valid @RequestBody CreatePackageRequest req) {
@@ -56,7 +56,7 @@ public class DocumentIngestionPackageController {
     }
 
     @GetMapping("/packages")
-    @PreAuthorize(DocumentIngestionModule.READ_GUARD)
+    @PreAuthorize("@access.can('document-ingestion', 'read')")
     @Operation(summary = "List the organization's packages, newest first")
     public Page<PackageDto> listPackages(@RequestParam(defaultValue = "0") int page,
                                          @RequestParam(defaultValue = "20") int size) {
@@ -64,7 +64,7 @@ public class DocumentIngestionPackageController {
     }
 
     @GetMapping("/packages/{packageId}")
-    @PreAuthorize(DocumentIngestionModule.READ_GUARD)
+    @PreAuthorize("@access.can('document-ingestion', 'read')")
     @Operation(summary = "Get a package")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "The package"),
@@ -75,7 +75,7 @@ public class DocumentIngestionPackageController {
     }
 
     @GetMapping("/packages/{packageId}/documents")
-    @PreAuthorize(DocumentIngestionModule.READ_GUARD)
+    @PreAuthorize("@access.can('document-ingestion', 'read')")
     @Operation(summary = "List the files of a package in upload order, each with its latest reading job")
     public Page<DocumentDto> listDocuments(@PathVariable UUID packageId,
                                            @RequestParam(defaultValue = "0") int page,
@@ -84,7 +84,7 @@ public class DocumentIngestionPackageController {
     }
 
     @PostMapping("/packages/{packageId}/documents/presign")
-    @PreAuthorize(DocumentIngestionModule.UPLOAD_GUARD)
+    @PreAuthorize("@access.can('document-ingestion', 'upload')")
     @Operation(summary = "Declare a file and get a URL to PUT it to",
             description = "Refuses a type Echno does not read, a file over the size limit, and a full package.")
     @ApiResponses({
@@ -97,7 +97,7 @@ public class DocumentIngestionPackageController {
     }
 
     @PostMapping("/packages/{packageId}/documents/{documentId}/register")
-    @PreAuthorize(DocumentIngestionModule.UPLOAD_GUARD)
+    @PreAuthorize("@access.can('document-ingestion', 'upload')")
     @Operation(summary = "Confirm an upload and queue the file for reading")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Registered; queued unless the file is only stored"),
@@ -110,14 +110,14 @@ public class DocumentIngestionPackageController {
     }
 
     @GetMapping("/documents/{documentId}")
-    @PreAuthorize(DocumentIngestionModule.READ_GUARD)
+    @PreAuthorize("@access.can('document-ingestion', 'read')")
     @Operation(summary = "Get a document with its latest reading job")
     public DocumentDto getDocument(@PathVariable UUID documentId) {
         return documentService.get(documentId);
     }
 
     @PostMapping("/documents/{documentId}/parse")
-    @PreAuthorize(DocumentIngestionModule.UPLOAD_GUARD)
+    @PreAuthorize("@access.can('document-ingestion', 'upload')")
     @Operation(summary = "Read a document again after its reading failed")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Queued again"),
@@ -128,7 +128,7 @@ public class DocumentIngestionPackageController {
     }
 
     @GetMapping("/documents/{documentId}/download-url")
-    @PreAuthorize(DocumentIngestionModule.READ_GUARD)
+    @PreAuthorize("@access.can('document-ingestion', 'read')")
     @Operation(summary = "Get a short-lived link to download the source file")
     public DownloadUrlDto downloadUrl(@PathVariable UUID documentId) {
         return documentService.downloadUrl(documentId);

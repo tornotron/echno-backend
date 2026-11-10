@@ -26,7 +26,7 @@ class AccessRoleTemplateSeedTest {
     /** A mapping row's read that needs more than the area's read: its named action is checked as is. */
     private static final Set<String> NAMED_READS = Set.of("read-financials", "read-ledger", "read-reports",
             "generate-compliance", "export-datasets", "read-reporting-lines", "read-user-accounts",
-            "manage-user-accounts");
+            "manage-user-accounts", "admin");
 
     private static final Path MAPPING = Path.of("docs/specs/2026-10-30-access-permission-mapping-endpoints.csv");
     private static final String BASELINE = "employee";
@@ -49,7 +49,8 @@ class AccessRoleTemplateSeedTest {
             "db/data/access/role-template-grants-working-time.csv",
             "db/data/access/role-template-grants-team.csv",
             "db/data/access/role-template-grants-attendance.csv",
-            "db/data/access/role-template-grants-user-accounts.csv");
+            "db/data/access/role-template-grants-user-accounts.csv",
+            "db/data/access/role-template-grants-document-ingestion.csv");
 
     /**
      * Template grants a later changeset deleted, by template slug and key: access-011 takes the
@@ -468,6 +469,29 @@ class AccessRoleTemplateSeedTest {
             if (!slug.equals("system-admin") && !slug.equals("hr-admin")) {
                 assertThat(keys).as(slug).doesNotContain("team:read-user-accounts", "team:manage-user-accounts");
             }
+        });
+    }
+
+    @Test
+    void eachDocumentIngestionStepKeepsItsOwnRoles() {
+        // Before the matrix every member read the module, four roles uploaded, the pair applied and the
+        // system admin alone administered it. The pair reviewed every kind of candidate, the QA engineer
+        // quality requirements too and the site engineer drawings.
+        assertThat(KEYS_BY_SLUG.get(BASELINE)).contains("document-ingestion:read")
+                .noneMatch(key -> key.startsWith("document-ingestion:") && !key.equals("document-ingestion:read"));
+        Map<String, Set<String>> expected = Map.of(
+                "system-admin", Set.of("upload", "review", "apply", "admin"),
+                "project-manager", Set.of("upload", "review", "apply"),
+                "qa-qc-engineer", Set.of("upload", "review-quality"),
+                "site-engineer", Set.of("upload", "review-drawings"));
+        KEYS_BY_SLUG.forEach((slug, keys) -> {
+            if (slug.equals(BASELINE)) {
+                return;
+            }
+            Set<String> actions = new HashSet<>();
+            keys.stream().filter(key -> key.startsWith("document-ingestion:"))
+                    .forEach(key -> actions.add(key.substring("document-ingestion:".length())));
+            assertThat(actions).as(slug).containsExactlyInAnyOrderElementsOf(expected.getOrDefault(slug, Set.of()));
         });
     }
 

@@ -62,7 +62,6 @@ import org.tornotron.echno_backend.common.multitenancy.UnscopedAccessGuard;
 import org.tornotron.echno_backend.common.retry.TransactionRetryTemplate;
 import org.tornotron.echno_backend.common.retry.TransactionalWorkRunner;
 import org.tornotron.echno_backend.common.service.FileStorageService;
-import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.modules.documentingestion.DocumentIngestionStorageLayout;
 import org.tornotron.echno_backend.modules.documentingestion.api.DocumentTextReady;
 import org.tornotron.echno_backend.modules.documentingestion.domain.CandidateKind;
@@ -99,6 +98,7 @@ import org.tornotron.echno_backend.modules.documentingestion.parsing.PageText;
 import org.tornotron.echno_backend.modules.documentingestion.parsing.ParsedOutputReader;
 import org.tornotron.echno_backend.modules.documentingestion.repository.ExtractJobRepository;
 import org.tornotron.echno_backend.modules.documentingestion.repository.LlmCallRepository;
+import org.tornotron.echno_backend.modules.documentingestion.review.ReviewAccess;
 import org.tornotron.echno_backend.modules.documentingestion.review.ReviewService;
 import org.tornotron.echno_backend.modules.documentingestion.service.ClassificationService;
 import org.tornotron.echno_backend.modules.documentingestion.service.DocumentIngestionLimits;
@@ -264,8 +264,9 @@ class ExtractQueueIT extends AbstractIntegrationTest {
     @MockitoBean
     FileStorageService storage;
 
-    @MockitoBean(name = "orgSecurity")
-    OrganizationSecurityService orgSecurity;
+    // Which candidates the caller may decide, which the access matrix answers per kind.
+    @MockitoBean
+    ReviewAccess reviewAccess;
 
     /** The stubbed endpoint: what each call was sent, and how to answer it. */
     final List<ChatCompletionRequest> sent = Collections.synchronizedList(new ArrayList<>());
@@ -294,7 +295,7 @@ class ExtractQueueIT extends AbstractIntegrationTest {
                 .map(b -> new FileStorageService.StoredObject(inv.getArgument(0), "application/json", b)));
         when(storage.objectExists(argThat(k -> k != null && k.endsWith(DocumentIngestionStorageLayout.META_FILE))))
                 .thenReturn(true);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(true);
+        when(reviewAccess.mayReview(any())).thenReturn(true);
         SecurityContextHolder.getContext().setAuthentication(new TestingAuthenticationToken("pm", "n/a", "ROLE_USER"));
         TenantContext.setCurrentOrgId(ORG_A);
     }

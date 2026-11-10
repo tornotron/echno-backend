@@ -45,7 +45,6 @@ import org.tornotron.echno_backend.common.multitenancy.UnscopedAccessGuard;
 import org.tornotron.echno_backend.common.retry.TransactionRetryTemplate;
 import org.tornotron.echno_backend.common.retry.TransactionalWorkRunner;
 import org.tornotron.echno_backend.common.service.FileStorageService;
-import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.modules.access.guard.AccessGuard;
 import org.tornotron.echno_backend.modules.documentingestion.apply.ApplyGuard;
 import org.tornotron.echno_backend.modules.documentingestion.apply.ApplyService;
@@ -67,6 +66,7 @@ import org.tornotron.echno_backend.modules.documentingestion.extraction.Candidat
 import org.tornotron.echno_backend.modules.documentingestion.extraction.boq.BoqRows;
 import org.tornotron.echno_backend.modules.documentingestion.parsing.ParsedOutputReader;
 import org.tornotron.echno_backend.modules.documentingestion.review.ProvenanceService;
+import org.tornotron.echno_backend.modules.documentingestion.review.ReviewAccess;
 import org.tornotron.echno_backend.modules.documentingestion.review.ReviewService;
 import org.tornotron.echno_backend.modules.documentingestion.service.BoqSheetService;
 import org.tornotron.echno_backend.modules.documentingestion.service.IngestPackageService;
@@ -133,8 +133,9 @@ class BoqIngestionIT extends AbstractIntegrationTest {
     @Autowired
     JdbcTemplate jdbc;
 
-    @MockitoBean(name = "orgSecurity")
-    OrganizationSecurityService orgSecurity;
+    // Which candidates the caller may decide, which the access matrix answers per kind.
+    @MockitoBean
+    ReviewAccess reviewAccess;
 
     // The BOQ endpoint's guard, which applying a BOQ row asks through ApplyGuard.
     @MockitoBean(name = "access")
@@ -175,7 +176,7 @@ class BoqIngestionIT extends AbstractIntegrationTest {
                 documentId, orgId, packageId, prefix(), "a".repeat(64));
         TenantContext.setCurrentOrgId(orgId);
         SecurityContextHolder.getContext().setAuthentication(new TestingAuthenticationToken("pm", "n/a", "ROLE_USER"));
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(true);
+        when(reviewAccess.mayReview(any())).thenReturn(true);
         when(access.can("progress-bills", "edit")).thenReturn(true);
         when(modules.isEnabledForOrg(eq(ContractBoqPort.MODULE_ID), anyLong())).thenReturn(true);
     }

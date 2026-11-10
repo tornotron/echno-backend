@@ -31,19 +31,19 @@ public class DocumentIngestionSettingsController {
     private final IngestSettingsService settingsService;
 
     @GetMapping("/settings")
-    @PreAuthorize(DocumentIngestionModule.READ_GUARD)
+    @PreAuthorize("@access.can('document-ingestion', 'read')")
     @Operation(summary = "Read the organization's settings, with the last changes and who made them")
     public IngestSettingsDto get() {
         return settingsService.get();
     }
 
     @PutMapping("/settings/llm-reading")
-    @PreAuthorize(DocumentIngestionModule.ADMIN_GUARD)
+    @PreAuthorize("@access.can('document-ingestion', 'admin')")
     @Operation(summary = "Turn reading tender text with the outside AI service on or off",
             description = "On by default. Each change is recorded with who made it and when.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "The settings after the change"),
-            @ApiResponse(responseCode = "403", description = "MODULE_DISABLED, or the caller is not a system admin")
+            @ApiResponse(responseCode = "403", description = "MODULE_DISABLED, or the caller may not make this change to document ingestion")
     })
     public IngestSettingsDto setLlmReading(@Valid @RequestBody LlmReadingRequest req) {
         return settingsService.setLlmReading(req.enabled());

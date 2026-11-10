@@ -14,7 +14,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
-import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.modules.documentingestion.domain.Candidate;
 import org.tornotron.echno_backend.modules.documentingestion.domain.CandidateFlag;
 import org.tornotron.echno_backend.modules.documentingestion.domain.CandidateKind;
@@ -42,25 +41,21 @@ public class ReviewService {
 
     static final int MAX_PAGE_SIZE = 200;
 
-    /** Kinds a QA engineer may review beside the two base roles, and those a site engineer may. */
-    static final Set<CandidateKind> QUALITY_KINDS = Set.of(CandidateKind.QUALITY_REQUIREMENT);
-    static final Set<CandidateKind> DRAWING_KINDS = Set.of(CandidateKind.DRAWING);
-
     /** Flags a reviewer can acknowledge only in a request about that one candidate (design section 8.3). */
     static final Set<String> SINGLE_ROW_FLAGS = Set.of(QuotedCandidates.QUOTE_NOT_FOUND);
 
     private final CandidateRepository candidates;
     private final SourceRefRepository sources;
     private final IngestPackageRepository packages;
-    private final OrganizationSecurityService orgSecurity;
+    private final ReviewAccess reviewAccess;
     private final UserContextService userContextService;
 
     public ReviewService(CandidateRepository candidates, SourceRefRepository sources, IngestPackageRepository packages,
-                         OrganizationSecurityService orgSecurity, UserContextService userContextService) {
+                         ReviewAccess reviewAccess, UserContextService userContextService) {
         this.candidates = candidates;
         this.sources = sources;
         this.packages = packages;
-        this.orgSecurity = orgSecurity;
+        this.reviewAccess = reviewAccess;
         this.userContextService = userContextService;
     }
 
@@ -97,7 +92,7 @@ public class ReviewService {
 
     private DecisionOutcomeDto decideOne(Candidate c, CandidateDecision decision, boolean bulk, Long reviewer,
                                          LocalDateTime now) {
-        if (!mayReview(c.getKind())) {
+        if (!reviewAccess.mayReview(c.getKind())) {
             return new DecisionOutcomeDto(c.getId(), Outcome.REFUSED_ROLE, "Your role does not review " + c.getKind());
         }
         if (c.getStatus() == CandidateStatus.APPLIED || c.getStatus() == CandidateStatus.SUPERSEDED) {
@@ -140,17 +135,6 @@ public class ReviewService {
         }
         candidates.save(c);
         return new DecisionOutcomeDto(c.getId(), Outcome.ACCEPTED, null);
-    }
-
-    private boolean mayReview(CandidateKind kind) {
-        List<String> roles = new ArrayList<>(List.of("system-admin", "project-manager"));
-        if (QUALITY_KINDS.contains(kind)) {
-            roles.add("qa-engineer");
-        }
-        if (DRAWING_KINDS.contains(kind)) {
-            roles.add("site-engineer");
-        }
-        return orgSecurity.hasAnyOrgRoleForCurrentTenant(roles.toArray(String[]::new));
     }
 
     private void stamp(Candidate c, Long reviewer, LocalDateTime now) {

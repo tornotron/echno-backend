@@ -43,13 +43,13 @@ public class DocumentIngestionBoqController {
     private final IngestPackageService packageService;
 
     @PostMapping("/documents/{documentId}/boq/sheets/detect")
-    @PreAuthorize(DocumentIngestionModule.UPLOAD_GUARD)
+    @PreAuthorize("@access.can('document-ingestion', 'upload')")
     @Operation(summary = "Find the header of each sheet of a parsed workbook and propose a column mapping",
             description = "Sheets already found keep their mapping. Reads no rows into candidates.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Every sheet of the workbook, in workbook order"),
             @ApiResponse(responseCode = "400", description = "Not a workbook, not read yet, or the package is archived"),
-            @ApiResponse(responseCode = "403", description = "MODULE_DISABLED, or the caller lacks an upload role"),
+            @ApiResponse(responseCode = "403", description = "MODULE_DISABLED, or the caller may not make this change to document ingestion"),
             @ApiResponse(responseCode = "404", description = "No such document in the current tenant")
     })
     public List<BoqSheetDto> detectSheets(@PathVariable UUID documentId) {
@@ -57,20 +57,20 @@ public class DocumentIngestionBoqController {
     }
 
     @GetMapping("/documents/{documentId}/boq/sheets")
-    @PreAuthorize(DocumentIngestionModule.READ_GUARD)
+    @PreAuthorize("@access.can('document-ingestion', 'read')")
     @Operation(summary = "List a workbook's sheets with their mapping and what reading each found")
     public List<BoqSheetDto> listSheets(@PathVariable UUID documentId) {
         return sheetService.list(documentId);
     }
 
     @PostMapping("/documents/{documentId}/boq/sheets/{sheetId}/extract")
-    @PreAuthorize(DocumentIngestionModule.UPLOAD_GUARD)
+    @PreAuthorize("@access.can('document-ingestion', 'upload')")
     @Operation(summary = "Confirm a sheet's column mapping and read its rows into BOQ candidates",
             description = "Reading a sheet again replaces its unapplied candidates. Refused once a row of the sheet is on a contract.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "The sheet with what reading it found"),
             @ApiResponse(responseCode = "400", description = "A bad mapping, or rows of the sheet are already applied"),
-            @ApiResponse(responseCode = "403", description = "MODULE_DISABLED, or the caller lacks an upload role"),
+            @ApiResponse(responseCode = "403", description = "MODULE_DISABLED, or the caller may not make this change to document ingestion"),
             @ApiResponse(responseCode = "404", description = "No such document or sheet in the current tenant")
     })
     public BoqSheetDto extractSheet(@PathVariable UUID documentId, @PathVariable UUID sheetId,
@@ -79,13 +79,13 @@ public class DocumentIngestionBoqController {
     }
 
     @PutMapping("/packages/{packageId}/boq-target")
-    @PreAuthorize(DocumentIngestionModule.APPLY_GUARD)
+    @PreAuthorize("@access.can('document-ingestion', 'apply')")
     @Operation(summary = "Choose the sub-contract a package's BOQ is written to, or clear it",
             description = "With none chosen, accepted BOQ rows stay on the package as its tender BOQ.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "The package with its target"),
             @ApiResponse(responseCode = "400", description = "The contract is in another project, or BOQ rows are already applied elsewhere"),
-            @ApiResponse(responseCode = "403", description = "MODULE_DISABLED, or the caller cannot apply"),
+            @ApiResponse(responseCode = "403", description = "MODULE_DISABLED, or the caller may not make this change to document ingestion"),
             @ApiResponse(responseCode = "404", description = "No such package or sub-contract in the current tenant")
     })
     public PackageDto setBoqTarget(@PathVariable UUID packageId, @Valid @RequestBody BoqTargetRequest req) {

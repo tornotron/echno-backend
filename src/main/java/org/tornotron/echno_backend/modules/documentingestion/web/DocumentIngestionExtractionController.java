@@ -49,7 +49,7 @@ public class DocumentIngestionExtractionController {
     private final IngestSettingsService settingsService;
 
     @GetMapping("/packages/{packageId}/classification")
-    @PreAuthorize(DocumentIngestionModule.READ_GUARD)
+    @PreAuthorize("@access.can('document-ingestion', 'read')")
     @Operation(summary = "List a package's documents with their proposed or confirmed classes and page segments")
     public Page<DocumentClassificationDto> classification(@PathVariable UUID packageId,
                                                           @RequestParam(defaultValue = "0") int page,
@@ -58,13 +58,13 @@ public class DocumentIngestionExtractionController {
     }
 
     @PutMapping("/documents/{documentId}/classification")
-    @PreAuthorize(DocumentIngestionModule.UPLOAD_GUARD)
+    @PreAuthorize("@access.can('document-ingestion', 'upload')")
     @Operation(summary = "Confirm a document's class and page segments",
             description = "Replaces what was proposed. Each confirmed segment queues the readers of its class.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "The document as confirmed"),
             @ApiResponse(responseCode = "400", description = "Pages out of range or overlapping, or a segment already applied"),
-            @ApiResponse(responseCode = "403", description = "MODULE_DISABLED, or the caller cannot upload")
+            @ApiResponse(responseCode = "403", description = "MODULE_DISABLED, or the caller may not make this change to document ingestion")
     })
     public DocumentClassificationDto confirm(@PathVariable UUID documentId,
                                              @Valid @RequestBody ClassificationRequest req) {
@@ -72,7 +72,7 @@ public class DocumentIngestionExtractionController {
     }
 
     @PostMapping("/packages/{packageId}/classification/confirm-all")
-    @PreAuthorize(DocumentIngestionModule.UPLOAD_GUARD)
+    @PreAuthorize("@access.can('document-ingestion', 'upload')")
     @Operation(summary = "Confirm every proposed class and segment of a package as proposed",
             description = "Call again while remaining is above zero.")
     public ConfirmAllResultDto confirmAll(@PathVariable UUID packageId) {
@@ -80,7 +80,7 @@ public class DocumentIngestionExtractionController {
     }
 
     @GetMapping("/packages/{packageId}/extract-jobs")
-    @PreAuthorize(DocumentIngestionModule.READ_GUARD)
+    @PreAuthorize("@access.can('document-ingestion', 'read')")
     @Operation(summary = "List a package's extract jobs, with the pages each could not read")
     public Page<ExtractJobDto> extractJobs(@PathVariable UUID packageId,
                                            @RequestParam(defaultValue = "0") int page,
@@ -89,7 +89,7 @@ public class DocumentIngestionExtractionController {
     }
 
     @PostMapping("/extract-jobs/{jobId}/retry-failed")
-    @PreAuthorize(DocumentIngestionModule.UPLOAD_GUARD)
+    @PreAuthorize("@access.can('document-ingestion', 'upload')")
     @Operation(summary = "Read the failed parts of a job again",
             description = "Parts already read are skipped, so only the failed chunks are sent.")
     @ApiResponses({
@@ -101,7 +101,7 @@ public class DocumentIngestionExtractionController {
     }
 
     @GetMapping("/llm-calls")
-    @PreAuthorize(DocumentIngestionModule.ADMIN_GUARD)
+    @PreAuthorize("@access.can('document-ingestion', 'admin')")
     @Operation(summary = "List the calls that sent pages to the outside AI service, newest first",
             description = "Which pages of which file left Echno, when, with which model and prompt version, and what "
                     + "they cost. Holds no document text.")
@@ -113,7 +113,7 @@ public class DocumentIngestionExtractionController {
     }
 
     @GetMapping("/packages/{packageId}/llm-calls")
-    @PreAuthorize(DocumentIngestionModule.READ_GUARD)
+    @PreAuthorize("@access.can('document-ingestion', 'read')")
     @Operation(summary = "List the calls that sent pages of this package to the outside AI service, newest first")
     public Page<LlmCallDto> packageLlmCalls(@PathVariable UUID packageId,
                                             @RequestParam(required = false) UUID documentId,
@@ -123,21 +123,21 @@ public class DocumentIngestionExtractionController {
     }
 
     @GetMapping("/packages/{packageId}/llm-spend")
-    @PreAuthorize(DocumentIngestionModule.READ_GUARD)
+    @PreAuthorize("@access.can('document-ingestion', 'read')")
     @Operation(summary = "Read what reading this package has used, against the package's and the month's limits")
     public LlmSpendDto spend(@PathVariable UUID packageId) {
         return extractionService.spend(packageId);
     }
 
     @PutMapping("/packages/{packageId}/llm-budget")
-    @PreAuthorize(DocumentIngestionModule.ADMIN_GUARD)
+    @PreAuthorize("@access.can('document-ingestion', 'admin')")
     @Operation(summary = "Set a package's AI reading limit", description = "A job paused on the budget resumes once it has room.")
     public LlmSpendDto setPackageBudget(@PathVariable UUID packageId, @Valid @RequestBody LlmBudgetRequest req) {
         return extractionService.setPackageBudget(packageId, req);
     }
 
     @PutMapping("/settings/llm-budget")
-    @PreAuthorize(DocumentIngestionModule.ADMIN_GUARD)
+    @PreAuthorize("@access.can('document-ingestion', 'admin')")
     @Operation(summary = "Set the organization's monthly AI reading limit",
             description = "Each change is recorded. A job paused on the budget resumes once it has room.")
     public IngestSettingsDto setMonthlyBudget(@Valid @RequestBody LlmBudgetRequest req) {

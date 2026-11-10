@@ -25,11 +25,11 @@ import org.tornotron.echno_backend.modules.documentingestion.gate.DocumentIngest
 public class DocumentIngestionStatusController {
 
     @GetMapping("/status")
-    @PreAuthorize(DocumentIngestionModule.READ_GUARD)
+    @PreAuthorize("@access.can('document-ingestion', 'read')")
     @Operation(summary = "Say whether the module is open to the caller's organization")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "The module is open"),
-            @ApiResponse(responseCode = "403", description = "MODULE_DISABLED, or the caller is not a member of the current tenant")
+            @ApiResponse(responseCode = "403", description = "MODULE_DISABLED, or the caller may not read document ingestion")
     })
     public DocumentIngestionStatusDto status() {
         return new DocumentIngestionStatusDto(DocumentIngestionModule.ID, DocumentIngestionModule.VERSION);
