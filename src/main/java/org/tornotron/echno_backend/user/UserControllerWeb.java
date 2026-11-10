@@ -66,7 +66,7 @@ public class UserControllerWeb {
      * @param pageQuery Page index and page size, bounded by {@link PageQuery}.
      * @return A {@link ResponseEntity} containing the list of user DTOs and HTTP status 200 (OK).
      */
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'hr-admin')")
+    @PreAuthorize("@access.can('team', 'read-user-accounts') and @teamAccess.acrossOrganization('read-user-accounts')")
     @GetMapping("/all")
     @Operation(
             summary = "List users",
@@ -75,7 +75,7 @@ public class UserControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Page of users returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not read user accounts")
     })
     public ResponseEntity<List<UserDto>> readAllUsers(@Valid @ParameterObject PageQuery pageQuery) {
         Page<UserDto> users = userService.getAllUsers(pageQuery.getPageNo(),pageQuery.getPageSize());
@@ -88,7 +88,7 @@ public class UserControllerWeb {
      * @param userId The ID of the user.
      * @return A {@link ResponseEntity} containing a list of organization DTOs and HTTP status 200 (OK).
      */
-    @PreAuthorize("@orgSecurity.isSelfUser(#userId) or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.isSelfUser(#userId) or (@access.can('team', 'manage-user-accounts') and @teamAccess.acrossOrganization('manage-user-accounts'))")
     @GetMapping("/{userId}/organizations")
     @Operation(
             summary = "List a user's organizations",
@@ -97,7 +97,7 @@ public class UserControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Organizations returned"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither the user nor a system admin"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not the user and may not manage user accounts"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No user with the given id")
     })
     public ResponseEntity<List<OrganizationDto>> readAllOrganizationsForCurrentUser(@PathVariable Long userId) {
@@ -158,7 +158,7 @@ public class UserControllerWeb {
      * @param cv      Optional CV/resume file.
      * @return A {@link ResponseEntity} with the updated user's DTO and HTTP status 200 (OK).
      */
-    @PreAuthorize("@orgSecurity.isSelfUser(#id) or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@orgSecurity.isSelfUser(#id) or (@access.can('team', 'manage-user-accounts') and @teamAccess.acrossOrganization('manage-user-accounts'))")
     @PatchMapping(value = "{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(
             summary = "Partially update a user",
@@ -169,9 +169,9 @@ public class UserControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "User updated"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "The data part is not valid JSON, or a field failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither the user nor a system admin"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is not the user and may not manage user accounts"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No user with the given id in this organization"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "The user also belongs to another organization and the change names a field only they may change")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "The email address or phone number is already in use, or the user also belongs to another organization and the change names a field only they may change")
     })
     public ResponseEntity<UserDto> partialUpdateAUser(
             @Parameter(schema = @Schema(implementation = UserUpdateFieldsDto.class))
@@ -188,7 +188,7 @@ public class UserControllerWeb {
      * @param updates A list of DTOs containing the updates for each user.
      * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
      */
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@access.can('team', 'manage-user-accounts') and @teamAccess.acrossOrganization('manage-user-accounts')")
     @PatchMapping("/batch")
     @Operation(
             summary = "Batch update users",
@@ -198,7 +198,8 @@ public class UserControllerWeb {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Batch update applied"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "One of the update entries failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to user accounts"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "An email address or phone number is already in use, or a user also belongs to another organization and the entry names a field only they may change")
     })
     public ResponseEntity<ApiResponse> batchUpdateUsers(@Valid @RequestBody List<UserPatchDto> updates) {
         userService.batchUpdateUser(updates);
@@ -211,7 +212,7 @@ public class UserControllerWeb {
      * @param id The ID of the user to delete.
      * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
      */
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')")
+    @PreAuthorize("@access.can('team', 'manage-user-accounts') and @teamAccess.acrossOrganization('manage-user-accounts')")
     @DeleteMapping("{id}")
     @Operation(
             summary = "Delete a user",
@@ -219,7 +220,7 @@ public class UserControllerWeb {
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "User deleted"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to user accounts"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No user with the given id in this organization"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "The user also belongs to another organization, so the account is not deleted")
     })

@@ -1,0 +1,4 @@
+id,template_id,permission_key,scope
+f18c15ed-8d4b-5907-a82f-03871dd9fbb3,ed34dfe6-5468-5f6e-b6ed-ef6eefccfce2,team:read-user-accounts,ALL
+6f1c6481-ccb9-546d-8fc5-079d0cf1aa94,ed34dfe6-5468-5f6e-b6ed-ef6eefccfce2,team:manage-user-accounts,ALL
+501025dc-bb7a-5586-b2a6-30586823fed7,eed8ef8b-48a6-5997-8302-df4fe971bfd1,team:read-user-accounts,ALL

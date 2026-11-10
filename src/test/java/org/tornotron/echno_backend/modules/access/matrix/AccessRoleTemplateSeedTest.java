@@ -25,7 +25,8 @@ class AccessRoleTemplateSeedTest {
 
     /** A mapping row's read that needs more than the area's read: its named action is checked as is. */
     private static final Set<String> NAMED_READS = Set.of("read-financials", "read-ledger", "read-reports",
-            "generate-compliance", "export-datasets", "read-reporting-lines");
+            "generate-compliance", "export-datasets", "read-reporting-lines", "read-user-accounts",
+            "manage-user-accounts");
 
     private static final Path MAPPING = Path.of("docs/specs/2026-10-30-access-permission-mapping-endpoints.csv");
     private static final String BASELINE = "employee";
@@ -47,7 +48,8 @@ class AccessRoleTemplateSeedTest {
             "db/data/access/role-template-grants-leave.csv",
             "db/data/access/role-template-grants-working-time.csv",
             "db/data/access/role-template-grants-team.csv",
-            "db/data/access/role-template-grants-attendance.csv");
+            "db/data/access/role-template-grants-attendance.csv",
+            "db/data/access/role-template-grants-user-accounts.csv");
 
     /**
      * Template grants a later changeset deleted, by template slug and key: access-011 takes the
@@ -448,6 +450,25 @@ class AccessRoleTemplateSeedTest {
             }
         }
         assertThat(KEYS_BY_SLUG.get("project-manager")).doesNotContain("team:delete");
+    }
+
+    @Test
+    void onlyTheSystemAdminAndTheHrAdminListUserAccountsAndOnlyTheSystemAdminChangesAnothersAccount() {
+        // Before the matrix the system admin and HR admin listed the organization's user accounts, and
+        // only the system admin changed, deleted or batch-changed another person's account or listed
+        // their organizations.
+        assertThat(KEYS_BY_SLUG.get("system-admin")).contains("team:read-user-accounts", "team:manage-user-accounts");
+        assertThat(KEYS_BY_SLUG.get("hr-admin")).contains("team:read-user-accounts")
+                .doesNotContain("team:manage-user-accounts");
+        for (String key : List.of("team:read-user-accounts", "team:manage-user-accounts")) {
+            assertThat(SCOPE_BY_SLUG.get("system-admin").get(key)).as(key).isEqualTo("ALL");
+        }
+        assertThat(SCOPE_BY_SLUG.get("hr-admin").get("team:read-user-accounts")).isEqualTo("ALL");
+        KEYS_BY_SLUG.forEach((slug, keys) -> {
+            if (!slug.equals("system-admin") && !slug.equals("hr-admin")) {
+                assertThat(keys).as(slug).doesNotContain("team:read-user-accounts", "team:manage-user-accounts");
+            }
+        });
     }
 
     @Test

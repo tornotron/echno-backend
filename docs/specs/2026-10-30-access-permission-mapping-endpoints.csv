@@ -562,18 +562,18 @@ organization,GET,/api/v1/organization/{id},readAnOrganization,keycloak-permissio
 auth,POST,/api/v1/auth/register,registerUser,open,,,platform,create,,auth/AuthController.java,permitAll()
 search,GET,/api/v1/search/web,search,any-member,,,platform,view,,search/SearchController.java,@orgSecurity.isMemberOfCurrentTenant()
 user,GET,/api/v1/user,readAnUser,open,,,platform,view,,user/UserController.java,isAuthenticated()
-user,GET,/api/v1/user/all,readAllUsers,role-names,hr-admin;system-admin,,platform,view,,user/UserController.java,"@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'hr-admin')"
-user,PATCH,/api/v1/user/batch,batchUpdateUsers,role-names,system-admin,,platform,edit,,user/UserController.java,@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')
+user,GET,/api/v1/user/all,readAllUsers,role-names,hr-admin;system-admin,,team,read-user-accounts,,user/UserController.java,"@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'hr-admin')"
+user,PATCH,/api/v1/user/batch,batchUpdateUsers,role-names,system-admin,,team,manage-user-accounts,,user/UserController.java,@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')
 user,GET,/api/v1/user/web,getCurrentUser,open,,,platform,view,,user/UserControllerWeb.java,isAuthenticated()
-user,GET,/api/v1/user/web/all,readAllUsers,role-names,hr-admin;system-admin,,platform,view,,user/UserControllerWeb.java,"@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'hr-admin')"
-user,PATCH,/api/v1/user/web/batch,batchUpdateUsers,role-names,system-admin,,platform,edit,,user/UserControllerWeb.java,@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')
+user,GET,/api/v1/user/web/all,readAllUsers,role-names,hr-admin;system-admin,,team,read-user-accounts,,user/UserControllerWeb.java,"@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin', 'hr-admin')"
+user,PATCH,/api/v1/user/web/batch,batchUpdateUsers,role-names,system-admin,,team,manage-user-accounts,,user/UserControllerWeb.java,@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')
 user,GET,/api/v1/user/web/employees,getEmployeesForCurrentUser,open,,,platform,view,,user/UserControllerWeb.java,isAuthenticated()
-user,DELETE,/api/v1/user/web/{id},deleteAnUser,role-names,system-admin,,platform,delete,,user/UserControllerWeb.java,@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')
-user,PATCH,/api/v1/user/web/{id},partialUpdateAUser,role-names,system-admin,yes,platform,edit,,user/UserControllerWeb.java,@orgSecurity.isSelfUser(#id) or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')
-user,GET,/api/v1/user/web/{userId}/organizations,readAllOrganizationsForCurrentUser,role-names,system-admin,yes,platform,view,,user/UserControllerWeb.java,@orgSecurity.isSelfUser(#userId) or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')
-user,DELETE,/api/v1/user/{id},deleteAnUser,role-names,system-admin,,platform,delete,,user/UserController.java,@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')
-user,PATCH,/api/v1/user/{id},partialUpdateAUser,role-names,system-admin,yes,platform,edit,,user/UserController.java,@orgSecurity.isSelfUser(#id) or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')
-user,GET,/api/v1/user/{userId}/organizations,readAllOrganizationsForCurrentUser,role-names,system-admin,yes,platform,view,,user/UserController.java,@orgSecurity.isSelfUser(#userId) or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')
+user,DELETE,/api/v1/user/web/{id},deleteAnUser,role-names,system-admin,,team,manage-user-accounts,,user/UserControllerWeb.java,@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')
+user,PATCH,/api/v1/user/web/{id},partialUpdateAUser,role-names,system-admin,yes,team,manage-user-accounts,,user/UserControllerWeb.java,@orgSecurity.isSelfUser(#id) or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')
+user,GET,/api/v1/user/web/{userId}/organizations,readAllOrganizationsForCurrentUser,role-names,system-admin,yes,team,manage-user-accounts,,user/UserControllerWeb.java,@orgSecurity.isSelfUser(#userId) or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')
+user,DELETE,/api/v1/user/{id},deleteAnUser,role-names,system-admin,,team,manage-user-accounts,,user/UserController.java,@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')
+user,PATCH,/api/v1/user/{id},partialUpdateAUser,role-names,system-admin,yes,team,manage-user-accounts,,user/UserController.java,@orgSecurity.isSelfUser(#id) or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')
+user,GET,/api/v1/user/{userId}/organizations,readAllOrganizationsForCurrentUser,role-names,system-admin,yes,team,manage-user-accounts,,user/UserController.java,@orgSecurity.isSelfUser(#userId) or @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')
 keycloak,POST,api/v1/keycloak/clients,createClient,role-names,system-admin,,platform,create,,keycloak/KeycloakManagementController.java,@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')
 keycloak,POST,api/v1/keycloak/clients/{clientId}/authorization,enableAuthorization,role-names,system-admin,,platform,create,,keycloak/KeycloakManagementController.java,@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')
 keycloak,POST,api/v1/keycloak/clients/{clientId}/authorization-setup,createWholeAuthorizationSetup,role-names,system-admin,,platform,create,,keycloak/KeycloakManagementController.java,@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')

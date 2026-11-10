@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        team, user accounts (echno-backend #914). Before the matrix the system admin and HR admin listed
+        the organization's user accounts, and only the system admin changed or deleted another person's
+        account, changed several at once, or listed another person's organizations; every person reads
+        and changes their own account, which the guard still answers by who the caller is.
+
+        No action of the team area matches either set of roles, so both are named: team:read-user-accounts
+        for the list and team:manage-user-accounts for the rest. This changeset gives the system admin both
+        across the organization and the HR admin team:read-user-accounts across it.
+
+        A file of its own because 008 loads role-template-grants.csv with no runOnChange. The reconciler
+        carries the template to every uncustomized role on the next boot; a customized role is left as its
+        organization set it.
+    -->
+
+    <changeSet id="access-024-user-accounts" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT count(*) FROM access_role_template_grant
+                WHERE template_id = 'ed34dfe6-5468-5f6e-b6ed-ef6eefccfce2'
+                  AND permission_key = 'team:manage-user-accounts'
+            </sqlCheck>
+        </preConditions>
+        <loadData tableName="access_role_template_grant" file="db/data/access/role-template-grants-user-accounts.csv" separator=",">
+            <column name="id" type="UUID"/>
+            <column name="template_id" type="UUID"/>
+            <column name="permission_key" type="STRING"/>
+            <column name="scope" type="STRING"/>
+        </loadData>
+    </changeSet>
+
+</databaseChangeLog>
