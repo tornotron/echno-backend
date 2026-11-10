@@ -39583,7 +39583,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read working time"
           },
           "404": {
             "content": {
@@ -39693,7 +39693,7 @@
                 }
               }
             },
-            "description": "Caller lacks permission to configure attendance settings"
+            "description": "Caller may not make this change to working time"
           },
           "404": {
             "content": {
@@ -39795,7 +39795,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read working time"
           },
           "404": {
             "content": {
@@ -39908,7 +39908,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read working time"
           },
           "404": {
             "content": {
@@ -40013,7 +40013,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read working time"
           },
           "404": {
             "content": {
@@ -40123,7 +40123,7 @@
                 }
               }
             },
-            "description": "Caller lacks permission to configure attendance settings"
+            "description": "Caller may not make this change to working time"
           },
           "404": {
             "content": {
@@ -40225,7 +40225,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read working time"
           },
           "404": {
             "content": {
@@ -40338,7 +40338,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read working time"
           },
           "404": {
             "content": {
@@ -40444,7 +40444,7 @@
                 }
               }
             },
-            "description": "Caller lacks permission to configure attendance settings"
+            "description": "Caller may not make this change to working time"
           },
           "404": {
             "content": {
@@ -40565,7 +40565,7 @@
                 }
               }
             },
-            "description": "Caller lacks permission to configure attendance settings"
+            "description": "Caller may not make this change to working time"
           },
           "404": {
             "content": {
@@ -40671,7 +40671,7 @@
                 }
               }
             },
-            "description": "Caller lacks permission to configure attendance settings"
+            "description": "Caller may not make this change to working time"
           },
           "404": {
             "content": {
@@ -40792,7 +40792,7 @@
                 }
               }
             },
-            "description": "Caller lacks permission to configure attendance settings"
+            "description": "Caller may not make this change to working time"
           },
           "404": {
             "content": {
@@ -83792,7 +83792,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read working time"
           },
           "404": {
             "content": {
@@ -83902,7 +83902,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to working time"
           },
           "404": {
             "content": {
@@ -84015,7 +84015,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to working time"
           },
           "404": {
             "content": {
@@ -84127,7 +84127,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read working time"
           },
           "404": {
             "content": {
@@ -84250,7 +84250,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to working time"
           },
           "404": {
             "content": {
@@ -84352,7 +84352,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read working time"
           },
           "404": {
             "content": {
@@ -84462,7 +84462,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to working time"
           },
           "404": {
             "content": {
@@ -84564,7 +84564,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read working time"
           },
           "404": {
             "content": {
@@ -84680,7 +84680,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read working time"
           },
           "404": {
             "content": {
@@ -147406,7 +147406,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read working time"
           },
           "404": {
             "content": {
@@ -147516,7 +147516,7 @@
                 }
               }
             },
-            "description": "Caller lacks permission to configure attendance settings"
+            "description": "Caller may not make this change to working time"
           },
           "404": {
             "content": {
@@ -147621,7 +147621,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read working time"
           },
           "404": {
             "content": {
@@ -147731,7 +147731,7 @@
                 }
               }
             },
-            "description": "Caller lacks permission to configure attendance settings"
+            "description": "Caller may not make this change to working time"
           },
           "404": {
             "content": {
@@ -147837,7 +147837,7 @@
                 }
               }
             },
-            "description": "Caller lacks permission to configure attendance settings"
+            "description": "Caller may not make this change to working time"
           },
           "404": {
             "content": {
@@ -147948,7 +147948,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read working time"
           },
           "404": {
             "content": {
@@ -148069,7 +148069,7 @@
                 }
               }
             },
-            "description": "Caller lacks permission to configure attendance settings"
+            "description": "Caller may not make this change to working time"
           },
           "404": {
             "content": {
@@ -148175,7 +148175,7 @@
                 }
               }
             },
-            "description": "Caller lacks permission to configure attendance settings"
+            "description": "Caller may not make this change to working time"
           },
           "404": {
             "content": {
@@ -148286,7 +148286,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read working time"
           },
           "404": {
             "content": {
@@ -148407,7 +148407,7 @@
                 }
               }
             },
-            "description": "Caller lacks permission to configure attendance settings"
+            "description": "Caller may not make this change to working time"
           },
           "404": {
             "content": {
