@@ -136,7 +136,8 @@ public class UserController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "User updated"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "One of the updated fields failed validation"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller is neither the user nor a system admin"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No user with the given id")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No user with the given id in this organization"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "The user also belongs to another organization and the change names a field only they may change")
     })
     public ResponseEntity<UserDto> partialUpdateAUser(
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
@@ -184,7 +185,8 @@ public class UserController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "User deleted"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No user with the given id")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "No user with the given id in this organization"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "The user also belongs to another organization, so the account is not deleted")
     })
     public ResponseEntity<ApiResponse> deleteAnUser(@PathVariable Long id) {
         userService.deleteAnUser(id);
