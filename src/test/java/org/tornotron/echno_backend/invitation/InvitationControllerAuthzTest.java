@@ -14,11 +14,11 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
 import org.tornotron.echno_backend.common.configuration.RPTCache;
-import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
+import org.tornotron.echno_backend.employee.TeamAccess;
+import org.tornotron.echno_backend.modules.access.guard.AccessGuard;
 
 import java.util.UUID;
 
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
@@ -26,7 +26,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/** Only a member holding a role that may add employees today reaches the invitation endpoints. */
+/** Only a caller who may invite across the organization reaches the invitation endpoints. */
 @WebMvcTest(InvitationControllerWeb.class)
 @Import(InvitationControllerAuthzTest.TestSecurityConfig.class)
 class InvitationControllerAuthzTest {
@@ -39,16 +39,18 @@ class InvitationControllerAuthzTest {
     private MockMvc mockMvc;
     @MockitoBean
     private InvitationService invitations;
-    @MockitoBean(name = "orgSecurity")
-    private OrganizationSecurityService orgSecurity;
+    @MockitoBean(name = "access")
+    private AccessGuard access;
+    @MockitoBean(name = "teamAccess")
+    private TeamAccess teamAccess;
     @MockitoBean
     private KeycloakAuthorizationService keycloakAuthorizationService;
     @MockitoBean
     private RPTCache rptCache;
 
     private void memberWithAdminRole(boolean admin) {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(admin);
+        when(access.can("team", "invite")).thenReturn(admin);
+        when(teamAccess.acrossOrganization("invite")).thenReturn(admin);
     }
 
     @Test

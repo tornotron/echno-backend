@@ -24,8 +24,8 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Invitations to join the caller's organization. Guarded on the organization roles that may add an
- * employee today, until the {@code org-admin} area moves onto the access matrix.
+ * Invitations to join the caller's organization. Every handler asks for the team area's named
+ * {@code invite} action across the organization, which the system admin and the HR admin hold.
  */
 @RestController
 @RequestMapping("/api/v1/invitations/web")
@@ -36,8 +36,7 @@ import java.util.UUID;
                 + "Nobody becomes an employee until they accept with the invited address.")
 public class InvitationControllerWeb {
 
-    static final String GUARD = "@orgSecurity.isMemberOfCurrentTenant()"
-            + " and @orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','hr-admin')";
+    static final String GUARD = "@access.can('team', 'invite') and @teamAccess.acrossOrganization('invite')";
 
     private final InvitationService invitations;
 
