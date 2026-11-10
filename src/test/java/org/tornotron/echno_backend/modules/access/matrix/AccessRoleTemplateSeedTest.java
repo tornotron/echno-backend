@@ -54,7 +54,8 @@ class AccessRoleTemplateSeedTest {
             "db/data/access/role-template-grants-document-ingestion.csv",
             "db/data/access/role-template-grants-vision.csv",
             "db/data/access/role-template-grants-invitations.csv",
-            "db/data/access/role-template-grants-service-checks.csv");
+            "db/data/access/role-template-grants-service-checks.csv",
+            "db/data/access/role-template-grants-detections.csv");
 
     /** Every CSV a changeset loads into access_role_template, in changeset order. */
     private static final List<String> TEMPLATE_FILES = List.of(
@@ -371,6 +372,8 @@ class AccessRoleTemplateSeedTest {
                         "safety-officer")),
                 Map.entry("inspections:generate-compliance", Set.of("system-admin", "project-manager")),
                 Map.entry("inspections:export-datasets", Set.of("system-admin")),
+                // DetectionVisibility's detection-read-roles: the detection reviewer alone.
+                Map.entry("inspections:read-detections", Set.of("detection-reviewer")),
                 Map.entry("inspection-checklists:read", Set.of("system-admin", "project-manager", "qa-qc-engineer",
                         "safety-officer", "site-engineer")),
                 Map.entry("inspection-checklists:create", Set.of("system-admin", "qa-qc-engineer")),

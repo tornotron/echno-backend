@@ -60,9 +60,10 @@ public final class AccessCatalog {
                     List.of("prepare", "verify", "certify", "authorize-payment")),
             // Inspections, observations and their defects. Starting a compliance check and reading its
             // jobs is the system admin's and the project manager's, and exporting a training dataset is
-            // the system admin's alone, so each is a named action.
+            // the system admin's alone, so each is a named action. Seeing a model's detections is the
+            // detection reviewer's (decision A4 of the computer vision note, still open).
             new Area("inspections", "Inspections & Defects", "Inspect",
-                    List.of("generate-compliance", "export-datasets")),
+                    List.of("generate-compliance", "export-datasets", "read-detections")),
             // The criteria work is judged against: checklist templates, element types and trades. Every
             // inspection reader reads them, while only the system admin and the QA engineer define them.
             area("inspection-checklists", "Checklists & Trades", "Inspect"),

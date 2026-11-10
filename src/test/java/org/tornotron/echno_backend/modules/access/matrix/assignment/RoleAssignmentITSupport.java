@@ -33,6 +33,7 @@ import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.CurrentEmployeeService;
 import org.tornotron.echno_backend.common.service.FileStorageService;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
+import org.tornotron.echno_backend.employee.TeamAccess;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.EmployeeHierarchyService;
 import org.tornotron.echno_backend.employee.EmployeeService;
@@ -74,7 +75,7 @@ import org.tornotron.echno_backend.user.UserContextService;
 @Import({IdentityTaskQueue.class, MatrixRoleAssignments.class, LegacyRoleMirror.class, AccessRoleReconciler.class,
         CachedAccessFactsSource.class, DatabaseAccessFactsSource.class, AccessFactsQueries.class,
         ConcurrentMapCacheManager.class, CurrentEmployeeService.class, UserContextService.class,
-        EmployeeService.class, EmployeeHierarchyService.class, EmployeeMapperImpl.class,
+        EmployeeService.class, TeamAccess.class, EmployeeHierarchyService.class, EmployeeMapperImpl.class,
         AttachmentMapperImpl.class, ShiftTimingMapperImpl.class, OrganizationSecurityService.class,
         MatrixAccessService.class, CurrentAccessSubject.class, AccessChangeRecorder.class, AccessAdminWriter.class,
         AccessCatalogReader.class, EnforcedPermissions.class, ScopeAwareAreas.class, RoleAssignmentITSupport.Areas.class})

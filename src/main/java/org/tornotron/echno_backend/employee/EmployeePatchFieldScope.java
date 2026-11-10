@@ -87,10 +87,12 @@ import java.util.Set;
 public final class EmployeePatchFieldScope {
 
     /**
-     * The roles that may set the administrative fields. The same pair the PATCH names, the same
-     * pair {@code EmployeeDto} shows pay to.
+     * What sets the administrative fields: {@code team:edit} over every employee's record, which the
+     * system admin and HR admin hold from their starting grants. Before the matrix it was those two
+     * roles by name, the same pair {@code EmployeeDto} shows pay to. Every member holds the action on
+     * their own record, which is not enough.
      */
-    public static final String[] PERSONNEL_ROLES = {"system-admin", "hr-admin"};
+    public static final String PERSONNEL_ACTION = "edit";
 
     /** The fields a person may set on their own record. */
     public static final Set<String> SELF_EDITABLE = Set.of(
@@ -99,7 +101,10 @@ public final class EmployeePatchFieldScope {
             "emailAddress",
             "dateOfBirth");
 
-    /** The fields only {@link #PERSONNEL_ROLES} may set, on anybody's record including their own. */
+    /**
+     * The fields only holders of {@link #PERSONNEL_ACTION} across the organization may set, on anybody's
+     * record including their own.
+     */
     public static final Set<String> PERSONNEL_ONLY = Set.of(
             "employeeId",
             "status",
@@ -128,7 +133,7 @@ public final class EmployeePatchFieldScope {
      * refusal into a partial success and leave the record in a state neither side asked for.
      *
      * @param keys The keys the update carries.
-     * @param callerHoldsPersonnelRole Whether the caller holds one of {@link #PERSONNEL_ROLES} in
+     * @param callerHoldsPersonnelRole Whether the caller holds {@link #PERSONNEL_ACTION} across
      *     the organization this request is scoped to.
      * @throws AccessDeniedException if the caller holds neither role and the update names one of
      *     {@link #PERSONNEL_ONLY}.

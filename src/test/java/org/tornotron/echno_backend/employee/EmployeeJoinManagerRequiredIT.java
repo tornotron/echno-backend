@@ -3,6 +3,7 @@ package org.tornotron.echno_backend.employee;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
@@ -47,6 +48,10 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
         org.tornotron.echno_backend.common.service.OrganizationSecurityService.class,
         org.tornotron.echno_backend.user.UserContextService.class})
 class EmployeeJoinManagerRequiredIT extends AbstractIntegrationTest {
+
+    /** Nobody here edits every employee's record. */
+    @MockitoBean
+    protected TeamAccess teamAccess;
 
     @Autowired
     private EmployeeService employeeService;

@@ -160,9 +160,9 @@ class DetectionVisibilityGuardTest {
         return filter.getValue().includeDetections();
     }
 
+    /** The caller holds this starting role; only the detection reviewer's gives inspections:read-detections. */
     private void holds(String role) {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class)))
-                .thenAnswer(call -> Arrays.asList(call.getArguments()).contains(role));
+        when(access.can("inspections", "read-detections")).thenReturn(role.equals("detection-reviewer"));
     }
 
     @TestConfiguration

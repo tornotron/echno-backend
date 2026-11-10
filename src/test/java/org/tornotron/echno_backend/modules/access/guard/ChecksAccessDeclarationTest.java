@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.Test;
 import org.tornotron.echno_backend.common.approval.SelfApprovalPolicy;
 import org.tornotron.echno_backend.modules.access.api.AccessPermission;
+import org.tornotron.echno_backend.modules.inspections.service.DetectionVisibility;
 import org.tornotron.echno_backend.modules.workprogress.billing.service.ContractBillService;
 import org.tornotron.echno_backend.project.ProjectService;
 
@@ -19,6 +20,8 @@ class ChecksAccessDeclarationTest {
                 .containsExactly(AccessPermission.of("org-admin:approve-own-documents"));
         assertThat(EnforcedPermissions.declaredOn(ProjectService.class))
                 .containsExactly(AccessPermission.of("projects:complete"));
+        assertThat(EnforcedPermissions.declaredOn(DetectionVisibility.class))
+                .containsExactly(AccessPermission.of("inspections:read-detections"));
     }
 
     @Test

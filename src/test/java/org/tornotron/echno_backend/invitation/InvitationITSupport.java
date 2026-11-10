@@ -16,6 +16,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.tornotron.echno_backend.employee.TeamAccess;
 import org.tornotron.echno_backend.attendance.mapper.ShiftTimingMapperImpl;
 import org.tornotron.echno_backend.common.enums.OrgRole;
 import org.tornotron.echno_backend.common.identity.EchnoOrgId;
@@ -64,6 +65,10 @@ import java.util.UUID;
         JacksonAutoConfiguration.class, IdentityLinkService.class, IdentityLinks.class, InvitationSyncJob.class,
         InvitationITSupport.Provider.class})
 abstract class InvitationITSupport extends AbstractIntegrationTest {
+
+    /** Nobody here edits every employee's record. */
+    @MockitoBean
+    protected TeamAccess teamAccess;
 
     @TestConfiguration(proxyBeanMethods = false)
     static class Provider {

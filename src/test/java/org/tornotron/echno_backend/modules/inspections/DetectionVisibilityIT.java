@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import org.tornotron.echno_backend.modules.access.api.CallerAccess;
 import org.tornotron.echno_backend.modules.inspections.api.RegionShape;
 import org.tornotron.echno_backend.modules.inspections.api.ObservationSource;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -287,9 +288,9 @@ class DetectionVisibilityIT extends AbstractIntegrationTest {
     }
 
     private DetectionVisibility visibility(boolean holdsRole) {
-        OrganizationSecurityService orgSecurity = mock(OrganizationSecurityService.class);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(holdsRole);
-        return new DetectionVisibility(orgSecurity, observations, new String[] {"detection-reviewer"});
+        CallerAccess access = mock(CallerAccess.class);
+        when(access.can("inspections", "read-detections")).thenReturn(holdsRole);
+        return new DetectionVisibility(access, observations);
     }
 
     private UUID intake(String ref, ObservationSource source, List<ObservationRegionRequest> regions) {

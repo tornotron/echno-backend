@@ -1,38 +1,34 @@
 package org.tornotron.echno_backend.common.service;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.tornotron.echno_backend.employee.TeamAccess;
 
 /**
  * Attendance authorization policy for the services: whose record a write or a by-id read
- * touches, which the guards cannot see. The controllers' guards are on the access matrix, in
- * the {@code team} area, and ask the same question of the starting roles; the role set here
- * comes from configuration and defaults to the same three:
+ * touches, which the guards cannot see. It asks the access matrix's {@code team} area, as the
+ * controllers' guards do, through {@link TeamAccess}:
  *
  * <ul>
- *   <li>{@code echno.security.attendance.record-management-roles}
- *       (default {@code system-admin,hr-admin,project-manager}) — who may approve,
- *       mark-absent, delete, verify, process regularizations, and view another
- *       employee's or a whole project's records.</li>
+ *   <li>recording or viewing one employee's attendance is {@code team:create} or {@code team:read}
+ *       on that employee's record: every member holds both on their own record, and the system
+ *       admin, HR admin and project manager on everyone's;</li>
+ *   <li>managing records (deciding any approval, the whole pending queue) is {@code team:approve}
+ *       across the organization, which the same three roles hold.</li>
  * </ul>
  *
- * Override the record-management roles per environment (comma-separated org-role tokens) in
- * {@code application.yml} or via env vars, no code change needed; the matrix guards do not read
- * it, so an override now narrows or widens only these service checks. Reading and changing attendance settings and
- * shift timings is on the access matrix, in the {@code working-time} area.
+ * <p>Before the matrix these were the record-management roles,
+ * {@code echno.security.attendance.record-management-roles} (default and only value anywhere:
+ * system admin, HR admin, project manager), plus the employee themselves.
  */
 @Service("attendanceSecurity")
 public class AttendanceSecurityService {
 
     private final OrganizationSecurityService orgSecurity;
-    private final String[] recordManagementRoles;
+    private final TeamAccess teamAccess;
 
-    public AttendanceSecurityService(
-            OrganizationSecurityService orgSecurity,
-            @Value("${echno.security.attendance.record-management-roles:system-admin,hr-admin,project-manager}")
-            String[] recordManagementRoles) {
+    public AttendanceSecurityService(OrganizationSecurityService orgSecurity, TeamAccess teamAccess) {
         this.orgSecurity = orgSecurity;
-        this.recordManagementRoles = recordManagementRoles;
+        this.teamAccess = teamAccess;
     }
 
     /**
@@ -40,12 +36,12 @@ public class AttendanceSecurityService {
      * process regularizations, and view another employee's or a project's records.
      */
     public boolean canManageRecords() {
-        return orgSecurity.hasAnyOrgRoleForCurrentTenant(recordManagementRoles);
+        return teamAccess.acrossOrganization("approve");
     }
 
     /** View one employee's records: the employee themselves, or a manager / HR. */
     public boolean canViewEmployeeRecords(Long employeeId) {
-        return orgSecurity.isSelfOrHasAnyOrgRole(employeeId, recordManagementRoles);
+        return onRecordOf("read", employeeId);
     }
 
     /**
@@ -81,7 +77,7 @@ public class AttendanceSecurityService {
      * membership and the services call this with the id the record actually names.
      */
     public boolean canRecordFor(Long employeeId) {
-        return orgSecurity.isSelfOrHasAnyOrgRole(employeeId, recordManagementRoles);
+        return onRecordOf("create", employeeId);
     }
 
     /**
@@ -120,5 +116,15 @@ public class AttendanceSecurityService {
     public boolean canDecideApproval(Long designatedApproverId) {
         return canManageRecords()
                 || (designatedApproverId != null && orgSecurity.isSelfInCurrentTenant(designatedApproverId));
+    }
+
+    /**
+     * The action on one employee's record. With no employee to name, only a grant over everyone's
+     * records answers, as only the role check answered before.
+     */
+    private boolean onRecordOf(String action, Long employeeId) {
+        return employeeId == null
+                ? teamAccess.acrossOrganization(action)
+                : teamAccess.allowsFor(action, employeeId);
     }
 }
