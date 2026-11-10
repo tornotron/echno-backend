@@ -133233,7 +133233,7 @@
     },
     "/api/v1/project/batch": {
       "patch": {
-        "description": "Applies partial updates to several projects in one call. Each entry names a project id and the map of fields to change on that project.",
+        "description": "Applies partial updates to several projects in one call. Each entry names a project id and the map of fields to change on that project. If the caller may not edit one of the projects, none of them is changed.",
         "operationId": "ProjectController_batchUpdateProjects",
         "requestBody": {
           "content": {
@@ -133287,7 +133287,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to projects, or may not edit one of the projects in the batch"
           },
           "404": {
             "content": {
@@ -160850,7 +160850,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read user accounts"
           },
           "404": {
             "content": {
@@ -160965,7 +160965,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to user accounts"
           },
           "404": {
             "content": {
@@ -160985,7 +160985,7 @@
                 }
               }
             },
-            "description": "Conflict"
+            "description": "An email address or phone number is already in use, or a user also belongs to another organization and the entry names a field only they may change"
           },
           "422": {
             "content": {
@@ -161211,7 +161211,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read user accounts"
           },
           "404": {
             "content": {
@@ -161326,7 +161326,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to user accounts"
           },
           "404": {
             "content": {
@@ -161346,7 +161346,7 @@
                 }
               }
             },
-            "description": "Conflict"
+            "description": "An email address or phone number is already in use, or a user also belongs to another organization and the entry names a field only they may change"
           },
           "422": {
             "content": {
@@ -161557,7 +161557,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to user accounts"
           },
           "404": {
             "content": {
@@ -161690,7 +161690,7 @@
                 }
               }
             },
-            "description": "Caller is neither the user nor a system admin"
+            "description": "Caller is not the user and may not manage user accounts"
           },
           "404": {
             "content": {
@@ -161710,7 +161710,7 @@
                 }
               }
             },
-            "description": "The user also belongs to another organization and the change names a field only they may change"
+            "description": "The email address or phone number is already in use, or the user also belongs to another organization and the change names a field only they may change"
           },
           "422": {
             "content": {
@@ -161806,7 +161806,7 @@
                 }
               }
             },
-            "description": "Caller is neither the user nor a system admin"
+            "description": "Caller is not the user and may not manage user accounts"
           },
           "404": {
             "content": {
@@ -161919,7 +161919,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to user accounts"
           },
           "404": {
             "content": {
@@ -162040,7 +162040,7 @@
                 }
               }
             },
-            "description": "Caller is neither the user nor a system admin"
+            "description": "Caller is not the user and may not manage user accounts"
           },
           "404": {
             "content": {
@@ -162060,7 +162060,7 @@
                 }
               }
             },
-            "description": "The user also belongs to another organization and the change names a field only they may change"
+            "description": "The email address or phone number is already in use, or the user also belongs to another organization and the change names a field only they may change"
           },
           "422": {
             "content": {
@@ -162156,7 +162156,7 @@
                 }
               }
             },
-            "description": "Caller is neither the user nor a system admin"
+            "description": "Caller is not the user and may not manage user accounts"
           },
           "404": {
             "content": {
