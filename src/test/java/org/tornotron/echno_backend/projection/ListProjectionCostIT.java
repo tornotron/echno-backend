@@ -13,6 +13,7 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.tornotron.echno_backend.modules.access.matrix.service.MatrixRoleHolders;
 import org.tornotron.echno_backend.category.mapper.CategoryMapper;
 import org.tornotron.echno_backend.category.mapper.CategoryMapperImpl;
 import org.tornotron.echno_backend.common.entity.Attachment;
@@ -175,6 +176,7 @@ class ListProjectionCostIT extends AbstractIntegrationTest {
         EmployeeMapper employeeMapper = new EmployeeMapperImpl();
         ReflectionTestUtils.setField(employeeMapper, "attachmentMapper", attachmentMapper);
         ReflectionTestUtils.setField(employeeMapper, "shiftTimingMapper", mock(ShiftTimingMapper.class));
+        employeeMapper.setRoleHolders(new MatrixRoleHolders(entityManager));
 
         IssueMapper issueMapper = new IssueMapperImpl();
         ReflectionTestUtils.setField(issueMapper, "attachmentMapper", attachmentMapper);

@@ -627,7 +627,7 @@ public class EmployeeService {
     public Set<OrgRole> getOrgRoles(Long employeeId) {
         Employee employee = employeeRepository.findByIdAndOrganizationId(employeeId,TenantContext.getCurrentOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Employee with ID " + employeeId + " was not found in this organization"));
-        return employee.getOrgRoles();
+        return employeeMapper.orgRolesOf(employee);
     }
 
 }

@@ -183,5 +183,6 @@ public class AccessRoleReconciler implements AccessStartingRoles {
                 WHERE e.organization_id = ?
                 ON CONFLICT DO NOTHING
                 """, organizationId);
+        MatrixRoleHolders.forgetOldRoles();
     }
 }
