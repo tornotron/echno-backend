@@ -34,7 +34,7 @@ public class __MODULE_PASCAL__Controller {
     private final __MODULE_PASCAL__Service service;
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('__MODULE_ID__', 'read')")
     @Operation(summary = "List __MODULE_NAME__ entries, newest first")
     @ApiResponses(@ApiResponse(responseCode = "200", description = "A page of entries"))
     public Page<__MODULE_PASCAL__EntryDto> list(@Valid PageQuery page) {
@@ -42,7 +42,7 @@ public class __MODULE_PASCAL__Controller {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('__MODULE_ID__', 'read')")
     @Operation(summary = "Get one __MODULE_NAME__ entry")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "The entry"),
