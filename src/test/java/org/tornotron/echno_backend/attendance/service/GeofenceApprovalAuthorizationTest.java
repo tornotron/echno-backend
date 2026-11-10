@@ -184,7 +184,6 @@ class GeofenceApprovalAuthorizationTest {
                 org.mockito.Mockito.mock(OrganizationSecurityService.class);
         AttendanceSecurityService security = new AttendanceSecurityService(
                 orgSecurity,
-                new String[] {"system-admin", "hr-admin"},
                 new String[] {"system-admin", "hr-admin", "project-manager"});
 
         when(orgSecurity.hasAnyOrgRoleForCurrentTenant(

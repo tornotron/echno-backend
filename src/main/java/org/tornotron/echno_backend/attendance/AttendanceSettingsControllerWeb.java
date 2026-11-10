@@ -38,7 +38,7 @@ public class AttendanceSettingsControllerWeb {
     }
 
     @PostMapping
-    @PreAuthorize("@attendanceSecurity.canConfigureAttendance()")
+    @PreAuthorize("@access.can('working-time', 'create')")
     @Operation(
             summary = "Create attendance settings",
             description = "Creates an attendance settings profile for the organization, or for a single "
@@ -47,14 +47,14 @@ public class AttendanceSettingsControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Attendance settings created"),
             @ApiResponse(responseCode = "400", description = "A required field is missing or out of range"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks permission to configure attendance settings")
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to working time")
     })
     public ResponseEntity<AttendanceSettingsDto> create(@Valid @RequestBody AttendanceSettingsCreationDto dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(settingsService.createSettings(dto));
     }
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('working-time', 'read')")
     @Operation(
             summary = "List attendance settings",
             description = "Returns every attendance settings profile in the current tenant, organization "
@@ -62,14 +62,14 @@ public class AttendanceSettingsControllerWeb {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Attendance settings returned"),
-            @ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read working time")
     })
     public ResponseEntity<List<AttendanceSettingsDto>> getAll() {
         return ResponseEntity.ok(settingsService.getAllSettings());
     }
 
     @GetMapping("/org")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('working-time', 'read')")
     @Operation(
             summary = "Get organization-level attendance settings",
             description = "Returns the attendance settings that apply organization-wide, used as the "
@@ -77,7 +77,7 @@ public class AttendanceSettingsControllerWeb {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Organization attendance settings returned"),
-            @ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not read working time"),
             @ApiResponse(responseCode = "404", description = "No organization-level attendance settings configured")
     })
     public ResponseEntity<AttendanceSettingsDto> getOrgSettings() {
@@ -85,7 +85,7 @@ public class AttendanceSettingsControllerWeb {
     }
 
     @GetMapping("/project/{projectId}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('working-time', 'read')")
     @Operation(
             summary = "Get a project's attendance settings",
             description = "Returns the attendance settings for a project, falling back to the "
@@ -93,7 +93,7 @@ public class AttendanceSettingsControllerWeb {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Attendance settings returned"),
-            @ApiResponse(responseCode = "403", description = "Caller is not a member of the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not read working time"),
             @ApiResponse(responseCode = "404", description = "No project with the given id, or no settings configured for it")
     })
     public ResponseEntity<AttendanceSettingsDto> getProjectSettings(@PathVariable Long projectId) {
@@ -101,7 +101,7 @@ public class AttendanceSettingsControllerWeb {
     }
 
     @PatchMapping("/{id}")
-    @PreAuthorize("@attendanceSecurity.canConfigureAttendance()")
+    @PreAuthorize("@access.can('working-time', 'edit')")
     @Operation(
             summary = "Update attendance settings",
             description = "Applies a partial update to an attendance settings profile. Only the fields "
@@ -110,7 +110,7 @@ public class AttendanceSettingsControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Attendance settings updated"),
             @ApiResponse(responseCode = "400", description = "A field failed validation"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks permission to configure attendance settings"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to working time"),
             @ApiResponse(responseCode = "404", description = "No attendance settings with the given id")
     })
     public ResponseEntity<AttendanceSettingsDto> update(@PathVariable Long id,
@@ -119,7 +119,7 @@ public class AttendanceSettingsControllerWeb {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("@attendanceSecurity.canConfigureAttendance()")
+    @PreAuthorize("@access.can('working-time', 'delete')")
     @Operation(
             summary = "Deactivate attendance settings",
             description = "Deactivates the attendance settings profile with the given id. Deactivated "
@@ -127,7 +127,7 @@ public class AttendanceSettingsControllerWeb {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Attendance settings deactivated"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks permission to configure attendance settings"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to working time"),
             @ApiResponse(responseCode = "404", description = "No attendance settings with the given id")
     })
     public ResponseEntity<Void> deactivate(@PathVariable Long id) {

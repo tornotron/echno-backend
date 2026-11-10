@@ -44,7 +44,8 @@ class AccessRoleTemplateSeedTest {
             "db/data/access/role-template-grants-documents-reports.csv",
             "db/data/access/role-template-grants-org-profile.csv",
             "db/data/access/role-template-grants-inspections.csv",
-            "db/data/access/role-template-grants-leave.csv");
+            "db/data/access/role-template-grants-leave.csv",
+            "db/data/access/role-template-grants-working-time.csv");
 
     /**
      * Template grants a later changeset deleted, by template slug and key: access-011 takes the
@@ -366,6 +367,23 @@ class AccessRoleTemplateSeedTest {
             if (!slug.equals("system-admin") && !slug.equals("hr-admin")) {
                 assertThat(keys).as(slug).doesNotContain("leave:adjust-balances")
                         .noneMatch(key -> key.startsWith("leave-policies:"));
+            }
+        });
+    }
+
+    @Test
+    void everyMemberReadsTheWorkingCalendarAndOnlyTheSystemAdminAndTheHrAdminChangeIt() {
+        // Before the matrix every member read holidays, the working week, attendance settings and
+        // shift timings, and only the system admin and HR admin changed them.
+        assertThat(KEYS_BY_SLUG.get(BASELINE)).contains("working-time:read");
+        for (String slug : List.of("system-admin", "hr-admin")) {
+            assertThat(KEYS_BY_SLUG.get(slug)).as(slug)
+                    .contains("working-time:create", "working-time:edit", "working-time:delete");
+        }
+        KEYS_BY_SLUG.forEach((slug, keys) -> {
+            if (!slug.equals("system-admin") && !slug.equals("hr-admin")) {
+                assertThat(keys).as(slug).doesNotContain("working-time:create", "working-time:edit",
+                        "working-time:delete", "working-time:approve");
             }
         });
     }

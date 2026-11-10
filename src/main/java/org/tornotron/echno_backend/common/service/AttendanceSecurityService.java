@@ -10,40 +10,31 @@ import org.springframework.stereotype.Service;
  * the actual role sets come from configuration and default to a sensible model:
  *
  * <ul>
- *   <li>{@code echno.security.attendance.config-roles} (default {@code system-admin,hr-admin})
- *       — who may create/update/deactivate attendance settings and shift timings.</li>
  *   <li>{@code echno.security.attendance.record-management-roles}
  *       (default {@code system-admin,hr-admin,project-manager}) — who may approve,
  *       mark-absent, delete, verify, process regularizations, and view another
  *       employee's or a whole project's records.</li>
  * </ul>
  *
- * Override either per environment (comma-separated org-role tokens) in
+ * Override it per environment (comma-separated org-role tokens) in
  * {@code application.yml} or via env vars, no code change needed. Everything else
  * (recording your own attendance, reading a record, reading the settings) only
  * requires organization membership, enforced with {@code @orgSecurity.isMemberOfCurrentTenant()}.
+ * Attendance settings and shift timings are configured on the access matrix, in the
+ * {@code working-time} area.
  */
 @Service("attendanceSecurity")
 public class AttendanceSecurityService {
 
     private final OrganizationSecurityService orgSecurity;
-    private final String[] configRoles;
     private final String[] recordManagementRoles;
 
     public AttendanceSecurityService(
             OrganizationSecurityService orgSecurity,
-            @Value("${echno.security.attendance.config-roles:system-admin,hr-admin}")
-            String[] configRoles,
             @Value("${echno.security.attendance.record-management-roles:system-admin,hr-admin,project-manager}")
             String[] recordManagementRoles) {
         this.orgSecurity = orgSecurity;
-        this.configRoles = configRoles;
         this.recordManagementRoles = recordManagementRoles;
-    }
-
-    /** Create/update/deactivate attendance settings and shift timings. */
-    public boolean canConfigureAttendance() {
-        return orgSecurity.hasAnyOrgRoleForCurrentTenant(configRoles);
     }
 
     /**

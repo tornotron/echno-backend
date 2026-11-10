@@ -1,0 +1,8 @@
+id,template_id,permission_key,scope
+38f42889-3796-5e67-bec7-c729aa6f21d6,2e1db9db-3d7d-59a3-90b4-d05b10e5f687,working-time:read,ALL
+c4673717-99f7-5abc-8bca-cdcdb255e3e5,ed34dfe6-5468-5f6e-b6ed-ef6eefccfce2,working-time:create,ALL
+0f9df852-1ce0-5820-8e07-d027bd13dcea,ed34dfe6-5468-5f6e-b6ed-ef6eefccfce2,working-time:edit,ALL
+80d31197-5578-5c75-b183-1aeb3611a6ad,ed34dfe6-5468-5f6e-b6ed-ef6eefccfce2,working-time:delete,ALL
+641a6a19-32cf-5255-ac0a-a58d86383202,eed8ef8b-48a6-5997-8302-df4fe971bfd1,working-time:create,ALL
+7f1f460a-bfc3-5dda-9287-0dc9d8371274,eed8ef8b-48a6-5997-8302-df4fe971bfd1,working-time:edit,ALL
+28bf2acd-3658-5adf-a9b9-b8bd8d5a0cd6,eed8ef8b-48a6-5997-8302-df4fe971bfd1,working-time:delete,ALL

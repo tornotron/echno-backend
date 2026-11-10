@@ -100,7 +100,6 @@ class AttendanceRecordReadAuthorizationTest {
     private AttendanceSecurityService attendanceSecurity() {
         return new AttendanceSecurityService(
                 orgSecurity,
-                new String[]{"system-admin", "hr-admin"},
                 new String[]{"system-admin", "hr-admin", "project-manager"});
     }
 
