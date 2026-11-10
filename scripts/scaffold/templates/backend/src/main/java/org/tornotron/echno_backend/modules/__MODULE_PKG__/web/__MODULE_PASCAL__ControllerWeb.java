@@ -38,7 +38,7 @@ public class __MODULE_PASCAL__ControllerWeb {
     private final __MODULE_PASCAL__Service service;
 
     @GetMapping
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('__MODULE_ID__', 'read')")
     @Operation(summary = "List __MODULE_NAME__ entries, newest first")
     @ApiResponses(@ApiResponse(responseCode = "200", description = "A page of entries"))
     public Page<__MODULE_PASCAL__EntryDto> list(@Valid PageQuery page) {
@@ -46,7 +46,7 @@ public class __MODULE_PASCAL__ControllerWeb {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('__MODULE_ID__', 'read')")
     @Operation(summary = "Get one __MODULE_NAME__ entry")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "The entry"),
@@ -57,11 +57,11 @@ public class __MODULE_PASCAL__ControllerWeb {
     }
 
     @PostMapping
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    @PreAuthorize("@access.can('__MODULE_ID__', 'manage')")
     @Operation(summary = "Create a __MODULE_NAME__ entry")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Entry created"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to __MODULE_NAME__")
     })
     public ResponseEntity<__MODULE_PASCAL__EntryDto> create(@Valid @RequestBody Create__MODULE_PASCAL__EntryRequest req) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.create(req));
