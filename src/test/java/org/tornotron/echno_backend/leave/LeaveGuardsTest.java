@@ -17,11 +17,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
  * Every leave handler, on the tenant API and its {@code /web} twin, asks the access matrix for the
  * action it performs, and says whose leave it is about where the old guard did: the employee the
  * call names ({@code @leaveAccess.allowsFor}), the caller alone ({@code isSelfInCurrentTenant}), or
- * everyone's ({@code @leaveAccess.acrossOrganization}). Leave policies are an area of their own. A
- * new handler fails here until it is given its row.
+ * everyone's ({@code @leaveAccess.acrossOrganization}). Leave policies are an area of their own. The
+ * notification inbox carries more than leave, so it asks for membership alone. A new handler fails
+ * here until it is given its row.
  */
 class LeaveGuardsTest {
 
+    static final String MEMBER = "@access.isMember()";
     static final String BALANCES = can("read") + " and @leaveSecurity.canViewEmployeeBalances(#employeeId)";
     static final String IN_THIS_ORGANIZATION = "@orgSecurity.isCurrentTenant(#organizationId) and ";
     static final String DUPLICATE = policies("maintain")
@@ -111,16 +113,16 @@ class LeaveGuardsTest {
             Map.entry("LeaveRequestControllerWeb#withdrawRequest", forEmployee("edit")),
             Map.entry("LeaveRequestControllerWeb#getConflictingDates", selfOnly("read")),
             Map.entry("LeaveRequestControllerWeb#calculateDays", can("read")),
-            Map.entry("NotificationController#getNotifications", can("read")),
-            Map.entry("NotificationController#getUnreadNotifications", can("read")),
-            Map.entry("NotificationController#getUnreadCount", can("read")),
-            Map.entry("NotificationController#markAsRead", can("read")),
-            Map.entry("NotificationController#markAllAsRead", can("read")),
-            Map.entry("NotificationControllerWeb#getNotifications", can("read")),
-            Map.entry("NotificationControllerWeb#getUnreadNotifications", can("read")),
-            Map.entry("NotificationControllerWeb#getUnreadCount", can("read")),
-            Map.entry("NotificationControllerWeb#markAsRead", can("read")),
-            Map.entry("NotificationControllerWeb#markAllAsRead", can("read")));
+            Map.entry("NotificationController#getNotifications", MEMBER),
+            Map.entry("NotificationController#getUnreadNotifications", MEMBER),
+            Map.entry("NotificationController#getUnreadCount", MEMBER),
+            Map.entry("NotificationController#markAsRead", MEMBER),
+            Map.entry("NotificationController#markAllAsRead", MEMBER),
+            Map.entry("NotificationControllerWeb#getNotifications", MEMBER),
+            Map.entry("NotificationControllerWeb#getUnreadNotifications", MEMBER),
+            Map.entry("NotificationControllerWeb#getUnreadCount", MEMBER),
+            Map.entry("NotificationControllerWeb#markAsRead", MEMBER),
+            Map.entry("NotificationControllerWeb#markAllAsRead", MEMBER));
 
     @Test
     void everyHandlerNeedsTheActionItPerforms() {

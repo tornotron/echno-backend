@@ -110,6 +110,7 @@ class LeaveApprovalWorkflowAuthzTest {
     private void asAnApproverHoldingNoAdministrativeRole() {
         when(access.can(eq("leave"), anyString()))
                 .thenAnswer(call -> true && !"adjust-balances".equals(call.getArgument(1)));
+        when(access.isMember()).thenReturn(true);
         when(access.can("leave", "adjust-balances")).thenReturn(false);
         when(leaveAccess.acrossOrganization("read")).thenReturn(false);
         when(access.can(eq("leave-policies"), anyString())).thenReturn(false);
@@ -118,6 +119,7 @@ class LeaveApprovalWorkflowAuthzTest {
     private void asSomebodyOutsideTheTenant() {
         when(access.can(eq("leave"), anyString()))
                 .thenAnswer(call -> false && !"adjust-balances".equals(call.getArgument(1)));
+        when(access.isMember()).thenReturn(false);
         when(access.can("leave", "adjust-balances")).thenReturn(false);
         when(leaveAccess.acrossOrganization("read")).thenReturn(false);
         when(access.can(eq("leave-policies"), anyString())).thenReturn(false);
