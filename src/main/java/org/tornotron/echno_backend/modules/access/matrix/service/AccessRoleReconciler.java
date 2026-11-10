@@ -13,9 +13,15 @@ import org.tornotron.echno_backend.modules.access.api.AccessStartingRoles;
  *   <li>Each template becomes a role, unless the organization already has one with that slug or
  *       deleted it, which {@code access_role_removed} records.
  *   <li>A role nobody has changed follows its template's grants and grantable list, in both directions,
- *       so a change to the template's cells arrives at the next boot. A role marked customized is
- *       left alone. A grantable row that points at a role the organization made is kept, since no
- *       template can list it.
+ *       so a change to the template's cells arrives at the next boot. A grantable row that points at a
+ *       role the organization made is kept, since no template can list it.
+ *   <li>A customized role made from a template takes each change to its template's grants once, and
+ *       keeps the organization's own changes: {@code access_role_template_grant_applied} records which
+ *       template grants it has been given, so a grant the template gains is added, a grant the template
+ *       drops is taken away, and a grant the organization took off stays off. Without this a grant a
+ *       template gained to keep today's access, when an area moved onto the matrix, never reached a
+ *       customized role. Its grantable list is left as the organization set it. A role the organization
+ *       made itself ({@code created_by} set) never follows a template, even one that later takes its slug.
  *   <li>Each {@code employee_org_roles} row becomes the matching assignment, with no project, because
  *       the old roles hold across the organization. Only ever adds: while the old table is the truth,
  *       the assignment writer removes the two together.
@@ -34,6 +40,7 @@ public class AccessRoleReconciler implements AccessStartingRoles {
     public void ensureStartingRoles(Long organizationId) {
         ensureRoles(organizationId);
         alignGrants(organizationId);
+        applyTemplateChangesToCustomizedRoles(organizationId);
         alignGrantables(organizationId);
     }
 
@@ -77,6 +84,58 @@ public class AccessRoleReconciler implements AccessStartingRoles {
                                   WHERE r.id = access_role_grant.role_id
                                     AND g.permission_key = access_role_grant.permission_key
                                     AND g.scope = access_role_grant.scope)
+                """, organizationId);
+    }
+
+    private void applyTemplateChangesToCustomizedRoles(Long organizationId) {
+        // What a template dropped since the role was last aligned leaves a customized role too.
+        jdbc.update("""
+                DELETE FROM access_role_grant
+                WHERE role_id IN (SELECT r.id FROM access_role r
+                                  WHERE r.organization_id = ? AND r.customized AND r.created_by IS NULL)
+                  AND EXISTS (SELECT 1 FROM access_role_template_grant_applied a
+                              WHERE a.role_id = access_role_grant.role_id
+                                AND a.permission_key = access_role_grant.permission_key
+                                AND a.scope = access_role_grant.scope)
+                  AND NOT EXISTS (SELECT 1 FROM access_role r
+                                  JOIN access_role_template t ON t.slug = r.slug
+                                  JOIN access_role_template_grant g ON g.template_id = t.id
+                                  WHERE r.id = access_role_grant.role_id
+                                    AND g.permission_key = access_role_grant.permission_key
+                                    AND g.scope = access_role_grant.scope)
+                """, organizationId);
+        jdbc.update("""
+                DELETE FROM access_role_template_grant_applied
+                WHERE organization_id = ?
+                  AND NOT EXISTS (SELECT 1 FROM access_role r
+                                  JOIN access_role_template t ON t.slug = r.slug
+                                  JOIN access_role_template_grant g ON g.template_id = t.id
+                                  WHERE r.id = access_role_template_grant_applied.role_id
+                                    AND g.permission_key = access_role_template_grant_applied.permission_key
+                                    AND g.scope = access_role_template_grant_applied.scope)
+                """, organizationId);
+        // What a template gained since reaches a customized role once; what the organization took off
+        // stays off, since it is recorded as given.
+        jdbc.update("""
+                INSERT INTO access_role_grant (id, role_id, permission_key, scope)
+                SELECT gen_random_uuid(), r.id, g.permission_key, g.scope
+                FROM access_role r
+                JOIN access_role_template t ON t.slug = r.slug
+                JOIN access_role_template_grant g ON g.template_id = t.id
+                WHERE r.organization_id = ? AND r.customized AND r.created_by IS NULL
+                  AND NOT EXISTS (SELECT 1 FROM access_role_template_grant_applied a
+                                  WHERE a.role_id = r.id AND a.permission_key = g.permission_key
+                                    AND a.scope = g.scope)
+                ON CONFLICT DO NOTHING
+                """, organizationId);
+        jdbc.update("""
+                INSERT INTO access_role_template_grant_applied (id, organization_id, role_id, permission_key, scope)
+                SELECT gen_random_uuid(), r.organization_id, r.id, g.permission_key, g.scope
+                FROM access_role r
+                JOIN access_role_template t ON t.slug = r.slug
+                JOIN access_role_template_grant g ON g.template_id = t.id
+                WHERE r.organization_id = ? AND r.created_by IS NULL
+                ON CONFLICT DO NOTHING
                 """, organizationId);
     }
 

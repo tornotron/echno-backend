@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jakarta.persistence.EntityManager;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -43,6 +44,8 @@ import org.tornotron.echno_backend.modules.access.api.AccessService;
 import org.tornotron.echno_backend.modules.access.api.AccessSubject;
 import org.tornotron.echno_backend.modules.access.matrix.AccessFixtures;
 import org.tornotron.echno_backend.modules.access.matrix.repository.AccessFactsQueries;
+import org.tornotron.echno_backend.modules.access.matrix.service.AccessReconcileReport;
+import org.tornotron.echno_backend.modules.access.matrix.service.AccessReconcileReport.MemberDifference;
 import org.tornotron.echno_backend.modules.access.matrix.service.AccessRoleBackfill;
 import org.tornotron.echno_backend.modules.access.matrix.service.AccessRoleReconciler;
 import org.tornotron.echno_backend.modules.access.matrix.service.CachedAccessFactsSource;
@@ -62,7 +65,7 @@ import org.tornotron.echno_backend.support.AbstractIntegrationTest;
 @Import({PreMigrationOrgIT.Wiring.class, StartupTaskRunner.class, StartupTaskState.class,
         KeycloakIdentityBackfill.class, NullEmployeeStatusCleanup.class, KeycloakRoleImport.class,
         KeycloakTokenMapper.class, TransactionRetryTemplate.class, TransactionalWorkRunner.class,
-        AccessRoleBackfill.class, AccessRoleReconciler.class, CachedAccessFactsSource.class,
+        AccessRoleBackfill.class, AccessRoleReconciler.class, AccessReconcileReport.class, CachedAccessFactsSource.class,
         DatabaseAccessFactsSource.class, AccessFactsQueries.class, ConcurrentMapCacheManager.class})
 class PreMigrationOrgIT extends AbstractIntegrationTest {
 
@@ -95,6 +98,11 @@ class PreMigrationOrgIT extends AbstractIntegrationTest {
     @Autowired
     private StartupTaskState state;
 
+    @Autowired
+    private AccessRoleBackfill backfill;
+
+    private final List<Long> others = new ArrayList<>();
+
     private TransactionTemplate transaction;
     private Long organization;
     private Long employee;
@@ -119,6 +127,12 @@ class PreMigrationOrgIT extends AbstractIntegrationTest {
     @AfterEach
     void removeTheRows() {
         // The identity rows go with these through their foreign keys.
+        for (Long other : others) {
+            Long otherUser = jdbc.queryForObject("SELECT user_id FROM employee WHERE id = ?", Long.class, other);
+            jdbc.update("DELETE FROM employee WHERE id = ?", other);
+            jdbc.update("DELETE FROM users_table WHERE id = ?", otherUser);
+        }
+        others.clear();
         jdbc.update("DELETE FROM employee WHERE id = ?", employee);
         jdbc.update("DELETE FROM users_table WHERE id = ?", user);
         jdbc.update("DELETE FROM organization WHERE id = ?", organization);
@@ -367,6 +381,161 @@ class PreMigrationOrgIT extends AbstractIntegrationTest {
         assertThat(grantable("hr-admin")).contains("project-manager", "hr-admin")
                 .doesNotContain("system-admin").hasSize(12);
         assertThat(grantable("project-manager")).isEmpty();
+    }
+
+    @Test
+    void anOrganizationWithEveryOldRoleAndSomePairsEndsWithTodaysAccess() {
+        // Shaped like the QA seed: one person per old role, people holding two, and one holding none.
+        for (OrgRole role : OrgRole.values()) {
+            withOldRoles(role.name());
+        }
+        withOldRoles("SYSTEM_ADMIN", "PROJECT_MANAGER");
+        withOldRoles("HR_ADMIN", "STORE_KEEPER");
+        withOldRoles("SITE_ENGINEER", "QA_ENGINEER", "SAFETY_OFFICER");
+
+        assertThat(runner.runOnce()).isTrue();
+        AccessRoleBackfill.Result first = backfill.reconcile(List.of(organization), false);
+        AccessRoleBackfill.Result again = backfill.reconcile(List.of(organization), false);
+
+        assertThat(first.failed()).isEmpty();
+        assertThat(first.differences().get(organization)).isEmpty();
+        assertThat(again.differences().get(organization)).isEmpty();
+        assertThat(first.withoutRoles()).doesNotContain(organization);
+    }
+
+    @Test
+    void theReportNamesAMemberWhoseRoleNoLongerGivesTodaysAccess() {
+        jdbc.update("INSERT INTO employee_org_roles (employee_id, role) VALUES (?, 'STORE_KEEPER')", employee);
+        assertThat(runner.runOnce()).isTrue();
+        jdbc.update("UPDATE access_role SET customized = true WHERE organization_id = ? AND slug = 'store-keeper'",
+                organization);
+        jdbc.update("DELETE FROM access_role_grant WHERE role_id = (SELECT id FROM access_role "
+                + "WHERE organization_id = ? AND slug = 'store-keeper') AND permission_key = 'vendors:read'",
+                organization);
+
+        List<MemberDifference> found = backfill.reconcile(List.of(organization), false).differences().get(organization);
+
+        assertThat(found).singleElement().satisfies(member -> {
+            assertThat(member.employeeId()).isEqualTo(employee);
+            assertThat(member.missing()).containsExactly("vendors:read/ALL");
+            assertThat(member.extra()).isEmpty();
+        });
+    }
+
+    @Test
+    void aCustomizedRoleTakesEachTemplateChangeOnceAndKeepsWhatTheOrganizationTookOff() {
+        assertThat(runner.runOnce()).isTrue();
+        jdbc.update("UPDATE access_role SET customized = true WHERE organization_id = ? AND slug = 'project-manager'",
+                organization);
+        // The organization takes one starting grant off.
+        takeOff("project-manager", "assets:delete");
+        // A later changeset adds a grant to keep today's access for an area moving onto the matrix.
+        UUID added = UUID.randomUUID();
+        jdbc.update("""
+                INSERT INTO access_role_template_grant (id, template_id, permission_key, scope)
+                SELECT ?, id, 'labour:delete', 'ALL' FROM access_role_template WHERE slug = 'project-manager'
+                """, added);
+        try {
+            assertThat(runner.runOnce()).isTrue();
+            assertThat(holds("project-manager", "labour:delete")).isTrue();
+            assertThat(holds("project-manager", "assets:delete")).isFalse();
+
+            // Once given, the organization's choice wins: taken off, it stays off.
+            takeOff("project-manager", "labour:delete");
+            assertThat(runner.runOnce()).isTrue();
+            assertThat(holds("project-manager", "labour:delete")).isFalse();
+
+            // Given back, and then dropped from the template, it leaves the customized role too.
+            jdbc.update("""
+                    INSERT INTO access_role_grant (id, role_id, permission_key, scope)
+                    SELECT gen_random_uuid(), id, 'labour:delete', 'ALL' FROM access_role
+                    WHERE organization_id = ? AND slug = 'project-manager'
+                    """, organization);
+        } finally {
+            jdbc.update("DELETE FROM access_role_template_grant WHERE id = ?", added);
+        }
+        assertThat(runner.runOnce()).isTrue();
+        assertThat(holds("project-manager", "labour:delete")).isFalse();
+        assertThat(holds("project-manager", "assets:delete")).isFalse();
+        assertThat(holds("project-manager", "assets:edit")).isTrue();
+    }
+
+    @Test
+    void aCustomizedRoleFollowsATemplateRescope() {
+        assertThat(runner.runOnce()).isTrue();
+        jdbc.update("UPDATE access_role SET customized = true WHERE organization_id = ? AND is_baseline",
+                organization);
+        UUID wide = UUID.randomUUID();
+        jdbc.update("""
+                INSERT INTO access_role_template_grant (id, template_id, permission_key, scope)
+                SELECT ?, id, 'assets:create', 'ALL' FROM access_role_template WHERE is_baseline
+                """, wide);
+        try {
+            assertThat(runner.runOnce()).isTrue();
+            assertThat(scopesOn("employee", "assets:create")).containsExactly("ALL");
+
+            jdbc.update("UPDATE access_role_template_grant SET scope = 'OWN' WHERE id = ?", wide);
+            assertThat(runner.runOnce()).isTrue();
+            assertThat(scopesOn("employee", "assets:create")).containsExactly("OWN");
+        } finally {
+            jdbc.update("DELETE FROM access_role_template_grant WHERE id = ?", wide);
+        }
+        assertThat(runner.runOnce()).isTrue();
+        assertThat(scopesOn("employee", "assets:create")).isEmpty();
+    }
+
+    @Test
+    void aRoleTheOrganizationMadeNeverFollowsATemplateThatTakesItsSlug() {
+        jdbc.update("""
+                INSERT INTO access_role (id, organization_id, slug, name, is_system, is_baseline, customized,
+                                         created_by, created_at, updated_at)
+                VALUES (gen_random_uuid(), ?, 'site-engineer', 'Our Site Engineer', false, false, true, ?, now(), now())
+                """, organization, user);
+
+        assertThat(runner.runOnce()).isTrue();
+        assertThat(runner.runOnce()).isTrue();
+
+        assertThat(jdbc.queryForObject("""
+                SELECT count(*) FROM access_role_grant g JOIN access_role r ON r.id = g.role_id
+                WHERE r.organization_id = ? AND r.slug = 'site-engineer'
+                """, Integer.class, organization)).isZero();
+    }
+
+    @Test
+    void aDryRunReportsAndKeepsNothing() {
+        jdbc.update("INSERT INTO employee_org_roles (employee_id, role) VALUES (?, 'HR_ADMIN')", employee);
+
+        AccessRoleBackfill.Result dry = backfill.reconcile(List.of(organization), true);
+
+        assertThat(dry.withoutRoles()).contains(organization);
+        assertThat(dry.differences().get(organization)).isEmpty();
+        assertThat(rolesInOrganization()).isZero();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM access_employee_role WHERE employee_id = ?",
+                Integer.class, employee)).isZero();
+    }
+
+    private void takeOff(String slug, String key) {
+        jdbc.update("DELETE FROM access_role_grant WHERE role_id = (SELECT id FROM access_role "
+                + "WHERE organization_id = ? AND slug = ?) AND permission_key = ?", organization, slug, key);
+    }
+
+    private void withOldRoles(String... roles) {
+        Long person = transaction.execute(status -> {
+            AccessFixtures fixtures = new AccessFixtures(em);
+            Organization org = em.find(Organization.class, organization);
+            return fixtures.employee(org, "seeded-" + UUID.randomUUID()).getId();
+        });
+        others.add(person);
+        for (String role : roles) {
+            jdbc.update("INSERT INTO employee_org_roles (employee_id, role) VALUES (?, ?)", person, role);
+        }
+    }
+
+    private List<String> scopesOn(String slug, String key) {
+        return jdbc.queryForList("""
+                SELECT g.scope FROM access_role_grant g JOIN access_role r ON r.id = g.role_id
+                WHERE r.organization_id = ? AND r.slug = ? AND g.permission_key = ?
+                """, String.class, organization, slug, key);
     }
 
     private boolean holds(String slug, String key) {
