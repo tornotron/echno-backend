@@ -14,6 +14,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
 import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
+import org.tornotron.echno_backend.modules.access.guard.AccessGuard;
 
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -58,6 +59,12 @@ class EmployeeDirectoryReadGuardTest {
     @MockitoBean(name = "orgSecurity")
     private OrganizationSecurityService orgSecurity;
 
+    @MockitoBean(name = "access")
+    private AccessGuard access;
+
+    @MockitoBean(name = "teamAccess")
+    private TeamAccess teamAccess;
+
     // Satisfies RPTExchangeFilter, a custom filter the web slice loads; unused here
     // because .with(jwt(...)) sets the authentication directly.
     @MockitoBean
@@ -71,20 +78,12 @@ class EmployeeDirectoryReadGuardTest {
      * old guard asked for.
      */
     private void callerIsALineManagerWithNoRole() {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "hr-admin", "project-manager"))
-                .thenReturn(false);
-        when(orgSecurity.isSelfOrHasAnyOrgRole(CALLER_AS_MANAGER, "system-admin", "hr-admin"))
-                .thenReturn(true);
-        when(orgSecurity.isSelfOrHasAnyOrgRole(ANOTHER_MANAGER, "system-admin", "hr-admin"))
-                .thenReturn(false);
+        TeamPersonas.employeeWhoIs(access, teamAccess, CALLER_AS_MANAGER);
     }
 
     /** A project-manager: holds the role, is not the manager named. */
     private void callerIsAProjectManager() {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "hr-admin", "project-manager"))
-                .thenReturn(true);
-        when(orgSecurity.isSelfOrHasAnyOrgRole(ANOTHER_MANAGER, "system-admin", "hr-admin"))
-                .thenReturn(false);
+        TeamPersonas.projectManager(access, teamAccess);
         when(orgSecurity.isCurrentTenant(OWN_ORG)).thenReturn(true);
         when(orgSecurity.isCurrentTenant(FOREIGN_ORG)).thenReturn(false);
     }

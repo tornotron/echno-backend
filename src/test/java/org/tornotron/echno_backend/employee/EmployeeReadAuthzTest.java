@@ -14,11 +14,10 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
 import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
+import org.tornotron.echno_backend.modules.access.guard.AccessGuard;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -53,6 +52,12 @@ class EmployeeReadAuthzTest {
     @MockitoBean(name = "orgSecurity")
     private OrganizationSecurityService orgSecurity;
 
+    @MockitoBean(name = "access")
+    private AccessGuard access;
+
+    @MockitoBean(name = "teamAccess")
+    private TeamAccess teamAccess;
+
     // Satisfies RPTExchangeFilter, a custom filter the web slice loads; unused here because
     // .with(jwt(...)) sets the authentication directly.
     @MockitoBean
@@ -63,10 +68,7 @@ class EmployeeReadAuthzTest {
 
     /** A plain member: no elevated role anywhere, self only on their own record. */
     private void plainMemberWhoIs(long selfId) {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(false);
-        when(orgSecurity.isSelfOrHasAnyOrgRole(anyLong(), any(String[].class))).thenReturn(false);
-        when(orgSecurity.isSelfOrHasAnyOrgRole(eq(selfId), any(String[].class))).thenReturn(true);
+        TeamPersonas.employeeWhoIs(access, teamAccess, selfId);
         when(employeeService.displayAnEmployee(anyLong())).thenReturn(new EmployeeDto());
     }
 
@@ -92,9 +94,7 @@ class EmployeeReadAuthzTest {
 
     @Test
     void webRead_isOk_forARoleHolderReadingAColleague() throws Exception {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(true);
-        when(orgSecurity.isSelfOrHasAnyOrgRole(anyLong(), any(String[].class))).thenReturn(true);
+        TeamPersonas.projectManager(access, teamAccess);
         when(employeeService.displayAnEmployee(anyLong())).thenReturn(new EmployeeDto());
 
         mockMvc.perform(get("/api/v1/employee/web/" + SOMEONE_ELSE).with(jwt()))

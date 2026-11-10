@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        team (echno-backend #914): employee records. Before the matrix every member looked colleagues up
+        and read who holds which role, read and edited their own record and saw who reports to them; the
+        system admin, HR admin and project manager read every record; and only the system admin and HR
+        admin changed, deleted or re-pointed one, or read anyone's reports.
+
+        The first template gave the baseline team:read, team:create and team:approve across the
+        organization and the project manager team:edit, so this changeset:
+        - narrows the baseline's team:read and team:create to its own record and adds team:edit and the
+          named team:read-reporting-lines at own scope (nothing asks for team:create, the create route
+          being closed, but whoever edits a record holds create at the same reach);
+        - takes the project manager's team:edit, which no employee handler asks for (the baseline's
+          team:approve stays until attendance records leave the area);
+        - gives the system admin and HR admin team:read, team:create and team:read-reporting-lines
+          across the organization, and the project manager team:read across it.
+
+        A file of its own because 008 loads role-template-grants.csv with no runOnChange. The reconciler
+        carries the template to every uncustomized role on the next boot; a customized role is left as its
+        organization set it.
+    -->
+
+    <changeSet id="access-022-team" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT count(*) FROM access_role_template_grant
+                WHERE template_id = 'ed34dfe6-5468-5f6e-b6ed-ef6eefccfce2'
+                  AND permission_key = 'team:read-reporting-lines'
+            </sqlCheck>
+        </preConditions>
+        <update tableName="access_role_template_grant">
+            <column name="scope" value="OWN"/>
+            <where>template_id = '2e1db9db-3d7d-59a3-90b4-d05b10e5f687'
+                AND permission_key IN ('team:read', 'team:create') AND scope = 'ALL'</where>
+        </update>
+        <delete tableName="access_role_template_grant">
+            <where>template_id = '0f205e55-9cf3-5a43-8fda-c0d6c92e5bef' AND permission_key = 'team:edit'</where>
+        </delete>
+        <loadData tableName="access_role_template_grant" file="db/data/access/role-template-grants-team.csv" separator=",">
+            <column name="id" type="UUID"/>
+            <column name="template_id" type="UUID"/>
+            <column name="permission_key" type="STRING"/>
+            <column name="scope" type="STRING"/>
+        </loadData>
+    </changeSet>
+
+</databaseChangeLog>

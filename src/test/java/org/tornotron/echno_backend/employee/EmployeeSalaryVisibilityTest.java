@@ -23,6 +23,7 @@ import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationSer
 import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
+import org.tornotron.echno_backend.modules.access.guard.AccessGuard;
 import org.tornotron.echno_backend.employee.dto.EmployeeDto;
 
 import java.time.Instant;
@@ -32,8 +33,6 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -55,7 +54,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * response body and not about a 403. Every read below is admitted; what varies is whether the
  * body carries {@code salary}.
  *
- * <p>The mocked {@code @orgSecurity} bean only opens the door. The visibility decision reads the
+ * <p>The mocked {@code @access} and {@code @teamAccess} beans only open the door. The visibility decision reads the
  * caller's real authorities and the real {@code TenantContext} that {@code TenantFilter} sets from
  * the JWT, so what is asserted here is the mechanism and not the stub.
  */
@@ -83,6 +82,12 @@ class EmployeeSalaryVisibilityTest {
     @MockitoBean(name = "orgSecurity")
     private OrganizationSecurityService orgSecurity;
 
+    @MockitoBean(name = "access")
+    private AccessGuard access;
+
+    @MockitoBean(name = "teamAccess")
+    private TeamAccess teamAccess;
+
     // Satisfies RPTExchangeFilter, a custom filter the web slice loads; unused here because
     // .with(jwt(...)) sets the authentication directly.
     @MockitoBean
@@ -97,9 +102,7 @@ class EmployeeSalaryVisibilityTest {
         // it. Set here as well so the visibility decision has a tenant to read either way; the
         // filter's own finally clears it after every request that reaches the filter.
         TenantContext.setCurrentOrgId(ORG);
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(anyString(), anyString(), anyString()))
-                .thenReturn(true);
-        when(orgSecurity.isSelfOrHasAnyOrgRole(anyLong(), any(String[].class))).thenReturn(true);
+        TeamPersonas.personnelAdmin(access, teamAccess);
         when(employeeService.displayAnEmployee(COLLEAGUE)).thenReturn(recordOf(SOMEONE_ELSE));
         when(employeeService.displayAllEmployees(anyInt(), anyInt(), any(), any(), any()))
                 .thenReturn(page(recordOf(SOMEONE_ELSE)));

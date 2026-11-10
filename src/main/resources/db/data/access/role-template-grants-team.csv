@@ -1,0 +1,10 @@
+id,template_id,permission_key,scope
+9266aa33-e491-5d5c-9f00-df64d45287b5,2e1db9db-3d7d-59a3-90b4-d05b10e5f687,team:edit,OWN
+a25833e4-304a-5ef0-9eed-b96465a5815f,2e1db9db-3d7d-59a3-90b4-d05b10e5f687,team:read-reporting-lines,OWN
+38b969e5-b5d7-5fe1-8132-4e55d38e79e1,ed34dfe6-5468-5f6e-b6ed-ef6eefccfce2,team:read,ALL
+81b5dd8e-bc7d-50cf-ad7f-8b9d449840c7,ed34dfe6-5468-5f6e-b6ed-ef6eefccfce2,team:read-reporting-lines,ALL
+081240f6-669b-5a0b-9a44-7538c7325540,eed8ef8b-48a6-5997-8302-df4fe971bfd1,team:read,ALL
+28ba8194-51b7-577f-89dc-bf4f2d5e9214,eed8ef8b-48a6-5997-8302-df4fe971bfd1,team:read-reporting-lines,ALL
+e547e94f-97cd-53ad-80b2-6466257109de,0f205e55-9cf3-5a43-8fda-c0d6c92e5bef,team:read,ALL
+0c0a6d7f-ade6-59d5-b2ca-0e27161333f4,ed34dfe6-5468-5f6e-b6ed-ef6eefccfce2,team:create,ALL
+d5e511cd-15a9-51be-b3c1-b2aeafa42ce0,eed8ef8b-48a6-5997-8302-df4fe971bfd1,team:create,ALL

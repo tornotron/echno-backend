@@ -98,7 +98,10 @@ public final class AccessCatalog {
             area("expenses", "Expenses & Receipts", "Money"),
             new Area("finance", "Finance", "Money", List.of("configure")),
             area("payables", "Payables", "Money"),
-            area("team", "Team & Attendance", "People"),
+            // Every employee reads and edits their own record and sees who reports to them, the system admin,
+            // HR admin and project manager read everyone's, and only the system admin and HR admin change
+            // records or read anyone's reports, so reading a reporting line is a named action.
+            new Area("team", "Team & Attendance", "People", List.of("read-reporting-lines")),
             // The organization's working calendar: holidays, the working week, attendance settings and
             // shift timings. Every member reads them, while only the system admin and HR admin change
             // them, so they are an area of their own beside the team.

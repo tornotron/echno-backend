@@ -117,9 +117,9 @@ class EmployeePatchFieldScopeContractTest {
                         + "question from the other.")
                 .isEqualTo(web);
         assertThat(mobile)
-                .as("the self clause is what makes the field scope necessary, and taking it away "
-                        + "would remove self-service rather than scope it")
-                .contains("isSelfOrHasAnyOrgRole");
+                .as("the own-record check is what makes the field scope necessary, and taking it "
+                        + "away would remove self-service rather than scope it")
+                .contains("@teamAccess.allowsFor('edit', #id)");
     }
 
     /** The keys the employee update switch names, read out of the method's own source. */
