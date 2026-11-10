@@ -41204,7 +41204,7 @@
                 }
               }
             },
-            "description": "Caller lacks permission to view this employee's attendance records"
+            "description": "Caller may not read attendance records"
           },
           "404": {
             "content": {
@@ -41335,7 +41335,7 @@
                 }
               }
             },
-            "description": "Caller lacks permission to manage attendance records"
+            "description": "Caller may not make this change to attendance records"
           },
           "404": {
             "content": {
@@ -41466,7 +41466,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant, or has no employee record in it, so there is no queue to serve"
+            "description": "Caller may not read attendance records, or has no employee record in this organization, so there is no queue to serve"
           },
           "404": {
             "content": {
@@ -41572,7 +41572,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant, or has no employee record in it, so there is no queue to count"
+            "description": "Caller may not read attendance records, or has no employee record in this organization, so there is no queue to count"
           },
           "404": {
             "content": {
@@ -41770,7 +41770,7 @@
                 }
               }
             },
-            "description": "Caller lacks permission to manage attendance records"
+            "description": "Caller may not read attendance records across the organization"
           },
           "404": {
             "content": {
@@ -41901,7 +41901,7 @@
                 }
               }
             },
-            "description": "Caller lacks permission to view this employee's attendance records"
+            "description": "Caller may not read attendance records"
           },
           "404": {
             "content": {
@@ -42289,7 +42289,7 @@
                 }
               }
             },
-            "description": "Caller lacks permission to view this employee's attendance records"
+            "description": "Caller may not read attendance records"
           },
           "404": {
             "content": {
@@ -42420,7 +42420,7 @@
                 }
               }
             },
-            "description": "Caller lacks permission to manage attendance records"
+            "description": "Caller may not make this change to attendance records"
           },
           "404": {
             "content": {
@@ -42525,7 +42525,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant, or has no employee record in it, so there is no queue to serve"
+            "description": "Caller may not read attendance records, or has no employee record in this organization, so there is no queue to serve"
           },
           "404": {
             "content": {
@@ -42631,7 +42631,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant, or has no employee record in it, so there is no queue to count"
+            "description": "Caller may not read attendance records, or has no employee record in this organization, so there is no queue to count"
           },
           "404": {
             "content": {
@@ -42825,7 +42825,7 @@
                 }
               }
             },
-            "description": "Caller lacks permission to manage attendance records"
+            "description": "Caller may not read attendance records across the organization"
           },
           "404": {
             "content": {
@@ -42956,7 +42956,7 @@
                 }
               }
             },
-            "description": "Caller lacks permission to view this employee's attendance records"
+            "description": "Caller may not read attendance records"
           },
           "404": {
             "content": {
@@ -43069,7 +43069,7 @@
                 }
               }
             },
-            "description": "Caller lacks permission to manage attendance records"
+            "description": "Caller may not make this change to attendance records"
           },
           "404": {
             "content": {
@@ -43416,7 +43416,7 @@
                 }
               }
             },
-            "description": "Caller lacks permission to manage attendance records"
+            "description": "Caller may not make this change to attendance records"
           },
           "404": {
             "content": {
@@ -122889,7 +122889,7 @@
                 }
               }
             },
-            "description": "Caller lacks permission to manage attendance records"
+            "description": "Caller may not make this change to attendance records"
           },
           "404": {
             "content": {
@@ -123115,7 +123115,7 @@
                 }
               }
             },
-            "description": "Caller lacks permission to manage attendance records"
+            "description": "Caller may not make this change to attendance records"
           },
           "404": {
             "content": {
