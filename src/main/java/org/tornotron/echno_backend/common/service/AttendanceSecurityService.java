@@ -16,12 +16,11 @@ import org.springframework.stereotype.Service;
  *       employee's or a whole project's records.</li>
  * </ul>
  *
- * Override it per environment (comma-separated org-role tokens) in
- * {@code application.yml} or via env vars, no code change needed. Everything else
- * (recording your own attendance, reading a record, reading the settings) only
- * requires organization membership, enforced with {@code @orgSecurity.isMemberOfCurrentTenant()}.
- * Attendance settings and shift timings are configured on the access matrix, in the
- * {@code working-time} area.
+ * Override the record-management roles per environment (comma-separated org-role tokens) in
+ * {@code application.yml} or via env vars, no code change needed. Recording your own attendance
+ * and reading a record only require organization membership, enforced with
+ * {@code @orgSecurity.isMemberOfCurrentTenant()}. Reading and changing attendance settings and
+ * shift timings is on the access matrix, in the {@code working-time} area.
  */
 @Service("attendanceSecurity")
 public class AttendanceSecurityService {
