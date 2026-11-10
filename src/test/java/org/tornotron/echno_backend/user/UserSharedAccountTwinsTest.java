@@ -33,7 +33,9 @@ import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
 import org.tornotron.echno_backend.common.payload.JsonPartBinder;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
+import org.tornotron.echno_backend.employee.TeamAccess;
 import org.tornotron.echno_backend.invitation.IdentityLinkService;
+import org.tornotron.echno_backend.modules.access.guard.AccessGuard;
 import org.tornotron.echno_backend.user.dto.UserDto;
 
 /**
@@ -69,6 +71,12 @@ class UserSharedAccountTwinsTest {
     @MockitoBean(name = "orgSecurity")
     private OrganizationSecurityService orgSecurity;
 
+    @MockitoBean(name = "access")
+    private AccessGuard access;
+
+    @MockitoBean(name = "teamAccess")
+    private TeamAccess teamAccess;
+
     @MockitoBean
     private KeycloakAuthorizationService keycloakAuthorizationService;
 
@@ -77,7 +85,8 @@ class UserSharedAccountTwinsTest {
 
     @BeforeEach
     void systemAdminOfTheCurrentOrganization() throws Exception {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(true);
+        when(access.can("team", "manage-user-accounts")).thenReturn(true);
+        when(teamAccess.acrossOrganization("manage-user-accounts")).thenReturn(true);
         when(orgSecurity.isSelfUser(anyLong())).thenReturn(false);
         when(jsonPartBinder.readUpdates(any())).thenReturn(Map.of("email", "someone@example.test"));
         when(userService.partialUpdateAnUser(anyMap(), eq(OUTSIDER)))
@@ -120,7 +129,8 @@ class UserSharedAccountTwinsTest {
 
     @Test
     void theOwnerEditsThemselvesOnBothTwinsWithNoRole() throws Exception {
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(false);
+        when(access.can("team", "manage-user-accounts")).thenReturn(false);
+        when(teamAccess.acrossOrganization("manage-user-accounts")).thenReturn(false);
         when(orgSecurity.isSelfUser(SELF)).thenReturn(true);
         when(userService.partialUpdateAnUser(anyMap(), eq(SELF))).thenReturn(new UserDto());
         when(userService.partialUpdateAnUser(anyMap(), eq(SELF), any(), any())).thenReturn(new UserDto());
