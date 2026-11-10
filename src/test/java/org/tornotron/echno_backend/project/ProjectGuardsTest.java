@@ -35,6 +35,7 @@ class ProjectGuardsTest {
             Map.entry("ProjectControllerWeb#readAProject", "read"),
             Map.entry("ProjectControllerWeb#readStatusHistory", "read"),
             Map.entry("ProjectControllerWeb#partialUpdateAProject", "edit"),
+            Map.entry("ProjectController#batchUpdateProjects", "edit"),
             Map.entry("ProjectControllerWeb#deleteProject", "delete"),
             Map.entry("ProjectControllerWeb#addEmployeeToProject", "create"),
             Map.entry("ProjectControllerWeb#removeEmployeeFromProject", "delete"),
@@ -75,7 +76,11 @@ class ProjectGuardsTest {
                         handlersOf(ProjectControllerWeb.class).stream(),
                         handlersOf(SpatialNodeController.class).stream(),
                         handlersOf(CategoryControllerWeb.class).stream(),
-                        handlersOf(CategoryController.class).stream())
+                        handlersOf(CategoryController.class).stream(),
+                        // The mobile batch update has no /web twin; the rest of the mobile controller
+                        // carries the web twin's guards.
+                        handlersOf(ProjectController.class).stream()
+                                .filter(handler -> handler.getName().equals("batchUpdateProjects")))
                 .flatMap(handlers -> handlers)
                 .toList();
     }

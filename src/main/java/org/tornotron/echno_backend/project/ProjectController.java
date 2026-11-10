@@ -156,17 +156,19 @@ public class ProjectController {
      * @return A {@link ResponseEntity} with a success message and HTTP status 200 (OK).
      */
     @PatchMapping("/batch")
-    // No /web twin; guarded as the web single-project update is.
-    @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
+    // No /web twin; guarded as the web single-project update is, and the service asks about every
+    // project in the batch.
+    @PreAuthorize("@access.can('projects', 'edit')")
     @Operation(
             summary = "Batch update projects",
             description = "Applies partial updates to several projects in one call. Each entry names a "
-                    + "project id and the map of fields to change on that project."
+                    + "project id and the map of fields to change on that project. If the caller may not "
+                    + "edit one of the projects, none of them is changed."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Batch update applied"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "One of the update entries failed validation"),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller may not make this change to projects, or may not edit one of the projects in the batch")
     })
     public ResponseEntity<ApiResponse> batchUpdateProjects(@Valid @RequestBody List<ProjectPatchDto> updates) {
         service.batchUpdateProjects(updates);

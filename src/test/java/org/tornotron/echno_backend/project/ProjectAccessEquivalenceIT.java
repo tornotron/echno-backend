@@ -53,6 +53,7 @@ class ProjectAccessEquivalenceIT extends RoleAssignmentITSupport {
             entry("ProjectControllerWeb#readAProject", ANY_MEMBER),
             entry("ProjectControllerWeb#readStatusHistory", ANY_MEMBER),
             entry("ProjectControllerWeb#partialUpdateAProject", ADMIN_OR_PM),
+            entry("ProjectController#batchUpdateProjects", ADMIN_OR_PM),
             entry("ProjectControllerWeb#deleteProject", ADMIN_OR_PM),
             entry("ProjectControllerWeb#addEmployeeToProject", ADMIN_OR_PM),
             entry("ProjectControllerWeb#removeEmployeeFromProject", ADMIN_OR_PM),
