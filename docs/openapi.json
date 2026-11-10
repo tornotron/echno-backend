@@ -168110,7 +168110,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read computer vision"
           },
           "404": {
             "content": {
@@ -168229,7 +168229,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read computer vision"
           },
           "404": {
             "content": {
@@ -168341,7 +168341,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to computer vision"
           },
           "404": {
             "content": {
@@ -168443,7 +168443,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read computer vision"
           },
           "404": {
             "content": {
@@ -168553,7 +168553,7 @@
                 }
               }
             },
-            "description": "Caller is not the organization's system-admin"
+            "description": "Caller may not make this change to computer vision"
           },
           "404": {
             "content": {
