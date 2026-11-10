@@ -57,8 +57,6 @@ public class LeaveApprovalService {
     private final LeaveRequestMapper leaveRequestMapper;
     private final LeaveRequestValidator leaveRequestValidator;
 
-    /** The roles that may read any leave request's approval trail, chain membership aside. */
-
     public LeaveApprovalService(
             LeaveApprovalRepository approvalRepository,
             LeaveRequestRepository requestRepository,
@@ -459,7 +457,7 @@ public class LeaveApprovalService {
 
         throw new AccessDeniedException(
                 "A leave request and its approval trail are readable by the employee it belongs to, "
-                        + "the approvers in its chain, and the system-admin or hr-admin roles.");
+                        + "the approvers in its chain, and whoever may read every employee's leave.");
     }
 
     /**

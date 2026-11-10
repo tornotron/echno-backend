@@ -117,6 +117,7 @@ class MobileListPagingContractTest {
         when(orgSecurity.isSelfInCurrentTenant(anyLong())).thenReturn(true);
         when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(true);
         when(attendanceSecurity.canManageRecords()).thenReturn(true);
+        when(access.isMember()).thenReturn(true);
         when(leaveAccess.acrossOrganization(org.mockito.ArgumentMatchers.anyString())).thenReturn(true);
         when(leaveAccess.allowsFor(org.mockito.ArgumentMatchers.anyString(), anyLong())).thenReturn(true);
     }

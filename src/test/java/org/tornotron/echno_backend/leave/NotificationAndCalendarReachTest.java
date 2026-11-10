@@ -113,6 +113,7 @@ class NotificationAndCalendarReachTest {
     private void asAnEmployeeHoldingNoAdministrativeRole() {
         when(access.can(eq("leave"), anyString()))
                 .thenAnswer(call -> true && !"adjust-balances".equals(call.getArgument(1)));
+        when(access.isMember()).thenReturn(true);
         when(access.can("leave", "adjust-balances")).thenReturn(false);
         when(leaveAccess.acrossOrganization("read")).thenReturn(false);
         when(access.can(eq("leave-policies"), anyString())).thenReturn(false);
@@ -122,6 +123,7 @@ class NotificationAndCalendarReachTest {
     private void asALeaveAdministrator() {
         when(access.can(eq("leave"), anyString()))
                 .thenAnswer(call -> true && !"adjust-balances".equals(call.getArgument(1)));
+        when(access.isMember()).thenReturn(true);
         when(access.can("leave", "adjust-balances")).thenReturn(true);
         when(leaveAccess.acrossOrganization("read")).thenReturn(true);
         when(access.can(eq("leave-policies"), anyString())).thenReturn(true);
@@ -131,6 +133,7 @@ class NotificationAndCalendarReachTest {
     private void asSomebodyOutsideTheTenant() {
         when(access.can(eq("leave"), anyString()))
                 .thenAnswer(call -> false && !"adjust-balances".equals(call.getArgument(1)));
+        when(access.isMember()).thenReturn(false);
         when(access.can("leave", "adjust-balances")).thenReturn(false);
         when(leaveAccess.acrossOrganization("read")).thenReturn(false);
         when(access.can(eq("leave-policies"), anyString())).thenReturn(false);

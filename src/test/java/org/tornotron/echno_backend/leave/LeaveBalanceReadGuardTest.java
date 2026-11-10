@@ -98,6 +98,7 @@ class LeaveBalanceReadGuardTest {
     private void callerIsAnOrdinaryEmployee() {
         when(access.can(eq("leave"), anyString()))
                 .thenAnswer(call -> true && !"adjust-balances".equals(call.getArgument(1)));
+        when(access.isMember()).thenReturn(true);
         when(leaveAccess.allowsFor(anyString(), eq(SELF))).thenReturn(true);
         when(leaveAccess.allowsFor(anyString(), eq(COLLEAGUE))).thenReturn(false);
         when(leaveSecurity.canViewEmployeeBalances(SELF)).thenReturn(true);
@@ -108,6 +109,7 @@ class LeaveBalanceReadGuardTest {
     private void callerIsAnHrAdmin() {
         when(access.can(eq("leave"), anyString()))
                 .thenAnswer(call -> true && !"adjust-balances".equals(call.getArgument(1)));
+        when(access.isMember()).thenReturn(true);
         when(access.can("leave", "adjust-balances")).thenReturn(true);
         when(leaveAccess.acrossOrganization("read")).thenReturn(true);
         when(access.can(eq("leave-policies"), anyString())).thenReturn(true);
@@ -123,6 +125,7 @@ class LeaveBalanceReadGuardTest {
     private void callerIsTheColleaguesLineManager() {
         when(access.can(eq("leave"), anyString()))
                 .thenAnswer(call -> true && !"adjust-balances".equals(call.getArgument(1)));
+        when(access.isMember()).thenReturn(true);
         when(access.can("leave", "adjust-balances")).thenReturn(false);
         when(leaveAccess.acrossOrganization("read")).thenReturn(false);
         when(access.can(eq("leave-policies"), anyString())).thenReturn(false);

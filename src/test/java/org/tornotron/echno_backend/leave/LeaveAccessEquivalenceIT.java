@@ -202,6 +202,11 @@ class LeaveAccessEquivalenceIT extends RoleAssignmentITSupport {
             String key = LeaveGuardsTest.key(handler);
             Old old = OLD_GUARDS.get(key);
             String expression = handler.getAnnotation(PreAuthorize.class).value();
+            if (expression.equals("@access.isMember()")) {
+                // The inbox carries more than leave and asks for membership alone, as before.
+                assertThat(old).as(key).isEqualTo(ANY_MEMBER);
+                continue;
+            }
             AccessPermission permission = permissionOf(expression, key);
             boolean guard = access.check(subject, permission);
             boolean held = old.roles().stream().anyMatch(oldRoles::contains);

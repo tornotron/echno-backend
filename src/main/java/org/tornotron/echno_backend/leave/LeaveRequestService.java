@@ -60,8 +60,6 @@ public class LeaveRequestService {
     private final CurrentEmployeeService currentEmployeeService;
     private final TransactionRetryTemplate retryTemplate;
 
-    /** The roles that may raise or act on a leave request belonging to somebody else. */
-
     public LeaveRequestService(
             LeaveRequestRepository requestRepository,
             DocumentNumberAllocator documentNumberAllocator,
@@ -108,8 +106,8 @@ public class LeaveRequestService {
             return;
         }
         throw new AccessDeniedException(
-                "Leave can only be raised or acted on for yourself, unless you hold the "
-                        + "system-admin or hr-admin role");
+                "Leave can only be raised or acted on for yourself, unless your role reaches other "
+                        + "employees' leave");
     }
 
     /**
