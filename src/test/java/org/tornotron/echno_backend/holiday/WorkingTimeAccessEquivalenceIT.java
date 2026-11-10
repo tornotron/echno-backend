@@ -124,7 +124,7 @@ class WorkingTimeAccessEquivalenceIT extends RoleAssignmentITSupport {
         for (Method handler : WorkingTimeGuardsTest.handlers()) {
             String key = WorkingTimeGuardsTest.key(handler);
             Set<String> guard = OLD_GUARDS.get(key);
-            boolean before = guard == MEMBERS || guard.stream().anyMatch(oldRoles::contains);
+            boolean before = MEMBERS.equals(guard) || guard.stream().anyMatch(oldRoles::contains);
 
             assertThat(access.check(subject, permissionOf(handler)))
                     .as("%s for %s", key, oldRoles).isEqualTo(before);
