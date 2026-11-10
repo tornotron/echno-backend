@@ -61,6 +61,12 @@ class TeamMarkingEndpointTest {
     @MockitoBean(name = "orgSecurity")
     private OrganizationSecurityService orgSecurity;
 
+    @MockitoBean(name = "access")
+    private org.tornotron.echno_backend.modules.access.guard.AccessGuard access;
+
+    @MockitoBean(name = "teamAccess")
+    private org.tornotron.echno_backend.employee.TeamAccess teamAccess;
+
     // Satisfies RPTExchangeFilter, a custom filter the web slice loads; unused here because
     // .with(jwt(...)) sets the authentication directly.
     @MockitoBean
@@ -79,7 +85,7 @@ class TeamMarkingEndpointTest {
     }
 
     private void callerIsAMember() {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
+        when(access.can("team", "create")).thenReturn(true);
     }
 
     @ParameterizedTest(name = "{0}/check-in")
@@ -124,7 +130,7 @@ class TeamMarkingEndpointTest {
     @ParameterizedTest(name = "{0}/check-in")
     @ValueSource(strings = {"/api/v1/attendance", "/api/v1/attendance/web"})
     void anOutsider_isRefusedBeforeTheServiceIsReached(String prefix) throws Exception {
-        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(false);
+        when(access.can("team", "create")).thenReturn(false);
 
         mockMvc.perform(markingRequest(prefix + "/check-in"))
                 .andExpect(status().isForbidden());

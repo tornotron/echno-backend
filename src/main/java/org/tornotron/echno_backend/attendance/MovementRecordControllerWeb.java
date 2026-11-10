@@ -39,7 +39,7 @@ public class MovementRecordControllerWeb {
     @PostMapping
     // Ownership is settled in MovementRecordService against both the employee named and the
     // stored attendance record's employee: ids on the request are the caller's word.
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('team', 'create')")
     @Operation(
             summary = "Log a movement",
             description = "Records an employee's movement away from their checked-in location against an "
@@ -59,7 +59,7 @@ public class MovementRecordControllerWeb {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('team', 'read')")
     @Operation(
             summary = "Get a movement record by id",
             description = "Returns a single movement record including its verification state. "
@@ -75,7 +75,7 @@ public class MovementRecordControllerWeb {
     }
 
     @GetMapping("/attendance/{attendanceId}")
-    @PreAuthorize("@orgSecurity.isMemberOfCurrentTenant()")
+    @PreAuthorize("@access.can('team', 'read')")
     @Operation(
             summary = "List movements for an attendance record",
             description = "Returns every movement logged against a given attendance record. "
@@ -91,7 +91,7 @@ public class MovementRecordControllerWeb {
     }
 
     @PostMapping("/{id}/verify")
-    @PreAuthorize("@attendanceSecurity.canManageRecords()")
+    @PreAuthorize("@access.can('team', 'approve') and @teamAccess.acrossOrganization('approve')")
     @Operation(
             summary = "Verify a movement record",
             description = "Records that the movement has been checked, for example against the reported "
@@ -103,7 +103,7 @@ public class MovementRecordControllerWeb {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Movement record verified"),
             @ApiResponse(responseCode = "400", description = "Already verified, verified by the employee it belongs to, or the session resolves to no user of this organization"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks permission to manage attendance records"),
+            @ApiResponse(responseCode = "403", description = "Caller may not make this change to attendance records"),
             @ApiResponse(responseCode = "404", description = "No movement record with the given id")
     })
     public ResponseEntity<MovementRecordDto> verify(@PathVariable Long id) {

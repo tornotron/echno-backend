@@ -14,7 +14,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.tornotron.echno_backend.attendance.service.MovementRecordService;
 import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationService;
 import org.tornotron.echno_backend.common.configuration.RPTCache;
-import org.tornotron.echno_backend.common.service.AttendanceSecurityService;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 
 import java.util.List;
@@ -62,8 +61,17 @@ class MovementVerifierIsNotTakenFromTheRequestTest {
     @MockitoBean
     private MovementRecordService service;
 
-    @MockitoBean(name = "attendanceSecurity")
-    private AttendanceSecurityService attendanceSecurity;
+    @MockitoBean(name = "access")
+    private org.tornotron.echno_backend.modules.access.guard.AccessGuard access;
+
+    @MockitoBean(name = "teamAccess")
+    private org.tornotron.echno_backend.employee.TeamAccess teamAccess;
+
+    /** A system admin, HR admin or project manager, who verify anyone's movements, or not. */
+    private void recordManager(boolean is) {
+        when(access.can("team", "approve")).thenReturn(true);
+        when(teamAccess.acrossOrganization("approve")).thenReturn(is);
+    }
 
     @MockitoBean(name = "orgSecurity")
     private OrganizationSecurityService orgSecurity;
@@ -76,7 +84,7 @@ class MovementVerifierIsNotTakenFromTheRequestTest {
 
     @Test
     void aVerifyNamingSomebodyElse_isAcceptedAndTheNameNeverReachesTheService() throws Exception {
-        when(attendanceSecurity.canManageRecords()).thenReturn(true);
+        recordManager(true);
 
         mockMvc.perform(post("/api/v1/movement-records/web/{id}/verify", MOVEMENT_ID)
                         .with(jwt())
@@ -88,7 +96,7 @@ class MovementVerifierIsNotTakenFromTheRequestTest {
 
     @Test
     void theSameHoldsOnTheNonWebController() throws Exception {
-        when(attendanceSecurity.canManageRecords()).thenReturn(true);
+        recordManager(true);
 
         mockMvc.perform(post("/api/v1/movement-records/{id}/verify", MOVEMENT_ID)
                         .with(jwt())
@@ -100,7 +108,7 @@ class MovementVerifierIsNotTakenFromTheRequestTest {
 
     @Test
     void aVerifyThatNamesNobodyIsAcceptedToo_soAClientCanStopSendingTheParameter() throws Exception {
-        when(attendanceSecurity.canManageRecords()).thenReturn(true);
+        recordManager(true);
 
         mockMvc.perform(post("/api/v1/movement-records/web/{id}/verify", MOVEMENT_ID).with(jwt()))
                 .andExpect(status().isOk());
@@ -110,7 +118,7 @@ class MovementVerifierIsNotTakenFromTheRequestTest {
 
     @Test
     void verifyStaysGatedOnTheRecordManagementRole() throws Exception {
-        when(attendanceSecurity.canManageRecords()).thenReturn(false);
+        recordManager(false);
 
         mockMvc.perform(post("/api/v1/movement-records/web/{id}/verify", MOVEMENT_ID)
                         .with(jwt())

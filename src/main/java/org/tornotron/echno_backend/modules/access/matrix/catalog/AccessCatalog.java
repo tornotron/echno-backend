@@ -100,8 +100,11 @@ public final class AccessCatalog {
             area("payables", "Payables", "Money"),
             // Every employee reads and edits their own record and sees who reports to them, the system admin,
             // HR admin and project manager read everyone's, and only the system admin and HR admin change
-            // records or read anyone's reports, so reading a reporting line is a named action.
-            new Area("team", "Team & Attendance", "People", List.of("read-reporting-lines")),
+            // records or read anyone's reports, so reading a reporting line is a named action. Attendance
+            // records are the same area: every employee records and reads their own, the three manage
+            // everyone's, and deleting one is the project manager's too while deleting an employee is
+            // not, so that is a named action as well.
+            new Area("team", "Team & Attendance", "People", List.of("read-reporting-lines", "delete-attendance")),
             // The organization's working calendar: holidays, the working week, attendance settings and
             // shift timings. Every member reads them, while only the system admin and HR admin change
             // them, so they are an area of their own beside the team.

@@ -4,10 +4,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /**
- * Attendance authorization policy, kept in one place so the role model can be
- * retuned without touching the controllers. The controllers reference this bean
- * from {@code @PreAuthorize} (e.g. {@code @attendanceSecurity.canManageRecords()});
- * the actual role sets come from configuration and default to a sensible model:
+ * Attendance authorization policy for the services: whose record a write or a by-id read
+ * touches, which the guards cannot see. The controllers' guards are on the access matrix, in
+ * the {@code team} area, and ask the same question of the starting roles; the role set here
+ * comes from configuration and defaults to the same three:
  *
  * <ul>
  *   <li>{@code echno.security.attendance.record-management-roles}
@@ -17,9 +17,8 @@ import org.springframework.stereotype.Service;
  * </ul>
  *
  * Override the record-management roles per environment (comma-separated org-role tokens) in
- * {@code application.yml} or via env vars, no code change needed. Recording your own attendance
- * and reading a record only require organization membership, enforced with
- * {@code @orgSecurity.isMemberOfCurrentTenant()}. Reading and changing attendance settings and
+ * {@code application.yml} or via env vars, no code change needed; the matrix guards do not read
+ * it, so an override now narrows or widens only these service checks. Reading and changing attendance settings and
  * shift timings is on the access matrix, in the {@code working-time} area.
  */
 @Service("attendanceSecurity")
