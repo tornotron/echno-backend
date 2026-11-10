@@ -11,6 +11,12 @@ public record IngestSettingsDto(
         boolean llmReadingEnabled,
         @Schema(description = "What turning it on means, in plain words, for the screen to show as is")
         String llmReadingDisclosure,
+        @Schema(description = "The outside AI service the text is sent to, from the backend's configuration")
+        String aiProvider,
+        @Schema(description = "The model the text is read with, from the backend's configuration") String aiModel,
+        @Schema(description = "Where the provider states what it does with the text, or null when none is configured",
+                nullable = true)
+        String aiProviderPrivacyUrl,
         @Schema(description = "Who last changed it, or null while it is at its default", nullable = true) Long changedBy,
         @Schema(nullable = true) LocalDateTime changedAt,
         @Schema(description = "The monthly AI reading limit in estimated dollars; null means the configured default", nullable = true)

@@ -12,6 +12,7 @@ import org.tornotron.echno_backend.attendance.Attendance;
 import org.tornotron.echno_backend.attendance.AttendanceRegularization;
 import org.tornotron.echno_backend.attendance.AttendanceRepository;
 import org.tornotron.echno_backend.attendance.ClockEvent;
+import org.tornotron.echno_backend.attendance.ShiftTiming;
 import org.tornotron.echno_backend.attendance.dto.AttendanceRegularizationDto;
 import org.tornotron.echno_backend.attendance.dto.ClockEventCreationDto;
 import org.tornotron.echno_backend.attendance.dto.RegularizationByDateRequestDto;
@@ -75,6 +76,7 @@ public class RegularizationCalendarService {
     private final RegularisationAccess regularisationAccess;
     private final AttendanceActorResolver actorResolver;
     private final AttendanceRegularizationService regularizationService;
+    private final AttendanceSettingsService settingsService;
     private final Clock clock;
 
     /**
@@ -92,10 +94,11 @@ public class RegularizationCalendarService {
                                          RegularisationAccess regularisationAccess,
                                          AttendanceActorResolver actorResolver,
                                          AttendanceRegularizationService regularizationService,
+                                         AttendanceSettingsService settingsService,
                                          @Value("${echno.attendance.regularization-zone:Asia/Kolkata}") String zone) {
         this(attendanceRepository, employeeRepository, projectRepository, organizationRepository,
                 leaveRequestRepository, workingCalendarService, regularisationAccess, actorResolver,
-                regularizationService, Clock.system(ZoneId.of(zone)));
+                regularizationService, settingsService, Clock.system(ZoneId.of(zone)));
     }
 
     RegularizationCalendarService(AttendanceRepository attendanceRepository,
@@ -107,6 +110,7 @@ public class RegularizationCalendarService {
                                   RegularisationAccess regularisationAccess,
                                   AttendanceActorResolver actorResolver,
                                   AttendanceRegularizationService regularizationService,
+                                  AttendanceSettingsService settingsService,
                                   Clock clock) {
         this.attendanceRepository = attendanceRepository;
         this.employeeRepository = employeeRepository;
@@ -117,6 +121,7 @@ public class RegularizationCalendarService {
         this.regularisationAccess = regularisationAccess;
         this.actorResolver = actorResolver;
         this.regularizationService = regularizationService;
+        this.settingsService = settingsService;
         this.clock = clock;
     }
 
@@ -124,8 +129,8 @@ public class RegularizationCalendarService {
      * Raises a regularization for a day by its date, creating the day's record when there is none.
      *
      * <p>Refused, in this order, when: the caller may not record for the employee; the date is
-     * after today; the clock-out is not after the clock-in; the employee has no shift and a record
-     * would have to be created; the day is covered by an approved or pending leave; any of the
+     * after today; the clock-out is not after the clock-in; a record would have to be created and
+     * neither the employee nor the attendance settings name a shift; the day is covered by an approved or pending leave; any of the
      * employee's records for that day already has a pending request; or the record for that
      * project already has both a clock-in and a clock-out, so there is nothing to regularize.
      *
@@ -317,10 +322,13 @@ public class RegularizationCalendarService {
     }
 
     private Attendance createPlaceholder(Employee employee, Project project, LocalDate date, Organization org) {
-        if (employee.getShiftTiming() == null) {
-            throw new ValidationException(
-                    "No shift timing is assigned to this employee, so the day cannot be regularized. "
-                            + "Ask an administrator to assign one");
+        // The day is measured against the employee's shift, or the settings' default when they
+        // have none. A new organization often has neither yet, and the caller is told who can
+        // set one instead of the request failing further in.
+        ShiftTiming shift = EffectiveShift.orSettingsDefault(employee.getShiftTiming(),
+                settingsService.resolveEffectiveSettings(org.getId(), project.getId()));
+        if (shift == null) {
+            throw EffectiveShift.missing(employee, "the correction for " + date);
         }
         Attendance draft = Attendance.builder()
                 .employeeId(employee.getId())
@@ -328,7 +336,7 @@ public class RegularizationCalendarService {
                 .attendanceDate(date)
                 .projectId(project.getId())
                 .projectName(project.getProjectName())
-                .shiftTiming(employee.getShiftTiming())
+                .shiftTiming(shift)
                 .status(AttendanceStatus.PENDING_REGULARIZATION)
                 .approvalStatus(ApprovalStatus.PENDING)
                 .organization(org)

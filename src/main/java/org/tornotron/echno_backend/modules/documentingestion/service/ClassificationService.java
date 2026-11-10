@@ -19,6 +19,8 @@ import org.tornotron.echno_backend.modules.documentingestion.domain.DocumentFile
 import org.tornotron.echno_backend.modules.documentingestion.domain.ExtractJob;
 import org.tornotron.echno_backend.modules.documentingestion.domain.ExtractJobStatus;
 import org.tornotron.echno_backend.modules.documentingestion.domain.IngestDocument;
+import org.tornotron.echno_backend.modules.documentingestion.domain.IngestPackage;
+import org.tornotron.echno_backend.modules.documentingestion.domain.PackageStage;
 import org.tornotron.echno_backend.modules.documentingestion.domain.PackageStatus;
 import org.tornotron.echno_backend.modules.documentingestion.domain.Segment;
 import org.tornotron.echno_backend.modules.documentingestion.domain.SegmentStatus;
@@ -199,13 +201,94 @@ public class ClassificationService {
         doc.setClassSetBy(userId);
         doc.setClassConfirmedAt(now);
         documents.save(doc);
+        PackageStage stage = packages.findByIdScoped(doc.getPackageId()).map(IngestPackage::getStage)
+                .orElse(PackageStage.TENDER);
         for (Segment s : confirmed) {
             for (Extractor e : registry.segmentExtractors(DocClass.parse(s.getDocClass()).orElse(DocClass.OTHER))) {
+                if (!e.readsAtStage(stage)) {
+                    continue;
+                }
                 queue.queue(doc.getOrganization(), doc.getPackageId(), doc.getId(), s.getId(), e, userId);
                 queued++;
             }
         }
+        if (isWorkbook(doc)) {
+            // Only a reader of table rows can read a workbook; a page reader, such as project setup, would get no
+            // pages and end as if it had read the file.
+            queued += confirmWholeFile(doc, docClass, docClass == DocClass.BOQ ? List.of()
+                    : registry.segmentExtractors(docClass).stream().filter(Extractor::readsTables)
+                            .filter(e -> e.readsAtStage(stage)).toList(),
+                    "The whole workbook.", userId, now);
+        } else if (isDrawingFile(doc)) {
+            queued += confirmWholeFile(doc, docClass, registry.segmentExtractors(docClass).stream()
+                    .filter(Extractor::readsTitleBlocks).filter(e -> e.readsAtStage(stage)).toList(),
+                    "The whole drawing file.", userId, now);
+        }
         return new int[] {confirmed.size(), queued};
+    }
+
+    /**
+     * A file with no pages to split gets one confirmed segment for the whole file when its class has
+     * readers for it, and those readers are queued on it: a workbook of a class read by extractors of
+     * table rows, such as a milestone schedule, or a DXF or DWG confirmed as a drawing. A class read only
+     * from pages, such as a NIT, is not read from a workbook. A BOQ workbook keeps its per-sheet flow,
+     * whose segments are made when a sheet's mapping is confirmed. Changing the class drops the old
+     * whole-file segment unless a value read from it is already on a live record.
+     *
+     * @return jobs queued
+     */
+    private int confirmWholeFile(IngestDocument doc, DocClass docClass, List<Extractor> readers, String reason,
+                                 Long userId, LocalDateTime now) {
+        Segment kept = null;
+        for (Segment s : segments.findWholeWorkbook(doc.getId())) {
+            if (kept == null && !readers.isEmpty() && docClass.name().equals(s.getDocClass())) {
+                kept = s;
+                continue;
+            }
+            if (candidates.countAppliedInSegment(s.getId()) > 0) {
+                throw new InvalidRequestException("Values read from " + doc.getFileName()
+                        + " are already on live records, so its class cannot be changed");
+            }
+            for (ExtractJob job : jobs.findUnfinishedForSegments(List.of(s.getId()), PageRequest.of(0, 200))) {
+                if (job.getStatus() == ExtractJobStatus.RUNNING) {
+                    throw new InvalidRequestException(doc.getFileName() + " is being read now; wait for it to finish "
+                            + "before changing its class");
+                }
+                job.setStatus(ExtractJobStatus.FAILED);
+                job.setMessage(REDRAWN);
+                job.setFinishedAt(now);
+                jobs.save(job);
+            }
+            writer.discardUnapplied(s.getId());
+            segments.delete(s);
+            segments.flush();
+        }
+        if (readers.isEmpty() || (kept != null && kept.isConfirmed())) {
+            return 0;
+        }
+        Segment s = kept != null ? kept : new Segment();
+        s.setOrganization(doc.getOrganization());
+        s.setDocumentId(doc.getId());
+        s.setDocClass(docClass.name());
+        s.setSheetName(Segment.WHOLE_WORKBOOK);
+        s.setMethod(ClassMethod.PERSON);
+        s.setReason(reason);
+        s.setStatus(SegmentStatus.CONFIRMED);
+        s.setConfirmedBy(userId);
+        s.setConfirmedAt(now);
+        Segment saved = segments.saveAndFlush(s);
+        for (Extractor e : readers) {
+            queue.queue(doc.getOrganization(), doc.getPackageId(), doc.getId(), saved.getId(), e, userId);
+        }
+        return readers.size();
+    }
+
+    private static boolean isWorkbook(IngestDocument doc) {
+        return doc.getFileType() == DocumentFileType.XLSX || doc.getFileType() == DocumentFileType.XLS;
+    }
+
+    private static boolean isDrawingFile(IngestDocument doc) {
+        return doc.getFileType() == DocumentFileType.DXF || doc.getFileType() == DocumentFileType.DWG;
     }
 
     /** The ranges to confirm: as given, or the whole file for a PDF given none; none for a workbook. */

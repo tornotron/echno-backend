@@ -47,7 +47,7 @@ class ContractBoqPortTest {
         BoqItemDto dto = mock(BoqItemDto.class);
         when(dto.id()).thenReturn(id);
         when(billing.addBoqItem(eq(7L), any())).thenReturn(dto);
-        ContractBoqPort port = new ContractBoqPortAdapter(billing, mock(SubContractRepository.class));
+        ContractBoqPort port = new ContractBoqPortAdapter(billing, mock(SubContractRepository.class), mock(org.tornotron.echno_backend.modules.workprogress.billing.repository.ContractBoqItemRepository.class));
 
         UUID added = port.addItem(7L, new ContractBoqPort.BoqLine("1.03", "RCC M25", "m3", new BigDecimal("850"),
                 new BigDecimal("9800"), 1_000_004));
@@ -58,7 +58,7 @@ class ContractBoqPortTest {
     @Test
     void aLineOutsideTheEndpointsLimitsIsRefusedBeforeTheService() {
         ContractBillingService billing = mock(ContractBillingService.class);
-        ContractBoqPort port = new ContractBoqPortAdapter(billing, mock(SubContractRepository.class));
+        ContractBoqPort port = new ContractBoqPortAdapter(billing, mock(SubContractRepository.class), mock(org.tornotron.echno_backend.modules.workprogress.billing.repository.ContractBoqItemRepository.class));
 
         assertThatThrownBy(() -> port.addItem(7L, new ContractBoqPort.BoqLine("X".repeat(51), "d", "u".repeat(31),
                 BigDecimal.ZERO, new BigDecimal("1.234"), null)))

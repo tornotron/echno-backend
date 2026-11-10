@@ -22,6 +22,8 @@ import org.tornotron.echno_backend.modules.documentingestion.repository.Candidat
 import org.tornotron.echno_backend.modules.documentingestion.repository.IngestDocumentRepository;
 import org.tornotron.echno_backend.modules.documentingestion.repository.IngestPackageRepository;
 import org.tornotron.echno_backend.modules.workprogress.api.ContractBoqPort;
+import org.tornotron.echno_backend.modules.documentingestion.dto.TenderProfileDto;
+import org.tornotron.echno_backend.modules.documentingestion.repository.TenderProfileRepository;
 import org.tornotron.echno_backend.project.ProjectRepository;
 import org.tornotron.echno_backend.user.UserContextService;
 
@@ -39,6 +41,7 @@ public class IngestPackageService {
     private final UserContextService userContextService;
     private final CandidateRepository candidates;
     private final ContractBoqPort contractBoq;
+    private final TenderProfileRepository profiles;
 
     @Transactional
     public PackageDto create(CreatePackageRequest req) {
@@ -57,8 +60,9 @@ public class IngestPackageService {
     }
 
     @Transactional(readOnly = true)
-    public Page<PackageDto> list(int page, int size) {
-        return packages.findPage(PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), MAX_PAGE_SIZE)))
+    public Page<PackageDto> list(Long projectId, int page, int size) {
+        PageRequest request = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), MAX_PAGE_SIZE));
+        return (projectId == null ? packages.findPage(request) : packages.findPageForProject(projectId, request))
                 .map(p -> PackageDto.of(p, documents.countInPackage(p.getId())));
     }
 
@@ -66,6 +70,14 @@ public class IngestPackageService {
     public PackageDto get(UUID packageId) {
         IngestPackage p = requirePackage(packageId);
         return PackageDto.of(p, documents.countInPackage(p.getId()));
+    }
+
+    /** The package's tender profile, or 404 while no project field has been applied to it. */
+    @Transactional(readOnly = true)
+    public TenderProfileDto tenderProfile(UUID packageId) {
+        requirePackage(packageId);
+        return profiles.findByPackage(packageId).map(TenderProfileDto::of)
+                .orElseThrow(() -> new ResourceNotFoundException("No tender facts have been applied to package " + packageId));
     }
 
     /**
@@ -83,7 +95,8 @@ public class IngestPackageService {
     /**
      * Sets the sub-contract the package's BOQ is written to, or clears it. The contract must be in the
      * organization, and in the package's project when the package has one. Once BOQ rows are on a
-     * contract, the target cannot move, or one tender BOQ would end up split across two contracts.
+     * contract, the target cannot move, or one tender BOQ would end up split across two contracts; the same
+     * holds once its payment milestones are on one.
      */
     @Transactional
     public PackageDto setBoqTarget(UUID packageId, BoqTargetRequest req) {
@@ -99,6 +112,10 @@ public class IngestPackageService {
         boolean moving = p.getSubContractId() != null && !p.getSubContractId().equals(target);
         if (moving && candidates.countByStatus(packageId, CandidateKind.BOQ_ITEM, CandidateStatus.APPLIED) > 0) {
             throw new InvalidRequestException("BOQ rows of this package are already on a contract, so the target cannot change");
+        }
+        if (moving && candidates.countByStatus(packageId, CandidateKind.MILESTONE, CandidateStatus.APPLIED) > 0) {
+            throw new InvalidRequestException("Payment milestones of this package are already on a contract, so the target "
+                    + "cannot change");
         }
         p.setSubContractId(target);
         p.setUpdatedBy(userContextService.getCurrentUserId());

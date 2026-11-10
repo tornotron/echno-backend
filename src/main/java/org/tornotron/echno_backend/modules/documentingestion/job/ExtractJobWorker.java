@@ -43,8 +43,11 @@ import org.tornotron.echno_backend.modules.documentingestion.extraction.llm.Extr
 import org.tornotron.echno_backend.modules.documentingestion.extraction.llm.IngestLlmProperties;
 import org.tornotron.echno_backend.modules.documentingestion.extraction.llm.LlmBudget;
 import org.tornotron.echno_backend.modules.documentingestion.extraction.llm.LlmGate;
+import org.tornotron.echno_backend.modules.documentingestion.parsing.DxfReading;
 import org.tornotron.echno_backend.modules.documentingestion.parsing.PageText;
 import org.tornotron.echno_backend.modules.documentingestion.parsing.ParsedOutputReader;
+import org.tornotron.echno_backend.modules.documentingestion.parsing.TableRow;
+import org.tornotron.echno_backend.modules.documentingestion.parsing.TitleBlock;
 import org.tornotron.echno_backend.modules.documentingestion.parsing.WorkbookMeta;
 import org.tornotron.echno_backend.modules.documentingestion.repository.ExtractJobRepository;
 import org.tornotron.echno_backend.modules.documentingestion.repository.IngestDocumentRepository;
@@ -144,7 +147,7 @@ public class ExtractJobWorker {
             end(claim, ExtractJobStatus.FAILED, EXTRACTOR_OFF, null);
             return;
         }
-        ExtractContext context = withOutputs(loaded);
+        ExtractContext context = withOutputs(loaded, extractor.readsTables(), extractor.readsTitleBlocks());
         markSegment(context.segmentId(), SegmentStatus.EXTRACTING, null);
 
         ExtractPlan plan = extractor.plan(context);
@@ -386,8 +389,12 @@ public class ExtractJobWorker {
         return new Loaded(context, job.getExtractorKey(), doc.getOutputPrefix());
     }
 
-    private ExtractContext withOutputs(Loaded loaded) {
+    private ExtractContext withOutputs(Loaded loaded, boolean readsTables, boolean readsTitleBlocks) {
         ExtractContext c = loaded.context();
+        if (c.fileType() == DocumentFileType.DWG) {
+            // A DWG is stored and never parsed, so it has no outputs; a drawing reader names it by its file.
+            return c;
+        }
         WorkbookMeta meta = outputs.meta(loaded.outputPrefix());
         List<PageText> pages = List.of();
         if (c.fileType() == DocumentFileType.PDF) {
@@ -396,9 +403,45 @@ public class ExtractJobWorker {
                     .filter(p -> c.pageTo() == null || p.page() <= c.pageTo())
                     .toList();
         }
+        List<TableRow> tables = readsTables ? tables(loaded.outputPrefix(), c) : List.of();
+        List<TitleBlock> titleBlocks = null;
+        DxfReading dxf = null;
+        if (readsTitleBlocks && c.fileType() == DocumentFileType.PDF) {
+            titleBlocks = outputs.titleBlocksIfWritten(loaded.outputPrefix())
+                    .map(all -> all.stream()
+                            .filter(b -> c.pageFrom() == null || b.page() >= c.pageFrom())
+                            .filter(b -> c.pageTo() == null || b.page() <= c.pageTo())
+                            .toList())
+                    .orElse(null);
+        } else if (readsTitleBlocks && c.fileType() == DocumentFileType.DXF) {
+            dxf = outputs.dxfIfWritten(loaded.outputPrefix()).orElse(null);
+        }
         return new ExtractContext(c.jobId(), c.organizationId(), c.packageId(), c.documentId(), c.fileName(),
                 c.fileType(), c.documentSha256(), c.segmentId(), c.segmentClass(), c.pageFrom(), c.pageTo(), pages,
-                meta, c.result());
+                meta, c.result(), tables, titleBlocks, dxf);
+    }
+
+    /**
+     * The table rows in the segment's pages, or every row of a workbook. A PDF may have no
+     * {@code tables.jsonl} from a worker before 0.2.0, which reads as no rows; a file that is there and
+     * cannot be read fails the attempt like any other output.
+     */
+    private List<TableRow> tables(String outputPrefix, ExtractContext c) {
+        List<TableRow> rows;
+        if (c.fileType() == DocumentFileType.PDF) {
+            Optional<List<TableRow>> written = outputs.tablesIfWritten(outputPrefix);
+            if (written.isEmpty()) {
+                log.info("Extract job {}: the PDF's reading has no tables.jsonl, so no table rows", c.jobId());
+                return List.of();
+            }
+            rows = written.get();
+        } else {
+            rows = outputs.tables(outputPrefix);
+        }
+        return rows.stream()
+                .filter(r -> r.page() == null || c.pageFrom() == null || r.page() >= c.pageFrom())
+                .filter(r -> r.page() == null || c.pageTo() == null || r.page() <= c.pageTo())
+                .toList();
     }
 
     private static boolean stillOurs(ExtractJob job, Claim claim) {

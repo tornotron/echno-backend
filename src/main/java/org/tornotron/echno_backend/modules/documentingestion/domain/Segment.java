@@ -34,6 +34,9 @@ import org.tornotron.echno_backend.organization.Organization;
 @NoArgsConstructor
 public class Segment implements TenantScopedEntity {
 
+    /** The sheet name of a segment that covers a whole workbook; Excel forbids {@code *} in sheet names. */
+    public static final String WHOLE_WORKBOOK = "*";
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;

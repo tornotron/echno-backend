@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        The drawing register: one row per drawing number and revision of a package, written only by the
+        apply step, with provenance. The rows of one number form a revision chain, oldest to newest, and
+        the newest is marked current. A DWG gives a row with status NOT_READ that names the file only.
+
+        Design: docs/specs/2026-11-08-document-ingestion-design.md, sections 4.3 and 6.3.
+    -->
+
+    <changeSet id="document-ingestion-009-create-drawing" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="doc_ingest_drawing"/></not>
+        </preConditions>
+        <createTable tableName="doc_ingest_drawing">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_doc_ingest_drawing" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="package_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="project_id" type="BIGINT"/>
+            <column name="drawing_number" type="VARCHAR(100)"><constraints nullable="false"/></column>
+            <column name="number_key" type="VARCHAR(100)"><constraints nullable="false"/></column>
+            <column name="revision" type="VARCHAR(20)"/>
+            <column name="revision_key" type="VARCHAR(20)"><constraints nullable="false"/></column>
+            <column name="title" type="VARCHAR(500)"/>
+            <column name="discipline" type="VARCHAR(60)"/>
+            <column name="revision_date_text" type="VARCHAR(60)"/>
+            <column name="revision_date" type="DATE"/>
+            <column name="scale" type="VARCHAR(60)"/>
+            <column name="revision_history" type="JSONB"/>
+            <column name="status" type="VARCHAR(20)"><constraints nullable="false"/></column>
+            <column name="note" type="VARCHAR(255)"/>
+            <column name="is_current" type="BOOLEAN" defaultValueBoolean="false"><constraints nullable="false"/></column>
+            <column name="supersedes_id" type="UUID"/>
+            <column name="superseded_by_id" type="UUID"/>
+            <column name="source_format" type="VARCHAR(10)"><constraints nullable="false"/></column>
+            <column name="document_id" type="UUID"/>
+            <column name="sheet_page" type="INT"/>
+            <column name="layout" type="VARCHAR(255)"/>
+            <column name="crop_image" type="VARCHAR(100)"/>
+            <column name="candidate_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="updated_by" type="BIGINT"/>
+            <column name="created_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+            <column name="updated_at" type="TIMESTAMP"><constraints nullable="false"/></column>
+        </createTable>
+        <addUniqueConstraint tableName="doc_ingest_drawing" columnNames="package_id, number_key, revision_key, status"
+                             constraintName="uq_doc_ingest_drawing_package_number_revision"/>
+        <addForeignKeyConstraint baseTableName="doc_ingest_drawing" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_doc_ingest_drawing_organization"/>
+        <addForeignKeyConstraint baseTableName="doc_ingest_drawing" baseColumnNames="package_id"
+                                 referencedTableName="doc_ingest_package" referencedColumnNames="id"
+                                 constraintName="fk_doc_ingest_drawing_package"/>
+        <createIndex tableName="doc_ingest_drawing" indexName="idx_doc_ingest_drawing_org">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>

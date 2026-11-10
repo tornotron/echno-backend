@@ -4,7 +4,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.tornotron.echno_backend.modules.documentingestion.domain.DocumentFileType;
+import org.tornotron.echno_backend.modules.documentingestion.parsing.DxfReading;
 import org.tornotron.echno_backend.modules.documentingestion.parsing.PageText;
+import org.tornotron.echno_backend.modules.documentingestion.parsing.TableRow;
+import org.tornotron.echno_backend.modules.documentingestion.parsing.TitleBlock;
 import org.tornotron.echno_backend.modules.documentingestion.parsing.WorkbookMeta;
 
 /**
@@ -17,19 +20,46 @@ import org.tornotron.echno_backend.modules.documentingestion.parsing.WorkbookMet
  * @param segmentId  Null for a document-level job
  * @param pageFrom   The segment's first page, or null
  * @param pageTo     The segment's last page, or null
+ * @param tables     The rows of {@code tables.jsonl} in the segment's pages, or every sheet row of a
+ *                   workbook; read only for an extractor that asks ({@link Extractor#readsTables()})
+ * @param titleBlocks The lines of {@code titleblock.jsonl} in the segment's pages, or null when the worker
+ *                    wrote none (before 0.3.0, or not a PDF); read only for an extractor that asks
+ *                    ({@link Extractor#readsTitleBlocks()})
+ * @param dxf        The worker's {@code dxf.json} for a DXF, or null; read only for an extractor that asks
  */
 public record ExtractContext(UUID jobId, Long organizationId, UUID packageId, UUID documentId, String fileName,
                              DocumentFileType fileType, String documentSha256, UUID segmentId, String segmentClass,
                              Integer pageFrom, Integer pageTo, List<PageText> pages, WorkbookMeta meta,
-                             Map<String, Object> result) {
+                             Map<String, Object> result, List<TableRow> tables, List<TitleBlock> titleBlocks,
+                             DxfReading dxf) {
 
     public ExtractContext {
         pages = pages == null ? List.of() : List.copyOf(pages);
         result = result == null ? Map.of() : Map.copyOf(result);
+        tables = tables == null ? List.of() : List.copyOf(tables);
+        titleBlocks = titleBlocks == null ? null : List.copyOf(titleBlocks);
+    }
+
+    /** A context with no title blocks and no DXF reading. */
+    public ExtractContext(UUID jobId, Long organizationId, UUID packageId, UUID documentId, String fileName,
+                          DocumentFileType fileType, String documentSha256, UUID segmentId, String segmentClass,
+                          Integer pageFrom, Integer pageTo, List<PageText> pages, WorkbookMeta meta,
+                          Map<String, Object> result, List<TableRow> tables) {
+        this(jobId, organizationId, packageId, documentId, fileName, fileType, documentSha256, segmentId, segmentClass,
+                pageFrom, pageTo, pages, meta, result, tables, null, null);
+    }
+
+    /** A context with no table rows. */
+    public ExtractContext(UUID jobId, Long organizationId, UUID packageId, UUID documentId, String fileName,
+                          DocumentFileType fileType, String documentSha256, UUID segmentId, String segmentClass,
+                          Integer pageFrom, Integer pageTo, List<PageText> pages, WorkbookMeta meta,
+                          Map<String, Object> result) {
+        this(jobId, organizationId, packageId, documentId, fileName, fileType, documentSha256, segmentId, segmentClass,
+                pageFrom, pageTo, pages, meta, result, List.of());
     }
 
     public ExtractContext withResult(Map<String, Object> merged) {
         return new ExtractContext(jobId, organizationId, packageId, documentId, fileName, fileType, documentSha256,
-                segmentId, segmentClass, pageFrom, pageTo, pages, meta, merged);
+                segmentId, segmentClass, pageFrom, pageTo, pages, meta, merged, tables, titleBlocks, dxf);
     }
 }

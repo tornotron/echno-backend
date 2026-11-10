@@ -8,6 +8,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.tornotron.echno_backend.modules.documentingestion.domain.BoqSheetSummary;
 import org.tornotron.echno_backend.modules.documentingestion.domain.BoqWarning;
@@ -40,6 +41,9 @@ public final class BoqSheetExtractor {
     private static final Pattern FORWARD = Pattern.compile("^((carried|brought)\\s+(forward|over)|[cb]/f)\\b.*");
     private static final Pattern PROVISIONAL = Pattern.compile(
             "(?i).*\\b(provisional\\s+sum|prime\\s+cost|p\\.\\s?s\\.|p\\.\\s?c\\.\\s+sum)\\b.*|^p\\.?s\\.?\\b.*");
+
+    /** A column number held as text, such as "3", "(3)" or "3.". */
+    private static final Pattern COLUMN_NUMBER = Pattern.compile("\\(?([0-9]{1,3})\\)?\\.?");
 
     private BoqSheetExtractor() {
     }
@@ -109,7 +113,7 @@ public final class BoqSheetExtractor {
                 continue;
             }
             rowsRead++;
-            if (BoqHeaderDetector.isHeaderLike(row) || isColumnNumberRow(cells.values())) {
+            if (BoqHeaderDetector.isHeaderLike(row) || isColumnNumberRow(row)) {
                 ignoredCount = ignore(ignored, ignoredCount, row.row());
                 continue;
             }
@@ -306,22 +310,44 @@ public final class BoqSheetExtractor {
         }
     }
 
-    /** A row of small whole numbers counting up, such as "1 2 3 4 5 6" under a header. */
-    private static boolean isColumnNumberRow(Iterable<Cell> cells) {
-        int count = 0;
-        BigDecimal previous = null;
-        for (Cell c : cells) {
-            if (!"NUMBER".equals(c.type()) || c.value() == null || !c.value().isNumber()) {
+    /**
+     * The row of column numbers many templates print under the header: every filled cell a small whole
+     * number, starting 1, 2, 3 from the left. Templates with hidden or calculated columns do not always
+     * count on cleanly past that ("1 2 3 4 5 9 7"), so only the start is required. An item is never
+     * such a row, since its description is text.
+     */
+    static boolean isColumnNumberRow(TableRow row) {
+        List<Integer> numbers = new ArrayList<>();
+        for (Cell c : row.cells()) {
+            if (c.isEmpty()) {
+                continue;
+            }
+            Integer n = columnNumber(c);
+            if (n == null) {
                 return false;
             }
-            BigDecimal v = c.value().decimalValue();
-            if (v.stripTrailingZeros().scale() > 0 || (previous != null && v.compareTo(previous.add(BigDecimal.ONE)) != 0)) {
-                return false;
-            }
-            previous = v;
-            count++;
+            numbers.add(n);
         }
-        return count >= 3;
+        return numbers.size() >= 3 && numbers.get(0) == 1 && numbers.get(1) == 2 && numbers.get(2) == 3;
+    }
+
+    /** A whole number from 1 to 999 held as a number, or as text such as "3" or "(3)"; else null. */
+    private static Integer columnNumber(Cell c) {
+        if ("NUMBER".equals(c.type()) && c.value() != null && c.value().isNumber()) {
+            BigDecimal v = c.value().decimalValue();
+            if (v.signum() > 0 && v.stripTrailingZeros().scale() <= 0 && v.compareTo(BigDecimal.valueOf(999)) <= 0) {
+                return v.intValueExact();
+            }
+            return null;
+        }
+        if ("TEXT".equals(c.type())) {
+            Matcher m = COLUMN_NUMBER.matcher(c.shownText());
+            if (m.matches()) {
+                int n = Integer.parseInt(m.group(1));
+                return n > 0 ? n : null;
+            }
+        }
+        return null;
     }
 
     private static int ignore(List<Integer> ignored, int count, int row) {

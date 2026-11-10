@@ -57,4 +57,23 @@ public interface CandidateRepository extends JpaRepository<Candidate, UUID> {
     @Query("DELETE FROM Candidate c WHERE c.organization.id = :orgId AND c.segmentId = :segmentId "
             + "AND c.status <> org.tornotron.echno_backend.modules.documentingestion.domain.CandidateStatus.APPLIED")
     int deleteUnappliedInSegment(@Param("orgId") Long orgId, @Param("segmentId") UUID segmentId);
+
+    /** What one job proposed of one kind and nobody has decided on yet, oldest first. Bounded by the job. */
+    @Query("SELECT c FROM Candidate c WHERE c.extractJobId = :jobId AND c.kind = :kind "
+            + "AND c.status = org.tornotron.echno_backend.modules.documentingestion.domain.CandidateStatus.PROPOSED "
+            + "ORDER BY c.createdAt, c.id")
+    List<Candidate> findProposedOfJob(@Param("jobId") UUID jobId, @Param("kind") CandidateKind kind);
+
+    /** Everything one job read of one kind, whatever its status, oldest first. Bounded by the job. */
+    @Query("SELECT c FROM Candidate c WHERE c.extractJobId = :jobId AND c.kind = :kind ORDER BY c.createdAt, c.id")
+    List<Candidate> findOfJob(@Param("jobId") UUID jobId, @Param("kind") CandidateKind kind);
+
+    /** The rows that name this one as the row they supersede, of one kind, oldest first. A handful per row. */
+    @Query("SELECT c FROM Candidate c WHERE c.supersedesCandidateId = :priorId AND c.kind = :kind ORDER BY c.createdAt, c.id")
+    List<Candidate> findSuccessors(@Param("priorId") UUID priorId, @Param("kind") CandidateKind kind);
+
+    /** A document's candidates of one kind, oldest first, bounded by the page. */
+    @Query("SELECT c FROM Candidate c WHERE c.documentId = :documentId AND c.kind = :kind ORDER BY c.createdAt, c.id")
+    List<Candidate> findForDocument(@Param("documentId") UUID documentId, @Param("kind") CandidateKind kind,
+                                    Pageable pageable);
 }

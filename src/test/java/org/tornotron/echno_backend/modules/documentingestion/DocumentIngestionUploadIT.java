@@ -46,6 +46,7 @@ import org.tornotron.echno_backend.modules.documentingestion.domain.ParseJobType
 import org.tornotron.echno_backend.modules.documentingestion.dto.CreatePackageRequest;
 import org.tornotron.echno_backend.modules.documentingestion.dto.DocumentDto;
 import org.tornotron.echno_backend.modules.documentingestion.dto.DocumentUploadDto;
+import org.tornotron.echno_backend.modules.documentingestion.dto.DownloadUrlDto;
 import org.tornotron.echno_backend.modules.documentingestion.dto.PresignDocumentRequest;
 import org.tornotron.echno_backend.modules.documentingestion.dto.RegisterDocumentRequest;
 import org.tornotron.echno_backend.modules.documentingestion.extraction.ClassificationWriter;
@@ -135,15 +136,56 @@ class DocumentIngestionUploadIT extends AbstractIntegrationTest {
 
         asTenant(orgB, () -> {
             assertThatThrownBy(() -> packages.get(pkg)).isInstanceOf(ResourceNotFoundException.class);
-            assertThat(packages.list(0, 20).getContent()).isEmpty();
+            assertThat(packages.list(null, 0, 20).getContent()).isEmpty();
             assertThatThrownBy(() -> documents.get(upload.documentId())).isInstanceOf(ResourceNotFoundException.class);
             assertThatThrownBy(() -> documents.list(pkg, 0, 50)).isInstanceOf(ResourceNotFoundException.class);
             assertThatThrownBy(() -> documents.downloadUrl(upload.documentId())).isInstanceOf(ResourceNotFoundException.class);
+            assertThatThrownBy(() -> documents.pageImageUrl(upload.documentId(), 1)).isInstanceOf(ResourceNotFoundException.class);
             assertThat(jobs.findByIdScoped(registered.latestJob().id())).isEmpty();
             assertThatThrownBy(() -> documents.presign(pkg, file("x.pdf", MB))).isInstanceOf(ResourceNotFoundException.class);
             return null;
         });
-        assertThat(packages.list(0, 20).getContent()).extracting(p -> p.id()).containsExactly(pkg);
+        assertThat(packages.list(null, 0, 20).getContent()).extracting(p -> p.id()).containsExactly(pkg);
+    }
+
+    @Test
+    void aPageImageLinkIsComposedFromTheDocumentsOwnPrefixAndOnlyForAPageTheWorkerWrote() {
+        UUID pkg = packages.create(new CreatePackageRequest("Tender", null, null)).id();
+        DocumentUploadDto upload = documents.presign(pkg, file("Specification.pdf", MB));
+        documents.register(pkg, upload.documentId(), new RegisterDocumentRequest(upload.upload().key()));
+        String prefix = DocumentIngestionStorageLayout.outputPrefix(orgA, pkg, upload.documentId());
+        when(storage.objectExists(anyString())).thenAnswer(inv -> (prefix + "page-images/3.webp").equals(inv.getArgument(0)));
+        when(storage.generateDownloadUrl(anyString(), any(Duration.class)))
+                .thenAnswer(inv -> "https://store.test/get/" + inv.getArgument(0));
+
+        DownloadUrlDto link = documents.pageImageUrl(upload.documentId(), 3);
+
+        assertThat(link.url()).isEqualTo("https://store.test/get/" + prefix + "page-images/3.webp");
+        assertThat(link.expiresInSeconds()).isPositive();
+        assertThatThrownBy(() -> documents.pageImageUrl(upload.documentId(), 4)).isInstanceOf(ResourceNotFoundException.class);
+        assertThatThrownBy(() -> documents.pageImageUrl(upload.documentId(), 0)).isInstanceOf(ResourceNotFoundException.class);
+        assertThatThrownBy(() -> documents.pageImageUrl(UUID.randomUUID(), 3)).isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    void thePackageListFiltersByProjectWithinTheTenant() {
+        UUID first = packages.create(new CreatePackageRequest("Tower A", null, null)).id();
+        UUID second = packages.create(new CreatePackageRequest("Tower B", null, null)).id();
+        packages.create(new CreatePackageRequest("Loose", null, null));
+        UUID foreign = asTenant(orgB, () -> packages.create(new CreatePackageRequest("Other", null, null)).id());
+        entityManager.flush();
+        long tower = project("Tower site", orgA);
+        long other = project("Other site", orgA);
+        entityManager.createNativeQuery("UPDATE doc_ingest_package SET project_id = :p WHERE id IN (:a, :b, :c)")
+                .setParameter("p", tower).setParameter("a", first).setParameter("b", second).setParameter("c", foreign)
+                .executeUpdate();
+        entityManager.clear();
+
+        assertThat(packages.list(tower, 0, 20).getContent()).extracting(p -> p.id()).containsExactlyInAnyOrder(first, second);
+        assertThat(packages.list(other, 0, 20).getContent()).isEmpty();
+        assertThat(packages.list(null, 0, 20).getContent()).hasSize(3);
+        assertThat(asTenant(orgB, () -> packages.list(tower, 0, 20).getContent())).extracting(p -> p.id())
+                .containsExactly(foreign);
     }
 
     @Test
@@ -334,6 +376,12 @@ class DocumentIngestionUploadIT extends AbstractIntegrationTest {
         ingestor.ingest(jobId, "replica");
         entityManager.flush();
         entityManager.clear();
+    }
+
+    private long project(String name, Long orgId) {
+        return ((Number) entityManager.createNativeQuery("INSERT INTO project (project_name, organization_id) "
+                        + "VALUES (:n, :o) RETURNING id").setParameter("n", name).setParameter("o", orgId)
+                .getSingleResult()).longValue();
     }
 
     private static PresignDocumentRequest file(String name, long size) {

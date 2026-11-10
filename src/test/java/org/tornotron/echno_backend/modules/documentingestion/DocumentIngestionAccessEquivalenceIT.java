@@ -52,6 +52,13 @@ class DocumentIngestionAccessEquivalenceIT extends RoleAssignmentITSupport {
             entry("apply", PAIR),
             entry("admin", ADMIN));
 
+    /** The handlers that write into another area, by their guard before the move. */
+    private static final Map<String, Set<String>> OLD_TARGET_GUARD_BY_HANDLER = Map.ofEntries(
+            entry("DocumentIngestionContractController#raiseRiskFromTerm", PAIR),
+            entry("DocumentIngestionContractController#raiseRiskFromObligation", PAIR),
+            // InspectionSecurityService's checklist-roles.
+            entry("DocumentIngestionQualityController#copyToTemplate", Set.of("system-admin", "qa-engineer")));
+
     @Autowired
     private AccessService access;
 
@@ -68,7 +75,9 @@ class DocumentIngestionAccessEquivalenceIT extends RoleAssignmentITSupport {
     void everyHandlerHasItsOldGuardRecorded() {
         assertThat(DocumentIngestionGuardsTest.ACTION_BY_HANDLER.values())
                 .allMatch(OLD_GUARD_BY_ACTION::containsKey);
-        assertThat(DocumentIngestionGuardsTest.handlers()).hasSize(DocumentIngestionGuardsTest.ACTION_BY_HANDLER.size());
+        assertThat(OLD_TARGET_GUARD_BY_HANDLER).containsOnlyKeys(DocumentIngestionGuardsTest.TARGET_GUARD_BY_HANDLER.keySet());
+        assertThat(DocumentIngestionGuardsTest.handlers()).hasSize(DocumentIngestionGuardsTest.ACTION_BY_HANDLER.size()
+                + DocumentIngestionGuardsTest.TARGET_GUARD_BY_HANDLER.size());
     }
 
     @ParameterizedTest
@@ -108,7 +117,9 @@ class DocumentIngestionAccessEquivalenceIT extends RoleAssignmentITSupport {
         AccessSubject subject = new AccessSubject(organization.getId(), person.getId(), person.getUser().getId());
         for (Method handler : DocumentIngestionGuardsTest.handlers()) {
             String key = DocumentIngestionGuardsTest.key(handler);
-            Set<String> guard = OLD_GUARD_BY_ACTION.get(DocumentIngestionGuardsTest.ACTION_BY_HANDLER.get(key));
+            Set<String> guard = DocumentIngestionGuardsTest.ACTION_BY_HANDLER.containsKey(key)
+                    ? OLD_GUARD_BY_ACTION.get(DocumentIngestionGuardsTest.ACTION_BY_HANDLER.get(key))
+                    : OLD_TARGET_GUARD_BY_HANDLER.get(key);
             boolean before = guard == MEMBERS || guard.stream().anyMatch(oldRoles::contains);
 
             assertThat(anyHeld(subject, handler)).as("%s for %s", key, oldRoles).isEqualTo(before);
@@ -130,11 +141,18 @@ class DocumentIngestionAccessEquivalenceIT extends RoleAssignmentITSupport {
         return kind == CandidateKind.DRAWING && oldRoles.contains("site-engineer");
     }
 
-    /** A guard of {@code @access.can} calls joined by {@code or} allows when one of them does. */
+    /**
+     * A guard of {@code @access.can} calls joined by {@code or} allows when one of them does; one joined
+     * by {@code and} (the checklist copy's) when all of them do.
+     */
     private boolean anyHeld(AccessSubject subject, Method handler) {
-        Set<AccessPermission> permissions = AccessGuardExpressions
-                .parse(handler.getAnnotation(PreAuthorize.class).value()).permissions();
+        String expression = handler.getAnnotation(PreAuthorize.class).value();
+        Set<AccessPermission> permissions = AccessGuardExpressions.parse(expression).permissions();
         assertThat(permissions).as(handler.getName()).isNotEmpty();
+        if (expression.contains(" and ")) {
+            assertThat(expression).as(handler.getName()).doesNotContain(" or ");
+            return permissions.stream().allMatch(permission -> access.check(subject, permission));
+        }
         return permissions.stream().anyMatch(permission -> access.check(subject, permission));
     }
 }

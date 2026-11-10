@@ -25,6 +25,7 @@ import org.tornotron.echno_backend.modules.documentingestion.dto.DocumentDto;
 import org.tornotron.echno_backend.modules.documentingestion.dto.DocumentUploadDto;
 import org.tornotron.echno_backend.modules.documentingestion.dto.DownloadUrlDto;
 import org.tornotron.echno_backend.modules.documentingestion.dto.PackageDto;
+import org.tornotron.echno_backend.modules.documentingestion.dto.TenderProfileDto;
 import org.tornotron.echno_backend.modules.documentingestion.dto.PresignDocumentRequest;
 import org.tornotron.echno_backend.modules.documentingestion.dto.RegisterDocumentRequest;
 import org.tornotron.echno_backend.modules.documentingestion.gate.DocumentIngestionGate;
@@ -57,10 +58,12 @@ public class DocumentIngestionPackageController {
 
     @GetMapping("/packages")
     @PreAuthorize("@access.can('document-ingestion', 'read')")
-    @Operation(summary = "List the organization's packages, newest first")
-    public Page<PackageDto> listPackages(@RequestParam(defaultValue = "0") int page,
+    @Operation(summary = "List the organization's packages, newest first",
+            description = "With projectId, only the packages tied to that project.")
+    public Page<PackageDto> listPackages(@RequestParam(required = false) Long projectId,
+                                         @RequestParam(defaultValue = "0") int page,
                                          @RequestParam(defaultValue = "20") int size) {
-        return packageService.list(page, size);
+        return packageService.list(projectId, page, size);
     }
 
     @GetMapping("/packages/{packageId}")
@@ -72,6 +75,23 @@ public class DocumentIngestionPackageController {
     })
     public PackageDto getPackage(@PathVariable UUID packageId) {
         return packageService.get(packageId);
+    }
+
+    @GetMapping("/packages/{packageId}/tender-profile")
+    @PreAuthorize("@access.can('document-ingestion', 'read')")
+    @Operation(summary = "Get a package's tender profile",
+            description = "The accepted tender facts that a project has no field for: client, estimated value, EMD, "
+                    + "tender fee, bid due date, bid validity, duration, consultant, engineer and scope, each as "
+                    + "printed, with a typed value where the text reads plainly as one. Written only by applying "
+                    + "accepted project fields; provenance for each field is under GET /provenance with target type "
+                    + "TENDER_PROFILE.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "The tender profile"),
+            @ApiResponse(responseCode = "404", description = "No such package in the current tenant, or no tender "
+                    + "fact applied to it yet")
+    })
+    public TenderProfileDto getTenderProfile(@PathVariable UUID packageId) {
+        return packageService.tenderProfile(packageId);
     }
 
     @GetMapping("/packages/{packageId}/documents")
@@ -132,5 +152,18 @@ public class DocumentIngestionPackageController {
     @Operation(summary = "Get a short-lived link to download the source file")
     public DownloadUrlDto downloadUrl(@PathVariable UUID documentId) {
         return documentService.downloadUrl(documentId);
+    }
+
+    @GetMapping("/documents/{documentId}/pages/{page}/image")
+    @PreAuthorize("@access.can('document-ingestion', 'read')")
+    @Operation(summary = "Get a short-lived link to the image of a page",
+            description = "The image the file reader made of one page of a PDF (pages numbered from 1), which the review "
+                    + "screen draws a source's box over (SourceRef page and box).")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "The link, valid for a few minutes"),
+            @ApiResponse(responseCode = "404", description = "No such document in the current tenant, or no image of that page")
+    })
+    public DownloadUrlDto pageImage(@PathVariable UUID documentId, @PathVariable int page) {
+        return documentService.pageImageUrl(documentId, page);
     }
 }

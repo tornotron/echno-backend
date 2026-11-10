@@ -126,6 +126,9 @@ doc-ingest/<orgId>/<packageId>/<documentId>/output/meta.json    worker, PARSE
 doc-ingest/<orgId>/<packageId>/<documentId>/output/pages.jsonl  worker, PARSE of a paged document
 doc-ingest/<orgId>/<packageId>/<documentId>/output/tables.jsonl worker, PARSE
 doc-ingest/<orgId>/<packageId>/<documentId>/output/page-images/<n>.webp  worker, PARSE of a PDF
+doc-ingest/<orgId>/<packageId>/<documentId>/output/titleblock.jsonl      worker 0.3.0, PARSE of a PDF
+doc-ingest/<orgId>/<packageId>/<documentId>/output/titleblock/<n>.webp   worker 0.3.0, PARSE of a PDF, drawing sheets
+doc-ingest/<orgId>/<packageId>/<documentId>/output/dxf.json             worker 0.3.0, PARSE of a DXF
 doc-ingest/<orgId>/<packageId>/members/<sha256>                 worker, UNPACK: one object per distinct member
 doc-ingest/<orgId>/<packageId>/<zipDocumentId>/output/manifest.json      worker, UNPACK
 ```
@@ -237,6 +240,78 @@ so, and a person can retry after upgrading.
   `meta.json` `warnings` as stored and not sent for reading. The backend sends no page whose `script` is not
   `LATIN` to the LLM (design section 7.4, English only); a reader of an older output with no `script` key
   works the script out from the text itself.
+
+### `titleblock.jsonl` (worker 0.3.0, additive)
+
+Plan step 18, for the drawing register (design section 4.3). One object per page of a PDF, in page
+order, written beside `pages.jsonl`. Outputs of a worker before 0.3.0 have no such file; the reader
+treats that as "title block not read".
+
+```json
+{"page": 1, "status": "OK", "reason": null, "method": "TEXT",
+ "region": [0.7777, 0.8218, 0.9916, 0.9881], "regionSource": "RULED_BOX",
+ "image": "titleblock/1.webp",
+ "words": [{"text": "RCB-AR-101", "box": [0.8406, 0.8924, 0.8755, 0.9008], "ocrConfidence": null}],
+ "lines": [{"text": "DRAWING NO.", "box": [0.7802, 0.8813, 0.8062, 0.8867], "ocrConfidence": null}]}
+```
+
+- `status`: `OK`; `SKIPPED` for a page not shaped like a drawing sheet (portrait and no larger
+  than A4 on its short edge), with `reason` saying so; `FAILED` with `reason` when the title block
+  could not be read. A page that fails in `pages.jsonl` normally fails here too, with one exception:
+  a sheet whose scan is over the page pixel limit fails as a page but has its title block read
+  here (design section 9, "A0 drawing scan: title-block crop only"), and `meta.json` `warnings`
+  names it.
+- `region`: the title-block box, `[x0, y0, x1, y1]` normalized as the line boxes of `pages.jsonl`
+  are. `regionSource`: `RULED_BOX` when it is the largest box ruled by the page's vector lines at
+  the sheet's bottom-right corner, `DEFAULT` when it is the fixed bottom-right fraction (every
+  scanned page, and vector pages with no such box). Both are null on a `SKIPPED` line.
+- `method`: `TEXT` (words of the text layer inside the region), `OCR` (only the cropped region
+  read by OCR: scanned pages, and text pages whose region has almost no text, as when CAD draws
+  title-block text as outlines), or `NONE` (skipped, failed, or a blank region, which `reason`
+  states on an `OK` line).
+- `words` and `lines` have the shape of a `pages.jsonl` line (`text`, `box`, `ocrConfidence`, the
+  last on `OCR` lines only). Their boxes are on the page, not on the crop. `words` are single
+  words in reading order. `lines` are the words grouped into lines as `pages.jsonl` does.
+- `image`: the crop's key relative to `output_prefix` (`titleblock/<n>.webp`), covering exactly
+  `region`, long edge at most 2000 pixels; null when nothing was cropped.
+
+Reading drawing number, title, revision, date and scale out of these words is the backend's job
+(plan step 19).
+
+### `dxf.json` (worker 0.3.0, additive)
+
+Written for a DXF (`meta.json` `fileType` `DXF`), with an empty `tables.jsonl`. DWG is still
+refused by the worker with "save it as DXF or PDF".
+
+```json
+{"dxfVersion": "AC1032", "insUnits": 4,
+ "properties": [{"name": "Client", "value": "Example Housing Board"}],
+ "layouts": [{"name": "Model", "modelSpace": true, "paperSize": null},
+             {"name": "A1 Sheet", "modelSpace": false, "paperSize": "ISO_A1_(841.00_x_594.00_MM)",
+              "texts": [{"text": "NOT FOR CONSTRUCTION", "kind": "TEXT", "layer": "0", "position": [20.0, 20.0]}]}],
+ "inserts": [{"layout": "A1 Sheet", "block": "TITLE_BLOCK_A1", "path": ["A1_BORDER"], "handle": "A3",
+              "titleBlockLike": true,
+              "attributes": [{"tag": "DWG_NO", "value": "HRV-AR-101", "constant": false, "invisible": false}],
+              "texts": [{"text": "DRAWING NO.", "kind": "TEXT", "layer": "0", "position": [2.0, 50.0]}]}],
+ "truncated": false}
+```
+
+- `insUnits` is the header's `$INSUNITS` code, or null. `properties` are the drawing properties a
+  CAD program keeps as custom header variables.
+- `layouts`: every layout in tab order. A paper space layout carries `texts`, its loose TEXT and
+  MTEXT; model space carries none.
+- `inserts`: every block reference, in a layout or nested in a block definition up to four levels
+  (`path` names the enclosing blocks, outermost first), that carries attributes or whose block looks
+  like a title block. `block` is a dynamic block's own name, not its anonymous `*U` copy.
+  `attributes` are the ATTRIB tag and value pairs, plus the block's constant ATTDEFs with
+  `constant` true. `titleBlockLike` is true when the block name says title, border, sheet, stamp,
+  cartouche or TB, or when at least two attribute tags name title-block fields; such a block's own
+  TEXT and MTEXT are in `texts`.
+- Text is plain (MTEXT formatting and `%%` codes resolved). `position` is in the coordinates of the
+  layout or block the text sits in.
+- `truncated` is true when a cap was reached (5,000 inserts, 200,000 references walked, 500 texts in
+  one layout or block); `meta.json` `warnings` then says so, and also when no title-block-like block
+  was found.
 
 ### `manifest.json` (`UNPACK`)
 

@@ -18,6 +18,10 @@ public interface ProjectRiskRepository extends JpaRepository<ProjectRisk, UUID> 
 
     Optional<ProjectRisk> findByIdAndProjectIdAndOrganization_Id(UUID id, Long projectId, Long organizationId);
 
+    /** The risk a project holds under one import reference; the unique index allows at most one. */
+    Optional<ProjectRisk> findByProjectIdAndOrganization_IdAndImportRef(Long projectId, Long organizationId,
+                                                                        String importRef);
+
     /** The highest number the project has issued, or zero for an empty register. */
     @Query("select coalesce(max(r.riskNumber), 0) from ProjectRisk r "
             + "where r.projectId = :projectId and r.organization.id = :organizationId")

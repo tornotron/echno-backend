@@ -22,6 +22,12 @@ public interface ExtractJobRepository extends JpaRepository<ExtractJob, UUID> {
     @Query("SELECT j FROM ExtractJob j WHERE j.packageId = :packageId ORDER BY j.queuedAt, j.id")
     Page<ExtractJob> findByPackage(@Param("packageId") UUID packageId, Pageable pageable);
 
+    /** One extractor's jobs in a package, latest first, for what it has read. */
+    @Query("SELECT j FROM ExtractJob j WHERE j.packageId = :packageId AND j.extractorKey = :key "
+            + "ORDER BY j.queuedAt DESC, j.id")
+    List<ExtractJob> findByPackageAndKey(@Param("packageId") UUID packageId, @Param("key") String key,
+                                         Pageable pageable);
+
     /** An unfinished job of this extractor on this document and segment, so confirming twice queues one. */
     @Query("SELECT j FROM ExtractJob j WHERE j.documentId = :documentId AND j.extractorKey = :key "
             + "AND ((:segmentId IS NULL AND j.segmentId IS NULL) OR j.segmentId = :segmentId) "

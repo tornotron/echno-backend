@@ -2,6 +2,7 @@ package org.tornotron.echno_backend.modules.documentingestion.extraction.llm;
 
 import java.util.Set;
 import org.tornotron.echno_backend.modules.documentingestion.domain.DocClass;
+import org.tornotron.echno_backend.modules.documentingestion.domain.PackageStage;
 
 /**
  * One reader of documents on the extract queue. The queue owns claiming, chunking, retries, the
@@ -29,6 +30,33 @@ public interface Extractor {
      * when a document's text arrives rather than when a segment is confirmed.
      */
     Set<DocClass> segmentClasses();
+
+    /**
+     * Whether the job reads {@code tables.jsonl} as well as the pages: the rows on the segment's pages
+     * of a PDF, or every sheet row of a workbook. Off unless asked, since a large file's tables are
+     * not small.
+     */
+    default boolean readsTables() {
+        return false;
+    }
+
+    /**
+     * Whether a segment of a package at this stage is queued for this extractor. Every stage unless an
+     * extractor says otherwise; qualification, for one, reads only while the package is being bid.
+     */
+    default boolean readsAtStage(PackageStage stage) {
+        return true;
+    }
+
+    /**
+     * Whether the job reads the worker's drawing outputs: {@code titleblock.jsonl} for a PDF and
+     * {@code dxf.json} for a DXF. Such an extractor is also queued on a DXF or DWG confirmed as its
+     * class, on a segment for the whole file, and on a DWG it is given no outputs at all, since a DWG
+     * is stored and not read.
+     */
+    default boolean readsTitleBlocks() {
+        return false;
+    }
 
     /**
      * Does what needs no LLM and says which pages still need reading. Runs on every attempt, so it must
