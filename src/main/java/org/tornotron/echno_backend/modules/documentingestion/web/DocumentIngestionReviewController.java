@@ -48,7 +48,7 @@ public class DocumentIngestionReviewController {
     private final IngestPackageService packageService;
 
     @GetMapping("/packages/{packageId}/candidates")
-    @PreAuthorize(DocumentIngestionModule.READ_GUARD)
+    @PreAuthorize("@access.can('document-ingestion', 'read')")
     @Operation(summary = "List a package's candidate values with their sources, filtered by kind, status and segment")
     public Page<CandidateDto> listCandidates(@PathVariable UUID packageId,
                                              @RequestParam(required = false) CandidateKind kind,
@@ -60,13 +60,15 @@ public class DocumentIngestionReviewController {
     }
 
     @PostMapping("/packages/{packageId}/candidates/decisions")
-    @PreAuthorize(DocumentIngestionModule.REVIEW_GUARD)
+    @PreAuthorize("@access.can('document-ingestion', 'review') "
+            + "or @access.can('document-ingestion', 'review-quality') "
+            + "or @access.can('document-ingestion', 'review-drawings')")
     @Operation(summary = "Accept, edit or reject candidates, one or many",
             description = "Each row reports its own outcome. A candidate with no source is never accepted, and a "
                     + "flagged one is skipped unless every flag is acknowledged.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "One outcome per decision"),
-            @ApiResponse(responseCode = "403", description = "MODULE_DISABLED, or the caller cannot review"),
+            @ApiResponse(responseCode = "403", description = "MODULE_DISABLED, or the caller may not make this change to document ingestion"),
             @ApiResponse(responseCode = "404", description = "No such package in the current tenant")
     })
     public List<DecisionOutcomeDto> decide(@PathVariable UUID packageId,
@@ -75,27 +77,27 @@ public class DocumentIngestionReviewController {
     }
 
     @PostMapping("/packages/{packageId}/apply")
-    @PreAuthorize(DocumentIngestionModule.APPLY_GUARD)
+    @PreAuthorize("@access.can('document-ingestion', 'apply')")
     @Operation(summary = "Write a package's accepted values of one kind to their live records",
             description = "Also asks the guard of the target's own endpoint. Call again while remaining is above zero.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "What was applied, what failed and what remains"),
             @ApiResponse(responseCode = "400", description = "No applier for that kind yet"),
-            @ApiResponse(responseCode = "403", description = "MODULE_DISABLED, or the caller cannot write the target")
+            @ApiResponse(responseCode = "403", description = "MODULE_DISABLED, or the caller may not make this change to document ingestion or to the target")
     })
     public ApplyResultDto apply(@PathVariable UUID packageId, @RequestParam CandidateKind kind) {
         return applyService.apply(packageId, kind);
     }
 
     @GetMapping("/provenance")
-    @PreAuthorize(DocumentIngestionModule.READ_GUARD)
+    @PreAuthorize("@access.can('document-ingestion', 'read')")
     @Operation(summary = "Say where each field of a live record came from")
     public List<ProvenanceDto> provenance(@RequestParam String targetType, @RequestParam String targetId) {
         return provenanceService.forTarget(targetType, targetId);
     }
 
     @PostMapping("/packages/{packageId}/archive")
-    @PreAuthorize(DocumentIngestionModule.UPLOAD_GUARD)
+    @PreAuthorize("@access.can('document-ingestion', 'upload')")
     @Operation(summary = "Archive a package. Packages are never deleted, so provenance keeps its sources")
     public PackageDto archive(@PathVariable UUID packageId) {
         return packageService.archive(packageId);

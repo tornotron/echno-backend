@@ -33,19 +33,9 @@ class DocumentIngestionModuleTest {
     void permissionsUseTheColonVocabulary() {
         assertThat(new DocumentIngestionModule(new MockEnvironment()).manifest().permissions())
                 .containsExactly("document-ingestion:read", "document-ingestion:upload", "document-ingestion:review",
+                        "document-ingestion:review-quality", "document-ingestion:review-drawings",
                         "document-ingestion:apply", "document-ingestion:admin")
                 .allMatch(ModuleManifest.PERMISSION_KEY.asMatchPredicate());
-    }
-
-    @Test
-    void guardsMatchTheTableInTheDesign() {
-        assertThat(DocumentIngestionModule.READ_GUARD).isEqualTo("@orgSecurity.isMemberOfCurrentTenant()");
-        assertThat(DocumentIngestionModule.UPLOAD_GUARD)
-                .contains("'system-admin'", "'project-manager'", "'qa-engineer'", "'site-engineer'");
-        assertThat(DocumentIngestionModule.APPLY_GUARD)
-                .contains("'system-admin'", "'project-manager'").doesNotContain("engineer");
-        assertThat(DocumentIngestionModule.ADMIN_GUARD)
-                .contains("'system-admin'").doesNotContain("project-manager");
     }
 
     @Test

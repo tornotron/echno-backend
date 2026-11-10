@@ -30,24 +30,19 @@ public class DocumentIngestionModule implements EchnoModule {
     public static final String PERMISSION_READ = ID + ":read";
     public static final String PERMISSION_UPLOAD = ID + ":upload";
     public static final String PERMISSION_REVIEW = ID + ":review";
+    // A QA engineer reviews only quality requirements and a site engineer only drawings, while review
+    // covers every kind. Section 6.6; ReviewService asks which one a candidate's kind needs.
+    public static final String PERMISSION_REVIEW_QUALITY = ID + ":review-quality";
+    public static final String PERMISSION_REVIEW_DRAWINGS = ID + ":review-drawings";
     public static final String PERMISSION_APPLY = ID + ":apply";
     public static final String PERMISSION_ADMIN = ID + ":admin";
-
-    // One guard per permission, section 6.6. They move to @access with the rest of the codebase
-    // when the access matrix reaches development.
-    public static final String READ_GUARD = "@orgSecurity.isMemberOfCurrentTenant()";
-    public static final String UPLOAD_GUARD = "@orgSecurity.hasAnyOrgRoleForCurrentTenant("
-            + "'system-admin','project-manager','qa-engineer','site-engineer')";
-    public static final String REVIEW_GUARD = UPLOAD_GUARD;
-    public static final String APPLY_GUARD =
-            "@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')";
-    public static final String ADMIN_GUARD = "@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')";
 
     static final String ROUTE_ROOT = "/users/dashboard/" + ID;
     static final String NAV_SECTION = "projects";
 
     static final List<String> PERMISSIONS =
-            List.of(PERMISSION_READ, PERMISSION_UPLOAD, PERMISSION_REVIEW, PERMISSION_APPLY, PERMISSION_ADMIN);
+            List.of(PERMISSION_READ, PERMISSION_UPLOAD, PERMISSION_REVIEW, PERMISSION_REVIEW_QUALITY,
+                    PERMISSION_REVIEW_DRAWINGS, PERMISSION_APPLY, PERMISSION_ADMIN);
 
     static final List<NavDescriptor> NAV = List.of(
             new NavDescriptor("Import from documents", NAV_SECTION, ROUTE_ROOT, "file-input",

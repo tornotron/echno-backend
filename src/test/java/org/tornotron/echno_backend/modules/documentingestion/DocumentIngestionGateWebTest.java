@@ -28,7 +28,7 @@ import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationSer
 import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.common.module.ModuleRegistry;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
-import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
+import org.tornotron.echno_backend.modules.access.guard.AccessGuard;
 import org.tornotron.echno_backend.modules.documentingestion.web.DocumentIngestionStatusController;
 
 /**
@@ -51,8 +51,8 @@ class DocumentIngestionGateWebTest {
         @Autowired
         MockMvc mockMvc;
 
-        @MockitoBean(name = "orgSecurity")
-        OrganizationSecurityService orgSecurity;
+        @MockitoBean(name = "access")
+        AccessGuard access;
 
         @MockitoBean
         ModuleRegistry registry;
@@ -65,7 +65,7 @@ class DocumentIngestionGateWebTest {
 
         @BeforeEach
         void aMemberOfTheTenant() {
-            when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
+            when(access.can("document-ingestion", "read")).thenReturn(true);
         }
     }
 
@@ -79,7 +79,7 @@ class DocumentIngestionGateWebTest {
                     .andExpect(jsonPath("$.code").value("MODULE_DISABLED"))
                     .andExpect(jsonPath("$.moduleId").value("document-ingestion"))
                     .andExpect(jsonPath("$.reason").value("SWITCHED_OFF"));
-            verifyNoInteractions(orgSecurity);
+            verifyNoInteractions(access);
         }
     }
 
@@ -133,7 +133,7 @@ class DocumentIngestionGateWebTest {
         @Test
         void theRoleGuardStillAppliesOnceTheModuleIsOpen() throws Exception {
             when(registry.isEnabledForOrg("document-ingestion", ORG)).thenReturn(true);
-            when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(false);
+            when(access.can("document-ingestion", "read")).thenReturn(false);
 
             mockMvc.perform(get(STATUS).with(memberOfOrgSeven()))
                     .andExpect(status().isForbidden())

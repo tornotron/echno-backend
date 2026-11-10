@@ -3,6 +3,7 @@ package org.tornotron.echno_backend.modules.documentingestion;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -33,7 +34,7 @@ import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.multitenancy.TenantEntityHelper;
 import org.tornotron.echno_backend.common.retry.TransactionRetryTemplate;
 import org.tornotron.echno_backend.common.retry.TransactionalWorkRunner;
-import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
+import org.tornotron.echno_backend.modules.access.guard.AccessGuard;
 import org.tornotron.echno_backend.modules.documentingestion.apply.ApplyGuard;
 import org.tornotron.echno_backend.modules.documentingestion.apply.ApplyService;
 import org.tornotron.echno_backend.modules.documentingestion.apply.IngestionApplier;
@@ -52,6 +53,7 @@ import org.tornotron.echno_backend.modules.documentingestion.extraction.Proposed
 import org.tornotron.echno_backend.modules.documentingestion.extraction.ProposedCandidate.ProposedSource;
 import org.tornotron.echno_backend.modules.documentingestion.repository.CandidateRepository;
 import org.tornotron.echno_backend.modules.documentingestion.review.ProvenanceService;
+import org.tornotron.echno_backend.modules.documentingestion.review.ReviewAccess;
 import org.tornotron.echno_backend.modules.documentingestion.review.ReviewService;
 import org.tornotron.echno_backend.organization.Organization;
 import org.tornotron.echno_backend.organization.OrganizationRepository;
@@ -74,7 +76,7 @@ import org.tornotron.echno_backend.user.UserContextService;
         UserContextService.class, TenantEntityHelper.class, DocumentIngestionReviewApplyIT.ProjectApplier.class})
 class DocumentIngestionReviewApplyIT extends AbstractIntegrationTest {
 
-    static final String GUARD = "@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')";
+    static final String GUARD = "@access.can('projects', 'edit')";
     static final List<String> LIVE_TABLES =
             List.of("project", "wbs_element", "contract_boq_item", "contract_milestone", "project_risk");
 
@@ -135,8 +137,11 @@ class DocumentIngestionReviewApplyIT extends AbstractIntegrationTest {
     @Autowired
     JdbcTemplate jdbc;
 
-    @MockitoBean(name = "orgSecurity")
-    OrganizationSecurityService orgSecurity;
+    @MockitoBean(name = "access")
+    AccessGuard access;
+
+    @MockitoBean
+    ReviewAccess reviewAccess;
 
     Long orgId;
     UUID packageId;
@@ -159,7 +164,8 @@ class DocumentIngestionReviewApplyIT extends AbstractIntegrationTest {
                 documentId, orgId, packageId);
         TenantContext.setCurrentOrgId(orgId);
         SecurityContextHolder.getContext().setAuthentication(new TestingAuthenticationToken("pm", "n/a", "ROLE_USER"));
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(true);
+        when(access.can(anyString(), anyString())).thenReturn(true);
+        when(reviewAccess.mayReview(any())).thenReturn(true);
     }
 
     @AfterEach
@@ -198,6 +204,16 @@ class DocumentIngestionReviewApplyIT extends AbstractIntegrationTest {
             assertThat(p.source().page()).isEqualTo(2);
             assertThat(p.source().quote()).isEqualTo("Name of work: Tower A");
         });
+    }
+
+    @Test
+    void aKindTheCallerMayNotReviewIsRefusedAndLeftAsItWas() {
+        UUID id = propose("Tower Q");
+        when(reviewAccess.mayReview(CandidateKind.PROJECT_FIELD)).thenReturn(false);
+
+        assertThat(review.decide(packageId, accept(List.of(id)))).singleElement()
+                .satisfies(o -> assertThat(o.outcome()).isEqualTo(Outcome.REFUSED_ROLE));
+        assertThat(candidates.findById(id).orElseThrow().getStatus()).isEqualTo(CandidateStatus.PROPOSED);
     }
 
     @Test
@@ -271,7 +287,7 @@ class DocumentIngestionReviewApplyIT extends AbstractIntegrationTest {
         UUID id = propose("Tower G");
         review.decide(packageId, accept(List.of(id)));
 
-        when(orgSecurity.hasAnyOrgRoleForCurrentTenant("system-admin", "project-manager")).thenReturn(false);
+        when(access.can("projects", "edit")).thenReturn(false);
         assertThatThrownBy(() -> apply.apply(packageId, CandidateKind.PROJECT_FIELD)).isInstanceOf(AccessDeniedException.class);
 
         SecurityContextHolder.clearContext();

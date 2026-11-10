@@ -17,7 +17,7 @@ import org.springframework.stereotype.Component;
 /**
  * Evaluates a target's {@code @PreAuthorize} expression for the signed-in caller, so applying a value
  * asks exactly what writing it through the target's own endpoint would ask. The same beans resolve
- * ({@code @orgSecurity}), and the same roots ({@code hasRole}, {@code isAuthenticated}).
+ * ({@code @access}), and the same roots ({@code hasRole}, {@code isAuthenticated}).
  */
 @Component
 @PreAuthorize("isAuthenticated()")

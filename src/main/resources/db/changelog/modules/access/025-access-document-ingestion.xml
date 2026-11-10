@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        document-ingestion (echno-backend #914). Before the matrix every member read a package, its
+        documents, candidates and spend; the system admin, project manager, QA engineer and site engineer
+        uploaded and drove the extraction; only the system admin and project manager applied accepted
+        values; and only the system admin changed the module's settings and budgets or read every LLM
+        call. Reviewing was asked per candidate: the system admin and project manager reviewed every kind,
+        the QA engineer quality requirements as well, and the site engineer drawings.
+
+        The area comes from the module's manifest. This changeset gives the baseline document-ingestion:read,
+        the four uploaders document-ingestion:upload, the pair review and apply, the system admin admin, the
+        QA engineer review-quality and the site engineer review-drawings, all across the organization.
+
+        A file of its own because 008 loads role-template-grants.csv with no runOnChange. The reconciler
+        carries the template to every uncustomized role on the next boot; a customized role is left as its
+        organization set it.
+    -->
+
+    <changeSet id="access-025-document-ingestion" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT count(*) FROM access_role_template_grant
+                WHERE template_id = 'ed34dfe6-5468-5f6e-b6ed-ef6eefccfce2'
+                  AND permission_key = 'document-ingestion:admin'
+            </sqlCheck>
+        </preConditions>
+        <loadData tableName="access_role_template_grant" file="db/data/access/role-template-grants-document-ingestion.csv" separator=",">
+            <column name="id" type="UUID"/>
+            <column name="template_id" type="UUID"/>
+            <column name="permission_key" type="STRING"/>
+            <column name="scope" type="STRING"/>
+        </loadData>
+    </changeSet>
+
+</databaseChangeLog>
