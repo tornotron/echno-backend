@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
+import org.tornotron.echno_backend.modules.access.matrix.service.MatrixRoleHolders;
 import org.tornotron.echno_backend.attendance.mapper.ShiftTimingMapperImpl;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.exception.ResourceNotFoundException;
@@ -39,7 +40,7 @@ import org.tornotron.echno_backend.wbs.mapper.WbsElementMapperImpl;
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({ProgressInspectionService.class, ProgressInspectionActivityRecords.class, WbsElementService.class,
-        WbsElementMapperImpl.class, EmployeeMapperImpl.class, ShiftTimingMapperImpl.class, UserContextService.class,
+        WbsElementMapperImpl.class, EmployeeMapperImpl.class, MatrixRoleHolders.class, ShiftTimingMapperImpl.class, UserContextService.class,
         TenantEntityHelper.class, ScheduleIntegrationSupport.FixedClocks.class})
 class ProgressInspectionServiceIT extends ScheduleIntegrationSupport {
 

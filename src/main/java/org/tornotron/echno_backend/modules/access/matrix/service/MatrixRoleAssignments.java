@@ -158,6 +158,7 @@ public class MatrixRoleAssignments implements AccessRoleAssignments {
                 """, organization, employeeId, role.id(), projectId, actor.userId());
         if (role.legacyOrgRole() != null) {
             mirror.add(organization, employeeId, role.legacyOrgRole());
+            MatrixRoleHolders.forgetOldRoles();
         }
         if (added > 0) {
             record(organization, actor, CHANGE_ASSIGNED, employeeId, null, state(role, projectId));
@@ -178,6 +179,7 @@ public class MatrixRoleAssignments implements AccessRoleAssignments {
                 """, organization, employeeId, role.id(), projectId);
         if (role.legacyOrgRole() != null) {
             mirror.remove(organization, employeeId, role.legacyOrgRole());
+            MatrixRoleHolders.forgetOldRoles();
         }
         if (removed > 0) {
             record(organization, actor, CHANGE_REMOVED, employeeId, state(role, projectId), null);

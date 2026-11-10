@@ -19,6 +19,7 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.tornotron.echno_backend.modules.access.matrix.service.MatrixRoleHolders;
 import org.tornotron.echno_backend.modules.access.api.CallerAccess;
 import org.tornotron.echno_backend.attendance.mapper.ShiftTimingMapperImpl;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
@@ -79,7 +80,7 @@ import org.tornotron.echno_backend.wbs.mapper.WbsElementMapperImpl;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({BillPaymentService.class, BillPaymentStore.class, PaymentAuthorizers.class, ContractBillService.class, ContractBillingService.class,
         BillingSupport.class, ContractBillingRecords.class, PayableService.class, PayableMapperImpl.class,
-        SubContractMapperImpl.class, WbsElementService.class, WbsElementMapperImpl.class, EmployeeMapperImpl.class,
+        SubContractMapperImpl.class, WbsElementService.class, WbsElementMapperImpl.class, EmployeeMapperImpl.class, MatrixRoleHolders.class,
         ShiftTimingMapperImpl.class, TenantEntityHelper.class, ScheduleIntegrationSupport.FixedClocks.class,
         PayableAccessStubs.AllowingEverything.class})
 class BillPaymentServiceIT extends ScheduleIntegrationSupport {

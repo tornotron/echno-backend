@@ -2,11 +2,13 @@ package org.tornotron.echno_backend.modules.access.api;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Who holds a starting role, for the few places that name a role on purpose instead of asking for a
  * permission: the tier a leave policy routes to, the people a store's notices go to, the approver of a
- * punch outside the fence, and the manager listings.
+ * punch outside the fence, and the manager listings. It also answers the old organization roles a
+ * person holds, for the {@code orgRoles} field clients still read.
  *
  * <p>A role here is one the organization was given from a template, named by the template's slug. A
  * role the organization made itself never counts, whatever it is called or holds. Answers are in
@@ -37,4 +39,14 @@ public interface AccessRoleHolders {
      * @param role a template slug
      */
     List<Long> onProject(Long organizationId, Long projectId, String role);
+
+    /**
+     * The old organization roles the employee holds, by their old names ({@code project-manager}), through
+     * the starting roles that stand in for one, across the organization. Exactly what
+     * {@code employee_org_roles} has recorded for them while the old roles are kept in step.
+     *
+     * @param organizationId the organization the employee and their roles belong to
+     * @param employeeId the employee
+     */
+    Set<String> oldRolesOf(Long organizationId, Long employeeId);
 }

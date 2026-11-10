@@ -10,6 +10,7 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabas
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.tornotron.echno_backend.modules.access.matrix.service.MatrixRoleHolders;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
 import org.tornotron.echno_backend.common.mapper.AttachmentMapperImpl;
@@ -46,7 +47,7 @@ import static org.assertj.core.api.Assertions.assertThatNoException;
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import({PayableService.class, PayableMapperImpl.class, EmployeeMapperImpl.class,
+@Import({PayableService.class, PayableMapperImpl.class, EmployeeMapperImpl.class, MatrixRoleHolders.class,
         AttachmentMapperImpl.class, TenantEntityHelper.class,
         org.tornotron.echno_backend.attendance.mapper.ShiftTimingMapperImpl.class,
         PayableAccessStubs.AllowingEverything.class})

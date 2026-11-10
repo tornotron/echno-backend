@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
+import org.tornotron.echno_backend.modules.access.matrix.service.MatrixRoleHolders;
 import org.tornotron.echno_backend.attendance.mapper.ShiftTimingMapperImpl;
 import org.tornotron.echno_backend.common.exception.DuplicateResourceException;
 import org.tornotron.echno_backend.common.exception.InvalidRequestException;
@@ -29,7 +30,7 @@ import org.tornotron.echno_backend.wbs.mapper.WbsElementMapperImpl;
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import({WbsElementService.class, WbsElementMapperImpl.class, EmployeeMapperImpl.class, ShiftTimingMapperImpl.class,
+@Import({WbsElementService.class, WbsElementMapperImpl.class, EmployeeMapperImpl.class, MatrixRoleHolders.class, ShiftTimingMapperImpl.class,
         ScheduleIntegrationSupport.FixedClocks.class})
 class WbsScheduleServiceIT extends ScheduleIntegrationSupport {
 
