@@ -17,7 +17,7 @@
           named team:read-reporting-lines at own scope (nothing asks for team:create, the create route
           being closed, but whoever edits a record holds create at the same reach);
         - takes the project manager's team:edit, which no employee handler asks for (the baseline's
-          team:approve stays until attendance records leave the area);
+          team:approve is attendance's, see 023);
         - gives the system admin and HR admin team:read, team:create and team:read-reporting-lines
           across the organization, and the project manager team:read across it.
 

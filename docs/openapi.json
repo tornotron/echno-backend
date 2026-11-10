@@ -70521,7 +70521,7 @@
                 }
               }
             },
-            "description": "Caller is not a system admin, HR admin or project manager in the current organization"
+            "description": "Caller may not read employee records"
           },
           "404": {
             "content": {
@@ -70746,7 +70746,7 @@
                 }
               }
             },
-            "description": "Caller is not a system admin or HR admin in the current organization"
+            "description": "Caller may not make this change to employee records"
           },
           "404": {
             "content": {
@@ -70886,7 +70886,7 @@
                 }
               }
             },
-            "description": "Caller named an organization that is not the current tenant, or is not a system admin, HR admin or project manager in it"
+            "description": "Caller named an organization that is not the current tenant, or may not read employee records across it"
           },
           "404": {
             "content": {
@@ -70991,7 +70991,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read employee records"
           },
           "404": {
             "content": {
@@ -71104,7 +71104,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to employee records"
           },
           "404": {
             "content": {
@@ -71226,7 +71226,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to employee records"
           },
           "404": {
             "content": {
@@ -71351,7 +71351,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read employee records"
           },
           "404": {
             "content": {
@@ -71467,7 +71467,7 @@
                 }
               }
             },
-            "description": "Caller is neither the manager named nor a system or HR admin"
+            "description": "Caller may not read employee records"
           },
           "404": {
             "content": {
@@ -71572,7 +71572,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read employee records"
           },
           "404": {
             "content": {
@@ -71688,7 +71688,7 @@
                 }
               }
             },
-            "description": "Caller is not entitled to the organization named, or lacks the required role in it"
+            "description": "Caller named an organization that is not the current tenant, or may not read employee records across it"
           },
           "404": {
             "content": {
@@ -71843,7 +71843,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not read employee records"
           },
           "404": {
             "content": {
@@ -71971,7 +71971,7 @@
                 }
               }
             },
-            "description": "Caller is not a member of the current tenant"
+            "description": "Caller may not read employee records"
           },
           "404": {
             "content": {
@@ -72092,7 +72092,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to employee records"
           },
           "404": {
             "content": {
@@ -72224,7 +72224,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to employee records"
           },
           "404": {
             "content": {
@@ -72337,7 +72337,7 @@
                 }
               }
             },
-            "description": "Caller lacks the required role in the current tenant"
+            "description": "Caller may not make this change to employee records"
           },
           "404": {
             "content": {
@@ -72448,7 +72448,7 @@
                 }
               }
             },
-            "description": "Caller is neither the employee nor a system admin, HR admin or project manager"
+            "description": "Caller may not read employee records"
           },
           "404": {
             "content": {
@@ -72569,7 +72569,7 @@
                 }
               }
             },
-            "description": "Caller is neither the employee nor a system or HR admin, or is the employee and named a field only those roles may set"
+            "description": "Caller may not make this change to employee records, or is the employee and named a field only those roles may set"
           },
           "404": {
             "content": {
@@ -72682,7 +72682,7 @@
                 }
               }
             },
-            "description": "Caller is not a system admin or HR admin in the current organization"
+            "description": "Caller may not make this change to employee records"
           },
           "404": {
             "content": {
@@ -72793,7 +72793,7 @@
                 }
               }
             },
-            "description": "Caller is neither the employee nor a system admin, HR admin or project manager"
+            "description": "Caller may not read employee records"
           },
           "404": {
             "content": {
@@ -72914,7 +72914,7 @@
                 }
               }
             },
-            "description": "Caller is neither the employee nor a system admin or HR admin, or is the employee and named a field only those roles may set"
+            "description": "Caller may not make this change to employee records, or is the employee and named a field only those roles may set"
           },
           "404": {
             "content": {
