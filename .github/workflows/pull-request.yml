@@ -136,13 +136,13 @@ jobs:
           path: build/openapi.json
           if-no-files-found: ignore
 
-  # The single check to require on `development`. Fails if any job above failed, was
-  # cancelled or was skipped, then enforces the JaCoCo line-coverage floor
+  # The single check to require on `development`. Fails if any job it needs (the four
+  # above and scaffold-check below) failed, was cancelled or was skipped, then enforces the JaCoCo line-coverage floor
   # (jacocoLineFloor in build.gradle) over the exec files of both test halves, so a
   # merge cannot regress coverage. The floor was measured over the whole suite and
   # only makes sense over the whole suite.
   build-and-test:
-    needs: [compile, unit-tests, integration-tests, openapi]
+    needs: [compile, unit-tests, integration-tests, openapi, scaffold-check]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 15

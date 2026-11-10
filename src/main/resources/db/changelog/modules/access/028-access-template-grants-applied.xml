@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Which of its template's grants each role made from a template has already been given (echno-backend
+        #914, step 31). Until now the reconciler carried a template change only to roles nobody had changed,
+        so a customized role missed every grant a later changeset added to keep today's access when an area
+        moved onto the matrix, and its holders lost that access. With this table the reconciler gives a
+        customized role each template change once: a grant the template gains is added, a grant the template
+        drops is taken away, and a grant the organization took off the role stays off, because it is already
+        recorded here. Roles an organization made itself (created_by set) never follow a template, even one
+        that later takes their slug.
+
+        The seed records, for every role made from a template, the template's grants as they stand. For a
+        customized role it records only those the role holds or once held (any "before" list in the change
+        log), so the next boot adds the grants it never had: the ones later changesets added. A grant a
+        template dropped before this changeset is not taken from a customized role here; the backfill's
+        report lists any such holder.
+    -->
+
+    <changeSet id="access-028-create-access_role_template_grant_applied" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="access_role_template_grant_applied"/></not>
+        </preConditions>
+        <createTable tableName="access_role_template_grant_applied">
+            <column name="id" type="UUID"><constraints primaryKey="true" primaryKeyName="pk_access_role_template_grant_applied" nullable="false"/></column>
+            <column name="organization_id" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="role_id" type="UUID"><constraints nullable="false"/></column>
+            <column name="permission_key" type="VARCHAR(120)"><constraints nullable="false"/></column>
+            <column name="scope" type="VARCHAR(20)"><constraints nullable="false"/></column>
+        </createTable>
+        <addForeignKeyConstraint baseTableName="access_role_template_grant_applied" baseColumnNames="organization_id"
+                                 referencedTableName="organization" referencedColumnNames="id"
+                                 constraintName="fk_access_role_template_grant_applied_organization" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseTableName="access_role_template_grant_applied" baseColumnNames="organization_id, role_id"
+                                 referencedTableName="access_role" referencedColumnNames="organization_id, id"
+                                 constraintName="fk_access_role_template_grant_applied_role" onDelete="CASCADE"/>
+        <addUniqueConstraint tableName="access_role_template_grant_applied" columnNames="role_id, permission_key, scope"
+                             constraintName="uq_access_role_template_grant_applied"/>
+        <createIndex tableName="access_role_template_grant_applied" indexName="idx_access_role_template_grant_applied_organization">
+            <column name="organization_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="access-028-seed-access_role_template_grant_applied" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">SELECT count(*) FROM access_role_template_grant_applied</sqlCheck>
+        </preConditions>
+        <sql>
+            INSERT INTO access_role_template_grant_applied (id, organization_id, role_id, permission_key, scope)
+            SELECT gen_random_uuid(), r.organization_id, r.id, g.permission_key, g.scope
+            FROM access_role r
+            JOIN access_role_template t ON t.slug = r.slug
+            JOIN access_role_template_grant g ON g.template_id = t.id
+            WHERE r.created_by IS NULL
+              AND (NOT r.customized
+                   OR EXISTS (SELECT 1 FROM access_role_grant h
+                              WHERE h.role_id = r.id AND h.permission_key = g.permission_key AND h.scope = g.scope)
+                   OR EXISTS (SELECT 1 FROM access_change_log l, jsonb_array_elements(l.before_state -> 'grants') e
+                              WHERE l.organization_id = r.organization_id
+                                AND l.action = 'role.grants-changed' AND l.target_type = 'role'
+                                AND l.target_id = r.id::STRING
+                                AND e ->> 'permission' = g.permission_key AND e ->> 'scope' = g.scope))
+            ON CONFLICT DO NOTHING
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>
