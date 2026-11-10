@@ -46,7 +46,7 @@ class VisionModuleTest {
     @Test
     void permissionsUseTheColonVocabulary() {
         assertThat(module.manifest().permissions())
-                .containsExactly("vision:read", "vision:run", "vision:models-manage")
+                .containsExactly("vision:read", "vision:run", "vision:settings-manage", "vision:models-manage")
                 .allMatch(ModuleManifest.PERMISSION_KEY.asMatchPredicate());
     }
 

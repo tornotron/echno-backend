@@ -3,6 +3,7 @@ package org.tornotron.echno_backend.modules.access.matrix;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -50,7 +51,13 @@ class AccessRoleTemplateSeedTest {
             "db/data/access/role-template-grants-team.csv",
             "db/data/access/role-template-grants-attendance.csv",
             "db/data/access/role-template-grants-user-accounts.csv",
-            "db/data/access/role-template-grants-document-ingestion.csv");
+            "db/data/access/role-template-grants-document-ingestion.csv",
+            "db/data/access/role-template-grants-vision.csv");
+
+    /** Every CSV a changeset loads into access_role_template, in changeset order. */
+    private static final List<String> TEMPLATE_FILES = List.of(
+            "db/data/access/role-templates.csv",
+            "db/data/access/role-templates-detection-reviewer.csv");
 
     /**
      * Template grants a later changeset deleted, by template slug and key: access-011 takes the
@@ -92,7 +99,7 @@ class AccessRoleTemplateSeedTest {
 
     @BeforeAll
     static void readTheSeed() throws IOException {
-        for (String[] row : rows("db/data/access/role-templates.csv")) {
+        for (String[] row : TEMPLATE_FILES.stream().flatMap(file -> rowsOf(file).stream()).toList()) {
             SLUG_BY_ID.put(row[0], row[1]);
             // Liquibase reads NULL in a CSV as a null column, where an empty field would be an empty string.
             LEGACY_BY_SLUG.put(row[1], row[6].equals("NULL") ? "" : row[6]);
@@ -124,6 +131,14 @@ class AccessRoleTemplateSeedTest {
             rows.add(line.split(",", -1));
         }
         return rows;
+    }
+
+    private static List<String[]> rowsOf(String resource) {
+        try {
+            return rows(resource);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     private static Set<String> held(String slug) {
@@ -496,6 +511,37 @@ class AccessRoleTemplateSeedTest {
     }
 
     @Test
+    void theRolesThatReviewAModelsFindingsReadAndRunVisionAndOnlyTheSystemAdminSetsItUp() {
+        // Before the matrix the system admin, project manager, QA engineer and safety officer read the
+        // registry and the settings and asked for runs, as did the detection reviewer, which no employee
+        // could hold; only the system admin changed the settings.
+        Set<String> reviewers = Set.of("system-admin", "project-manager", "qa-qc-engineer", "safety-officer",
+                "detection-reviewer");
+        KEYS_BY_SLUG.forEach((slug, keys) -> {
+            Set<String> vision = new HashSet<>();
+            keys.stream().filter(key -> key.startsWith("vision:")).forEach(vision::add);
+            if (slug.equals("system-admin")) {
+                assertThat(vision).as(slug).containsExactlyInAnyOrder("vision:read", "vision:run",
+                        "vision:settings-manage");
+            } else if (reviewers.contains(slug)) {
+                assertThat(vision).as(slug).containsExactlyInAnyOrder("vision:read", "vision:run");
+            } else {
+                assertThat(vision).as(slug).isEmpty();
+            }
+        });
+    }
+
+    @Test
+    void theDetectionReviewerHasNoOldRoleAndNoStartingRoleGivesIt() throws IOException {
+        assertThat(LEGACY_BY_SLUG.get("detection-reviewer")).isEmpty();
+        assertThat(SYSTEM).doesNotContain("detection-reviewer");
+        assertThat(CARRIED_OVER).doesNotContain("detection-reviewer");
+        String id = SLUG_BY_ID.entrySet().stream().filter(entry -> entry.getValue().equals("detection-reviewer"))
+                .map(Map.Entry::getKey).findFirst().orElseThrow();
+        assertThat(rows("db/data/access/role-template-grantables.csv")).noneMatch(row -> row[2].equals(id));
+    }
+
+    @Test
     void everyGrantIdIsUniqueAcrossTheFiles() throws IOException {
         Set<String> ids = new HashSet<>();
         for (String file : GRANT_FILES) {
@@ -527,9 +573,11 @@ class AccessRoleTemplateSeedTest {
     }
 
     @Test
-    void aRoleWithNoCounterpartSaysSoWithANull() throws IOException {
-        for (String[] row : rows("db/data/access/role-templates.csv")) {
-            assertThat(row[6]).as(row[1]).isNotEmpty();
+    void aRoleWithNoCounterpartSaysSoWithANull() {
+        for (String file : TEMPLATE_FILES) {
+            for (String[] row : rowsOf(file)) {
+                assertThat(row[6]).as(row[1]).isNotEmpty();
+            }
         }
     }
 

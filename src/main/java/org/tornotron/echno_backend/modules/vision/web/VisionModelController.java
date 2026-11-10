@@ -30,24 +30,24 @@ public class VisionModelController {
     private final CvModelRegistryService service;
 
     @GetMapping
-    @PreAuthorize(VisionModule.READ_GUARD)
+    @PreAuthorize("@access.can('vision', 'read')")
     @Operation(summary = "List model families", description = "Every family with its versions, oldest first.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Families returned"),
             @ApiResponse(responseCode = "402", description = "The organization is not entitled to the module, in enforce mode"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant")
+            @ApiResponse(responseCode = "403", description = "Caller may not read computer vision")
     })
     public List<CvModelDto> list() {
         return service.listModels();
     }
 
     @GetMapping("/{key}/versions/{version}")
-    @PreAuthorize(VisionModule.READ_GUARD)
+    @PreAuthorize("@access.can('vision', 'read')")
     @Operation(summary = "Read a model version")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Version returned"),
             @ApiResponse(responseCode = "402", description = "The organization is not entitled to the module, in enforce mode"),
-            @ApiResponse(responseCode = "403", description = "Caller lacks the required role in the current tenant"),
+            @ApiResponse(responseCode = "403", description = "Caller may not read computer vision"),
             @ApiResponse(responseCode = "404", description = "No such model or version")
     })
     public CvModelVersionDto version(@PathVariable String key, @PathVariable String version) {

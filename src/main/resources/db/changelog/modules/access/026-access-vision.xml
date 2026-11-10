@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        vision (echno-backend #914). Before the matrix the system admin, project manager, QA engineer and
+        safety officer read the model registry and the organization's vision settings and asked for runs,
+        as did the detection-reviewer role, which no employee could hold: it is no old role, so no
+        employee_org_roles row names it. Only the system admin changed the settings. Writing the
+        registry is the platform admin's and stays off the matrix.
+
+        The area comes from the module's manifest. The detection reviewer becomes a starting role of its
+        own, with no old role behind it, so nobody holds it until a role is given; no starting role lists
+        it as one it may give. This changeset adds that template, gives the four roles and the detection
+        reviewer vision:read and vision:run, and the system admin vision:settings-manage, all across the
+        organization.
+
+        Files of their own because 008 loads the templates and their grants with no runOnChange. The
+        reconciler makes the new role in every organization and carries the grants to every uncustomized
+        role on the next boot; a customized role is left as its organization set it.
+    -->
+
+    <changeSet id="access-026-detection-reviewer-template" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT count(*) FROM access_role_template WHERE slug = 'detection-reviewer'
+            </sqlCheck>
+        </preConditions>
+        <loadData tableName="access_role_template" file="db/data/access/role-templates-detection-reviewer.csv" separator=",">
+            <column name="id" type="UUID"/>
+            <column name="slug" type="STRING"/>
+            <column name="name" type="STRING"/>
+            <column name="description" type="STRING"/>
+            <column name="is_system" type="BOOLEAN"/>
+            <column name="is_baseline" type="BOOLEAN"/>
+            <column name="legacy_org_role" type="STRING"/>
+            <column name="carried_over" type="BOOLEAN"/>
+        </loadData>
+    </changeSet>
+
+    <changeSet id="access-026-vision" author="abhijith">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT count(*) FROM access_role_template_grant
+                WHERE template_id = 'ed34dfe6-5468-5f6e-b6ed-ef6eefccfce2'
+                  AND permission_key = 'vision:settings-manage'
+            </sqlCheck>
+        </preConditions>
+        <loadData tableName="access_role_template_grant" file="db/data/access/role-template-grants-vision.csv" separator=",">
+            <column name="id" type="UUID"/>
+            <column name="template_id" type="UUID"/>
+            <column name="permission_key" type="STRING"/>
+            <column name="scope" type="STRING"/>
+        </loadData>
+    </changeSet>
+
+</databaseChangeLog>

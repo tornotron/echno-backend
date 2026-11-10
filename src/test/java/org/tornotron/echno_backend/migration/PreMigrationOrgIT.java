@@ -303,7 +303,7 @@ class PreMigrationOrgIT extends AbstractIntegrationTest {
     void anOrganizationGetsEveryTemplateOnceAndARerunChangesNothing() {
         assertThat(runner.runOnce()).isTrue();
 
-        assertThat(rolesInOrganization()).isEqualTo(14);
+        assertThat(rolesInOrganization()).isEqualTo(15);
         assertThat(jdbc.queryForObject(
                 "SELECT count(*) FROM access_role WHERE organization_id = ? AND is_system",
                 Integer.class, organization)).isEqualTo(2);
@@ -312,7 +312,7 @@ class PreMigrationOrgIT extends AbstractIntegrationTest {
 
         assertThat(runner.runOnce()).isTrue();
 
-        assertThat(rolesInOrganization()).isEqualTo(14);
+        assertThat(rolesInOrganization()).isEqualTo(15);
         assertThat(grantsInOrganization()).isEqualTo(grants);
     }
 
@@ -354,14 +354,16 @@ class PreMigrationOrgIT extends AbstractIntegrationTest {
         assertThat(jdbc.queryForObject(
                 "SELECT count(*) FROM access_role WHERE organization_id = ? AND slug = 'store-keeper'",
                 Integer.class, organization)).isZero();
-        assertThat(rolesInOrganization()).isEqualTo(14);
+        assertThat(rolesInOrganization()).isEqualTo(15);
     }
 
     @Test
     void anAdministratorMayGrantEveryRoleAndHrAdminAllButAdministrator() {
         assertThat(runner.runOnce()).isTrue();
 
-        assertThat(grantable("system-admin")).contains("system-admin", "project-manager", "hr-admin").hasSize(13);
+        // The detection reviewer is for reviewers outside the client's staff: no starting role gives it.
+        assertThat(grantable("system-admin")).contains("system-admin", "project-manager", "hr-admin")
+                .doesNotContain("detection-reviewer").hasSize(13);
         assertThat(grantable("hr-admin")).contains("project-manager", "hr-admin")
                 .doesNotContain("system-admin").hasSize(12);
         assertThat(grantable("project-manager")).isEmpty();
