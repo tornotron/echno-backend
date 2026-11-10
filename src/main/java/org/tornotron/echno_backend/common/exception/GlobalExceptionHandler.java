@@ -243,6 +243,14 @@ public class GlobalExceptionHandler {
      * already written for a person to read, so passing it through leaks nothing a caller who
      * just sent that value does not have.
      */
+    @ExceptionHandler(org.tornotron.echno_backend.user.SharedUserException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ProblemDetail handleSharedUserException(org.tornotron.echno_backend.user.SharedUserException ex,
+                                                   WebRequest request) {
+        logger.warn("Shared user change refused: {}", ex.getMessage());
+        return problem(HttpStatus.CONFLICT, "Shared User", ex.getMessage(), request);
+    }
+
     @ExceptionHandler(DuplicateResourceException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
     public ProblemDetail handleDuplicateResourceException(DuplicateResourceException ex, WebRequest request) {
