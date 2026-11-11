@@ -178,9 +178,11 @@ public record EvidenceUnit(
 
 Rules that make entitlement hold by construction:
 
-- `retrieve` runs inside the caller's request thread, so `TenantContext` is already set and the
-  services it calls are `@Transactional`, which turns `orgFilter` on. A provider never opens its
-  own transaction with a different tenant and never uses `@WithoutTenant`.
+- `retrieve` runs either inside the caller's request thread or on a bounded retrieval worker
+  thread where the caller's `SecurityContext` and tenant id have been re-established through
+  `TenantScopedJobRunner.callForTenantInTransaction` (section 7), so `orgFilter` is enabled and
+  `@PreAuthorize` sees the same authorities. A provider never opens its own transaction with a
+  different tenant and never uses `@WithoutTenant`.
 - `@PreAuthorize` in Echno sits on controllers, not services. A provider is a Spring bean called
   from the pipeline, so its `retrieve` method carries the same guard expression as the controller
   endpoint it mirrors (for attendance, the project-attendance read; for tasks, the project task
