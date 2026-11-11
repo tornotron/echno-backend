@@ -74,16 +74,23 @@ class ProviderGuardParityTest {
     }
 
     @Test
-    void everyProviderInThePackageHasAMirrorSoANewOneCannotSkipTheCheck() {
+    void everyProviderInTheApplicationHasAMirrorSoANewOneCannotSkipTheCheck() {
         ClassPathScanningCandidateComponentProvider scanner = new ClassPathScanningCandidateComponentProvider(false);
         scanner.addIncludeFilter(new AssignableTypeFilter(AssistantProvider.class));
-        Set<String> found = scanner.findCandidateComponents("org.tornotron.echno_backend.modules.assistant")
-                .stream().map(BeanDefinition::getBeanClassName).collect(Collectors.toCollection(TreeSet::new));
+        Set<String> found = scanner.findCandidateComponents("org.tornotron.echno_backend")
+                .stream()
+                .map(BeanDefinition::getBeanClassName)
+                .filter(name -> name != null
+                        && !name.endsWith("Test")
+                        && !name.endsWith("IT")
+                        && !name.contains("Test$")
+                        && !name.contains("IT$"))
+                .collect(Collectors.toCollection(TreeSet::new));
 
         Set<String> mirrored = MIRRORS.keySet().stream().map(Class::getName)
                 .collect(Collectors.toCollection(TreeSet::new));
 
-        assertThat(found).as("providers found by scanning versus providers with a guard mirror")
+        assertThat(found).as("providers found by scanning org.tornotron.echno_backend versus mirrored providers")
                 .isEqualTo(mirrored);
     }
 

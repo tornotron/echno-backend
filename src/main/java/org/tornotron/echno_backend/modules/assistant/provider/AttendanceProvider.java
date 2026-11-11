@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,8 +33,9 @@ import org.tornotron.echno_backend.modules.assistant.api.SourceRef;
 import org.tornotron.echno_backend.modules.assistant.api.Subject;
 
 /**
- * Attendance for a project over a period, one summary per day: how many employees have a record and
- * how many sit in each status, with the minutes worked and the overtime.
+ * Attendance for a project over a period, one summary per day: how many employees have a record,
+ * how many were counted as on site ({@code onSiteCount}), how many sit in each status, and the
+ * minutes worked and overtime.
  *
  * <p>Reads through {@link AttendanceService#getAttendanceByProject}, the service behind the project
  * attendance read on both attendance controllers, so the tenant filter applies by construction.
@@ -42,10 +44,12 @@ import org.tornotron.echno_backend.modules.assistant.api.Subject;
  * differ. It means only the roles that may read a project's attendance (by default the system
  * admin, HR admin and project manager) get attendance evidence through the assistant.
  *
- * <p>The counts are per status, with the status names the attendance module uses. Nothing here
- * decides which statuses "count as present": that is a definition, and the answer should be able to
- * quote the source's own words rather than this class's reading of them. Named rows are not
- * returned; a day is an aggregate.
+ * <p>{@code onSiteCount} sums the five on-site statuses ({@code PRESENT}, {@code HALF_DAY},
+ * {@code LATE}, {@code EARLY_CHECKOUT}, {@code OVERTIME}), leaving out non-working ({@code ABSENT},
+ * {@code LEAVE}, {@code WEEKLY_OFF}, {@code HOLIDAY}) and unresolved
+ * ({@code PENDING_REGULARIZATION}) statuses. Its {@link FieldSpec} states those exact status names
+ * so the definition travels with the number alongside the raw per-status breakdown in
+ * {@code statusCounts}. Named rows are not returned; a day is an aggregate.
  */
 @Slf4j
 @Component
@@ -55,6 +59,17 @@ public class AttendanceProvider implements AssistantProvider {
 
     /** The guard on {@code GET /project/{projectId}} of both attendance controllers. */
     public static final String READ_GUARD = "@attendanceSecurity.canManageRecords()";
+
+    /**
+     * Statuses counted in {@code onSiteCount} per product confirmation: {@code PRESENT},
+     * {@code HALF_DAY}, {@code LATE}, {@code EARLY_CHECKOUT}, and {@code OVERTIME}.
+     */
+    static final Set<AttendanceStatus> ON_SITE_STATUSES = Collections.unmodifiableSet(EnumSet.of(
+            AttendanceStatus.PRESENT,
+            AttendanceStatus.LATE,
+            AttendanceStatus.HALF_DAY,
+            AttendanceStatus.EARLY_CHECKOUT,
+            AttendanceStatus.OVERTIME));
 
     // A week is the default period and a month is the most anyone should ask for in one answer;
     // past it the evidence would not fit the model's context anyway.
@@ -68,18 +83,25 @@ public class AttendanceProvider implements AssistantProvider {
 
     private static final String STATUSES = Arrays.stream(AttendanceStatus.values())
             .map(Enum::name).collect(Collectors.joining(", "));
+    private static final String ON_SITE_STATUS_NAMES = ON_SITE_STATUSES.stream()
+            .map(Enum::name).collect(Collectors.joining(", "));
 
     private static final ProviderDescriptor DESCRIPTOR = new ProviderDescriptor(
             ID,
-            "Who was on site and how each day went for one project: per day, how many employees have an "
-                    + "attendance record and how many sit in each attendance status, with the minutes worked "
-                    + "and the overtime. It needs a project and a date range. It does not name individual "
-                    + "employees and cannot break the count down by trade.",
+            "Who was on site and how each day went for one project: per day, how many employees were "
+                    + "on site, how many have an attendance record overall, and how many sit in each "
+                    + "attendance status, with the minutes worked and the overtime. It needs a project "
+                    + "and a date range. It does not name individual employees and cannot break the "
+                    + "count down by trade.",
             List.of(
                     new FieldSpec("date", "ISO-8601 date", "The calendar day the summary covers."),
                     new FieldSpec("projectId", "id", "The project the attendance records belong to."),
                     new FieldSpec("recordCount", "records",
-                            "Employees with an attendance record that day, whatever its status."),
+                            "All employees with an attendance record that day, whatever its status "
+                                    + "(includes ABSENT, LEAVE, WEEKLY_OFF, HOLIDAY and PENDING_REGULARIZATION)."),
+                    new FieldSpec("onSiteCount", "records",
+                            "Employees counted as on site that day (" + ON_SITE_STATUS_NAMES
+                                    + "); excludes non-working and unresolved statuses."),
                     new FieldSpec("statusCounts", "records per status",
                             "Records per attendance status, named as the attendance module names them ("
                                     + STATUSES + "); a status with no records is left out."),
@@ -90,8 +112,11 @@ public class AttendanceProvider implements AssistantProvider {
             Set.of(Subject.ATTENDANCE),
             true,
             true,
-            // An estimate, not a measurement: one indexed read per day of the period.
-            new CostProfile(500, 0));
+            // Measured at ~170 ms (12 statements, 615 collection loads through AttendanceMapper) for
+            // 205 rows on 1 day with no clock events (~5 s / ~370 statements across 31 days against
+            // an 8 s timeout), and higher with punches or attachments. Estimate reflects a typical
+            // 7-day read until core provides a lightweight GROUP BY summary query.
+            new CostProfile(2000, 0));
 
     private final AttendanceService attendanceService;
 
@@ -107,7 +132,7 @@ public class AttendanceProvider implements AssistantProvider {
     @Override
     @PreAuthorize(READ_GUARD)
     public ProviderResult retrieve(Question question, Scope scope) {
-        if (scope.projectId() == null) {
+        if (scope == null || scope.projectId() == null) {
             return new ProviderResult.Unavailable(
                     "Attendance is read for one project, and no project was resolved for this question.");
         }
@@ -147,7 +172,9 @@ public class AttendanceProvider implements AssistantProvider {
         return new ProviderResult.Evidence(units);
     }
 
-    // Aggregated page by page, so a large day is never held in memory as full records.
+    // Fetched page by page into DayTotals. Note: when called inside an outer transaction (such as
+    // the retrieval worker transaction), Hibernate retains each page's loaded Attendance entities in
+    // the persistence context until that outer transaction completes.
     private DayTotals readDay(Long projectId, LocalDate day) {
         DayTotals totals = new DayTotals();
         for (int page = 0; page < MAX_PAGES_PER_DAY; page++) {
@@ -168,6 +195,7 @@ public class AttendanceProvider implements AssistantProvider {
         values.put("date", day.toString());
         values.put("projectId", projectId);
         values.put("recordCount", totals.records);
+        values.put("onSiteCount", totals.onSite);
         Map<String, Integer> statusCounts = new LinkedHashMap<>();
         totals.byStatus.forEach((status, count) -> statusCounts.put(status.name(), count));
         values.put("statusCounts", Collections.unmodifiableMap(statusCounts));
@@ -184,6 +212,7 @@ public class AttendanceProvider implements AssistantProvider {
 
     private static final class DayTotals {
         int records;
+        int onSite;
         long workMinutes;
         long overtimeMinutes;
         // Enum order, so the counts read the same way every time.
@@ -193,6 +222,9 @@ public class AttendanceProvider implements AssistantProvider {
             records++;
             if (record.getStatus() != null) {
                 byStatus.merge(record.getStatus(), 1, Integer::sum);
+                if (ON_SITE_STATUSES.contains(record.getStatus())) {
+                    onSite++;
+                }
             }
             if (record.getTotalWorkMinutes() != null) {
                 workMinutes += record.getTotalWorkMinutes();

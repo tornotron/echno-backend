@@ -4,11 +4,13 @@ package org.tornotron.echno_backend.modules.assistant.api;
  * A source of evidence the assistant can ask. Implement this as a Spring bean and the registry finds
  * it: a new provider is a new class and nothing else.
  *
- * <p>{@link #retrieve} runs in the caller's request thread, with the caller's tenant and
- * authorities already in place, and calls core services, never repositories and never native SQL
- * against core tables. {@code @PreAuthorize} sits on controllers in this codebase, not services, so
- * a provider's {@code retrieve} carries the same guard as the controller endpoint it mirrors, and a
- * test fails if the two ever differ.
+ * <p>{@link #retrieve} runs either on the caller's request thread or on a bounded retrieval
+ * worker thread where the caller's {@code SecurityContext} and tenant id have been re-established
+ * inside a transaction (via {@code TenantScopedJobRunner.callForTenantInTransaction}) so
+ * {@code orgFilter} and {@code @PreAuthorize} apply identically. Providers call core services,
+ * never repositories and never native SQL against core tables. {@code @PreAuthorize} sits on
+ * controllers in this codebase, not services, so a provider's {@code retrieve} carries the same
+ * guard as the controller endpoint it mirrors, and a test fails if the two ever differ.
  */
 public interface AssistantProvider {
 

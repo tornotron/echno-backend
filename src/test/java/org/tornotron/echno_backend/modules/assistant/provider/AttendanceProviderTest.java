@@ -57,8 +57,8 @@ class AttendanceProviderTest {
         assertThat(descriptor.carriesPersonalData()).isTrue();
         assertThat(descriptor.answers()).isNotBlank();
         assertThat(descriptor.fields()).extracting(FieldSpec::name)
-                .containsExactly("date", "projectId", "recordCount", "statusCounts", "totalWorkMinutes",
-                        "overtimeMinutes");
+                .containsExactly("date", "projectId", "recordCount", "onSiteCount", "statusCounts",
+                        "totalWorkMinutes", "overtimeMinutes");
         // The point of a field spec: no bare numbers.
         assertThat(descriptor.fields()).allSatisfy(field -> {
             assertThat(field.unit()).isNotBlank();
@@ -78,16 +78,38 @@ class AttendanceProviderTest {
         }
     }
 
+    @Test
+    void theOnSiteFieldNamesEveryIncludedStatusInItsMeaningSoTheDefinitionTravelsWithTheValue() {
+        FieldSpec onSiteCount = provider.describe().fields().stream()
+                .filter(f -> f.name().equals("onSiteCount")).findFirst().orElseThrow();
+
+        assertThat(AttendanceProvider.ON_SITE_STATUSES).containsExactlyInAnyOrder(
+                AttendanceStatus.PRESENT,
+                AttendanceStatus.LATE,
+                AttendanceStatus.HALF_DAY,
+                AttendanceStatus.EARLY_CHECKOUT,
+                AttendanceStatus.OVERTIME);
+        for (AttendanceStatus status : AttendanceProvider.ON_SITE_STATUSES) {
+            assertThat(onSiteCount.meaning()).contains(status.name());
+        }
+    }
+
     // ---------------------------------------------------------- evidence
 
     @Test
-    void summarisesEachDayThatHasRecordsWithTheSourcesOwnStatusNames() {
+    void summarisesEachDayThatHasRecordsWithTheSourcesOwnStatusNamesAndOnSiteCount() {
         LocalDate tuesday = MONDAY.plusDays(1);
         when(day(MONDAY)).thenReturn(List.of(
                 record(AttendanceStatus.PRESENT, 480, 30),
                 record(AttendanceStatus.PRESENT, 450, 0),
                 record(AttendanceStatus.LATE, 400, null),
-                record(AttendanceStatus.ABSENT, null, null)));
+                record(AttendanceStatus.HALF_DAY, 240, 0),
+                record(AttendanceStatus.EARLY_CHECKOUT, 360, 0),
+                record(AttendanceStatus.OVERTIME, 540, 60),
+                record(AttendanceStatus.ABSENT, null, null),
+                record(AttendanceStatus.LEAVE, 0, 0),
+                record(AttendanceStatus.WEEKLY_OFF, 0, 0),
+                record(AttendanceStatus.PENDING_REGULARIZATION, 0, 0)));
         when(day(tuesday)).thenReturn(List.of(record(AttendanceStatus.HOLIDAY, 0, 0)));
 
         ProviderResult result = provider.retrieve(QUESTION, new Scope(PROJECT, MONDAY, tuesday, null));
@@ -103,17 +125,28 @@ class AttendanceProviderTest {
         assertThat(monday.source().id()).isEqualTo("42/2026-08-10");
         assertThat(monday.values()).containsEntry("date", "2026-08-10")
                 .containsEntry("projectId", 42L)
-                .containsEntry("recordCount", 4)
-                // 480 + 450 + 400; the record with no figure adds nothing.
-                .containsEntry("totalWorkMinutes", 1330L)
-                .containsEntry("overtimeMinutes", 30L);
+                .containsEntry("recordCount", 10)
+                // Only PRESENT (2), LATE (1), HALF_DAY (1), EARLY_CHECKOUT (1), OVERTIME (1) = 6;
+                // ABSENT, LEAVE, WEEKLY_OFF, HOLIDAY, PENDING_REGULARIZATION do not count as on site.
+                .containsEntry("onSiteCount", 6)
+                // 480 + 450 + 400 + 240 + 360 + 540; the ABSENT record with no figure adds nothing.
+                .containsEntry("totalWorkMinutes", 2470L)
+                .containsEntry("overtimeMinutes", 90L);
         @SuppressWarnings("unchecked")
         Map<String, Integer> counts = (Map<String, Integer>) monday.values().get("statusCounts");
-        // In the attendance module's own enum order, with its own names, and nothing summed into
-        // a "present" the source never defined.
         assertThat(counts).containsExactly(
-                Map.entry("PRESENT", 2), Map.entry("ABSENT", 1), Map.entry("LATE", 1));
-        assertThat(units.get(1).values()).containsEntry("recordCount", 1);
+                Map.entry("PRESENT", 2),
+                Map.entry("HALF_DAY", 1),
+                Map.entry("ABSENT", 1),
+                Map.entry("LEAVE", 1),
+                Map.entry("WEEKLY_OFF", 1),
+                Map.entry("LATE", 1),
+                Map.entry("EARLY_CHECKOUT", 1),
+                Map.entry("OVERTIME", 1),
+                Map.entry("PENDING_REGULARIZATION", 1));
+        assertThat(units.get(1).values())
+                .containsEntry("recordCount", 1)
+                .containsEntry("onSiteCount", 0);
     }
 
     @Test
@@ -204,7 +237,9 @@ class AttendanceProviderTest {
         ProviderResult result = provider.retrieve(QUESTION, new Scope(PROJECT, MONDAY, MONDAY, null));
 
         EvidenceUnit unit = ((ProviderResult.Evidence) result).units().get(0);
-        assertThat(unit.values()).containsEntry("recordCount", AttendanceProvider.PAGE_SIZE + 3);
+        assertThat(unit.values())
+                .containsEntry("recordCount", AttendanceProvider.PAGE_SIZE + 3)
+                .containsEntry("onSiteCount", AttendanceProvider.PAGE_SIZE);
         ArgumentCaptor<Pageable> pages = ArgumentCaptor.forClass(Pageable.class);
         verify(service, times(2)).getAttendanceByProject(any(), any(), any(), any(), any(), any(), pages.capture());
         assertThat(pages.getAllValues()).extracting(Pageable::getPageNumber).containsExactly(0, 1);
