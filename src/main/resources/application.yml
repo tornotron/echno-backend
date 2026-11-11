@@ -389,6 +389,12 @@ echno:
         package-budget-usd: ${ECHNO_DOC_INGEST_LLM_PACKAGE_BUDGET_USD:5}
         monthly-budget-usd: ${ECHNO_DOC_INGEST_LLM_MONTHLY_BUDGET_USD:50}
         json-response-format: ${ECHNO_DOC_INGEST_LLM_JSON_RESPONSE_FORMAT:false}
+    # Dark until Stage 4 ships the admin panel. In the default advisory entitlement mode a
+    # refused feature grant is logged and let through, so without this switch defaulting to false
+    # any member could hit the paid assistant endpoints as soon as Stage 2 lands them.
+    # Deliberate departure from section 9 of docs/specs/2026-09-20-assistant-module.md.
+    assistant:
+      enabled: ${ECHNO_MODULE_ASSISTANT_ENABLED:false}
   vision:
     # SPDX ids a model version's weights may carry to be activated.
     allowed-licences: ${ECHNO_VISION_ALLOWED_LICENCES:Apache-2.0,BSD-3-Clause,MIT}

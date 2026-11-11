@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
@@ -61,6 +62,7 @@ class AssistantDocumentUnitIT extends AbstractIntegrationTest {
     private Long projectBId;
     private Long attachmentA1Id;
     private Long attachmentA2Id;
+    private UUID chunkA1NearId;
 
     @BeforeEach
     void seed() {
@@ -77,7 +79,14 @@ class AssistantDocumentUnitIT extends AbstractIntegrationTest {
             attachmentA2Id = persistAttachment(orgA).getId();
             Long attachmentBId = persistAttachment(orgB).getId();
 
-            persistChunk(orgA, projectA1Id, attachmentA1Id, 0, "a1 near", vec(0, 1.0f));
+            AssistantDocumentUnit a1Near = chunk(orgA, projectA1Id, attachmentA1Id, 0, "a1 near", vec(0, 1.0f));
+            a1Near.setPageNo(2);
+            a1Near.setCharStart(120);
+            a1Near.setCharEnd(240);
+            entityManager.persist(a1Near);
+            entityManager.flush();
+            chunkA1NearId = a1Near.getId();
+
             persistChunk(orgA, projectA1Id, attachmentA1Id, 1, "a1 far", vec(1, 1.0f));
             persistChunk(orgA, projectA2Id, attachmentA2Id, 0, "a2 close", vec(0, 0.9f));
             persistChunk(orgA, null, attachmentA2Id, 1, "a organisation-wide", vec(0, 1.0f));
@@ -152,8 +161,27 @@ class AssistantDocumentUnitIT extends AbstractIntegrationTest {
         // same vector as "a1 near" but belongs to the other organization.
         assertThat(rows).extracting(NearestChunk::getContent).containsExactly("a1 near", "a2 close", "a1 far");
         assertThat(rows).extracting(NearestChunk::getDistance).isSorted();
-        assertThat(rows.get(0).getDistance()).isLessThan(1.0E-6);
-        assertThat(rows.get(0).getAttachmentId()).isEqualTo(attachmentA1Id);
+        NearestChunk first = rows.get(0);
+        assertThat(first.getDistance()).isLessThan(1.0E-6);
+        assertThat(first.getId()).isEqualTo(chunkA1NearId);
+        assertThat(first.getAttachmentId()).isEqualTo(attachmentA1Id);
+        assertThat(first.getPageNo()).isEqualTo(2);
+        assertThat(first.getCharStart()).isEqualTo(120);
+        assertThat(first.getCharEnd()).isEqualTo(240);
+    }
+
+    @Test
+    void aQueryVectorWithTheWrongDimensionIsRefused() {
+        // Spring Data JPA translates IllegalArgumentException thrown from a @Repository bean.
+        assertThatThrownBy(() -> repository.nearest(new float[3], orgAId, List.of(projectA1Id), 10))
+                .isInstanceOf(InvalidDataAccessApiUsageException.class)
+                .hasCauseInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining(String.valueOf(AssistantDocumentUnit.EMBEDDING_DIMENSION));
+        assertThatThrownBy(() -> repository.nearest(
+                new float[AssistantDocumentUnit.EMBEDDING_DIMENSION + 1], orgAId, List.of(projectA1Id), 10))
+                .isInstanceOf(InvalidDataAccessApiUsageException.class)
+                .hasCauseInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining(String.valueOf(AssistantDocumentUnit.EMBEDDING_DIMENSION));
     }
 
     @Test

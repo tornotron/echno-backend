@@ -10,10 +10,12 @@ import org.tornotron.echno_backend.common.module.ModuleManifest;
  * materials and uploaded documents, answered from evidence fetched under the caller's own scope.
  * The design is in {@code docs/specs/2026-09-20-assistant-module.md}.
  *
- * <p>Paywalled on {@value #FEATURE_KEY}. Unlike the modules that ship on every plan, the feature
- * is granted on no plan by default: the module is premium and stays dark until billing adds it.
- * The kill switch is {@code echno.modules.assistant.enabled}, read by the registry for the
- * request surface and by {@link AssistantModuleEnabled} for anything scheduled.
+ * <p>Dark until Stage 4 ships the admin panel. A feature key alone would not keep it off: in the
+ * default {@code advisory} entitlement mode a refused feature is logged and let through, and
+ * {@code enabledByDefault} on the manifest has no effect once {@code entitlementFeatureKey} is
+ * set. So {@code echno.modules.assistant.enabled} defaults to {@code false} in
+ * {@code application.yml}, {@link #switchedOnWhenUnset()} returns {@code false}, and
+ * {@link AssistantModuleEnabled} requires {@code true} explicitly.
  *
  * <p>Permission keys use the {@code <module>:<action>} vocabulary, the same form as the
  * {@code @PreAuthorize} authorities elsewhere in the API. They name the surface and add nothing
@@ -47,5 +49,10 @@ public class AssistantModule implements EchnoModule {
     @Override
     public ModuleManifest manifest() {
         return MANIFEST;
+    }
+
+    @Override
+    public boolean switchedOnWhenUnset() {
+        return false;
     }
 }

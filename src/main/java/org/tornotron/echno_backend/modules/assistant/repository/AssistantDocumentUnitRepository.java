@@ -41,7 +41,8 @@ public interface AssistantDocumentUnitRepository extends JpaRepository<Assistant
                                      @Param("k") int k);
 
     /**
-     * {@link #nearestNative} with the two ways it could be asked to run unscoped refused first.
+     * {@link #nearestNative} with the two ways it could be asked to run unscoped refused first,
+     * and the query vector dimension checked against the column before touching the database.
      * No organization is an error, never an unfiltered search; no projects is an empty answer,
      * never "all projects".
      */
@@ -53,6 +54,10 @@ public interface AssistantDocumentUnitRepository extends JpaRepository<Assistant
         }
         if (projectIds == null || projectIds.isEmpty() || k <= 0) {
             return List.of();
+        }
+        if (queryVector != null && queryVector.length != AssistantDocumentUnit.EMBEDDING_DIMENSION) {
+            throw new IllegalArgumentException("Expected a query vector of dimension "
+                    + AssistantDocumentUnit.EMBEDDING_DIMENSION + ", got " + queryVector.length);
         }
         return nearestNative(VectorText.of(queryVector), organizationId, projectIds, k);
     }
