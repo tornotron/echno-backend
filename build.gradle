@@ -86,6 +86,9 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
     implementation 'com.bucket4j:bucket4j_jdk17-lettuce:8.14.0'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    // The VECTOR column of the assistant's document chunks (modules/assistant). Not managed by
+    // the Boot BOM, and it must match hibernate-core exactly, so the version is Boot's own.
+    implementation "org.hibernate.orm:hibernate-vector:${dependencyManagement.importedProperties['hibernate.version']}"
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-security'
