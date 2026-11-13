@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        Seeds the feature the Assistant module is gated on, and grants it on no plan.
+
+        A module's entitlement key is a Feature row, and an organization has the module when its
+        plan carries a plan_feature for it. The modules that came before this one grant theirs on
+        every plan so no tenant goes dark on cutover; the assistant is the opposite on purpose. It
+        is premium and calls a paid model, so it stays dark until billing adds the feature to a
+        plan, by a data change rather than a migration. Mirrors the feature row of
+        modules/bim/002-seed-module-bim-feature.xml and leaves out its grants.
+
+        Guarded on its own row, so an environment that already holds the feature keeps what it has.
+    -->
+
+    <changeSet id="assistant-002-seed-feature-module-assistant" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">SELECT COUNT(*) FROM feature WHERE code = 'MODULE_ASSISTANT'</sqlCheck>
+        </preConditions>
+        <insert tableName="feature">
+            <column name="code" value="MODULE_ASSISTANT"/>
+            <column name="name" value="Assistant Module"/>
+            <column name="description" value="Natural-language questions over attendance, tasks, materials and documents."/>
+            <column name="feature_type" value="BOOLEAN"/>
+            <column name="category" value="MODULE"/>
+            <column name="is_active" valueBoolean="true"/>
+        </insert>
+    </changeSet>
+
+</databaseChangeLog>
