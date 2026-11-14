@@ -4,8 +4,8 @@ name: Pull request
 # image build: an artefact should be packaged once and verified before it is
 # promoted, not re-verified every time it is packaged.
 #
-# `auth-workos` collects the access matrix and identity-provider work until it
-# goes to `development` in one piece, so PRs into it get the same checks.
+# `auth-workos` collects the Backend Architecture Redesign until each milestone
+# goes to `development` as one PR, so PRs into it get the same checks.
 
 on:
   pull_request:
@@ -235,6 +235,25 @@ jobs:
           python3 scripts/scaffold-module.py ci-probe --delete
           git status --porcelain
           test -z "$(git status --porcelain)"
+
+  # Each milestone reaches `development` as one PR from `auth-workos`, and GitHub
+  # rebase-merges at most 100 commits while CodeRabbit reviews at most 100 files.
+  # This counts what the next milestone PR would carry, on every PR into
+  # `auth-workos` and on the milestone PR itself, so a milestone is closed before
+  # it outgrows either limit rather than after.
+  milestone-budget:
+    if: ${{ github.base_ref == 'auth-workos' || github.head_ref == 'auth-workos' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Count the milestone
+        run: |
+          python3 scripts/milestone-budget.py origin/development "${{ github.event.pull_request.head.sha }}"
 
   secrets:
     runs-on: ubuntu-latest
