@@ -19,6 +19,8 @@ import org.tornotron.echno_backend.attendance.AttendanceController;
 import org.tornotron.echno_backend.attendance.AttendanceControllerWeb;
 import org.tornotron.echno_backend.modules.assistant.api.AssistantProvider;
 import org.tornotron.echno_backend.modules.assistant.provider.AttendanceProvider;
+import org.tornotron.echno_backend.modules.assistant.provider.TaskProvider;
+import org.tornotron.echno_backend.task.TaskControllerWeb;
 
 /**
  * A provider's {@code retrieve} carries the same guard as the controller endpoint it mirrors.
@@ -37,10 +39,14 @@ class ProviderGuardParityTest {
     private record Mirror(List<Class<?>> controllers, String handler, String route) {
     }
 
+    // The task list is read on the web controller only; the mobile task controller has no
+    // project-wide list, so there is nothing there to mirror.
     private static final Map<Class<? extends AssistantProvider>, Mirror> MIRRORS = Map.of(
             AttendanceProvider.class,
             new Mirror(List.of(AttendanceController.class, AttendanceControllerWeb.class),
-                    "getByProject", "/project/{projectId}"));
+                    "getByProject", "/project/{projectId}"),
+            TaskProvider.class,
+            new Mirror(List.of(TaskControllerWeb.class), "readAllTasksForProject", "/projectId/{projectId}"));
 
     @Test
     void everyProviderCarriesTheGuardOfTheEndpointItMirrors() throws Exception {

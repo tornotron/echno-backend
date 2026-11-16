@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+        The Assistant module's audit log: one row per question asked, whatever the outcome.
+        organization_id is what the entity's orgFilter runs on. user_id and project_id carry no
+        foreign key on purpose, so the history outlives the person who asked and the project it
+        was about. Two indexes, one for the member's own history and one for the organization's
+        audit listing, both newest first.
+    -->
+
+    <changeSet id="assistant-003-create-assistant_query_log" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="assistant_query_log"/></not>
+        </preConditions>
+        <sql>
+            CREATE TABLE assistant_query_log (
+                id UUID NOT NULL,
+                organization_id BIGINT NOT NULL,
+                project_id BIGINT NULL,
+                user_id BIGINT NOT NULL,
+                question TEXT NOT NULL,
+                resolved_scope JSONB NULL,
+                providers_selected TEXT[] NULL,
+                evidence_ids TEXT[] NULL,
+                outcome VARCHAR(20) NOT NULL,
+                answer JSONB NULL,
+                llm_model VARCHAR(200) NULL,
+                llm_model_version VARCHAR(200) NULL,
+                prompt_tokens INT NOT NULL DEFAULT 0,
+                completion_tokens INT NOT NULL DEFAULT 0,
+                embedding_tokens INT NOT NULL DEFAULT 0,
+                estimated_cost_micros BIGINT NOT NULL DEFAULT 0,
+                latency_ms BIGINT NOT NULL DEFAULT 0,
+                created_at TIMESTAMPTZ NOT NULL,
+                CONSTRAINT pk_assistant_query_log PRIMARY KEY (id),
+                CONSTRAINT fk_assistant_query_log_organization
+                    FOREIGN KEY (organization_id) REFERENCES organization (id)
+            )
+        </sql>
+    </changeSet>
+
+    <changeSet id="assistant-003-create-assistant_query_log-indexes" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not><indexExists tableName="assistant_query_log" indexName="assistant_query_log_org_created_idx"/></not>
+        </preConditions>
+        <sql>
+            CREATE INDEX assistant_query_log_org_created_idx
+                ON assistant_query_log (organization_id, created_at DESC);
+            CREATE INDEX assistant_query_log_org_user_created_idx
+                ON assistant_query_log (organization_id, user_id, created_at DESC);
+        </sql>
+    </changeSet>
+</databaseChangeLog>
