@@ -14,6 +14,12 @@ import org.tornotron.echno_backend.modules.assistant.domain.VectorText;
 @Repository
 public interface AssistantDocumentUnitRepository extends JpaRepository<AssistantDocumentUnit, UUID> {
 
+    List<AssistantDocumentUnit> findByAttachmentId(Long attachmentId);
+
+    void deleteByAttachmentId(Long attachmentId);
+
+    long countByAttachmentId(Long attachmentId);
+
     /**
      * The chunks nearest to a query vector, within one organization's named projects.
      *
