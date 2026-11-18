@@ -52605,7 +52605,7 @@
     "/api/v1/chat/messages/web/{id}": {
       "delete": {
         "description": "Soft-deletes a message, keeping the row so the web can render a tombstone. Only the sender or a room admin may delete it.",
-        "operationId": "ChatControllerWeb_deleteMessage_1",
+        "operationId": "ChatControllerWeb_deleteMessage",
         "parameters": [
           {
             "in": "path",
@@ -52709,7 +52709,7 @@
       },
       "patch": {
         "description": "Edits the body of the caller's own message, marking it edited. Only the sender may edit.",
-        "operationId": "ChatControllerWeb_editMessage_1",
+        "operationId": "ChatControllerWeb_editMessage",
         "parameters": [
           {
             "in": "path",
@@ -52954,8 +52954,8 @@
     },
     "/api/v1/chat/messages/{id}": {
       "delete": {
-        "description": "Soft-deletes a message, keeping the row so the web can render a tombstone. Only the sender or a room admin may delete it.",
-        "operationId": "ChatControllerWeb_deleteMessage",
+        "description": "Same as DELETE /api/v1/chat/messages/web/{id}.",
+        "operationId": "ChatController_deleteMessage",
         "parameters": [
           {
             "in": "path",
@@ -52968,8 +52968,8 @@
           }
         ],
         "responses": {
-          "204": {
-            "description": "Message deleted"
+          "200": {
+            "description": "OK"
           },
           "400": {
             "content": {
@@ -52999,7 +52999,7 @@
                 }
               }
             },
-            "description": "Caller may not make this change to chat, or is neither the sender nor a room admin"
+            "description": "Forbidden"
           },
           "404": {
             "content": {
@@ -53009,7 +53009,7 @@
                 }
               }
             },
-            "description": "No message with the given id in this tenant"
+            "description": "Not Found"
           },
           "409": {
             "content": {
@@ -53054,12 +53054,12 @@
         },
         "summary": "Delete a message",
         "tags": [
-          "Chat"
+          "Chat (Mobile)"
         ]
       },
       "patch": {
-        "description": "Edits the body of the caller's own message, marking it edited. Only the sender may edit.",
-        "operationId": "ChatControllerWeb_editMessage",
+        "description": "Same as PATCH /api/v1/chat/messages/web/{id}.",
+        "operationId": "ChatController_editMessage",
         "parameters": [
           {
             "in": "path",
@@ -53090,7 +53090,7 @@
                 }
               }
             },
-            "description": "Message updated"
+            "description": "OK"
           },
           "400": {
             "content": {
@@ -53100,7 +53100,7 @@
                 }
               }
             },
-            "description": "content is blank"
+            "description": "Bad Request"
           },
           "402": {
             "content": {
@@ -53120,7 +53120,7 @@
                 }
               }
             },
-            "description": "Caller may not make this change to chat, or is not the sender of the message"
+            "description": "Forbidden"
           },
           "404": {
             "content": {
@@ -53130,7 +53130,7 @@
                 }
               }
             },
-            "description": "No message with the given id in this tenant"
+            "description": "Not Found"
           },
           "409": {
             "content": {
@@ -53175,14 +53175,14 @@
         },
         "summary": "Edit a message",
         "tags": [
-          "Chat"
+          "Chat (Mobile)"
         ]
       }
     },
     "/api/v1/chat/messages/{id}/reactions": {
       "post": {
-        "description": "Adds the caller's emoji reaction to the message, or removes it if they already reacted with that emoji. Returns the message with its refreshed reaction list.",
-        "operationId": "ChatControllerWeb_toggleReaction_1",
+        "description": "Same as POST /api/v1/chat/messages/web/{id}/reactions.",
+        "operationId": "ChatController_toggleReaction",
         "parameters": [
           {
             "in": "path",
@@ -53213,7 +53213,7 @@
                 }
               }
             },
-            "description": "Reaction toggled"
+            "description": "OK"
           },
           "400": {
             "content": {
@@ -53223,7 +53223,7 @@
                 }
               }
             },
-            "description": "emoji is blank"
+            "description": "Bad Request"
           },
           "402": {
             "content": {
@@ -53243,7 +53243,7 @@
                 }
               }
             },
-            "description": "Caller may not make this change to chat, or is not a participant of the room"
+            "description": "Forbidden"
           },
           "404": {
             "content": {
@@ -53253,7 +53253,7 @@
                 }
               }
             },
-            "description": "No message with the given id in this tenant"
+            "description": "Not Found"
           },
           "409": {
             "content": {
@@ -53298,14 +53298,14 @@
         },
         "summary": "Toggle a reaction",
         "tags": [
-          "Chat"
+          "Chat (Mobile)"
         ]
       }
     },
     "/api/v1/chat/rooms": {
       "get": {
-        "description": "Returns every room the current employee participates in, each with its participants, latest message and the caller's unread count, newest activity first.",
-        "operationId": "ChatControllerWeb_readRooms_1",
+        "description": "Same as GET /api/v1/chat/rooms/web.",
+        "operationId": "ChatController_readRooms",
         "responses": {
           "200": {
             "content": {
@@ -53318,7 +53318,7 @@
                 }
               }
             },
-            "description": "Rooms returned"
+            "description": "OK"
           },
           "400": {
             "content": {
@@ -53348,7 +53348,7 @@
                 }
               }
             },
-            "description": "Caller may not read chat"
+            "description": "Forbidden"
           },
           "404": {
             "content": {
@@ -53403,14 +53403,14 @@
         },
         "summary": "List the caller's chat rooms",
         "tags": [
-          "Chat"
+          "Chat (Mobile)"
         ]
       }
     },
     "/api/v1/chat/rooms/direct": {
       "post": {
-        "description": "Opens the one-to-one direct room with the given employee, reusing the existing one when present. Idempotent.",
-        "operationId": "ChatControllerWeb_openDirectRoom",
+        "description": "Same as POST /api/v1/chat/rooms/web/direct.",
+        "operationId": "ChatController_openDirectRoom",
         "requestBody": {
           "content": {
             "application/json": {
@@ -53430,7 +53430,7 @@
                 }
               }
             },
-            "description": "Direct room opened or reused"
+            "description": "OK"
           },
           "400": {
             "content": {
@@ -53440,7 +53440,7 @@
                 }
               }
             },
-            "description": "employeeId is missing or is the caller"
+            "description": "Bad Request"
           },
           "402": {
             "content": {
@@ -53460,7 +53460,7 @@
                 }
               }
             },
-            "description": "Caller may not make this change to chat"
+            "description": "Forbidden"
           },
           "404": {
             "content": {
@@ -53515,7 +53515,7 @@
         },
         "summary": "Open a direct room",
         "tags": [
-          "Chat"
+          "Chat (Mobile)"
         ]
       }
     },
@@ -53627,7 +53627,7 @@
     "/api/v1/chat/rooms/web/direct": {
       "post": {
         "description": "Opens the one-to-one direct room with the given employee, reusing the existing one when present. Idempotent.",
-        "operationId": "ChatControllerWeb_openDirectRoom_1",
+        "operationId": "ChatControllerWeb_openDirectRoom",
         "requestBody": {
           "content": {
             "application/json": {
@@ -53737,629 +53737,6 @@
       }
     },
     "/api/v1/chat/rooms/web/{id}": {
-      "get": {
-        "description": "Returns a single room the caller participates in, with its participants, latest message and unread count.",
-        "operationId": "ChatControllerWeb_readRoom_1",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ChatRoomDto"
-                }
-              }
-            },
-            "description": "Room found"
-          },
-          "400": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Request"
-          },
-          "402": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
-                }
-              }
-            },
-            "description": "Payment Required"
-          },
-          "403": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Caller may not read chat, or is not a participant of the room"
-          },
-          "404": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "No room with the given id in this tenant"
-          },
-          "409": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "422": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          },
-          "500": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Internal Server Error"
-          },
-          "502": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Gateway"
-          }
-        },
-        "summary": "Get a chat room",
-        "tags": [
-          "Chat"
-        ]
-      }
-    },
-    "/api/v1/chat/rooms/web/{roomId}/archive": {
-      "post": {
-        "description": "Sets the room's archived state for the whole conversation. Any participant may toggle it.",
-        "operationId": "ChatControllerWeb_archiveRoom_1",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "roomId",
-            "required": true,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ArchiveRoomRequestDto"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ChatRoomDto"
-                }
-              }
-            },
-            "description": "Room archive state updated"
-          },
-          "400": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "archived is missing"
-          },
-          "402": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
-                }
-              }
-            },
-            "description": "Payment Required"
-          },
-          "403": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Caller may not make this change to chat, or is not a participant of the room"
-          },
-          "404": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "No room with the given id in this tenant"
-          },
-          "409": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "422": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          },
-          "500": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Internal Server Error"
-          },
-          "502": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Gateway"
-          }
-        },
-        "summary": "Archive or unarchive a room",
-        "tags": [
-          "Chat"
-        ]
-      }
-    },
-    "/api/v1/chat/rooms/web/{roomId}/messages": {
-      "get": {
-        "description": "Returns a page of the room's non-deleted messages, newest first.",
-        "operationId": "ChatControllerWeb_readMessages_1",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "roomId",
-            "required": true,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          },
-          {
-            "description": "Zero-based page index.",
-            "in": "query",
-            "name": "pageNo",
-            "required": false,
-            "schema": {
-              "default": 0,
-              "description": "Zero-based page index.",
-              "format": "int32",
-              "minimum": 0,
-              "type": "integer"
-            }
-          },
-          {
-            "description": "Rows per page.",
-            "in": "query",
-            "name": "pageSize",
-            "required": false,
-            "schema": {
-              "default": 30,
-              "description": "Rows per page.",
-              "format": "int32",
-              "maximum": 500,
-              "minimum": 1,
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/PageChatMessageDto"
-                }
-              }
-            },
-            "description": "Page of messages returned"
-          },
-          "400": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Request"
-          },
-          "402": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
-                }
-              }
-            },
-            "description": "Payment Required"
-          },
-          "403": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Caller may not read chat, or is not a participant of the room"
-          },
-          "404": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "No room with the given id in this tenant"
-          },
-          "409": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "422": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          },
-          "500": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Internal Server Error"
-          },
-          "502": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Gateway"
-          }
-        },
-        "summary": "List a room's messages, paginated",
-        "tags": [
-          "Chat"
-        ]
-      },
-      "post": {
-        "description": "Posts a text message from the current employee to the room and bumps the room's activity. Employee and entity mentions are parsed from the body. For a message that carries file attachments, use the multipart variant of this endpoint.",
-        "operationId": "ChatControllerWeb_sendMessage_1",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "roomId",
-            "required": true,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SendMessageDto"
-              }
-            },
-            "multipart/form-data": {
-              "schema": {
-                "properties": {
-                  "attachments": {
-                    "items": {
-                      "format": "binary",
-                      "type": "string"
-                    },
-                    "type": "array"
-                  },
-                  "data": {
-                    "$ref": "#/components/schemas/SendMessageDto"
-                  }
-                },
-                "required": [
-                  "data"
-                ],
-                "type": "object"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ChatMessageDto"
-                }
-              }
-            },
-            "description": "Message created"
-          },
-          "400": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "content is blank"
-          },
-          "402": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
-                }
-              }
-            },
-            "description": "Payment Required"
-          },
-          "403": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Caller may not make this change to chat, or is not a participant of the room"
-          },
-          "404": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "No room with the given id in this tenant"
-          },
-          "409": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "422": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          },
-          "500": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Internal Server Error"
-          },
-          "502": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Gateway"
-          }
-        },
-        "summary": "Send a message (text only)",
-        "tags": [
-          "Chat"
-        ]
-      }
-    },
-    "/api/v1/chat/rooms/web/{roomId}/read": {
-      "post": {
-        "description": "Advances the caller's last-read marker in the room to now, clearing the unread count.",
-        "operationId": "ChatControllerWeb_markRoomRead",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "roomId",
-            "required": true,
-            "schema": {
-              "format": "int64",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Room marked read"
-          },
-          "400": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Request"
-          },
-          "402": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
-                }
-              }
-            },
-            "description": "Payment Required"
-          },
-          "403": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Caller may not read chat, or is not a participant of the room"
-          },
-          "404": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "No room with the given id in this tenant"
-          },
-          "409": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "422": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          },
-          "500": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Internal Server Error"
-          },
-          "502": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Gateway"
-          }
-        },
-        "summary": "Mark a room read",
-        "tags": [
-          "Chat"
-        ]
-      }
-    },
-    "/api/v1/chat/rooms/{id}": {
       "get": {
         "description": "Returns a single room the caller participates in, with its participants, latest message and unread count.",
         "operationId": "ChatControllerWeb_readRoom",
@@ -54472,7 +53849,7 @@
         ]
       }
     },
-    "/api/v1/chat/rooms/{roomId}/archive": {
+    "/api/v1/chat/rooms/web/{roomId}/archive": {
       "post": {
         "description": "Sets the room's archived state for the whole conversation. Any participant may toggle it.",
         "operationId": "ChatControllerWeb_archiveRoom",
@@ -54595,7 +53972,7 @@
         ]
       }
     },
-    "/api/v1/chat/rooms/{roomId}/messages": {
+    "/api/v1/chat/rooms/web/{roomId}/messages": {
       "get": {
         "description": "Returns a page of the room's non-deleted messages, newest first.",
         "operationId": "ChatControllerWeb_readMessages",
@@ -54876,10 +54253,10 @@
         ]
       }
     },
-    "/api/v1/chat/rooms/{roomId}/read": {
+    "/api/v1/chat/rooms/web/{roomId}/read": {
       "post": {
         "description": "Advances the caller's last-read marker in the room to now, clearing the unread count.",
-        "operationId": "ChatControllerWeb_markRoomRead_1",
+        "operationId": "ChatControllerWeb_markRoomRead",
         "parameters": [
           {
             "in": "path",
@@ -54979,6 +54356,629 @@
         "summary": "Mark a room read",
         "tags": [
           "Chat"
+        ]
+      }
+    },
+    "/api/v1/chat/rooms/{id}": {
+      "get": {
+        "description": "Same as GET /api/v1/chat/rooms/web/{id}.",
+        "operationId": "ChatController_readRoom",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatRoomDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Get a chat room",
+        "tags": [
+          "Chat (Mobile)"
+        ]
+      }
+    },
+    "/api/v1/chat/rooms/{roomId}/archive": {
+      "post": {
+        "description": "Same as POST /api/v1/chat/rooms/web/{roomId}/archive.",
+        "operationId": "ChatController_archiveRoom",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArchiveRoomRequestDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatRoomDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Archive or unarchive a room",
+        "tags": [
+          "Chat (Mobile)"
+        ]
+      }
+    },
+    "/api/v1/chat/rooms/{roomId}/messages": {
+      "get": {
+        "description": "Same as GET /api/v1/chat/rooms/web/{roomId}/messages.",
+        "operationId": "ChatController_readMessages",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 30,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageChatMessageDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List a room's messages, paginated",
+        "tags": [
+          "Chat (Mobile)"
+        ]
+      },
+      "post": {
+        "description": "Same as POST /api/v1/chat/rooms/web/{roomId}/messages.",
+        "operationId": "ChatController_sendMessage",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendMessageDto"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "attachments": {
+                    "items": {
+                      "format": "binary",
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "data": {
+                    "$ref": "#/components/schemas/SendMessageDto"
+                  }
+                },
+                "required": [
+                  "data"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatMessageDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Send a message (text only)",
+        "tags": [
+          "Chat (Mobile)"
+        ]
+      }
+    },
+    "/api/v1/chat/rooms/{roomId}/read": {
+      "post": {
+        "description": "Same as POST /api/v1/chat/rooms/web/{roomId}/read.",
+        "operationId": "ChatController_markRoomRead",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Mark a room read",
+        "tags": [
+          "Chat (Mobile)"
         ]
       }
     },
@@ -148252,8 +148252,8 @@
         ]
       },
       "patch": {
-        "description": "Updates a line item's material, ordered quantity, unit price or remarks. The id is read from the request body. The material can only change while nothing has been received against the line. PATCH matches the web endpoint; PUT is kept for callers that already use it.",
-        "operationId": "PurchaseOrderItemController_updatePurchaseOrderItem_1",
+        "description": "Updates a line item's material, ordered quantity, unit price or remarks. The id is read from the request body. The material can only change while nothing has been received against the line.",
+        "operationId": "PurchaseOrderItemController_updatePurchaseOrderItem",
         "requestBody": {
           "content": {
             "application/json": {
@@ -148467,116 +148467,6 @@
           }
         },
         "summary": "Create a purchase order item",
-        "tags": [
-          "Purchase Order Items"
-        ]
-      },
-      "put": {
-        "description": "Updates a line item's material, ordered quantity, unit price or remarks. The id is read from the request body. The material can only change while nothing has been received against the line. PATCH matches the web endpoint; PUT is kept for callers that already use it.",
-        "operationId": "PurchaseOrderItemController_updatePurchaseOrderItem",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PurchaseOrderItemUpdateDto"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/PurchaseOrderItemResponseDto"
-                }
-              }
-            },
-            "description": "Purchase order item updated"
-          },
-          "400": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "A field failed validation, or the material was changed on a line that has already received stock"
-          },
-          "402": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
-                }
-              }
-            },
-            "description": "Payment Required"
-          },
-          "403": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Caller may not make this change to purchase orders"
-          },
-          "404": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "No purchase order item with the given id, or the payload names a material that does not exist in this organization"
-          },
-          "409": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "422": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          },
-          "500": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Internal Server Error"
-          },
-          "502": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            },
-            "description": "Bad Gateway"
-          }
-        },
-        "summary": "Update a purchase order item",
         "tags": [
           "Purchase Order Items"
         ]
@@ -176282,6 +176172,10 @@
     {
       "description": "One-to-one and group chat between employees of the organization: rooms the caller participates in, their unread counts and last message, and the send/edit message flow. Reading, the stream and marking a room read need chat:read, and opening a room, posting, reacting and archiving need chat:create, editing a message chat:edit and deleting one chat:delete. Every member holds all four through the employee baseline, so any member of the tenant may chat; access to a specific room is limited to its participants.",
       "name": "Chat"
+    },
+    {
+      "description": "The tenant API path of the chat endpoints under /api/v1/chat/rooms/web and /api/v1/chat/messages/web, for the mobile client. Same handlers, request and response shapes and guards as the web endpoints; send X-Organization-Id to pick the organization. The change stream, /api/v1/chat/stream, serves both clients as it is.",
+      "name": "Chat (Mobile)"
     },
     {
       "description": "The reusable per-trade checklists an organization inspects against. An inspection created for a trade starts from a copy of that trade's active template, so later edits never rewrite a checklist already signed off. The starter endpoints expose the product-supplied defaults an organization adopts as its own editable templates. All endpoints are tenant scoped. Defining a template is the QA engineer's authority: setting the tolerance work is judged against is a bigger act than recording a measurement against one. Everyone with inspection read access can see the templates.",
