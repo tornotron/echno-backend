@@ -18,8 +18,13 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.tornotron.echno_backend.attendance.AttendanceController;
 import org.tornotron.echno_backend.attendance.AttendanceControllerWeb;
+import org.tornotron.echno_backend.common.controller.AttachmentControllerWeb;
+import org.tornotron.echno_backend.material.MaterialController;
+import org.tornotron.echno_backend.material.MaterialControllerWeb;
 import org.tornotron.echno_backend.modules.assistant.api.AssistantProvider;
 import org.tornotron.echno_backend.modules.assistant.provider.AttendanceProvider;
+import org.tornotron.echno_backend.modules.assistant.provider.DocumentProvider;
+import org.tornotron.echno_backend.modules.assistant.provider.MaterialProvider;
 import org.tornotron.echno_backend.modules.assistant.provider.TaskProvider;
 import org.tornotron.echno_backend.task.TaskControllerWeb;
 
@@ -47,7 +52,13 @@ class ProviderGuardParityTest {
             new Mirror(List.of(AttendanceController.class, AttendanceControllerWeb.class),
                     "getByProject", "/project/{projectId}"),
             TaskProvider.class,
-            new Mirror(List.of(TaskControllerWeb.class), "readAllTasksForProject", "/projectId/{projectId}"));
+            new Mirror(List.of(TaskControllerWeb.class), "readAllTasksForProject", "/projectId/{projectId}"),
+            MaterialProvider.class,
+            new Mirror(List.of(MaterialController.class, MaterialControllerWeb.class),
+                    "getAllMaterialsPaginated", "/all"),
+            DocumentProvider.class,
+            new Mirror(List.of(AttachmentControllerWeb.class),
+                    "readAttachments", "/entityId/{entityId}/entityType/{entityType}"));
 
     @Test
     void everyProviderCarriesTheGuardOfTheEndpointItMirrors() throws Exception {
