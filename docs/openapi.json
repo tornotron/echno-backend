@@ -7613,6 +7613,10 @@
             "format": "int32",
             "type": "integer"
           },
+          "embeddingTokens": {
+            "format": "int32",
+            "type": "integer"
+          },
           "estimatedCostMicros": {
             "description": "Estimated cost in millionths of the billing currency; zero when no price is configured.",
             "format": "int64",
@@ -12193,6 +12197,30 @@
         },
         "type": "object"
       },
+      "IngestRequest": {
+        "description": "Request to ingest an uploaded attachment into the assistant vector index.",
+        "properties": {
+          "attachmentId": {
+            "description": "The ID of the attachment to ingest",
+            "example": 101,
+            "format": "int64",
+            "type": "integer"
+          },
+          "projectId": {
+            "description": "The project ID this document belongs to, or null if organization-wide",
+            "example": 42,
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "attachmentId"
+        ],
+        "type": "object"
+      },
       "IngestSettingsDto": {
         "description": "The organization's document ingestion settings, with the sentence the screen shows beside the switch.",
         "properties": {
@@ -12255,6 +12283,34 @@
               "$ref": "#/components/schemas/Change"
             },
             "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "IngestStatusDto": {
+        "description": "Ingestion status and chunk statistics for an attachment.",
+        "properties": {
+          "attachmentId": {
+            "description": "The attachment ID",
+            "example": 101,
+            "format": "int64",
+            "type": "integer"
+          },
+          "chunkCount": {
+            "description": "Total chunks stored in the vector index for this document",
+            "example": 14,
+            "format": "int32",
+            "type": "integer"
+          },
+          "message": {
+            "description": "Additional info or error message",
+            "example": "Document ingested successfully.",
+            "type": "string"
+          },
+          "status": {
+            "description": "Ingestion status: PENDING, COMPLETED, or FAILED",
+            "example": "COMPLETED",
+            "type": "string"
           }
         },
         "type": "object"
@@ -25615,6 +25671,10 @@
             "format": "date-time",
             "type": "string"
           },
+          "embeddingTokens": {
+            "format": "int32",
+            "type": "integer"
+          },
           "estimatedCostMicros": {
             "format": "int64",
             "type": "integer"
@@ -36859,6 +36919,230 @@
         ]
       }
     },
+    "/api/v1/assistant/ingest": {
+      "post": {
+        "description": "Extracts text, segments into chunks with overlap, computes embeddings, and persists vector units for the project.",
+        "operationId": "AssistantController_ingest",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IngestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestStatusDto"
+                }
+              }
+            },
+            "description": "Document ingested successfully"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Attachment id missing or invalid document format"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks project-manager or system-admin role"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Attachment not found in caller's organization"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Ingest a document into the assistant vector index",
+        "tags": [
+          "Assistant"
+        ]
+      }
+    },
+    "/api/v1/assistant/ingest/{attachmentId}/status": {
+      "get": {
+        "operationId": "AssistantController_ingestStatus",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "attachmentId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestStatusDto"
+                }
+              }
+            },
+            "description": "Status returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks project-manager or system-admin role"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Check ingestion status and chunk count of an attachment",
+        "tags": [
+          "Assistant"
+        ]
+      }
+    },
     "/api/v1/assistant/queries": {
       "get": {
         "operationId": "AssistantController_queries",
@@ -37227,6 +37511,230 @@
           }
         },
         "summary": "List every question asked in the organization, newest first",
+        "tags": [
+          "Assistant (web)"
+        ]
+      }
+    },
+    "/api/v1/assistant/web/ingest": {
+      "post": {
+        "description": "Extracts text, segments into chunks with overlap, computes embeddings, and persists vector units for the project.",
+        "operationId": "AssistantControllerWeb_ingest",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IngestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestStatusDto"
+                }
+              }
+            },
+            "description": "Document ingested successfully"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Attachment id missing or invalid document format"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks project-manager or system-admin role"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Attachment not found in caller's organization"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Ingest a document into the assistant vector index",
+        "tags": [
+          "Assistant (web)"
+        ]
+      }
+    },
+    "/api/v1/assistant/web/ingest/{attachmentId}/status": {
+      "get": {
+        "operationId": "AssistantControllerWeb_ingestStatus",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "attachmentId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestStatusDto"
+                }
+              }
+            },
+            "description": "Status returned"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller lacks project-manager or system-admin role"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Check ingestion status and chunk count of an attachment",
         "tags": [
           "Assistant (web)"
         ]
@@ -173257,7 +173765,7 @@
       "name": "Assets (Mobile)"
     },
     {
-      "description": "Mobile surface of the Assistant: ask a question about your projects and read your own history.",
+      "description": "Mobile surface of the Assistant: ask a question about your projects, ingest documents, and read your history.",
       "name": "Assistant"
     },
     {
