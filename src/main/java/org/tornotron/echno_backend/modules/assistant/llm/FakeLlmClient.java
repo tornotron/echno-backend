@@ -1,9 +1,14 @@
 package org.tornotron.echno_backend.modules.assistant.llm;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
@@ -121,16 +126,42 @@ public class FakeLlmClient implements AssistantLlmClient {
                 + "\"ambiguous\":" + ambiguous + "}";
     }
 
+    private static final ObjectMapper JSON = new ObjectMapper();
+
     private static String answer(String user) {
         Matcher lines = EVIDENCE_LINE.matcher(user);
         List<String> statements = new ArrayList<>();
         while (lines.find()) {
             String id = lines.group(1);
-            String text = lines.group(2) + " " + id + " reports " + lines.group(3);
+            String values = withoutIdFields(lines.group(3));
+            String text = lines.group(2) + " " + id + " reports " + values;
             statements.add("{\"text\":\"" + text.replace("\\", "\\\\").replace("\"", "\\\"")
                     + "\",\"kind\":\"fact\",\"evidenceIds\":[\"" + id + "\"]}");
         }
         return "{\"statements\":[" + String.join(",", statements) + "],\"insufficient\":" + statements.isEmpty() + "}";
+    }
+
+    private static String withoutIdFields(String rawValues) {
+        try {
+            JsonNode tree = JSON.readTree(rawValues);
+            if (tree instanceof ObjectNode obj) {
+                ObjectNode copy = obj.deepCopy();
+                Iterator<String> names = copy.fieldNames();
+                List<String> toRemove = new ArrayList<>();
+                while (names.hasNext()) {
+                    String name = names.next();
+                    String lower = name.toLowerCase(Locale.ROOT);
+                    if (lower.equals("id") || lower.endsWith("id") || lower.endsWith("_id")) {
+                        toRemove.add(name);
+                    }
+                }
+                toRemove.forEach(copy::remove);
+                return JSON.writeValueAsString(copy);
+            }
+        } catch (Exception ignored) {
+            // Fall back to raw text if values are not a JSON object.
+        }
+        return rawValues;
     }
 
     private static String quoted(List<String> values) {
