@@ -21,6 +21,7 @@ import org.springframework.stereotype.Component;
 import org.tornotron.echno_backend.attendance.AttendanceService;
 import org.tornotron.echno_backend.attendance.dto.AttendanceResponseDto;
 import org.tornotron.echno_backend.attendance.enums.AttendanceStatus;
+import org.tornotron.echno_backend.modules.assistant.AssistantModuleEnabled;
 import org.tornotron.echno_backend.modules.assistant.api.AssistantProvider;
 import org.tornotron.echno_backend.modules.assistant.api.CostProfile;
 import org.tornotron.echno_backend.modules.assistant.api.EvidenceUnit;
@@ -53,6 +54,7 @@ import org.tornotron.echno_backend.modules.assistant.api.Subject;
  */
 @Slf4j
 @Component
+@AssistantModuleEnabled
 public class AttendanceProvider implements AssistantProvider {
 
     public static final String ID = "attendance";
