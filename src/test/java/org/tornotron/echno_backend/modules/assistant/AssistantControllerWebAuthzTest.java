@@ -33,6 +33,8 @@ import org.tornotron.echno_backend.common.configuration.KeycloakAuthorizationSer
 import org.tornotron.echno_backend.common.configuration.RPTCache;
 import org.tornotron.echno_backend.common.service.OrganizationSecurityService;
 import org.tornotron.echno_backend.modules.assistant.AssistantModuleEnabled;
+import org.tornotron.echno_backend.modules.assistant.dto.IngestStatusDto;
+import org.tornotron.echno_backend.modules.assistant.ingest.DocumentIngestionService;
 import org.tornotron.echno_backend.modules.assistant.service.AssistantService;
 import org.tornotron.echno_backend.modules.assistant.web.AssistantController;
 import org.tornotron.echno_backend.modules.assistant.web.AssistantControllerWeb;
@@ -58,6 +60,9 @@ class AssistantControllerWebAuthzTest {
 
     @MockitoBean
     private AssistantService service;
+
+    @MockitoBean
+    private DocumentIngestionService ingestionService;
 
     @MockitoBean
     private KeycloakAuthorizationService keycloakAuthorizationService;
@@ -127,6 +132,42 @@ class AssistantControllerWebAuthzTest {
         mockMvc.perform(post("/api/v1/assistant/ask").contentType(MediaType.APPLICATION_JSON).content(QUESTION))
                 .andExpect(status().isUnauthorized());
         mockMvc.perform(get("/api/v1/assistant/web/audit")).andExpect(status().isUnauthorized());
+        mockMvc.perform(post("/api/v1/assistant/ingest").contentType(MediaType.APPLICATION_JSON).content("{\"attachmentId\":1}"))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/assistant/web/ingest/1/status")).andExpect(status().isUnauthorized());
+    }
+
+    @ParameterizedTest(name = "on {0}")
+    @MethodSource("prefixes")
+    void ingestAndStatusAreForbiddenWithoutManagerOrAdminRole(String prefix) throws Exception {
+        when(orgSecurity.isMemberOfCurrentTenant()).thenReturn(true);
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(false);
+        mockMvc.perform(json(post(prefix + "/ingest"), "{\"attachmentId\":10,\"projectId\":42}").with(memberOfOrgSeven()))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get(prefix + "/ingest/10/status").with(memberOfOrgSeven()))
+                .andExpect(status().isForbidden());
+    }
+
+    @ParameterizedTest(name = "on {0}")
+    @MethodSource("prefixes")
+    void ingestAndStatusAreAllowedForProjectManagerOrAdmin(String prefix) throws Exception {
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(true);
+        when(ingestionService.ingest(10L, 42L))
+                .thenReturn(new IngestStatusDto(10L, "COMPLETED", 3, "Document ingested successfully."));
+        when(ingestionService.status(10L))
+                .thenReturn(new IngestStatusDto(10L, "COMPLETED", 3, "Document is indexed and ready."));
+        mockMvc.perform(json(post(prefix + "/ingest"), "{\"attachmentId\":10,\"projectId\":42}").with(memberOfOrgSeven()))
+                .andExpect(status().isCreated());
+        mockMvc.perform(get(prefix + "/ingest/10/status").with(memberOfOrgSeven()))
+                .andExpect(status().isOk());
+    }
+
+    @ParameterizedTest(name = "on {0}")
+    @MethodSource("prefixes")
+    void ingestWithoutAttachmentIdIsRefusedAsBadRequest(String prefix) throws Exception {
+        when(orgSecurity.hasAnyOrgRoleForCurrentTenant(any(String[].class))).thenReturn(true);
+        mockMvc.perform(json(post(prefix + "/ingest"), "{\"projectId\":42}").with(memberOfOrgSeven()))
+                .andExpect(status().isBadRequest());
     }
 
     static Stream<String> prefixes() {
