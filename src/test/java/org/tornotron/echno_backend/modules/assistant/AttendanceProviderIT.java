@@ -24,6 +24,7 @@ import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
@@ -75,6 +76,7 @@ import org.tornotron.echno_backend.support.AbstractIntegrationTest;
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+@TestPropertySource(properties = AssistantModuleEnabled.PROPERTY + "=true")
 @Import({AopAutoConfiguration.class, HibernateFilterConfig.class, TenantIsolationListenerRegistrar.class,
         UnscopedAccessGuard.class, SimpleMeterRegistry.class, TransactionalWorkRunner.class,
         TenantScopedJobRunner.class, AttendanceMapperImpl.class, ShiftTimingMapperImpl.class,

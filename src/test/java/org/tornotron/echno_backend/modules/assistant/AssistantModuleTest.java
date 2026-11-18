@@ -17,6 +17,9 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.mock.env.MockEnvironment;
 import org.tornotron.echno_backend.common.module.ModuleManifest;
 import org.tornotron.echno_backend.common.module.ModuleRegistry;
+import org.tornotron.echno_backend.modules.assistant.provider.AttendanceProvider;
+import org.tornotron.echno_backend.modules.assistant.provider.ProviderRegistry;
+import org.tornotron.echno_backend.modules.assistant.provider.TaskProvider;
 
 /**
  * The module's contract with the registry, the permission vocabulary, and the dark-by-default
@@ -107,6 +110,21 @@ class AssistantModuleTest {
                 .withPropertyValues(AssistantModuleEnabled.PROPERTY + "=true")
                 .withUserConfiguration(SwitchedBean.class)
                 .run(context -> assertThat(context).hasSingleBean(SwitchedBean.class));
+    }
+
+    @Test
+    void providersAndRegistryStayOffUnderTheDefaultConfiguration() {
+        assertThat(AttendanceProvider.class.isAnnotationPresent(AssistantModuleEnabled.class)).isTrue();
+        assertThat(TaskProvider.class.isAnnotationPresent(AssistantModuleEnabled.class)).isTrue();
+        assertThat(ProviderRegistry.class.isAnnotationPresent(AssistantModuleEnabled.class)).isTrue();
+        new ApplicationContextRunner()
+                .withInitializer(AssistantModuleTest::loadApplicationYml)
+                .withUserConfiguration(AttendanceProvider.class, TaskProvider.class, ProviderRegistry.class)
+                .run(context -> {
+                    assertThat(context).doesNotHaveBean(AttendanceProvider.class);
+                    assertThat(context).doesNotHaveBean(TaskProvider.class);
+                    assertThat(context).doesNotHaveBean(ProviderRegistry.class);
+                });
     }
 
     @Test

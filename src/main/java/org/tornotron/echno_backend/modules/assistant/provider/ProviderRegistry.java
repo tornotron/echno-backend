@@ -8,6 +8,7 @@ import java.util.TreeMap;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.tornotron.echno_backend.modules.assistant.AssistantModuleEnabled;
 import org.tornotron.echno_backend.modules.assistant.api.AssistantProvider;
 
 /**
@@ -20,6 +21,7 @@ import org.tornotron.echno_backend.modules.assistant.api.AssistantProvider;
  * bean registration order.
  */
 @Component
+@AssistantModuleEnabled
 public class ProviderRegistry {
 
     private final SortedMap<String, AssistantProvider> byId;

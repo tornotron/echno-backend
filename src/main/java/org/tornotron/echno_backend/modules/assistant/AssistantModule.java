@@ -32,6 +32,12 @@ public class AssistantModule implements EchnoModule {
     public static final String PERMISSION_INGEST = ID + ":ingest";
     public static final String PERMISSION_ADMIN = ID + ":admin";
 
+    // The guards the controllers carry, one string each so the two twins cannot drift. Asking is
+    // for any member of the organization; what a member can see through it is still whatever the
+    // guard on each provider allows. The audit listing is the system admin's.
+    public static final String ASK_GUARD = "@orgSecurity.isMemberOfCurrentTenant()";
+    public static final String ADMIN_GUARD = "@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin')";
+
     static final List<String> PERMISSIONS = List.of(PERMISSION_ASK, PERMISSION_INGEST, PERMISSION_ADMIN);
 
     // No nav entry: the web panel is a later package, and a menu item for a route that does not

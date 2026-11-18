@@ -302,6 +302,100 @@
         ],
         "type": "object"
       },
+      "AskRequest": {
+        "description": "A question for the assistant, optionally leaning on the caller's previous one.",
+        "properties": {
+          "previousQueryId": {
+            "description": "The query id of the caller's own previous question, if this one follows on from it and was asked less than the follow-up window ago. Only its project is reused; nothing else is remembered.",
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "question": {
+            "description": "The question, in plain words.",
+            "example": "How many people were on site at Tower B this week?",
+            "maxLength": 1000,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "question"
+        ],
+        "type": "object"
+      },
+      "AskResponse": {
+        "description": "The assistant's reply: an answer with citations, a question back, a decline that says what was looked for, an answer missing some sources, or notice that the model is unavailable.",
+        "properties": {
+          "assumptions": {
+            "description": "Defaults the assistant applied, for example the period it chose when none was given.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "clarification": {
+            "description": "What to ask the person back. Only for CLARIFY.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "cost": {
+            "$ref": "#/components/schemas/CostDto"
+          },
+          "evidence": {
+            "description": "The evidence the statements cite.",
+            "items": {
+              "$ref": "#/components/schemas/EvidenceDto"
+            },
+            "type": "array"
+          },
+          "lookedFor": {
+            "description": "What was searched, one line per provider. For DECLINED and DEGRADED.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "message": {
+            "description": "A sentence for the person: what was found, or why not.",
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "ANSWERED",
+              "CLARIFY",
+              "DECLINED",
+              "DEGRADED",
+              "UNAVAILABLE"
+            ],
+            "type": "string"
+          },
+          "queryId": {
+            "description": "Id of the audit row for this question; pass it as previousQueryId to follow up.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "statements": {
+            "description": "The answer, facts first then inferences and recommendations. Empty unless ANSWERED or DEGRADED.",
+            "items": {
+              "$ref": "#/components/schemas/StatementDto"
+            },
+            "type": "array"
+          },
+          "unavailableSources": {
+            "description": "Sources that could not be read. Only for DEGRADED.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "AssetCreationDto": {
         "description": "Payload to create or fully update a fixed asset in the organization's asset register, such as a piece of heavy equipment or a vehicle.",
         "properties": {
@@ -7512,6 +7606,25 @@
         },
         "type": "object"
       },
+      "CostDto": {
+        "description": "What answering this question cost in language-model tokens.",
+        "properties": {
+          "completionTokens": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "estimatedCostMicros": {
+            "description": "Estimated cost in millionths of the billing currency; zero when no price is configured.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "promptTokens": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "CreateAccountRequest": {
         "description": "Payload to create an account in the chart of accounts.",
         "properties": {
@@ -10709,6 +10822,36 @@
           },
           "message": {
             "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "EvidenceDto": {
+        "description": "One piece of evidence an answer cites, with the values exactly as the source system holds them.",
+        "properties": {
+          "id": {
+            "example": "attendance:2026-10-05:project-42",
+            "type": "string"
+          },
+          "kind": {
+            "example": "attendance-day-summary",
+            "type": "string"
+          },
+          "providerId": {
+            "description": "The provider that supplied it.",
+            "example": "attendance",
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/SourceRef",
+            "description": "Where to open it: a record, or a place in a document."
+          },
+          "values": {
+            "additionalProperties": {
+              "type": "object"
+            },
+            "description": "Field name to value, with the units each provider's description gives.",
+            "type": "object"
           }
         },
         "type": "object"
@@ -21924,6 +22067,52 @@
         },
         "type": "object"
       },
+      "PageQueryLogDto": {
+        "properties": {
+          "content": {
+            "items": {
+              "$ref": "#/components/schemas/QueryLogDto"
+            },
+            "type": "array"
+          },
+          "empty": {
+            "type": "boolean"
+          },
+          "first": {
+            "type": "boolean"
+          },
+          "last": {
+            "type": "boolean"
+          },
+          "number": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "numberOfElements": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "pageable": {
+            "$ref": "#/components/schemas/PageableObject"
+          },
+          "size": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "sort": {
+            "$ref": "#/components/schemas/SortObject"
+          },
+          "totalElements": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "totalPages": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "PageReceiptDto": {
         "properties": {
           "content": {
@@ -25408,6 +25597,82 @@
         },
         "type": "object"
       },
+      "QueryLogDto": {
+        "description": "One audited question: what was asked, how it ended, what was looked at, and what it cost.",
+        "properties": {
+          "answer": {
+            "additionalProperties": {
+              "type": "object"
+            },
+            "description": "The statements, clarification or decline as shown to the person.",
+            "type": "object"
+          },
+          "completionTokens": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "estimatedCostMicros": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "evidenceIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "latencyMs": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "llmModel": {
+            "type": "string"
+          },
+          "llmModelVersion": {
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "ANSWERED",
+              "CLARIFY",
+              "DECLINED",
+              "DEGRADED",
+              "UNAVAILABLE"
+            ],
+            "type": "string"
+          },
+          "projectId": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "promptTokens": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "providersSelected": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "question": {
+            "type": "string"
+          },
+          "userId": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "QueueVisionRunRequest": {
         "description": "Runs models on evidence images now. Name exactly one of inspectionId, observationId and attachmentIds.",
         "properties": {
@@ -28419,6 +28684,29 @@
         },
         "type": "object"
       },
+      "SourceRef": {
+        "properties": {
+          "charEnd": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "charStart": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "page": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "SourceRefDto": {
         "properties": {
           "box": {
@@ -28769,6 +29057,28 @@
           "trade": {
             "description": "Catalogue code of the trade the starter is for.",
             "example": "reinforcement",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "StatementDto": {
+        "description": "One sentence of an answer and the evidence it rests on.",
+        "properties": {
+          "evidenceIds": {
+            "description": "Ids of the evidence units that back it; each is in the response's evidence list.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "kind": {
+            "description": "FACT is backed by the cited evidence; INFERENCE and RECOMMENDATION are the assistant's reading and advice, shown apart from the facts.",
+            "example": "FACT",
+            "type": "string"
+          },
+          "text": {
+            "description": "The sentence.",
             "type": "string"
           }
         },
@@ -36434,6 +36744,621 @@
         "summary": "Read how long an asset spent in each place",
         "tags": [
           "Assets (Mobile)"
+        ]
+      }
+    },
+    "/api/v1/assistant/ask": {
+      "post": {
+        "description": "Answers from the organization's own records, as the caller: only what the caller may read reaches the answer. The outcome says whether it is an answer, a question back, a decline that names what was looked for, an answer missing some sources, or unavailable.",
+        "operationId": "AssistantController_ask",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AskRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AskResponse"
+                }
+              }
+            },
+            "description": "The reply, whatever its outcome"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The question is blank or too long"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller is not a member of the current tenant, or the organization does not have the Assistant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Ask the assistant a question",
+        "tags": [
+          "Assistant"
+        ]
+      }
+    },
+    "/api/v1/assistant/queries": {
+      "get": {
+        "operationId": "AssistantController_queries",
+        "parameters": [
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageQueryLogDto"
+                }
+              }
+            },
+            "description": "A page of the caller's own audited questions"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller is not a member of the current tenant, or the organization does not have the Assistant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List your own questions, newest first",
+        "tags": [
+          "Assistant"
+        ]
+      }
+    },
+    "/api/v1/assistant/web/ask": {
+      "post": {
+        "description": "Answers from the organization's own records, as the caller: only what the caller may read reaches the answer. The outcome says whether it is an answer, a question back, a decline that names what was looked for, an answer missing some sources, or unavailable.",
+        "operationId": "AssistantControllerWeb_ask",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AskRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AskResponse"
+                }
+              }
+            },
+            "description": "The reply, whatever its outcome"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "The question is blank or too long"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller is not a member of the current tenant, or the organization does not have the Assistant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "Ask the assistant a question",
+        "tags": [
+          "Assistant (web)"
+        ]
+      }
+    },
+    "/api/v1/assistant/web/audit": {
+      "get": {
+        "description": "The audit trail: who asked what, which sources were read, how it ended and what it cost.",
+        "operationId": "AssistantControllerWeb_audit",
+        "parameters": [
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageQueryLogDto"
+                }
+              }
+            },
+            "description": "A page of audited questions"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller is not a system admin of the current tenant, or the organization does not have the Assistant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List every question asked in the organization, newest first",
+        "tags": [
+          "Assistant (web)"
+        ]
+      }
+    },
+    "/api/v1/assistant/web/queries": {
+      "get": {
+        "operationId": "AssistantControllerWeb_queries",
+        "parameters": [
+          {
+            "description": "Zero-based page index.",
+            "in": "query",
+            "name": "pageNo",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Zero-based page index.",
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Rows per page.",
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "description": "Rows per page.",
+              "format": "int32",
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageQueryLogDto"
+                }
+              }
+            },
+            "description": "A page of the caller's own audited questions"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "402": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionErrorResponse"
+                }
+              }
+            },
+            "description": "Payment Required"
+          },
+          "403": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Caller is not a member of the current tenant, or the organization does not have the Assistant"
+          },
+          "404": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "502": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        },
+        "summary": "List your own questions, newest first",
+        "tags": [
+          "Assistant (web)"
         ]
       }
     },
@@ -172330,6 +173255,14 @@
     {
       "description": "The tenant API path of the endpoints under /api/v1/assets/web, for the mobile client. Same handlers, request and response shapes and organization-role guards as the web endpoints; send X-Organization-Id to pick the organization.",
       "name": "Assets (Mobile)"
+    },
+    {
+      "description": "Mobile surface of the Assistant: ask a question about your projects and read your own history.",
+      "name": "Assistant"
+    },
+    {
+      "description": "Web twin of the Assistant surface, with the organization's audit listing for the system admin.",
+      "name": "Assistant (web)"
     },
     {
       "description": "Files attached to a task, project, issue or other entity. Covers the direct multipart upload path and the two-step presign/register path for large files that go straight to object storage, plus reading and deleting attachments by entity. Access is gated by tenant membership.",

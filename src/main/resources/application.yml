@@ -361,6 +361,37 @@ echno:
       max-per-run: 200
       retry-batch: 100
       incomplete-after-minutes: 60
+  assistant:
+    # The Assistant's language model, in the shape of compliance.ai. client=http calls the endpoint
+    # below and needs a key; with an empty key the module still starts and ask answers UNAVAILABLE.
+    # client=fake is for tests and the local walk and never for a deployed environment.
+    llm:
+      client: ${ASSISTANT_LLM_CLIENT:http}
+      base-url: ${ASSISTANT_LLM_BASE_URL:https://inference.do-ai.run/v1}
+      api-key: ${ASSISTANT_LLM_API_KEY:}
+      model: ${ASSISTANT_LLM_MODEL:llama3.3-70b-instruct}
+      model-version: ${ASSISTANT_LLM_MODEL_VERSION:}
+      max-tokens: 2048
+      temperature: 0.1
+      connect-timeout-seconds: 10
+      read-timeout-seconds: 45
+      # Optional forward proxy; the lab nodes reach the internet only through one.
+      proxy-host: ${ASSISTANT_LLM_PROXY_HOST:}
+      proxy-port: ${ASSISTANT_LLM_PROXY_PORT:3128}
+    retrieval:
+      units-per-provider: 20
+      evidence-token-budget: 4000
+      provider-timeout-seconds: 8
+      max-parallel: 4
+      max-queue-size: 16
+    # How long a follow-up may lean on the caller's previous question's project.
+    followup-window-minutes: 15
+    # Overall wall-clock deadline for one ask across interpretation, retrieval and answering.
+    ask-deadline-seconds: 30
+    # Price per token in millionths of the billing currency; 0 records tokens only.
+    cost:
+      prompt-token-micros: 0
+      completion-token-micros: 0
   modules:
     # Operator kill switches, one per installed module (echno.modules.<id>.enabled, default on).
     # Off hides the module from /api/v1/modules/web/enabled for every organization and, for

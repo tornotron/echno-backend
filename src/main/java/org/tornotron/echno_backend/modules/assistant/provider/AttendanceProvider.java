@@ -21,6 +21,7 @@ import org.springframework.stereotype.Component;
 import org.tornotron.echno_backend.attendance.AttendanceService;
 import org.tornotron.echno_backend.attendance.dto.AttendanceResponseDto;
 import org.tornotron.echno_backend.attendance.enums.AttendanceStatus;
+import org.tornotron.echno_backend.modules.assistant.AssistantModuleEnabled;
 import org.tornotron.echno_backend.modules.assistant.api.AssistantProvider;
 import org.tornotron.echno_backend.modules.assistant.api.CostProfile;
 import org.tornotron.echno_backend.modules.assistant.api.EvidenceUnit;
@@ -53,6 +54,7 @@ import org.tornotron.echno_backend.modules.assistant.api.Subject;
  */
 @Slf4j
 @Component
+@AssistantModuleEnabled
 public class AttendanceProvider implements AssistantProvider {
 
     public static final String ID = "attendance";
@@ -73,7 +75,7 @@ public class AttendanceProvider implements AssistantProvider {
 
     // A week is the default period and a month is the most anyone should ask for in one answer;
     // past it the evidence would not fit the model's context anyway.
-    static final int MAX_DAYS = 31;
+    public static final int MAX_DAYS = 31;
 
     // The read returns one page at a time. A provider that took only the first would silently
     // under-count a big site's day, so it walks the pages; the ceiling turns a runaway into an

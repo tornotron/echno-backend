@@ -85,6 +85,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         // describes them all the same, so core and web can be checked against them before a deployment
         // turns the module on. This also boots the whole application with the module on.
         "echno.modules.vision.enabled=true",
+        "echno.modules.assistant.enabled=true",
         "BACKEND_API_VERSION=v1",
         "DIGITAL_OCEAN_SPACES_URI=http://localhost:9000",
         "DIGITAL_OCEAN_SPACES_KEY_ID=test",

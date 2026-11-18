@@ -13,12 +13,15 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.core.type.filter.AssignableTypeFilter;
+import org.springframework.mock.env.MockEnvironment;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.tornotron.echno_backend.attendance.AttendanceController;
 import org.tornotron.echno_backend.attendance.AttendanceControllerWeb;
 import org.tornotron.echno_backend.modules.assistant.api.AssistantProvider;
 import org.tornotron.echno_backend.modules.assistant.provider.AttendanceProvider;
+import org.tornotron.echno_backend.modules.assistant.provider.TaskProvider;
+import org.tornotron.echno_backend.task.TaskControllerWeb;
 
 /**
  * A provider's {@code retrieve} carries the same guard as the controller endpoint it mirrors.
@@ -37,10 +40,14 @@ class ProviderGuardParityTest {
     private record Mirror(List<Class<?>> controllers, String handler, String route) {
     }
 
+    // The task list is read on the web controller only; the mobile task controller has no
+    // project-wide list, so there is nothing there to mirror.
     private static final Map<Class<? extends AssistantProvider>, Mirror> MIRRORS = Map.of(
             AttendanceProvider.class,
             new Mirror(List.of(AttendanceController.class, AttendanceControllerWeb.class),
-                    "getByProject", "/project/{projectId}"));
+                    "getByProject", "/project/{projectId}"),
+            TaskProvider.class,
+            new Mirror(List.of(TaskControllerWeb.class), "readAllTasksForProject", "/projectId/{projectId}"));
 
     @Test
     void everyProviderCarriesTheGuardOfTheEndpointItMirrors() throws Exception {
@@ -75,7 +82,8 @@ class ProviderGuardParityTest {
 
     @Test
     void everyProviderInTheApplicationHasAMirrorSoANewOneCannotSkipTheCheck() {
-        ClassPathScanningCandidateComponentProvider scanner = new ClassPathScanningCandidateComponentProvider(false);
+        MockEnvironment env = new MockEnvironment().withProperty(AssistantModuleEnabled.PROPERTY, "true");
+        ClassPathScanningCandidateComponentProvider scanner = new ClassPathScanningCandidateComponentProvider(false, env);
         scanner.addIncludeFilter(new AssignableTypeFilter(AssistantProvider.class));
         Set<String> found = scanner.findCandidateComponents("org.tornotron.echno_backend")
                 .stream()

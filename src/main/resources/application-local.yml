@@ -85,6 +85,10 @@ echno:
   security:
     jwt:
       accepted-issuers: http://localhost:8180/realms/echno-realm
+  # The Assistant answers from a fake model here, so the scripted walk needs no key and no network.
+  assistant:
+    llm:
+      client: fake
 
 springdoc:
   swagger-ui:
@@ -93,3 +97,4 @@ springdoc:
 logging:
   file:
     name: logs/echno-backend-local.log
+
