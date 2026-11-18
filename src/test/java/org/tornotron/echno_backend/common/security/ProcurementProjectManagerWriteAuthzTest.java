@@ -136,7 +136,7 @@ class ProcurementProjectManagerWriteAuthzTest {
             "POST  | /api/v1/purchase-order-items/web | `{\"purchaseOrderId\":31,\"materialId\":7,\"orderedQuantity\":40,\"unitPrice\":385.00}`",
             "POST  | /api/v1/purchase-order-items | `{\"purchaseOrderId\":31,\"materialId\":7,\"orderedQuantity\":40,\"unitPrice\":385.00}`",
             "PATCH | /api/v1/purchase-order-items/web | `{\"id\":84,\"orderedQuantity\":45}`",
-            "PUT   | /api/v1/purchase-order-items | `{\"id\":84,\"orderedQuantity\":45}`",
+            "PATCH | /api/v1/purchase-order-items | `{\"id\":84,\"orderedQuantity\":45}`",
             // The line reads the edit screens make, which the role did not have before.
             "GET   | /api/v1/indent-items/web/indent/31 | ``",
             "GET   | /api/v1/purchase-order-items/web/purchase-order/31 | ``",
