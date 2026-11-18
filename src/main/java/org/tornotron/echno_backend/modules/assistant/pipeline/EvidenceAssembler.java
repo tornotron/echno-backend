@@ -17,10 +17,9 @@ import org.tornotron.echno_backend.modules.assistant.pipeline.ParallelRetriever.
  * by evidence id are dropped, each provider is capped, everything is cut to a token budget, and
  * the most relevant units come first.
  *
- * <p>It also keeps a note of every provider that returned nothing, and why. That record is not
- * housekeeping: it is what the decline text and the "some sources were unavailable" line are
- * built from, so a provider that was empty and one that could not be read stay different things
- * all the way to the person asking.
+ * <p>It also keeps a note of every provider that returned nothing, and why: empty, unavailable
+ * (failed or timed out), or denied (the caller lacks access). Denied providers are never counted as
+ * unavailable so permissions do not masquerade as source failures.
  */
 @Component
 @AssistantModuleEnabled
@@ -32,8 +31,10 @@ public class EvidenceAssembler {
     public enum NoteKind {
         /** The provider looked and found nothing. */
         EMPTY,
-        /** The provider could not look. */
-        UNAVAILABLE
+        /** The provider could not look (error, timeout, or queue rejection). */
+        UNAVAILABLE,
+        /** The caller does not have permission to read this provider; left out quietly. */
+        DENIED
     }
 
     public record ProviderNote(String providerId, NoteKind kind, String text) {
@@ -54,6 +55,10 @@ public class EvidenceAssembler {
         public List<ProviderNote> unavailable() {
             return notes.stream().filter(n -> n.kind() == NoteKind.UNAVAILABLE).toList();
         }
+
+        public List<ProviderNote> denied() {
+            return notes.stream().filter(n -> n.kind() == NoteKind.DENIED).toList();
+        }
     }
 
     private final AssistantProperties props;
@@ -68,6 +73,10 @@ public class EvidenceAssembler {
         Map<String, EvidenceUnit> byId = new LinkedHashMap<>();
 
         for (ProviderOutcome outcome : outcomes) {
+            if (outcome.accessDenied()) {
+                notes.add(new ProviderNote(outcome.providerId(), NoteKind.DENIED, "not accessible to caller"));
+                continue;
+            }
             switch (outcome.result()) {
                 case ProviderResult.Evidence evidence -> {
                     Map<String, EvidenceUnit> own = new LinkedHashMap<>();

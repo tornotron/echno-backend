@@ -3,6 +3,7 @@ package org.tornotron.echno_backend.modules.assistant.service;
 import java.time.Clock;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -12,6 +13,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.security.access.AccessDeniedException;
@@ -21,6 +23,7 @@ import org.tornotron.echno_backend.modules.assistant.AssistantModuleEnabled;
 import org.tornotron.echno_backend.modules.assistant.AssistantProperties;
 import org.tornotron.echno_backend.modules.assistant.api.AssistantProvider;
 import org.tornotron.echno_backend.modules.assistant.api.EvidenceUnit;
+import org.tornotron.echno_backend.modules.assistant.api.ProviderDescriptor;
 import org.tornotron.echno_backend.modules.assistant.api.Question;
 import org.tornotron.echno_backend.modules.assistant.api.Scope;
 import org.tornotron.echno_backend.modules.assistant.domain.AskOutcome;
@@ -36,6 +39,7 @@ import org.tornotron.echno_backend.modules.assistant.llm.LlmUnavailableException
 import org.tornotron.echno_backend.modules.assistant.pipeline.AnswerValidator;
 import org.tornotron.echno_backend.modules.assistant.pipeline.EvidenceAssembler;
 import org.tornotron.echno_backend.modules.assistant.pipeline.EvidenceAssembler.Assembled;
+import org.tornotron.echno_backend.modules.assistant.pipeline.EvidenceAssembler.NoteKind;
 import org.tornotron.echno_backend.modules.assistant.pipeline.GroundedAnswerer;
 import org.tornotron.echno_backend.modules.assistant.pipeline.Interpretation;
 import org.tornotron.echno_backend.modules.assistant.pipeline.ParallelRetriever;
@@ -44,6 +48,7 @@ import org.tornotron.echno_backend.modules.assistant.pipeline.QuestionInterprete
 import org.tornotron.echno_backend.modules.assistant.pipeline.ScopeResolver;
 import org.tornotron.echno_backend.modules.assistant.pipeline.ScopeResolver.PreviousScope;
 import org.tornotron.echno_backend.modules.assistant.pipeline.Statement;
+import org.tornotron.echno_backend.modules.assistant.provider.AttendanceProvider;
 import org.tornotron.echno_backend.modules.assistant.time.AssistantClock;
 import org.tornotron.echno_backend.user.UserContextService;
 
@@ -124,6 +129,7 @@ public class AssistantService {
         final String question;
         final Long userId;
         final long startedNanos = System.nanoTime();
+        final long deadlineNanos;
         Long projectId;
         String projectName;
         LocalDate from;
@@ -136,9 +142,18 @@ public class AssistantService {
         String modelVersion;
         Map<String, Object> dropped;
 
-        Run(String question, Long userId) {
+        Run(String question, Long userId, long deadlineMillis) {
             this.question = question;
             this.userId = userId;
+            this.deadlineNanos = startedNanos + TimeUnit.MILLISECONDS.toNanos(Math.max(1L, deadlineMillis));
+        }
+
+        boolean expired() {
+            return System.nanoTime() >= deadlineNanos;
+        }
+
+        long remainingMillis() {
+            return Math.max(0L, TimeUnit.NANOSECONDS.toMillis(deadlineNanos - System.nanoTime()));
         }
 
         void spend(LlmResponse usage) {
@@ -151,7 +166,8 @@ public class AssistantService {
 
     public AskResponse ask(AskRequest request) {
         Long orgId = TenantContext.getCurrentOrgId();
-        Run run = new Run(request.question().trim(), currentUserId());
+        long deadlineMillis = TimeUnit.SECONDS.toMillis(Math.max(1, props.getAskDeadlineSeconds()));
+        Run run = new Run(request.question().trim(), currentUserId(), deadlineMillis);
         try {
             if (!llm.isConfigured()) {
                 return finish(run, AskOutcome.UNAVAILABLE, "The assistant's language model is not configured.",
@@ -176,6 +192,9 @@ public class AssistantService {
         QuestionInterpreter.Interpreted interpreted =
                 interpreter.interpret(run.question, previous.map(p -> "project " + p.projectName()).orElse(null));
         run.spend(interpreted.usage());
+        if (run.expired()) {
+            return timedOut(run);
+        }
         Interpretation reading = interpreted.interpretation();
 
         if (reading.multiStep()) {
@@ -209,28 +228,51 @@ public class AssistantService {
         run.providers = plan.selected().stream().map(p -> p.describe().id()).toList();
         applyPeriod(run, reading, plan);
 
+        if (run.from != null && run.to != null && plan.needsPeriod()) {
+            long days = ChronoUnit.DAYS.between(run.from, run.to) + 1;
+            if (days > AttendanceProvider.MAX_DAYS) {
+                return clarify(run, List.of("That period is " + days + " days long, and I can only read up to "
+                        + AttendanceProvider.MAX_DAYS + " days at a time. Which shorter date range do you want?"));
+            }
+        }
+        if (run.expired()) {
+            return timedOut(run);
+        }
+
         List<ParallelRetriever.ProviderOutcome> outcomes = retriever.retrieve(plan.selected(),
-                new Question(run.question), new Scope(run.projectId, run.from, run.to, null), orgId);
+                new Question(run.question), new Scope(run.projectId, run.from, run.to, null), orgId, run.remainingMillis());
         Assembled assembled = assembler.assemble(outcomes);
-        List<String> lookedFor = assembled.notes().stream().map(n -> n.providerId() + ": " + n.text()).toList();
+        List<String> lookedFor = assembled.notes().stream()
+                .filter(n -> n.kind() != NoteKind.DENIED)
+                .map(n -> n.providerId() + ": " + n.text())
+                .toList();
 
         if (!assembled.hasEvidence()) {
-            String why = assembled.unavailable().size() == assembled.notes().size() && !assembled.notes().isEmpty()
+            String why = !assembled.unavailable().isEmpty() && assembled.unavailable().size() == assembled.notes().size()
                     ? "I could not read the sources I needed, so I cannot answer that."
                     : "I looked and found nothing recorded that answers that.";
             return finish(run, AskOutcome.DECLINED, why, List.of(), List.of(), List.of(), lookedFor, List.of());
         }
+        if (run.expired()) {
+            return timedOut(run);
+        }
 
+        List<ProviderDescriptor> descriptors = plan.selected().stream().map(AssistantProvider::describe).toList();
         GroundedAnswerer.Generated generated = answerer.answer(run.question, scopeSentence(run), run.assumptions,
-                assembled.units(), plan.selected().stream().map(AssistantProvider::describe).toList());
+                assembled.units(), descriptors);
         run.spend(generated.usage());
-        AnswerValidator.Validated checked = validator.validate(generated.statements(), assembled.units());
+        AnswerValidator.Validated checked = validator.validate(generated.statements(), assembled.units(), descriptors);
         run.dropped = Map.of("uncited", checked.droppedUncited(), "foreign", checked.droppedForeign(),
                 "numbers", checked.droppedNumbers());
 
-        if (!checked.hasFacts()) {
+        if (generated.insufficient() || !checked.hasFacts()) {
             return finish(run, AskOutcome.DECLINED, "I could not give an answer that the records support.",
                     List.of(), List.of(), List.of(), lookedFor, List.of());
+        }
+
+        if (checked.dropped() > 0) {
+            String noun = checked.dropped() == 1 ? "statement was" : "statements were";
+            run.assumptions.add(checked.dropped() + " unsupported " + noun + " omitted from this answer.");
         }
 
         List<Statement> shown = new ArrayList<>(checked.facts());
@@ -240,11 +282,24 @@ public class AssistantService {
         List<EvidenceDto> evidence = assembled.units().stream().filter(u -> cited.contains(u.id())).map(AssistantService::dto).toList();
         List<String> unavailable = assembled.unavailable().stream().map(n -> n.providerId() + ": " + n.text()).toList();
         AskOutcome outcome = unavailable.isEmpty() ? AskOutcome.ANSWERED : AskOutcome.DEGRADED;
-        String message = unavailable.isEmpty() ? "Here is what the records show."
-                : "Here is what the records show, but some sources could not be read.";
+        String message;
+        if (unavailable.isEmpty()) {
+            message = checked.dropped() > 0
+                    ? "Here is what the records support; some unsupported parts of the draft answer were omitted."
+                    : "Here is what the records show.";
+        } else {
+            message = checked.dropped() > 0
+                    ? "Here is what the records support, but some sources could not be read and some unsupported parts of the draft answer were omitted."
+                    : "Here is what the records show, but some sources could not be read.";
+        }
         return finish(run, outcome, message,
                 shown.stream().map(s -> new StatementDto(s.text(), s.kind().name(), s.evidenceIds())).toList(),
                 evidence, List.of(), lookedFor, unavailable);
+    }
+
+    private AskResponse timedOut(Run run) {
+        return finish(run, AskOutcome.UNAVAILABLE, "This question took too long to answer. Try again in a moment.",
+                List.of(), List.of(), List.of(), List.of(), List.of());
     }
 
     /**

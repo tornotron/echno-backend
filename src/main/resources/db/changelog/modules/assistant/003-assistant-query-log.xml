@@ -44,15 +44,23 @@
         </sql>
     </changeSet>
 
-    <changeSet id="assistant-003-create-assistant_query_log-indexes" author="echno">
+    <changeSet id="assistant-003-create-assistant_query_log-org-created-idx" author="echno">
         <preConditions onFail="MARK_RAN">
             <not><indexExists tableName="assistant_query_log" indexName="assistant_query_log_org_created_idx"/></not>
         </preConditions>
         <sql>
             CREATE INDEX assistant_query_log_org_created_idx
-                ON assistant_query_log (organization_id, created_at DESC);
+                ON assistant_query_log (organization_id, created_at DESC)
+        </sql>
+    </changeSet>
+
+    <changeSet id="assistant-003-create-assistant_query_log-org-user-created-idx" author="echno">
+        <preConditions onFail="MARK_RAN">
+            <not><indexExists tableName="assistant_query_log" indexName="assistant_query_log_org_user_created_idx"/></not>
+        </preConditions>
+        <sql>
             CREATE INDEX assistant_query_log_org_user_created_idx
-                ON assistant_query_log (organization_id, user_id, created_at DESC);
+                ON assistant_query_log (organization_id, user_id, created_at DESC)
         </sql>
     </changeSet>
 </databaseChangeLog>

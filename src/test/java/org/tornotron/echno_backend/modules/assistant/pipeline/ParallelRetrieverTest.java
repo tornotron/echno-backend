@@ -155,15 +155,68 @@ class ParallelRetrieverTest {
     }
 
     @Test
-    void aProviderThatRefusesTheCallerIsUnavailableWithAReasonThatSaysSo() {
+    void aProviderThatRefusesTheCallerIsMarkedAccessDeniedAndNotASourceFailure() {
         AssistantProvider refusing = provider("attendance", () -> {
             throw new AccessDeniedException("Access Denied");
         });
 
-        ProviderResult result = retriever.retrieve(List.of(refusing), new Question("q"), scope(), 7L).get(0).result();
+        ProviderOutcome outcome = retriever.retrieve(List.of(refusing), new Question("q"), scope(), 7L).get(0);
 
-        assertThat(result).isInstanceOfSatisfying(ProviderResult.Unavailable.class, u ->
-                assertThat(u.reason()).contains("do not have access").contains("attendance"));
+        assertThat(outcome.accessDenied()).isTrue();
+        assertThat(outcome.result()).isNotInstanceOf(ProviderResult.Unavailable.class);
+    }
+
+    @Test
+    void whenTheBoundedQueueIsFullExtraTasksAreRejectedAsUnavailable() {
+        AssistantProperties tightProps = new AssistantProperties();
+        tightProps.getRetrieval().setMaxParallel(1);
+        tightProps.getRetrieval().setMaxQueueSize(1);
+        tightProps.getRetrieval().setProviderTimeoutSeconds(1);
+
+        TransactionalWorkRunner transactions = new TransactionalWorkRunner() {
+            @Override
+            public <T> T runInTransaction(Supplier<T> work) {
+                return work.get();
+            }
+        };
+        ParallelRetriever tightRetriever = new ParallelRetriever(new TenantScopedJobRunner(transactions), tightProps);
+        try {
+            CountDownLatch release = new CountDownLatch(1);
+            AssistantProvider first = provider("first", () -> {
+                try {
+                    release.await(1, java.util.concurrent.TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                return evidence("first");
+            });
+            AssistantProvider second = provider("second", () -> evidence("second"));
+            AssistantProvider third = provider("third", () -> evidence("third"));
+
+            // With 1 thread + queue size 1: first runs, second queues, third is rejected immediately.
+            List<ProviderOutcome> outcomes = tightRetriever.retrieve(
+                    List.of(first, second, third), new Question("q"), scope(), 7L);
+            release.countDown();
+
+            assertThat(outcomes.get(2).result()).isInstanceOfSatisfying(ProviderResult.Unavailable.class, u ->
+                    assertThat(u.reason()).contains("busy"));
+        } finally {
+            tightRetriever.shutdown();
+        }
+    }
+
+    @Test
+    void anExpiredDeadlineReturnsUnavailableWithoutRunningTheProvider() {
+        AtomicReference<Boolean> ran = new AtomicReference<>(false);
+        AssistantProvider probe = provider("probe", () -> {
+            ran.set(true);
+            return evidence("probe");
+        });
+
+        ProviderOutcome outcome = retriever.retrieve(List.of(probe), new Question("q"), scope(), 7L, 0L).get(0);
+
+        assertThat(outcome.result()).isInstanceOf(ProviderResult.Unavailable.class);
+        assertThat(ran.get()).isFalse();
     }
 
     @Test

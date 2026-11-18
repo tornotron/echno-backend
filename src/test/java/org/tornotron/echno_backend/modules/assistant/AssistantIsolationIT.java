@@ -339,12 +339,18 @@ class AssistantIsolationIT extends AbstractIntegrationTest {
     void aMemberWhoMayNotReadAttendanceGetsNoAttendanceEvidenceButStillGetsTasks() {
         AskResponse attendance = askAs(orgA, plainMemberA, false, ATTENDANCE_QUESTION);
         AskResponse tasks = askAs(orgA, plainMemberA, false, TASK_QUESTION);
+        AskResponse both = askAs(orgA, plainMemberA, false, "Attendance and tasks at Riverside Tower");
 
         assertThat(attendance.outcome()).isEqualTo(AskOutcome.DECLINED);
         assertThat(attendance.evidence()).isEmpty();
-        assertThat(attendance.lookedFor()).singleElement().asString().contains("attendance").contains("do not have access");
+        assertThat(attendance.unavailableSources()).isEmpty();
+
         assertThat(tasks.outcome()).isEqualTo(AskOutcome.ANSWERED);
         assertThat(evidenceIds(tasks)).anyMatch(taskIdsA::contains);
+
+        assertThat(both.outcome()).isEqualTo(AskOutcome.ANSWERED);
+        assertThat(both.unavailableSources()).isEmpty();
+        assertThat(both.evidence()).isNotEmpty().allMatch(e -> e.providerId().equals("task"));
     }
 
     @Test

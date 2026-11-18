@@ -73,7 +73,7 @@ public class AttendanceProvider implements AssistantProvider {
 
     // A week is the default period and a month is the most anyone should ask for in one answer;
     // past it the evidence would not fit the model's context anyway.
-    static final int MAX_DAYS = 31;
+    public static final int MAX_DAYS = 31;
 
     // The read returns one page at a time. A provider that took only the first would silently
     // under-count a big site's day, so it walks the pages; the ceiling turns a runaway into an

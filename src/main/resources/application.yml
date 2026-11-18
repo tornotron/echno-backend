@@ -383,8 +383,11 @@ echno:
       evidence-token-budget: 4000
       provider-timeout-seconds: 8
       max-parallel: 4
+      max-queue-size: 16
     # How long a follow-up may lean on the caller's previous question's project.
     followup-window-minutes: 15
+    # Overall wall-clock deadline for one ask across interpretation, retrieval and answering.
+    ask-deadline-seconds: 30
     # Price per token in millionths of the billing currency; 0 records tokens only.
     cost:
       prompt-token-micros: 0

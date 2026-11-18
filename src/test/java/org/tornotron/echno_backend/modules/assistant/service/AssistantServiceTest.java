@@ -300,15 +300,57 @@ class AssistantServiceTest {
     }
 
     @Test
-    void aProviderThatRefusesTheCallerAlsoDegradesAndNeverRevealsTheData() {
+    void aProviderThatRefusesTheCallerIsLeftOutQuietlyAndNeverCountsAsASourceFailure() {
         task.returns(() -> {
             throw new AccessDeniedException("Access Denied");
         });
 
         AskResponse response = service.ask(new AskRequest(ASK_BOTH, null));
 
-        assertThat(response.outcome()).isEqualTo(AskOutcome.DEGRADED);
-        assertThat(response.unavailableSources()).singleElement().asString().contains("do not have access");
+        assertThat(response.outcome()).isEqualTo(AskOutcome.ANSWERED);
+        assertThat(response.unavailableSources()).isEmpty();
+        assertThat(response.evidence()).extracting(e -> e.providerId()).containsOnly("attendance");
+    }
+
+    @Test
+    void anAttendancePeriodLongerThanThirtyOneDaysAsksForClarification() {
+        AskResponse response = service.ask(new AskRequest("Attendance at Tower B from 2026-08-01 to 2026-10-01", null));
+
+        assertThat(response.outcome()).isEqualTo(AskOutcome.CLARIFY);
+        assertThat(response.clarification()).singleElement().asString().contains("31 days");
+        assertThat(attendance.calls.get()).isZero();
+        assertOneRowWith(AskOutcome.CLARIFY);
+    }
+
+    @Test
+    void aQuestionThatExceedsItsWholeAskDeadlineReturnsUnavailable() {
+        props.setAskDeadlineSeconds(1);
+        AtomicInteger llmCalls = new AtomicInteger();
+        var slowLlm = new org.tornotron.echno_backend.modules.assistant.llm.AssistantLlmClient() {
+            @Override
+            public boolean isConfigured() {
+                return true;
+            }
+
+            @Override
+            public org.tornotron.echno_backend.modules.assistant.llm.LlmResponse chat(String system, String user) {
+                llmCalls.incrementAndGet();
+                try {
+                    Thread.sleep(1_100);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                return fake.chat(system, user);
+            }
+        };
+
+        AskResponse response = build(slowLlm, attendance, task).ask(new AskRequest(ASK, null));
+
+        assertThat(response.outcome()).isEqualTo(AskOutcome.UNAVAILABLE);
+        assertThat(response.message()).contains("too long");
+        assertThat(llmCalls.get()).isEqualTo(1);
+        assertThat(attendance.calls.get()).isZero();
+        assertOneRowWith(AskOutcome.UNAVAILABLE);
     }
 
     @Test
@@ -393,7 +435,7 @@ class AssistantServiceTest {
     }
 
     @Test
-    void oneGoodFactBesideBadOnesIsAnsweredWithOnlyTheGoodOneAndOnlyItsEvidence() {
+    void oneGoodFactBesideBadOnesIsAnsweredWithOnlyTheGoodOneAndTellsThePersonSomethingWasOmitted() {
         fake.whenAnswering(ASK, "{\"statements\":["
                 + "{\"text\":\"15 workers were on site.\",\"kind\":\"fact\",\"evidenceIds\":[\"attendance:2026-10-05:project-42\"]},"
                 + "{\"text\":\"12 workers have a record on 2026-10-05.\",\"kind\":\"fact\",\"evidenceIds\":[\"attendance:2026-10-05:project-42\"]},"
@@ -405,6 +447,8 @@ class AssistantServiceTest {
         assertThat(response.outcome()).isEqualTo(AskOutcome.ANSWERED);
         assertThat(response.statements()).extracting(s -> s.kind()).containsExactly("FACT", "INFERENCE");
         assertThat(response.statements().get(0).text()).startsWith("12 workers");
+        assertThat(response.message()).contains("omitted");
+        assertThat(response.assumptions()).anyMatch(a -> a.contains("1 unsupported statement was omitted"));
     }
 
     @Test
@@ -412,6 +456,18 @@ class AssistantServiceTest {
         fake.whenAnswering(ASK, "{\"statements\":[],\"insufficient\":true}");
 
         assertThat(service.ask(new AskRequest(ASK, null)).outcome()).isEqualTo(AskOutcome.DECLINED);
+    }
+
+    @Test
+    void aModelThatMarksInsufficientTrueIsDeclinedEvenWhenItAlsoReturnsStatements() {
+        fake.whenAnswering(ASK, "{\"statements\":["
+                + "{\"text\":\"12 workers have a record on 2026-10-05.\",\"kind\":\"fact\",\"evidenceIds\":[\"attendance:2026-10-05:project-42\"]}"
+                + "],\"insufficient\":true}");
+
+        AskResponse response = service.ask(new AskRequest(ASK, null));
+
+        assertThat(response.outcome()).isEqualTo(AskOutcome.DECLINED);
+        assertThat(response.statements()).isEmpty();
     }
 
     @Test

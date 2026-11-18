@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.core.type.filter.AssignableTypeFilter;
+import org.springframework.mock.env.MockEnvironment;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.tornotron.echno_backend.attendance.AttendanceController;
@@ -81,7 +82,8 @@ class ProviderGuardParityTest {
 
     @Test
     void everyProviderInTheApplicationHasAMirrorSoANewOneCannotSkipTheCheck() {
-        ClassPathScanningCandidateComponentProvider scanner = new ClassPathScanningCandidateComponentProvider(false);
+        MockEnvironment env = new MockEnvironment().withProperty(AssistantModuleEnabled.PROPERTY, "true");
+        ClassPathScanningCandidateComponentProvider scanner = new ClassPathScanningCandidateComponentProvider(false, env);
         scanner.addIncludeFilter(new AssignableTypeFilter(AssistantProvider.class));
         Set<String> found = scanner.findCandidateComponents("org.tornotron.echno_backend")
                 .stream()

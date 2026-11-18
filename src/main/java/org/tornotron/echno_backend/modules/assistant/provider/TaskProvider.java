@@ -17,6 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Component;
+import org.tornotron.echno_backend.modules.assistant.AssistantModuleEnabled;
 import org.tornotron.echno_backend.modules.assistant.api.AssistantProvider;
 import org.tornotron.echno_backend.modules.assistant.api.CostProfile;
 import org.tornotron.echno_backend.modules.assistant.api.EvidenceUnit;
@@ -52,6 +53,7 @@ import org.tornotron.echno_backend.task.enums.TaskStatus;
  */
 @Slf4j
 @Component
+@AssistantModuleEnabled
 public class TaskProvider implements AssistantProvider {
 
     public static final String ID = "task";
@@ -60,8 +62,7 @@ public class TaskProvider implements AssistantProvider {
     public static final String READ_GUARD = "@orgSecurity.isMemberOfCurrentTenant()";
 
     // The service returns a project's whole task list and has no page to walk, so the list in the
-    // evidence is cut here; the summary still counts everything.
-    // ponytail: the cut is by relevance, overdue first; page the read if a project outgrows this.
+    // evidence is cut here (overdue first); the summary still counts everything.
     static final int MAX_LISTED = 100;
 
     private static final String STATUSES = Arrays.stream(TaskStatus.values())

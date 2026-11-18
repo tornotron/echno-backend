@@ -20,6 +20,9 @@ public class AssistantProperties {
     /** A follow-up may name the previous question only if it is younger than this. */
     private int followupWindowMinutes = 15;
 
+    /** Overall wall-clock deadline for an entire ask request across model calls and retrieval. */
+    private int askDeadlineSeconds = 30;
+
     private Cost cost = new Cost();
 
     @Data
@@ -36,6 +39,9 @@ public class AssistantProperties {
 
         /** Providers that may run at once. */
         private int maxParallel = 4;
+
+        /** Bounded queue capacity for waiting retrieval tasks before rejecting as unavailable. */
+        private int maxQueueSize = 16;
     }
 
     /** Price per token in millionths of the billing currency; zero records tokens only. */
