@@ -77,7 +77,7 @@ public class IndentController {
     @PreAuthorize("@access.can('indents', 'read')")
     @Operation(
             summary = "List all indents",
-            description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use the paginated variant for a complete result."
+            description = "Returns at most 500 rows. X-Total-Count carries the true total and X-Result-Capped is set when rows were left out; use GET /api/v1/indents/all, which pages with pageNo and pageSize, for a complete result."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Indents returned"),

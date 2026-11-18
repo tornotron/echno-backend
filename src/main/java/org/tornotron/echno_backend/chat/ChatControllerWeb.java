@@ -35,6 +35,13 @@ import java.util.List;
  * Employee-facing chat: rooms an employee belongs to and the messages within them. Every
  * endpoint requires only tenant membership (everyone in the organization can chat), with the
  * finer participant checks enforced in the service.
+ *
+ * <p>Each handler answers on two paths: the {@code /web} one the web client calls and the same
+ * path without {@code /web}, which the mobile client calls with {@code X-Organization-Id}. The
+ * other web-only modules get their mobile path from a subclass that sets the class path (#998),
+ * but here {@code /web} sits inside each handler's path and {@code /stream} has none, so a
+ * subclass would register {@code /stream} a second time. One handler on both paths keeps a single
+ * guard per operation, which is where the twin collapse (#856) is heading anyway.
  */
 @RestController
 @Validated
@@ -61,7 +68,7 @@ public class ChatControllerWeb {
         this.chatStreamService = chatStreamService;
     }
 
-    @GetMapping("/rooms/web")
+    @GetMapping({"/rooms/web", "/rooms"})
     @PreAuthorize("@access.can('chat', 'read')")
     @Operation(
             summary = "List the caller's chat rooms",
@@ -76,7 +83,7 @@ public class ChatControllerWeb {
         return new ResponseEntity<>(chatService.getRoomsForCurrentEmployee(), HttpStatus.OK);
     }
 
-    @GetMapping("/rooms/web/{id}")
+    @GetMapping({"/rooms/web/{id}", "/rooms/{id}"})
     @PreAuthorize("@access.can('chat', 'read')")
     @Operation(
             summary = "Get a chat room",
@@ -92,7 +99,7 @@ public class ChatControllerWeb {
         return new ResponseEntity<>(chatService.getRoom(id), HttpStatus.OK);
     }
 
-    @PostMapping("/rooms/web/direct")
+    @PostMapping({"/rooms/web/direct", "/rooms/direct"})
     @PreAuthorize("@access.can('chat', 'create')")
     @Operation(
             summary = "Open a direct room",
@@ -108,7 +115,7 @@ public class ChatControllerWeb {
         return new ResponseEntity<>(chatService.openDirectRoom(dto.getEmployeeId()), HttpStatus.OK);
     }
 
-    @PostMapping("/rooms/web/{roomId}/read")
+    @PostMapping({"/rooms/web/{roomId}/read", "/rooms/{roomId}/read"})
     @PreAuthorize("@access.can('chat', 'read')")
     @Operation(
             summary = "Mark a room read",
@@ -124,7 +131,7 @@ public class ChatControllerWeb {
         return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/rooms/web/{roomId}/messages")
+    @GetMapping({"/rooms/web/{roomId}/messages", "/rooms/{roomId}/messages"})
     @PreAuthorize("@access.can('chat', 'read')")
     @Operation(
             summary = "List a room's messages, paginated",
@@ -141,7 +148,7 @@ public class ChatControllerWeb {
         return new ResponseEntity<>(chatService.getMessages(roomId, pageQuery.getPageNo(), pageQuery.getPageSize()), HttpStatus.OK);
     }
 
-    @PostMapping(value = "/rooms/web/{roomId}/messages", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @PostMapping(value = {"/rooms/web/{roomId}/messages", "/rooms/{roomId}/messages"}, consumes = MediaType.APPLICATION_JSON_VALUE)
     @PreAuthorize("@access.can('chat', 'create')")
     @Operation(
             summary = "Send a message (text only)",
@@ -161,7 +168,7 @@ public class ChatControllerWeb {
                 chatService.sendMessage(roomId, dto.getContent(), dto.getReplyToId()), HttpStatus.CREATED);
     }
 
-    @PostMapping(value = "/rooms/web/{roomId}/messages", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(value = {"/rooms/web/{roomId}/messages", "/rooms/{roomId}/messages"}, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("@access.can('chat', 'create')")
     @Operation(
             summary = "Send a message with attachments",
@@ -187,7 +194,7 @@ public class ChatControllerWeb {
                 HttpStatus.CREATED);
     }
 
-    @PatchMapping("/messages/web/{id}")
+    @PatchMapping({"/messages/web/{id}", "/messages/{id}"})
     @PreAuthorize("@access.can('chat', 'edit')")
     @Operation(
             summary = "Edit a message",
@@ -204,7 +211,7 @@ public class ChatControllerWeb {
         return new ResponseEntity<>(chatService.editMessage(id, dto.getContent()), HttpStatus.OK);
     }
 
-    @PostMapping("/messages/web/{id}/reactions")
+    @PostMapping({"/messages/web/{id}/reactions", "/messages/{id}/reactions"})
     @PreAuthorize("@access.can('chat', 'create')")
     @Operation(
             summary = "Toggle a reaction",
@@ -222,7 +229,7 @@ public class ChatControllerWeb {
         return new ResponseEntity<>(chatService.toggleReaction(id, dto.getEmoji()), HttpStatus.OK);
     }
 
-    @DeleteMapping("/messages/web/{id}")
+    @DeleteMapping({"/messages/web/{id}", "/messages/{id}"})
     @PreAuthorize("@access.can('chat', 'delete')")
     @Operation(
             summary = "Delete a message",
@@ -239,7 +246,7 @@ public class ChatControllerWeb {
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping("/rooms/web/{roomId}/archive")
+    @PostMapping({"/rooms/web/{roomId}/archive", "/rooms/{roomId}/archive"})
     @PreAuthorize("@access.can('chat', 'create')")
     @Operation(
             summary = "Archive or unarchive a room",
