@@ -9,6 +9,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.util.ClassUtils;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.tornotron.echno_backend.chat.ChatController;
 import org.tornotron.echno_backend.chat.ChatControllerWeb;
 import org.tornotron.echno_backend.asset.AssetController;
 import org.tornotron.echno_backend.asset.AssetControllerWeb;
@@ -120,43 +121,48 @@ class MobilePathGuardParityTest {
     }
 
     /**
-     * Chat has no subclass: {@code /web} sits inside each handler's path and {@code /stream} has
-     * none, so a subclass would map {@code /stream} twice. Each handler instead lists both paths,
-     * and this pins that every one of them does.
+     * Chat's mobile controller calls the web one instead of extending it, since a subclass would
+     * map {@code /stream} a second time. So the pairing above cannot see it, and this checks the
+     * same thing by hand: every web handler with {@code /web} in its path has a mobile handler of
+     * the same signature on the path without it, with the same verb, media type and guard.
      */
     @Test
-    void everyChatHandlerAlsoAnswersWithoutWeb() {
-        int handlers = 0;
-        for (Method method : ChatControllerWeb.class.getDeclaredMethods()) {
-            RequestMapping mapping = AnnotatedElementUtils.findMergedAnnotation(method, RequestMapping.class);
-            if (mapping == null) {
+    void everyChatEndpointHasAMobilePathUnderTheSameGuard() throws NoSuchMethodException {
+        String prefix = "/api/v1/chat";
+        assertThat(AnnotatedElementUtils.findMergedAnnotation(ChatController.class, RequestMapping.class).path())
+                .containsExactly(prefix);
+        int compared = 0;
+        for (Method webMethod : ChatControllerWeb.class.getDeclaredMethods()) {
+            RequestMapping web = AnnotatedElementUtils.findMergedAnnotation(webMethod, RequestMapping.class);
+            if (web == null || !web.path()[0].contains("/web")) {
                 continue;
             }
-            handlers++;
-            List<String> paths = Arrays.asList(mapping.path());
-            assertThat(AnnotatedElementUtils.findMergedAnnotation(method, PreAuthorize.class))
-                    .as("ChatControllerWeb.%s carries a guard", method.getName()).isNotNull();
-            for (String path : paths) {
-                if (path.contains("/web")) {
-                    assertThat(paths).as("ChatControllerWeb.%s", method.getName())
-                            .contains(path.replaceFirst("/web(?=/|$)", ""));
-                }
-            }
+            Method mobileMethod = ChatController.class.getDeclaredMethod(webMethod.getName(), webMethod.getParameterTypes());
+            RequestMapping mobile = AnnotatedElementUtils.findMergedAnnotation(mobileMethod, RequestMapping.class);
+            String name = "ChatController." + webMethod.getName();
+
+            assertThat(mobile).as(name).isNotNull();
+            assertThat(mobile.path()).as(name).containsExactly(web.path()[0].replaceFirst("/web(?=/|$)", ""));
+            assertThat(mobile.method()).as(name).containsExactly(web.method());
+            assertThat(mobile.consumes()).as(name).containsExactly(web.consumes());
+            assertThat(mobileMethod.getAnnotation(PreAuthorize.class).value()).as(name)
+                    .isEqualTo(webMethod.getAnnotation(PreAuthorize.class).value());
+            compared++;
         }
-        assertThat(handlers).isGreaterThan(10);
+        assertThat(compared).isEqualTo(11);
     }
 
-    /** The web twin updates a line item with PATCH; the mobile one takes PATCH too, and keeps PUT. */
+    /** The web twin updates a line item with PATCH, and so does the mobile one, under the same guard. */
     @Test
     void thePurchaseOrderItemUpdateTakesTheWebVerbOnMobile() throws NoSuchMethodException {
-        Method mobile = PurchaseOrderItemController.class.getMethod("updatePurchaseOrderItem",
-                org.tornotron.echno_backend.purchaseOrderItem.dto.PurchaseOrderItemUpdateDto.class);
-        Method web = PurchaseOrderItemControllerWeb.class.getMethod("updatePurchaseOrderItem",
-                org.tornotron.echno_backend.purchaseOrderItem.dto.PurchaseOrderItemUpdateDto.class);
-        RequestMapping mobileMapping = AnnotatedElementUtils.findMergedAnnotation(mobile, RequestMapping.class);
-        RequestMapping webMapping = AnnotatedElementUtils.findMergedAnnotation(web, RequestMapping.class);
+        Class<?> dto = org.tornotron.echno_backend.purchaseOrderItem.dto.PurchaseOrderItemUpdateDto.class;
+        Method web = PurchaseOrderItemControllerWeb.class.getMethod("updatePurchaseOrderItem", dto);
+        Method mobile = PurchaseOrderItemController.class.getMethod("updatePurchaseOrderItem", dto);
 
-        assertThat(mobileMapping.method()).contains(webMapping.method()).contains(RequestMethod.PUT);
+        assertThat(AnnotatedElementUtils.findMergedAnnotation(web, RequestMapping.class).method())
+                .containsExactly(RequestMethod.PATCH);
+        assertThat(AnnotatedElementUtils.findMergedAnnotation(mobile, RequestMapping.class).method())
+                .containsExactly(RequestMethod.PATCH);
         assertThat(mobile.getAnnotation(PreAuthorize.class).value())
                 .isEqualTo(web.getAnnotation(PreAuthorize.class).value());
     }

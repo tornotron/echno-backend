@@ -192,10 +192,10 @@ public class PurchaseOrderItemController {
     }
 
     @PreAuthorize("@orgSecurity.hasAnyOrgRoleForCurrentTenant('system-admin','project-manager')")
-    @RequestMapping(method = {RequestMethod.PATCH, RequestMethod.PUT})
+    @PatchMapping
     @Operation(
             summary = "Update a purchase order item",
-            description = "Updates a line item's material, ordered quantity, unit price or remarks. The id is read from the request body. The material can only change while nothing has been received against the line. PATCH matches the web endpoint; PUT is kept for callers that already use it."
+            description = "Updates a line item's material, ordered quantity, unit price or remarks. The id is read from the request body. The material can only change while nothing has been received against the line."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Purchase order item updated"),
