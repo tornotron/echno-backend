@@ -1,5 +1,6 @@
 package org.tornotron.echno_backend.architecture;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -7,6 +8,8 @@ import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.util.ClassUtils;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.tornotron.echno_backend.chat.ChatControllerWeb;
 import org.tornotron.echno_backend.asset.AssetController;
 import org.tornotron.echno_backend.asset.AssetControllerWeb;
 import org.tornotron.echno_backend.common.controller.AttachmentController;
@@ -18,6 +21,8 @@ import org.tornotron.echno_backend.labour.LabourController;
 import org.tornotron.echno_backend.labour.LabourControllerWeb;
 import org.tornotron.echno_backend.modules.inspections.web.ChecklistTemplateController;
 import org.tornotron.echno_backend.modules.inspections.web.ChecklistTemplateControllerWeb;
+import org.tornotron.echno_backend.modules.inspections.web.ElementTypeController;
+import org.tornotron.echno_backend.modules.inspections.web.ElementTypeControllerWeb;
 import org.tornotron.echno_backend.modules.inspections.web.InspectionController;
 import org.tornotron.echno_backend.modules.inspections.web.InspectionControllerWeb;
 import org.tornotron.echno_backend.modules.inspections.web.InspectionEventController;
@@ -28,6 +33,10 @@ import org.tornotron.echno_backend.modules.inspections.web.ObservationController
 import org.tornotron.echno_backend.modules.inspections.web.ObservationControllerWeb;
 import org.tornotron.echno_backend.modules.inspections.web.ReinspectionController;
 import org.tornotron.echno_backend.modules.inspections.web.ReinspectionControllerWeb;
+import org.tornotron.echno_backend.modules.inspections.web.TradeController;
+import org.tornotron.echno_backend.modules.inspections.web.TradeControllerWeb;
+import org.tornotron.echno_backend.purchaseOrderItem.PurchaseOrderItemController;
+import org.tornotron.echno_backend.purchaseOrderItem.PurchaseOrderItemControllerWeb;
 import org.tornotron.echno_backend.receipt.ReceiptController;
 import org.tornotron.echno_backend.receipt.ReceiptControllerWeb;
 import org.tornotron.echno_backend.search.MobileSearchController;
@@ -76,7 +85,9 @@ class MobilePathGuardParityTest {
                 Arguments.of(NcrController.class, NcrControllerWeb.class),
                 Arguments.of(ObservationController.class, ObservationControllerWeb.class),
                 Arguments.of(InspectionEventController.class, InspectionEventControllerWeb.class),
-                Arguments.of(ReinspectionController.class, ReinspectionControllerWeb.class));
+                Arguments.of(ReinspectionController.class, ReinspectionControllerWeb.class),
+                Arguments.of(TradeController.class, TradeControllerWeb.class),
+                Arguments.of(ElementTypeController.class, ElementTypeControllerWeb.class));
     }
 
     /** One endpoint as a client sees it: method and path, and the guard in front of it. */
@@ -106,6 +117,48 @@ class MobilePathGuardParityTest {
             assertThat(mobileGate).as("%s declares the paywall itself", mobile.getSimpleName()).isNotNull();
             assertThat(mobileGate.feature()).isEqualTo(webGate.feature());
         }
+    }
+
+    /**
+     * Chat has no subclass: {@code /web} sits inside each handler's path and {@code /stream} has
+     * none, so a subclass would map {@code /stream} twice. Each handler instead lists both paths,
+     * and this pins that every one of them does.
+     */
+    @Test
+    void everyChatHandlerAlsoAnswersWithoutWeb() {
+        int handlers = 0;
+        for (Method method : ChatControllerWeb.class.getDeclaredMethods()) {
+            RequestMapping mapping = AnnotatedElementUtils.findMergedAnnotation(method, RequestMapping.class);
+            if (mapping == null) {
+                continue;
+            }
+            handlers++;
+            List<String> paths = Arrays.asList(mapping.path());
+            assertThat(AnnotatedElementUtils.findMergedAnnotation(method, PreAuthorize.class))
+                    .as("ChatControllerWeb.%s carries a guard", method.getName()).isNotNull();
+            for (String path : paths) {
+                if (path.contains("/web")) {
+                    assertThat(paths).as("ChatControllerWeb.%s", method.getName())
+                            .contains(path.replaceFirst("/web(?=/|$)", ""));
+                }
+            }
+        }
+        assertThat(handlers).isGreaterThan(10);
+    }
+
+    /** The web twin updates a line item with PATCH; the mobile one takes PATCH too, and keeps PUT. */
+    @Test
+    void thePurchaseOrderItemUpdateTakesTheWebVerbOnMobile() throws NoSuchMethodException {
+        Method mobile = PurchaseOrderItemController.class.getMethod("updatePurchaseOrderItem",
+                org.tornotron.echno_backend.purchaseOrderItem.dto.PurchaseOrderItemUpdateDto.class);
+        Method web = PurchaseOrderItemControllerWeb.class.getMethod("updatePurchaseOrderItem",
+                org.tornotron.echno_backend.purchaseOrderItem.dto.PurchaseOrderItemUpdateDto.class);
+        RequestMapping mobileMapping = AnnotatedElementUtils.findMergedAnnotation(mobile, RequestMapping.class);
+        RequestMapping webMapping = AnnotatedElementUtils.findMergedAnnotation(web, RequestMapping.class);
+
+        assertThat(mobileMapping.method()).contains(webMapping.method()).contains(RequestMethod.PUT);
+        assertThat(mobile.getAnnotation(PreAuthorize.class).value())
+                .isEqualTo(web.getAnnotation(PreAuthorize.class).value());
     }
 
     /**
