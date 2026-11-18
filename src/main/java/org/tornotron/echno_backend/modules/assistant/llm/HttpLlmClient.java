@@ -7,6 +7,8 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.MediaType;
@@ -14,6 +16,7 @@ import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.tornotron.echno_backend.modules.assistant.AssistantModuleEnabled;
+import org.tornotron.echno_backend.modules.assistant.AssistantProperties;
 
 /**
  * The chat call to an OpenAI-compatible endpoint, in the shape of the compliance module's
@@ -31,10 +34,12 @@ import org.tornotron.echno_backend.modules.assistant.AssistantModuleEnabled;
 public class HttpLlmClient implements AssistantLlmClient {
 
     private final AssistantLlmProperties props;
+    private final AssistantProperties assistantProps;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public HttpLlmClient(AssistantLlmProperties props) {
+    public HttpLlmClient(AssistantLlmProperties props, AssistantProperties assistantProps) {
         this.props = props;
+        this.assistantProps = assistantProps;
     }
 
     @Override
@@ -68,6 +73,76 @@ public class HttpLlmClient implements AssistantLlmClient {
             throw new LlmUnavailableException("The assistant's language model could not be reached. Try again in a moment.", e);
         }
         return read(body);
+    }
+
+    @Override
+    public List<float[]> embed(List<String> texts) {
+        if (texts == null || texts.isEmpty()) {
+            return List.of();
+        }
+        String apiKey = assistantProps.getEmbeddings().getApiKey();
+        if (apiKey == null || apiKey.isBlank()) {
+            apiKey = props.getApiKey();
+        }
+        if (apiKey == null || apiKey.isBlank()) {
+            throw new LlmUnavailableException("The assistant's embeddings endpoint is not configured.");
+        }
+        String baseUrl = assistantProps.getEmbeddings().getBaseUrl();
+        if (baseUrl == null || baseUrl.isBlank()) {
+            baseUrl = props.getBaseUrl();
+        }
+        String model = assistantProps.getEmbeddings().getModel();
+        if (model == null || model.isBlank()) {
+            model = "text-embedding-3-small";
+        }
+
+        try {
+            ObjectNode root = objectMapper.createObjectNode();
+            root.put("model", model);
+            ArrayNode inputArr = root.putArray("input");
+            for (String t : texts) {
+                inputArr.add(t);
+            }
+            String requestJson = objectMapper.writeValueAsString(root);
+
+            String responseBody = RestClient.builder()
+                    .requestFactory(requestFactory())
+                    .baseUrl(baseUrl)
+                    .build()
+                    .post()
+                    .uri("/embeddings")
+                    .header("Authorization", "Bearer " + apiKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .body(requestJson)
+                    .retrieve()
+                    .body(String.class);
+
+            JsonNode resNode = objectMapper.readTree(responseBody);
+            JsonNode dataNode = resNode.path("data");
+            if (!dataNode.isArray()) {
+                throw new LlmUnavailableException("The embeddings endpoint returned an unexpected response shape.");
+            }
+            List<float[]> embeddingsList = new ArrayList<>(texts.size());
+            for (int i = 0; i < dataNode.size(); i++) {
+                JsonNode item = dataNode.get(i);
+                JsonNode vecNode = item.path("embedding");
+                if (!vecNode.isArray()) {
+                    throw new LlmUnavailableException("Embedding item is missing an array embedding vector.");
+                }
+                float[] vec = new float[vecNode.size()];
+                for (int j = 0; j < vecNode.size(); j++) {
+                    vec[j] = (float) vecNode.get(j).asDouble();
+                }
+                embeddingsList.add(vec);
+            }
+            return embeddingsList;
+        } catch (LlmUnavailableException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Assistant embeddings call failed: {}", e.getMessage(), e);
+            throw new LlmUnavailableException("The assistant's embeddings endpoint could not be reached. Try again in a moment.", e);
+        }
     }
 
     private LlmResponse read(String body) {

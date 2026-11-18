@@ -138,6 +138,7 @@ public class AssistantService {
         final List<String> assumptions = new ArrayList<>();
         int promptTokens;
         int completionTokens;
+        int embeddingTokens;
         String model;
         String modelVersion;
         Map<String, Object> dropped;
@@ -161,6 +162,10 @@ public class AssistantService {
             completionTokens += usage.completionTokens();
             model = usage.model();
             modelVersion = usage.modelVersion();
+        }
+
+        void spendEmbeddings(int tokens) {
+            embeddingTokens += tokens;
         }
     }
 
@@ -340,7 +345,8 @@ public class AssistantService {
                                List<EvidenceDto> evidence, List<String> clarification, List<String> lookedFor,
                                List<String> unavailable) {
         long micros = run.promptTokens * props.getCost().getPromptTokenMicros()
-                + run.completionTokens * props.getCost().getCompletionTokenMicros();
+                + run.completionTokens * props.getCost().getCompletionTokenMicros()
+                + run.embeddingTokens * props.getCost().getEmbeddingTokenMicros();
 
         Map<String, Object> scope = null;
         if (run.projectId != null) {
@@ -364,8 +370,8 @@ public class AssistantService {
         long latencyMs = (System.nanoTime() - run.startedNanos) / 1_000_000;
         UUID queryId = queryLog.record(new QueryLogService.Entry(run.projectId, run.userId, run.question, scope,
                 run.providers, evidence.stream().map(EvidenceDto::id).toList(), outcome, answer,
-                run.model, run.modelVersion, run.promptTokens, run.completionTokens, micros, latencyMs));
+                run.model, run.modelVersion, run.promptTokens, run.completionTokens, run.embeddingTokens, micros, latencyMs));
         return new AskResponse(queryId, outcome, message, statements, evidence, clarification, lookedFor,
-                List.copyOf(run.assumptions), unavailable, new CostDto(run.promptTokens, run.completionTokens, micros));
+                List.copyOf(run.assumptions), unavailable, new CostDto(run.promptTokens, run.completionTokens, run.embeddingTokens, micros));
     }
 }

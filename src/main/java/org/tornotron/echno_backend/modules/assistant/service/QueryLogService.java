@@ -35,7 +35,14 @@ public class QueryLogService {
     public record Entry(Long projectId, Long userId, String question, Map<String, Object> resolvedScope,
                         List<String> providersSelected, List<String> evidenceIds, AskOutcome outcome,
                         Map<String, Object> answer, String llmModel, String llmModelVersion,
-                        int promptTokens, int completionTokens, long estimatedCostMicros, long latencyMs) {
+                        int promptTokens, int completionTokens, int embeddingTokens, long estimatedCostMicros, long latencyMs) {
+        public Entry(Long projectId, Long userId, String question, Map<String, Object> resolvedScope,
+                     List<String> providersSelected, List<String> evidenceIds, AskOutcome outcome,
+                     Map<String, Object> answer, String llmModel, String llmModelVersion,
+                     int promptTokens, int completionTokens, long estimatedCostMicros, long latencyMs) {
+            this(projectId, userId, question, resolvedScope, providersSelected, evidenceIds, outcome, answer,
+                    llmModel, llmModelVersion, promptTokens, completionTokens, 0, estimatedCostMicros, latencyMs);
+        }
     }
 
     private final AssistantQueryLogRepository repository;
@@ -70,6 +77,7 @@ public class QueryLogService {
         row.setLlmModelVersion(entry.llmModelVersion());
         row.setPromptTokens(entry.promptTokens());
         row.setCompletionTokens(entry.completionTokens());
+        row.setEmbeddingTokens(entry.embeddingTokens());
         row.setEstimatedCostMicros(entry.estimatedCostMicros());
         row.setLatencyMs(entry.latencyMs());
         return repository.save(row).getId();
