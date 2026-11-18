@@ -247,7 +247,7 @@
           "allocatedAmount": {
             "description": "Amount to apply to this invoice. Must be greater than zero.",
             "example": 12000.0,
-            "minimum": 0.0001,
+            "minimum": 1.0E-4,
             "type": "number"
           },
           "invoiceId": {
@@ -2265,7 +2265,7 @@
           },
           "totalAssets": {
             "description": "Sum of all asset account balances.",
-            "example": 18500000.0,
+            "example": 1.85E7,
             "type": "number"
           },
           "totalEquity": {
@@ -2280,7 +2280,7 @@
           },
           "totalLiabilitiesAndEquity": {
             "description": "Sum of total liabilities and total equity, expected to equal total assets.",
-            "example": 18500000.0,
+            "example": 1.85E7,
             "type": "number"
           }
         },
@@ -6894,7 +6894,7 @@
           "quantity": {
             "description": "Quantity billed.",
             "example": 12.5,
-            "minimum": 0.0001,
+            "minimum": 1.0E-4,
             "type": "number"
           },
           "taskId": {
@@ -13783,7 +13783,7 @@
           "quantity": {
             "description": "Quantity billed. Must be greater than zero.",
             "example": 10,
-            "minimum": 0.0001,
+            "minimum": 1.0E-4,
             "type": "number"
           },
           "revenueAccountId": {
@@ -17752,7 +17752,7 @@
           },
           "totalStockValue": {
             "description": "The value of the stock on hand, summed over every balance row in scope at its running weighted-average cost. Zero when nothing is held.",
-            "example": 50148300.0,
+            "example": 5.01483E7,
             "type": "number"
           },
           "unvaluedHoldingCount": {
@@ -26424,7 +26424,7 @@
           "amount": {
             "description": "Total amount received. Must be greater than zero.",
             "example": 20000.0,
-            "minimum": 0.0001,
+            "minimum": 1.0E-4,
             "type": "number"
           },
           "companyBankAccountId": {
@@ -31428,12 +31428,12 @@
           },
           "totalCredit": {
             "description": "Sum of credit balances across all accounts.",
-            "example": 18500000.0,
+            "example": 1.85E7,
             "type": "number"
           },
           "totalDebit": {
             "description": "Sum of debit balances across all accounts.",
-            "example": 18500000.0,
+            "example": 1.85E7,
             "type": "number"
           }
         },
@@ -36750,7 +36750,7 @@
     "/api/v1/assistant/ask": {
       "post": {
         "description": "Answers from the organization's own records, as the caller: only what the caller may read reaches the answer. The outcome says whether it is an answer, a question back, a decline that names what was looked for, an answer missing some sources, or unavailable.",
-        "operationId": "ask_1",
+        "operationId": "AssistantController_ask",
         "requestBody": {
           "content": {
             "application/json": {
@@ -36861,7 +36861,7 @@
     },
     "/api/v1/assistant/queries": {
       "get": {
-        "operationId": "queries_1",
+        "operationId": "AssistantController_queries",
         "parameters": [
           {
             "description": "Zero-based page index.",
@@ -36992,7 +36992,7 @@
     "/api/v1/assistant/web/ask": {
       "post": {
         "description": "Answers from the organization's own records, as the caller: only what the caller may read reaches the answer. The outcome says whether it is an answer, a question back, a decline that names what was looked for, an answer missing some sources, or unavailable.",
-        "operationId": "ask",
+        "operationId": "AssistantControllerWeb_ask",
         "requestBody": {
           "content": {
             "application/json": {
@@ -37104,7 +37104,7 @@
     "/api/v1/assistant/web/audit": {
       "get": {
         "description": "The audit trail: who asked what, which sources were read, how it ended and what it cost.",
-        "operationId": "audit",
+        "operationId": "AssistantControllerWeb_audit",
         "parameters": [
           {
             "description": "Zero-based page index.",
@@ -37234,7 +37234,7 @@
     },
     "/api/v1/assistant/web/queries": {
       "get": {
-        "operationId": "queries",
+        "operationId": "AssistantControllerWeb_queries",
         "parameters": [
           {
             "description": "Zero-based page index.",
@@ -173238,7 +173238,7 @@
   },
   "security": [
     {
-      "bearerAuth": []
+      "bearerAuth": [ ]
     }
   ],
   "servers": [
