@@ -61,7 +61,7 @@ public class AttendanceProvider implements AssistantProvider {
     public static final String READ_GUARD = "@attendanceSecurity.canManageRecords()";
 
     /**
-     * Statuses counted in {@code onSiteCount} per product confirmation: {@code PRESENT},
+     * Statuses counted in {@code onSiteCount} (default until product confirms): {@code PRESENT},
      * {@code HALF_DAY}, {@code LATE}, {@code EARLY_CHECKOUT}, and {@code OVERTIME}.
      */
     static final Set<AttendanceStatus> ON_SITE_STATUSES = Collections.unmodifiableSet(EnumSet.of(
