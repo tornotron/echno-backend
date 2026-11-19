@@ -30,10 +30,12 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.tornotron.echno_backend.attendance.Attendance;
 import org.tornotron.echno_backend.attendance.enums.ApprovalStatus;
 import org.tornotron.echno_backend.attendance.enums.AttendanceStatus;
+import org.tornotron.echno_backend.common.entity.Attachment;
 import org.tornotron.echno_backend.common.multitenancy.TenantContext;
 import org.tornotron.echno_backend.common.service.OrgRoleAuthority;
 import org.tornotron.echno_backend.employee.Employee;
 import org.tornotron.echno_backend.employee.enums.EmployeeStatus;
+import org.tornotron.echno_backend.modules.assistant.domain.AssistantDocumentUnit;
 import org.tornotron.echno_backend.modules.assistant.api.AssistantProvider;
 import org.tornotron.echno_backend.modules.assistant.api.CostProfile;
 import org.tornotron.echno_backend.modules.assistant.api.FieldSpec;
@@ -86,28 +88,6 @@ class AssistantIsolationIT extends AbstractIntegrationTest {
     private static final int A_RECORDS = 12;
     private static final int B_RECORDS = 31;
 
-    /** Stands in for the document provider, which arrives with ingestion: always finds nothing. */
-    @TestConfiguration
-    static class DocumentStub {
-        @Bean
-        AssistantProvider documentStub() {
-            ProviderDescriptor descriptor = new ProviderDescriptor("document", "Passages of uploaded documents.",
-                    List.of(new FieldSpec("passage", "text", "A passage of an uploaded document.")),
-                    Set.of(Subject.DOCUMENT), false, false, new CostProfile(1, 0));
-            return new AssistantProvider() {
-                @Override
-                public ProviderDescriptor describe() {
-                    return descriptor;
-                }
-
-                @Override
-                public ProviderResult retrieve(Question question, Scope scope) {
-                    return new ProviderResult.Empty("documents of project " + scope.projectId());
-                }
-            };
-        }
-    }
-
     @Autowired
     private AssistantService service;
 
@@ -132,6 +112,8 @@ class AssistantIsolationIT extends AbstractIntegrationTest {
     private Long projectA;
     private Long projectB;
     private Long secretProjectB;
+    private Long attachmentA;
+    private Long attachmentB;
     private String managerA;
     private String managerB;
     private String plainMemberA;
@@ -173,6 +155,18 @@ class AssistantIsolationIT extends AbstractIntegrationTest {
             taskIdsB.add("task:" + persistTask(b, projectB, creatorB, "B task: shuttering", TaskStatus.onGoing, 10.0).getId());
             taskIdsB.add("task:" + persistTask(b, projectB, creatorB, "B task: rebar", TaskStatus.upcoming, 0.0).getId());
             taskIdsB.add("task:" + persistTask(b, projectB, creatorB, "B task: backfill", TaskStatus.onHold, 20.0).getId());
+
+            attachmentA = persistAttachment(a, projectA, "org-a-foundation-spec.pdf").getId();
+            attachmentB = persistAttachment(b, projectB, "org-b-foundation-spec.pdf").getId();
+
+            persistDocumentUnit(a, projectA, attachmentA,
+                    "Foundation specification for Org A Riverside Tower: 1.5m raft foundation.",
+                    "hashA",
+                    fake.embed("What do the documents say about the raft at Riverside Tower?"));
+            persistDocumentUnit(b, projectB, attachmentB,
+                    "Foundation specification for Org B Riverside Tower: 3.0m deep pile foundation.",
+                    "hashB",
+                    fake.embed("What do the documents say about the raft at Riverside Tower?"));
         });
     }
 
@@ -185,6 +179,8 @@ class AssistantIsolationIT extends AbstractIntegrationTest {
             return;
         }
         inCommittedTx(() -> {
+            deleteForOrgs("DELETE FROM assistant_document_unit WHERE organization_id IN (:a,:b)");
+            deleteForOrgs("DELETE FROM attachment WHERE organization_id IN (:a,:b)");
             deleteForOrgs("DELETE FROM assistant_query_log WHERE organization_id IN (:a,:b)");
             deleteForOrgs("DELETE FROM task WHERE organization_id IN (:a,:b)");
             deleteForOrgs("DELETE FROM attendance WHERE organization_id IN (:a,:b)");
@@ -362,17 +358,41 @@ class AssistantIsolationIT extends AbstractIntegrationTest {
         assertThat(response.outcome()).isIn(AskOutcome.CLARIFY, AskOutcome.DECLINED);
     }
 
-    // ---- the document provider, stubbed
+    // ---- the document provider, real ingested documents
 
     @Test
-    void aDocumentQuestionMeetsTheStubAndIsDeclinedNamingWhatWasLookedFor() {
+    void theSameDocumentQuestionAnswersEachOrganizationFromItsOwnDocumentsOnly() throws Exception {
         fake.whenInterpreting("What do the documents say about the raft at Riverside Tower?",
                 "{\"subjects\":[\"DOCUMENT\"],\"projectRef\":\"Riverside Tower\",\"ambiguous\":[]}");
 
         AskResponse forA = askAs(orgA, managerA, true, "What do the documents say about the raft at Riverside Tower?");
+        AskResponse forB = askAs(orgB, managerB, true, "What do the documents say about the raft at Riverside Tower?");
+
+        assertThat(forA.outcome()).isEqualTo(AskOutcome.ANSWERED);
+        assertThat(forB.outcome()).isEqualTo(AskOutcome.ANSWERED);
+
+        assertThat(forA.evidence()).hasSize(1);
+        assertThat(forB.evidence()).hasSize(1);
+        assertThat(forA.evidence().get(0).values()).containsEntry("content", "Foundation specification for Org A Riverside Tower: 1.5m raft foundation.")
+                .containsEntry("attachmentId", attachmentA);
+        assertThat(forB.evidence().get(0).values()).containsEntry("content", "Foundation specification for Org B Riverside Tower: 3.0m deep pile foundation.")
+                .containsEntry("attachmentId", attachmentB);
+
+        String forAText = json.writeValueAsString(forA);
+        String forBText = json.writeValueAsString(forB);
+        assertThat(forAText).contains("1.5m raft foundation").doesNotContain("pile foundation");
+        assertThat(forBText).contains("pile foundation").doesNotContain("1.5m raft foundation");
+    }
+
+    @Test
+    void aDocumentQuestionWhenProjectHasNoMatchingDocumentsIsDeclinedNamingWhatWasLookedFor() {
+        fake.whenInterpreting("What do the documents say about unindexed details at Riverside Tower?",
+                "{\"subjects\":[\"DOCUMENT\"],\"projectRef\":\"Riverside Tower\",\"ambiguous\":[]}");
+
+        AskResponse forA = askAs(orgA, managerA, true, "What do the documents say about unindexed details at Riverside Tower?");
 
         assertThat(forA.outcome()).isEqualTo(AskOutcome.DECLINED);
-        assertThat(forA.lookedFor()).singleElement().asString().isEqualTo("document: documents of project " + projectA);
+        assertThat(forA.lookedFor()).singleElement().asString().contains("documents matching");
         assertThat(forA.evidence()).isEmpty();
     }
 
@@ -501,6 +521,39 @@ class AssistantIsolationIT extends AbstractIntegrationTest {
         entityManager.persist(task);
         entityManager.flush();
         return task;
+    }
+
+    private Attachment persistAttachment(Organization org, Long projectId, String filename) {
+        Attachment attachment = new Attachment();
+        attachment.setEntityType("PROJECT");
+        attachment.setEntityId(projectId);
+        attachment.setStorageKey("org-" + org.getId() + "/docs/" + runTag + "/" + filename);
+        attachment.setUrl("https://cdn.echno.internal/org-" + org.getId() + "/docs/" + filename);
+        attachment.setOriginalFilename(filename);
+        attachment.setContentType("application/pdf");
+        attachment.setFileSize(1024L);
+        attachment.setOrganization(org);
+        entityManager.persist(attachment);
+        entityManager.flush();
+        return attachment;
+    }
+
+    private AssistantDocumentUnit persistDocumentUnit(Organization org, Long projectId, Long attachmentId,
+                                                      String content, String hash, float[] embedding) {
+        AssistantDocumentUnit unit = new AssistantDocumentUnit();
+        unit.setOrganization(org);
+        unit.setProjectId(projectId);
+        unit.setAttachmentId(attachmentId);
+        unit.setPageNo(1);
+        unit.setCharStart(0);
+        unit.setCharEnd(content.length());
+        unit.setContent(content);
+        unit.setContentHash(hash);
+        unit.setEmbedding(embedding);
+        unit.setEmbeddingModel("fake");
+        entityManager.persist(unit);
+        entityManager.flush();
+        return unit;
     }
 
     private void deleteForOrgs(String sql) {

@@ -21,7 +21,16 @@ public record QueryLogDto(
         String llmModelVersion,
         int promptTokens,
         int completionTokens,
+        int embeddingTokens,
         long estimatedCostMicros,
         long latencyMs,
         Instant createdAt
-) {}
+) {
+    public QueryLogDto(UUID id, Long userId, Long projectId, String question, AskOutcome outcome,
+                       Map<String, Object> answer, List<String> providersSelected, List<String> evidenceIds,
+                       String llmModel, String llmModelVersion, int promptTokens, int completionTokens,
+                       long estimatedCostMicros, long latencyMs, Instant createdAt) {
+        this(id, userId, projectId, question, outcome, answer, providersSelected, evidenceIds,
+                llmModel, llmModelVersion, promptTokens, completionTokens, 0, estimatedCostMicros, latencyMs, createdAt);
+    }
+}

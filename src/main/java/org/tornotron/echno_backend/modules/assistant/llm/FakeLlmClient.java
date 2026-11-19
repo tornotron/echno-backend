@@ -39,6 +39,10 @@ public class FakeLlmClient implements AssistantLlmClient {
     private static final Pattern ATTENDANCE_WORDS =
             Pattern.compile("(?i)attendance|on site|present|headcount|workers|turned up|absent");
     private static final Pattern TASK_WORDS = Pattern.compile("(?i)\\btasks?\\b|overdue|progress|behind");
+    private static final Pattern MATERIAL_WORDS =
+            Pattern.compile("(?i)\\b(materials?|stock|inventory|cement|steel|sand|reorder|quantity|aggregate)\\b");
+    private static final Pattern DOCUMENT_WORDS =
+            Pattern.compile("(?i)\\b(documents?|contracts?|specifications?|specs?|drawings?|boq|plans?|clause|attached|chunks?)\\b");
     private static final Pattern MULTI_STEP = Pattern.compile("(?i)\\b(and then|compare|after that)\\b");
     private static final Pattern PROJECT =
             Pattern.compile("(?i:\\b(?:at|for|on|in)\\s+(?:project\\s+)?)([A-Z0-9][\\w\\-]*(?:\\s+[A-Z0-9][\\w\\-]*)*)");
@@ -48,6 +52,7 @@ public class FakeLlmClient implements AssistantLlmClient {
 
     private final Map<String, String> interpretations = new ConcurrentHashMap<>();
     private final Map<String, String> answers = new ConcurrentHashMap<>();
+    private final Map<String, float[]> embeddings = new ConcurrentHashMap<>();
     private volatile LlmUnavailableException failure;
 
     /** Replies to the interpreting call for exactly this question with this JSON. */
@@ -60,6 +65,11 @@ public class FakeLlmClient implements AssistantLlmClient {
         answers.put(question, json);
     }
 
+    /** Replies to the embedding call for exactly this text with this vector. */
+    public void whenEmbedding(String text, float[] vector) {
+        embeddings.put(text, vector);
+    }
+
     /** Makes every call fail as an unreachable model would. */
     public void failWith(LlmUnavailableException e) {
         this.failure = e;
@@ -69,6 +79,7 @@ public class FakeLlmClient implements AssistantLlmClient {
     public void reset() {
         interpretations.clear();
         answers.clear();
+        embeddings.clear();
         failure = null;
     }
 
@@ -93,6 +104,54 @@ public class FakeLlmClient implements AssistantLlmClient {
         return new LlmResponse(content, (system.length() + user.length()) / 4, content.length() / 4, "fake", "1");
     }
 
+    @Override
+    public List<float[]> embed(List<String> texts) {
+        LlmUnavailableException failing = failure;
+        if (failing != null) {
+            throw failing;
+        }
+        if (texts == null) {
+            return List.of();
+        }
+        List<float[]> out = new ArrayList<>(texts.size());
+        for (String text : texts) {
+            float[] canned = embeddings.get(text);
+            if (canned != null) {
+                out.add(canned);
+            } else {
+                out.add(deterministicVector(text, 1024));
+            }
+        }
+        return out;
+    }
+
+    public static float[] deterministicVector(String text, int dim) {
+        float[] v = new float[dim];
+        if (text == null || text.isBlank()) {
+            v[0] = 1.0f;
+            return v;
+        }
+        long seed = 0;
+        for (int i = 0; i < text.length(); i++) {
+            seed = 31 * seed + Character.toLowerCase(text.charAt(i));
+        }
+        java.util.Random rnd = new java.util.Random(seed);
+        double sumSq = 0.0;
+        for (int i = 0; i < dim; i++) {
+            v[i] = (float) rnd.nextGaussian();
+            sumSq += v[i] * v[i];
+        }
+        float norm = (float) Math.sqrt(sumSq);
+        if (norm > 0) {
+            for (int i = 0; i < dim; i++) {
+                v[i] /= norm;
+            }
+        } else {
+            v[0] = 1.0f;
+        }
+        return v;
+    }
+
     private static String interpret(String question) {
         List<String> subjects = new ArrayList<>();
         if (ATTENDANCE_WORDS.matcher(question).find()) {
@@ -100,6 +159,12 @@ public class FakeLlmClient implements AssistantLlmClient {
         }
         if (TASK_WORDS.matcher(question).find()) {
             subjects.add("TASK");
+        }
+        if (MATERIAL_WORDS.matcher(question).find()) {
+            subjects.add("MATERIAL");
+        }
+        if (DOCUMENT_WORDS.matcher(question).find()) {
+            subjects.add("DOCUMENT");
         }
         Matcher project = PROJECT.matcher(question);
         String projectRef = project.find() ? project.group(1) : null;
@@ -116,7 +181,7 @@ public class FakeLlmClient implements AssistantLlmClient {
         }
 
         String ambiguous = subjects.isEmpty()
-                ? "[\"I could not tell what you want to know. Ask about attendance or tasks.\"]" : "[]";
+                ? "[\"I could not tell what you want to know. Ask about attendance, tasks, materials, or documents.\"]" : "[]";
         return "{\"intent\":\"" + String.join("+", subjects).toLowerCase() + "\","
                 + "\"subjects\":" + quoted(subjects) + ","
                 + "\"projectRef\":" + (projectRef == null ? "null" : "\"" + projectRef + "\"") + ","

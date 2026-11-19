@@ -246,6 +246,28 @@ class AnswerValidatorTest {
         assertThat(result.droppedNumbers()).isEqualTo(2);
     }
 
+    @Test
+    void numbersInsideDocumentExcerptsAreValidQuantities() {
+        EvidenceUnit docChunk = unit("doc:55:1", Map.of(
+                "content", "Foundation specification for Riverside Tower: 1.5m raft foundation.",
+                "attachmentId", 55L,
+                "pageNo", 1));
+        ProviderDescriptor docDescriptor = new ProviderDescriptor("document", "documents",
+                List.of(
+                        new FieldSpec("content", "excerpt", "text excerpt"),
+                        new FieldSpec("attachmentId", "id", "attachment id"),
+                        new FieldSpec("pageNo", "page", "page number")),
+                Set.of(Subject.DOCUMENT), false, false, new CostProfile(1, 0));
+
+        var result = validator.validate(
+                List.of(fact("1.5m raft foundation is specified.", docChunk.id())),
+                List.of(docChunk),
+                List.of(docDescriptor));
+
+        assertThat(result.facts()).hasSize(1);
+        assertThat(result.droppedNumbers()).isZero();
+    }
+
     private static ProviderDescriptor attendanceDescriptor() {
         return new ProviderDescriptor("attendance", "attendance",
                 List.of(

@@ -25,6 +25,10 @@ public class AssistantProperties {
 
     private Cost cost = new Cost();
 
+    private Embeddings embeddings = new Embeddings();
+
+    private Ingest ingest = new Ingest();
+
     @Data
     public static class Retrieval {
 
@@ -42,6 +46,12 @@ public class AssistantProperties {
 
         /** Bounded queue capacity for waiting retrieval tasks before rejecting as unavailable. */
         private int maxQueueSize = 16;
+
+        /** Maximum chunks to retrieve from vector search. */
+        private int documentK = 8;
+
+        /** Maximum cosine/L2 distance threshold for document chunks to be accepted. */
+        private double documentMaxDistance = 0.35;
     }
 
     /** Price per token in millionths of the billing currency; zero records tokens only. */
@@ -51,5 +61,29 @@ public class AssistantProperties {
         private long promptTokenMicros = 0;
 
         private long completionTokenMicros = 0;
+
+        private long embeddingTokenMicros = 0;
+    }
+
+    @Data
+    public static class Embeddings {
+
+        private String baseUrl = "https://inference.do-ai.run/v1";
+
+        private String apiKey = "";
+
+        private String model = "";
+
+        private int dimension = 1024;
+
+        private int batchSize = 32;
+    }
+
+    @Data
+    public static class Ingest {
+
+        private int targetChunkSize = 800;
+
+        private int chunkOverlap = 100;
     }
 }

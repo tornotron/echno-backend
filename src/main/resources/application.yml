@@ -378,12 +378,23 @@ echno:
       # Optional forward proxy; the lab nodes reach the internet only through one.
       proxy-host: ${ASSISTANT_LLM_PROXY_HOST:}
       proxy-port: ${ASSISTANT_LLM_PROXY_PORT:3128}
+    embeddings:
+      base-url: ${ASSISTANT_EMBEDDINGS_BASE_URL:https://inference.do-ai.run/v1}
+      api-key: ${ASSISTANT_EMBEDDINGS_API_KEY:}
+      model: ${ASSISTANT_EMBEDDINGS_MODEL:}
+      dimension: ${ASSISTANT_EMBEDDINGS_DIMENSION:1024}
+      batch-size: 32
     retrieval:
       units-per-provider: 20
       evidence-token-budget: 4000
       provider-timeout-seconds: 8
       max-parallel: 4
       max-queue-size: 16
+      document-k: 8
+      document-max-distance: 0.35
+    ingest:
+      target-chunk-size: 800
+      chunk-overlap: 100
     # How long a follow-up may lean on the caller's previous question's project.
     followup-window-minutes: 15
     # Overall wall-clock deadline for one ask across interpretation, retrieval and answering.
@@ -392,6 +403,7 @@ echno:
     cost:
       prompt-token-micros: 0
       completion-token-micros: 0
+      embedding-token-micros: 0
   modules:
     # Operator kill switches, one per installed module (echno.modules.<id>.enabled, default on).
     # Off hides the module from /api/v1/modules/web/enabled for every organization and, for
