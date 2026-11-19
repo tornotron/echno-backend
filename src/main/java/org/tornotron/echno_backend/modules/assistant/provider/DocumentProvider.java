@@ -57,7 +57,7 @@ public class DocumentProvider implements AssistantProvider {
                 ID,
                 "Answers questions from uploaded project documents, contracts, specifications, and plans using semantic vector search.",
                 List.of(
-                        new FieldSpec("content", "text", "The matching text excerpt from the document."),
+                        new FieldSpec("content", "excerpt", "The matching text excerpt from the document."),
                         new FieldSpec("attachmentId", "id", "The attachment id of the source document."),
                         new FieldSpec("pageNo", "page", "1-based page number where the excerpt appears."),
                         new FieldSpec("charStart", "offset", "Start character index on the page."),

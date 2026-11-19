@@ -186,7 +186,7 @@ public class AnswerValidator {
             String lower = fieldName.toLowerCase(Locale.ROOT);
             if (lower.equals("id") || lower.endsWith("id") || lower.endsWith("_id")
                     || lower.equals("date") || lower.endsWith("date")
-                    || lower.equals("title") || lower.equals("content")) {
+                    || lower.equals("title")) {
                 return false;
             }
         }
